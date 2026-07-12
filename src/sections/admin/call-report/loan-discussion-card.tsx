@@ -28,7 +28,7 @@ import {
 
 // ----------------------------------------------------------------------
 
-function ChipToggleGroup<T extends string>({
+export function ChipToggleGroup<T extends string>({
   options,
   selected,
   onToggle,
