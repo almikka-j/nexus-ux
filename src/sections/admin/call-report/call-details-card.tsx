@@ -27,14 +27,16 @@ function RadioRow<T extends string>({
   value,
   options,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: T | '';
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
+  disabled?: boolean;
 }) {
   return (
-    <FormControl>
+    <FormControl disabled={disabled}>
       <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 0.75 }}>
         {label}
       </Typography>
@@ -49,6 +51,7 @@ function RadioRow<T extends string>({
             value={option.value}
             control={<Radio size="small" />}
             label={<Typography sx={{ fontSize: 13.5 }}>{option.label}</Typography>}
+            disabled={disabled}
           />
         ))}
       </RadioGroup>
