@@ -404,3 +404,8 @@ export const cardSx = {
   border: '1px solid #EBEDF3',
   boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
 };
+
+export function labelFor<T extends string>(options: Option<T>[], value: T | ''): string | null {
+  if (!value) return null;
+  return options.find((option) => option.value === value)?.label ?? null;
+}
