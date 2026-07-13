@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import { useAdmin } from 'src/auth/admin-context';
 import type { OfficerObservationItem } from 'src/auth/admin-context';
 
-import { ChipToggleGroup } from './loan-discussion-card';
+import { ChipToggleGroup } from './call-details-card';
 import {
   cardSx,
   fieldSx,
@@ -34,7 +34,7 @@ export function OfficerObservationCard() {
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        8. Officer Observation
+        Officer Observation
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
         Select everything that applies to how this call went.
@@ -64,11 +64,11 @@ export function OfficerObservationCard() {
         </Box>
 
         <TextField
-          label="Additional Observation Notes"
+          label="Observation Notes"
           multiline
           minRows={2}
-          value={callReport.additionalObservationNotes}
-          onChange={(event) => setCallReport({ additionalObservationNotes: event.target.value })}
+          value={callReport.observationNotes}
+          onChange={(event) => setCallReport({ observationNotes: event.target.value })}
           sx={fieldSx}
         />
       </Stack>

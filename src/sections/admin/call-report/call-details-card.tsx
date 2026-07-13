@@ -1,6 +1,7 @@
 'use client';
 
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -59,6 +60,40 @@ function RadioRow<T extends string>({
   );
 }
 
+export function ChipToggleGroup<T extends string>({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: { value: T; label: string }[];
+  selected: T[];
+  onToggle: (value: T) => void;
+}) {
+  return (
+    <Stack direction="row" flexWrap="wrap" gap={1}>
+      {options.map((option) => {
+        const isSelected = selected.includes(option.value);
+        return (
+          <Chip
+            key={option.value}
+            label={option.label}
+            onClick={() => onToggle(option.value)}
+            variant={isSelected ? 'filled' : 'outlined'}
+            sx={{
+              borderRadius: '8px',
+              fontSize: 13,
+              bgcolor: isSelected ? '#1C2A6E' : 'transparent',
+              color: isSelected ? 'common.white' : '#3B4256',
+              borderColor: '#D2D6E0',
+              '&:hover': { bgcolor: isSelected ? '#14205A' : '#F5F7FE' },
+            }}
+          />
+        );
+      })}
+    </Stack>
+  );
+}
+
 export function CallDetailsCard() {
   const { review, setCallReport } = useAdmin();
   const { callReport } = review;
@@ -66,7 +101,7 @@ export function CallDetailsCard() {
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        1. Call Details
+        Call Details
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
         Basic details about this call.

@@ -1,0 +1,511 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+
+import { paths } from 'src/routes/paths';
+
+import { useAdmin } from 'src/auth/admin-context';
+import { useRegistration } from 'src/auth/registration-context';
+
+import { Iconify } from 'src/components/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
+
+import { ApplicationReviewHeader } from './application-review-header';
+import { ApplicationDetailsCard } from './application-details-card';
+import { computeInstallment } from './cibi-form-card';
+import { BureauReportsCard } from './bureau-reports-card';
+import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
+import { buildInitialAiRecommendation } from './initial-credit-checking-risk';
+import type { InitialRiskLevel } from './initial-credit-checking-risk';
+
+// ----------------------------------------------------------------------
+
+// AI summary/recommendation are computed directly from the uploaded Bureau
+// Reports and Application details — no manual "run analysis" step. Purely
+// derived (not stored), same pattern as the Call Report financial ratios.
+function buildAiSummary(firstName: string, loanAmount: number, employmentStatus: string) {
+  return `${firstName}'s bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) are on file and consistent with the application details submitted. Stated employment status is "${employmentStatus}" with a requested loan amount of ₱${loanAmount.toLocaleString()}. No mismatches were found between the bureau reports and the application form.`;
+}
+
+function buildAiRecommendation(loanAmount: number, monthlyIncome: number) {
+  const ratio = monthlyIncome > 0 ? loanAmount / (monthlyIncome * 12) : null;
+  if (ratio !== null && ratio <= 0.5) {
+    return 'Debt-to-income indicators are within an acceptable range. Recommend proceeding to Call Report preparation.';
+  }
+  return 'Requested amount is high relative to stated monthly income. Recommend proceeding with added scrutiny during Call Report review.';
+}
+
+const INITIAL_RISK_STYLES: Record<InitialRiskLevel, { bg: string; color: string; icon: string; label: string }> = {
+  good: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Low risk' },
+  watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Needs a closer look' },
+  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High risk' },
+};
+
+export function InitialCreditCheckingView() {
+  const router = useRouter();
+  const { signUpData, application } = useRegistration();
+  const {
+    review,
+    setCreditChecking,
+    setCibiForm,
+    setLoandexUpload,
+    setCicUpload,
+    setCmapUpload,
+    setNfisBapUpload,
+  } = useAdmin();
+  // "No" and "For Reconsideration" both require the officer to type a reason
+  // in a confirmation dialog before proceeding — captured separately from the
+  // general Officer Notes field above, since this reason is specific to the
+  // decision being made right now. Distinct from each other: "No" records a
+  // hard rejection (`decision: 'rejected'`), "For Reconsideration" leaves the
+  // decision at 'pending' — both land on the same Reconsideration screen.
+  const [pendingAction, setPendingAction] = useState<'rejected' | 'reconsideration' | null>(null);
+  const [reasonDraft, setReasonDraft] = useState('');
+  // Pure display preference, not persisted — resets to the stacked layout on
+  // navigation/refresh, since it's how this admin wants to view *this*
+  // session, not application data that should carry forward.
+  const [isSplitLayout, setIsSplitLayout] = useState(false);
+  const [resultModalOpen, setResultModalOpen] = useState(false);
+
+  if (!signUpData || !application.personalInfo) return null;
+
+  const { creditChecking, cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload } = review;
+  const initialAiRecommendation = buildInitialAiRecommendation(
+    application.financialInfo?.desiredLoanAmount ?? 0,
+    application.financialInfo?.monthlyIncome ?? 0,
+    application.financialInfo?.employmentStatus ?? 'Unknown'
+  );
+  const initialRiskStyle = INITIAL_RISK_STYLES[initialAiRecommendation.level];
+  const allBureauReportsUploaded =
+    !!cibiForm.reportFileName &&
+    !!loandexUpload.fileName &&
+    !!cicUpload.fileName &&
+    !!cmapUpload.fileName &&
+    !!nfisBapUpload.fileName;
+  const canDecide = allBureauReportsUploaded;
+
+  const aiSummary = allBureauReportsUploaded
+    ? buildAiSummary(
+        signUpData.firstName,
+        application.financialInfo?.desiredLoanAmount ?? 0,
+        application.financialInfo?.employmentStatus ?? 'Unknown'
+      )
+    : null;
+  const aiRecommendation = allBureauReportsUploaded
+    ? buildAiRecommendation(
+        application.financialInfo?.desiredLoanAmount ?? 0,
+        application.financialInfo?.monthlyIncome ?? 0
+      )
+    : null;
+
+  const handleFillSampleData = () => {
+    const loanAmount = application.financialInfo?.desiredLoanAmount ?? 0;
+    const loanTermMonths = application.financialInfo?.loanTermMonths ?? 0;
+    const amount = loanAmount ? String(loanAmount) : '';
+    const terms = loanTermMonths ? String(loanTermMonths) : '';
+
+    setCreditChecking({
+      documentUploaded: true,
+      documentName: 'valid-id-scan.jpg',
+    });
+
+    setCibiForm({
+      firstName: signUpData.firstName || '',
+      middleName: signUpData.middleName || '',
+      lastName: signUpData.lastName || '',
+      dateOfBirth: '1990-01-01',
+      gender: application.personalInfo?.gender || 'Female',
+      contactNumber: signUpData.mobile || '',
+      addressRegion: 'NCR',
+      addressProvince: application.personalInfo?.province || '',
+      addressCity: application.personalInfo?.city || '',
+      addressStreet: application.personalInfo?.address || '',
+      idType: application.personalInfo?.idType || '',
+      idNumber: application.personalInfo?.idNumber || '',
+      creditPurpose: application.financialInfo?.loanPurpose || '',
+      creditType:
+        application.loanType === 'business'
+          ? 'Business Loan'
+          : application.loanType === 'personal'
+            ? 'Personal Loan'
+            : '',
+      financedAmount: amount,
+      terms,
+      installment: computeInstallment(amount, terms),
+      submitted: true,
+      reportFile: null,
+      reportFileName: 'cibi-report-sample.pdf',
+    });
+
+    setLoandexUpload({ fileName: 'loandex-report-sample.pdf' });
+    setCicUpload({ fileName: 'cic-report-sample.pdf' });
+    setCmapUpload({ fileName: 'cmap-report-sample.pdf' });
+    setNfisBapUpload({ fileName: 'nfis-bap-report-sample.pdf' });
+  };
+
+  // Undoes exactly what handleFillSampleData sets — scoped to only the
+  // document/AI/CIBI/bureau-upload fields it touches, NOT a full
+  // `resetReview()` (which would also wipe unrelated steps like
+  // Reconsideration, Call Report, Transaction Type, and Requirement
+  // Checklist that this button has no business touching).
+  const handleClearSampleData = () => {
+    setCreditChecking({
+      documentUploaded: false,
+      documentName: null,
+    });
+
+    setCibiForm({
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      dateOfBirth: '',
+      gender: '',
+      contactType: 'Mobile',
+      contactNumber: '',
+      addressRegion: '',
+      addressProvince: '',
+      addressCity: '',
+      addressStreet: '',
+      idType: '',
+      idNumber: '',
+      creditPurpose: '',
+      creditType: '',
+      financedAmount: '',
+      terms: '',
+      installment: '',
+      submitted: false,
+      reportFile: null,
+      reportFileName: null,
+    });
+
+    setLoandexUpload({ fileName: null });
+    setCicUpload({ fileName: null });
+    setCmapUpload({ fileName: null });
+    setNfisBapUpload({ fileName: null });
+  };
+
+  const handleApprove = () => {
+    setCreditChecking({ decision: 'approved' });
+    router.push(paths.admin.callReport(encodeURIComponent(signUpData.email)));
+  };
+
+  const closeReasonDialog = () => {
+    setPendingAction(null);
+    setReasonDraft('');
+  };
+
+  const confirmReasonDialog = () => {
+    if (!pendingAction || !reasonDraft.trim()) return;
+
+    setCreditChecking({
+      decision: pendingAction === 'rejected' ? 'rejected' : 'pending',
+      decisionReason: reasonDraft.trim(),
+    });
+    router.push(paths.admin.reconsideration(encodeURIComponent(signUpData.email)));
+  };
+
+  const rightColumnCards = (
+    <Stack spacing={2.5}>
+        <Box
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: '16px',
+            bgcolor: 'common.white',
+            border: '1px solid #EBEDF3',
+            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+            <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+              Initial AI Recommendation
+            </Typography>
+          </Stack>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
+            A quick read based on the application details above — not a substitute for the full
+            AI review below.
+          </Typography>
+
+          <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ p: 2, borderRadius: '11px', bgcolor: initialRiskStyle.bg }}>
+            <Iconify icon={initialRiskStyle.icon} width={18} sx={{ color: initialRiskStyle.color, mt: 0.25 }} />
+            <Stack spacing={0.25}>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: initialRiskStyle.color }}>
+                {initialRiskStyle.label}
+              </Typography>
+              <Typography sx={{ fontSize: 13.5, color: initialRiskStyle.color, lineHeight: 1.6 }}>
+                {initialAiRecommendation.text}
+              </Typography>
+            </Stack>
+          </Stack>
+        </Box>
+
+        <BureauReportsCard />
+
+        <Box
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: '16px',
+            bgcolor: 'common.white',
+            border: '1px solid #EBEDF3',
+            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
+          }}
+        >
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+            Officer notes
+          </Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
+            Add any observations about this application — carries forward, read-only, to Call
+            Report and Reconsideration.
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            minRows={3}
+            placeholder="e.g. Borrower's stated employer could not be verified by phone…"
+            value={creditChecking.notes}
+            onChange={(event) => setCreditChecking({ notes: event.target.value })}
+            sx={{
+              '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 },
+            }}
+          />
+        </Box>
+
+        <Box
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: '16px',
+            bgcolor: 'common.white',
+            border: '1px solid #EBEDF3',
+            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
+          }}
+        >
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+            AI review, summary &amp; recommendation
+          </Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
+            {allBureauReportsUploaded
+              ? 'Based on the uploaded bureau reports and application details.'
+              : 'Upload the CIBI, LOANDEX, CIC, CMAP, and NFIS/BAP reports above to generate the AI review.'}
+          </Typography>
+
+          {allBureauReportsUploaded && (
+            <Button
+              onClick={() => setResultModalOpen(true)}
+              variant="outlined"
+              startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+              sx={{
+                mb: 2.5,
+                color: '#1C2A6E',
+                borderColor: '#C7CEEA',
+                borderRadius: '10px',
+                px: 2,
+                '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
+              }}
+            >
+              View Initial Credit Checking Result
+            </Button>
+          )}
+
+          {aiSummary && aiRecommendation && (
+            <Stack spacing={2}>
+              <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Iconify icon="solar:document-text-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
+                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>
+                    AI Summary
+                  </Typography>
+                </Stack>
+                <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
+                  {aiSummary}
+                </Typography>
+              </Box>
+
+              <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#EEF1FE' }}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Iconify icon="solar:lightbulb-bold-duotone" width={16} sx={{ color: '#3448B0' }} />
+                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#3448B0' }}>
+                    AI Recommendation
+                  </Typography>
+                </Stack>
+                <Typography sx={{ fontSize: 13.5, color: '#3448B0', lineHeight: 1.6 }}>
+                  {aiRecommendation}
+                </Typography>
+              </Box>
+            </Stack>
+          )}
+        </Box>
+
+        <Box
+          sx={{
+            p: { xs: 3, md: 4 },
+            borderRadius: '16px',
+            bgcolor: 'common.white',
+            border: '1px solid #EBEDF3',
+            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
+            opacity: canDecide ? 1 : 0.5,
+          }}
+        >
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+            Approved?
+          </Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
+            {canDecide
+              ? 'Based on the AI review and all bureau reports, decide whether this application proceeds.'
+              : 'Upload the CIBI, LOANDEX, CIC, CMAP, and NFIS/BAP reports above before making a decision.'}
+          </Typography>
+
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
+            <Button
+              onClick={handleApprove}
+              disabled={!canDecide}
+              variant="contained"
+              startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
+              sx={{
+                bgcolor: '#12B76A',
+                borderRadius: '10px',
+                px: 2.5,
+                '&:hover': { bgcolor: '#0C8A4F' },
+              }}
+            >
+              Approve
+            </Button>
+            <Button
+              onClick={() => setPendingAction('rejected')}
+              disabled={!canDecide}
+              variant="outlined"
+              startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
+              sx={{
+                color: '#F04438',
+                borderColor: '#F04438',
+                borderRadius: '10px',
+                px: 2.5,
+                '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(240,68,56,0.04)' },
+              }}
+            >
+              No
+            </Button>
+            <Button
+              onClick={() => setPendingAction('reconsideration')}
+              disabled={!canDecide}
+              variant="outlined"
+              startIcon={<Iconify icon="solar:refresh-circle-bold" width={18} />}
+              sx={{
+                color: '#B36A05',
+                borderColor: '#B36A05',
+                borderRadius: '10px',
+                px: 2.5,
+                '&:hover': { borderColor: '#8A5204', bgcolor: 'rgba(179,106,5,0.04)' },
+              }}
+            >
+              For Reconsideration
+            </Button>
+          </Stack>
+        </Box>
+    </Stack>
+  );
+
+  return (
+    <Container maxWidth={isSplitLayout ? 'xl' : 'md'} sx={{ py: { xs: 4, md: 6 } }}>
+      <ApplicationReviewHeader step="Step 1 · Initial Credit Checking" reviewStep="creditChecking" />
+
+      {isSplitLayout ? (
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
+          <Box sx={{ width: { xs: 1, md: 440 }, flexShrink: 0, position: { md: 'sticky' }, top: { md: 24 } }}>
+            <ApplicationDetailsCard />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0, width: 1 }}>{rightColumnCards}</Box>
+        </Stack>
+      ) : (
+        <Stack spacing={2.5}>
+          <ApplicationDetailsCard />
+          {rightColumnCards}
+        </Stack>
+      )}
+
+      <ConfirmDialog
+        open={!!pendingAction}
+        onClose={closeReasonDialog}
+        title={pendingAction === 'rejected' ? 'Reason for declining' : 'Reason for reconsideration'}
+        content={
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={3}
+            placeholder="Explain why…"
+            value={reasonDraft}
+            onChange={(event) => setReasonDraft(event.target.value)}
+            sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+          />
+        }
+        action={
+          <Button
+            variant="contained"
+            disabled={!reasonDraft.trim()}
+            onClick={confirmReasonDialog}
+            sx={{
+              bgcolor: pendingAction === 'rejected' ? '#F04438' : '#B36A05',
+              '&:hover': { bgcolor: pendingAction === 'rejected' ? '#B32C22' : '#8A5204' },
+            }}
+          >
+            Confirm
+          </Button>
+        }
+      />
+
+      <CreditCheckingResultModal
+        open={resultModalOpen}
+        onClose={() => setResultModalOpen(false)}
+      />
+
+      <Button
+        onClick={canDecide ? handleClearSampleData : handleFillSampleData}
+        variant="contained"
+        startIcon={<Iconify icon="solar:magic-stick-3-bold-duotone" width={18} />}
+        sx={{
+          position: 'fixed',
+          bottom: 84,
+          right: 24,
+          zIndex: 1200,
+          bgcolor: '#1C2A6E',
+          borderRadius: '999px',
+          px: 2.5,
+          py: 1.25,
+          boxShadow: '0 8px 24px -8px rgba(20,23,42,0.4)',
+          '&:hover': { bgcolor: '#14205A' },
+        }}
+      >
+        {canDecide ? 'Remove Sample Data' : 'Fill with Sample Data'}
+      </Button>
+
+      <Button
+        onClick={() => setIsSplitLayout((prev) => !prev)}
+        variant="contained"
+        startIcon={<Iconify icon="solar:widget-5-bold-duotone" width={18} />}
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          zIndex: 1200,
+          display: { xs: 'none', md: 'inline-flex' },
+          bgcolor: '#5A6273',
+          borderRadius: '999px',
+          px: 2.5,
+          py: 1.25,
+          boxShadow: '0 8px 24px -8px rgba(20,23,42,0.4)',
+          '&:hover': { bgcolor: '#40465A' },
+        }}
+      >
+        {isSplitLayout ? 'Switch to 1-Column Layout' : 'Switch to 2-Column Layout'}
+      </Button>
+    </Container>
+  );
+}

@@ -12,15 +12,10 @@ import {
   IDENTITY_CONFIRMED_OPTIONS,
   REPAYMENT_SOURCE_OPTIONS,
   RESIDENCE_YEARS_OPTIONS,
-  RESIDENCE_STATUS_OPTIONS,
-  INCOME_STABILITY_OPTIONS,
   INCOME_TREND_OPTIONS,
-  ELECTRICITY_PAYMENT_OPTIONS,
-  CREDIT_CARD_PAYMENT_OPTIONS,
-  OTHER_LOAN_REPAYMENT_OPTIONS,
   OFFICER_OBSERVATION_POSITIVE_OPTIONS,
   OFFICER_OBSERVATION_ATTENTION_OPTIONS,
-  NEXT_STEP_OPTIONS,
+  NEXT_ACTION_OPTIONS,
   PRELIMINARY_RECOMMENDATION_OPTIONS,
 } from './call-report-types';
 
@@ -62,22 +57,16 @@ export function buildCallSummary(
   if (repaymentLabel) lines.push(`Primary source of repayment: ${repaymentLabel}.`);
 
   const residenceYearsLabel = labelFor(RESIDENCE_YEARS_OPTIONS, callReport.yearsAtResidence);
-  const residenceStatusLabel = labelFor(RESIDENCE_STATUS_OPTIONS, callReport.residenceStatus);
-  if (residenceYearsLabel || residenceStatusLabel || callReport.numberOfDependents) {
+  if (residenceYearsLabel || callReport.numberOfDependents) {
     const parts: string[] = [];
     if (residenceYearsLabel) parts.push(`residing at current address for ${residenceYearsLabel.toLowerCase()}`);
-    if (residenceStatusLabel) parts.push(`${residenceStatusLabel.toLowerCase()} residence`);
     if (callReport.numberOfDependents) parts.push(`${callReport.numberOfDependents} dependents`);
     if (parts.length) lines.push(`Household: ${parts.join(', ')}.`);
   }
 
-  const stabilityLabel = labelFor(INCOME_STABILITY_OPTIONS, callReport.incomeStability);
   const trendLabel = labelFor(INCOME_TREND_OPTIONS, callReport.incomeTrend);
-  if (stabilityLabel || trendLabel) {
-    const parts: string[] = [];
-    if (stabilityLabel) parts.push(`income stable: ${stabilityLabel.toLowerCase()}`);
-    if (trendLabel) parts.push(`trend: ${trendLabel.toLowerCase()}`);
-    lines.push(`Employment/business: ${parts.join(', ')}.`);
+  if (trendLabel) {
+    lines.push(`Employment/business income trend: ${trendLabel.toLowerCase()}.`);
   }
 
   if (callReport.declaredNetMonthlyIncome) {
@@ -90,17 +79,6 @@ export function buildCallSummary(
         obligations
       )}; preliminary disposable income ${formatCurrency(disposable)} (DTI ${dti.toFixed(0)}%).`
     );
-  }
-
-  const electricityLabel = labelFor(ELECTRICITY_PAYMENT_OPTIONS, callReport.electricityPayment);
-  const creditCardLabel = labelFor(CREDIT_CARD_PAYMENT_OPTIONS, callReport.creditCardPayment);
-  const otherLoanLabel = labelFor(OTHER_LOAN_REPAYMENT_OPTIONS, callReport.otherLoanRepayment);
-  if (electricityLabel || creditCardLabel || otherLoanLabel) {
-    const parts: string[] = [];
-    if (electricityLabel) parts.push(`electricity: ${electricityLabel.toLowerCase()}`);
-    if (creditCardLabel) parts.push(`credit card: ${creditCardLabel.toLowerCase()}`);
-    if (otherLoanLabel) parts.push(`other loans: ${otherLoanLabel.toLowerCase()}`);
-    lines.push(`Payment behavior — ${parts.join('; ')}.`);
   }
 
   const allObservationOptions = [
@@ -122,12 +100,13 @@ export function buildCallSummary(
     lines.push('No collateral offered.');
   }
 
-  if (callReport.nextSteps.length > 0) {
-    const labels = callReport.nextSteps
-      .map((value) => labelFor(NEXT_STEP_OPTIONS, value))
-      .filter((label): label is string => !!label);
-    const dueSuffix = callReport.nextStepsDueDate ? ` Due ${callReport.nextStepsDueDate}.` : '';
-    lines.push(`Agreed next steps: ${labels.join(', ').toLowerCase()}.${dueSuffix}`);
+  const nextActionLabel = labelFor(NEXT_ACTION_OPTIONS, callReport.nextAction);
+  if (nextActionLabel) {
+    const label = callReport.nextAction === 'other' && callReport.nextActionOther
+      ? callReport.nextActionOther
+      : nextActionLabel;
+    const followUpSuffix = callReport.followUpDate ? ` Follow-up on ${callReport.followUpDate}.` : '';
+    lines.push(`Next step: ${label.toLowerCase()}.${followUpSuffix}`);
   }
 
   if (callReport.proposedLoanAmount) {

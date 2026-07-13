@@ -49,7 +49,7 @@ export function CallSummaryCard() {
     <Box sx={cardSx}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
         <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-          12. Call Summary
+          Call Summary
         </Typography>
         <Button
           onClick={handleRegenerateClick}
@@ -73,6 +73,16 @@ export function CallSummaryCard() {
         onChange={(event) =>
           setCallReport({ callSummary: event.target.value, callSummaryEdited: true })
         }
+        sx={{ ...fieldSx, mb: 2.5 }}
+      />
+
+      <TextField
+        fullWidth
+        multiline
+        minRows={2}
+        label="Additional Remarks"
+        value={callReport.additionalRemarks}
+        onChange={(event) => setCallReport({ additionalRemarks: event.target.value })}
         sx={fieldSx}
       />
 
