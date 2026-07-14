@@ -107,11 +107,18 @@ sessionStorage key: `hhc-lms-admin-session`
 
 ```ts
 AdminUser            { email, firstName, lastName }
-CreditChecking        { documentUploaded, documentName, decision, notes, decisionReason }
+CreditChecking        { documentUploaded, documentName, decision, bureauFindingStatus,
+                        notes, decisionReason }
                         — aiSummary/aiRecommendation are NOT stored; computed at render
                         time in initial-credit-checking-view.tsx from the uploaded bureau
                         reports + application details (see "Initial AI Recommendation"
-                        below)
+                        below). bureauFindingStatus ('pending'|'clean'|'negative') is the
+                        simulated AI bureau-review outcome — see "Negative Credit Report"
+                        below.
+NegativeCreditReport  { thru, negativeRecordText, accountFindings, cancelledCreditCards,
+                        adverseClassifiedLoans, closedCurrentAccounts, recommendationRemarks,
+                        submitted } — see "Negative Credit Report" below. The four list
+                        fields are NegativeReportEntry[] ({ id, label, findings }).
 Reconsideration       { notes, decision }
 CallReport            { approved, ...~75 structured fields across 9 sections — see
                         "Call Report" below }
@@ -119,11 +126,13 @@ TransactionType        'New'|'Renew'|'Additional/Increase'|'Compromised'|'Restru
                         |'Rollover'|'Extension'|'Repricing'|'Others'
 RequirementChecklist  { checkedItems, collateralNotes, endorsed }
 
-ApplicationReview { creditChecking, reconsideration, callReport, transactionType, requirementChecklist }
+ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callReport, transactionType, requirementChecklist }
 ```
 
 Exposed via `useAdmin()`: `setAdminUser`, `setCreditChecking`, `setReconsideration`,
-`setCallReport`, `addCollateralEntry`, `updateCollateralEntry`, `removeCollateralEntry`,
+`setNegativeCreditReport`, `addNegativeReportEntry`, `updateNegativeReportEntry`,
+`removeNegativeReportEntry`, `resetNegativeCreditReport`, `setCallReport`,
+`addCollateralEntry`, `updateCollateralEntry`, `removeCollateralEntry`,
 `setTransactionType`, `setRequirementChecklist`, `logout()`.
 
 **Important limitation:** the admin portal does *not* have its own applicant
@@ -360,6 +369,89 @@ Sample Data"/"Remove Sample Data" (`handleFillSampleData`/`handleClearSampleData
 for data consistency, even though no UI reads or writes them anymore — removing
 the fields from the type entirely was treated as a larger, separate change than
 what was asked.
+
+**Negative Credit Report** — a manual report the officer fills out when the
+(simulated) AI review of the bureau uploads comes back with a negative
+finding, replacing what used to be entirely hardcoded, always-positive
+content in `CreditCheckingResultModal`.
+
+- **Simulated determination** (`simulateBureauFinding`, `src/sections/admin/simulate-bureau-finding.ts`):
+  there's no real OCR/AI service anywhere in this codebase — every other "AI"
+  text in this app is templated boilerplate driven by loan-amount/income
+  math, not real document analysis — so whether the bureau reports come back
+  `'clean'` or `'negative'` is simulated via a **deterministic hash** (same
+  technique as `getLoanNumber`'s email hash, not `Math.random()`, so the
+  result doesn't flip between re-renders/reloads), seeded by the applicant's
+  email plus all 5 bureau upload filenames. Computed exactly once per
+  upload session in a `useEffect` in `initial-credit-checking-view.tsx`,
+  guarded by `creditChecking.bureauFindingStatus === 'pending'` — once it
+  resolves to `'clean'` or `'negative'` it's sticky (persisted via the normal
+  `AdminContext` sessionStorage effect) and never re-rolled. Both this page
+  (to decide whether to show `NegativeCreditReportCard`) and
+  `CreditCheckingResultModal` (to decide which content to render) read
+  `review.creditChecking.bureauFindingStatus` directly — neither ever
+  re-calls `simulateBureauFinding` itself — so they can't disagree.
+- **QA override**: since the hash is stable for a given email + the fixed
+  sample-upload filenames, "Fill with Sample Data" alone can't exercise both
+  outcomes reliably. Two dev-only floating buttons, "Force Clean" / "Force
+  Negative" (visible once `allBureauReportsUploaded`, same fixed-bottom-right
+  floating-button convention as "Fill with Sample Data"), directly set
+  `bureauFindingStatus`, bypassing the hash for testing.
+- **`NegativeCreditReportCard`** (`src/sections/admin/negative-credit-report-card.tsx`,
+  plain inline-`sx` card convention, not `call-report/call-report-types.ts`'s
+  `cardSx`/`fieldSx` since this isn't a Call Report concept): renders only
+  when `allBureauReportsUploaded && bureauFindingStatus === 'negative'`,
+  directly below the "AI review, summary & recommendation" card and above
+  "Approved?". Read-only header fields (To/From fixed strings, Date/Subject
+  derived at render time, not stored) plus one required officer-typed field
+  (Thru); a "Negative Record" textarea (prefilled boilerplate the officer
+  completes); a repeatable Account Name/Findings list ("+ Add More
+  Accounts"); three optional special-finding lists (Cancelled Credit Cards
+  File / Adversely Classified Loan File / Closed Current Account), each a
+  dark-navy-header + "+ Add ___" repeatable list, sharing one internal
+  `SpecialSectionList` sub-component; and a required Recommendation/Remarks
+  textarea. Submit is disabled until Recommendation/Remarks is non-blank.
+  Every field except Recommendation/Remarks is optional.
+- **Data model** (`src/auth/admin-context.tsx`): `NegativeCreditReport` on
+  `ApplicationReview.negativeCreditReport`, with 4 `NegativeReportEntry[]`
+  lists (`accountFindings`, `cancelledCreditCards`, `adverseClassifiedLoans`,
+  `closedCurrentAccounts`) all sharing one entry shape (`{ id, label,
+  findings }`). Rather than writing 3 setters per list (12 total), the 3
+  array-mutation setters (`addNegativeReportEntry`, `updateNegativeReportEntry`,
+  `removeNegativeReportEntry`) each take a `NegativeReportEntryListKey`
+  discriminator and index `negativeCreditReport[listKey]` — a direct
+  generalization of the Call Report collateral-entry pattern
+  (`addCollateralEntry`/`updateCollateralEntry`/`removeCollateralEntry`),
+  parameterized rather than copy-pasted 4×. `resetNegativeCreditReport()`
+  (used by "Remove Sample Data") and the `ApplicationReview` initial-state
+  factory both call the same `createInitialNegativeCreditReport()` factory,
+  so "start the form over" and "start a whole new review" can't drift apart.
+- **`CreditCheckingResultModal` branching**: `showNegativeReport =
+  bureauFindingStatus === 'negative' && negativeCreditReport.submitted`
+  — while negative-but-not-yet-submitted, the modal still falls back to the
+  original hardcoded all-clear content (deliberate: no separate "report
+  pending" state was requested). When `showNegativeReport` is true: the
+  "Negative Record" block renders the officer's typed narrative, each
+  Account Findings entry as `{label} : {findings}`, and for each of the 3
+  special lists either its entries (same format) or, if empty, a centered
+  bold **"No {Section Title}"** fallback (exact strings: "No Cancelled
+  Credit Cards File", "No Adversely Classified Loan File", "No Closed
+  Current Account"). The "Findings by Name" block is **hidden entirely**
+  when `showNegativeReport` (superseded by the Account Findings rows above
+  it — showing both would duplicate the same information under two
+  headers). The "Recommendation" text splits `recommendationRemarks` on
+  newlines: the first non-empty line renders as the lead paragraph, any
+  remaining non-empty lines render as bullets (`FindingBullet`) below it —
+  no extra field, the officer just presses Enter for additional freeform
+  remarks if they want bullets. The Recommendation **chip** (Proceed/Pending)
+  and the top status banner stay keyed to the existing DTI-based `isCleared`
+  **unchanged, on both paths** — deliberately not re-derived from
+  `bureauFindingStatus` or parsed out of the officer's freeform text (fragile
+  string-matching was rejected as an approach). Three new identity fields
+  (Email Address, Contact Number, Date of Application — all already
+  available on `signUpData`/`application`) were added to the "Credit
+  Checking Report" field block, unconditionally on both the clean and
+  negative paths.
 
 **"AI review, summary & recommendation" is now fully automatic — no "Run AI
 Analysis" button.** `aiSummary`/`aiRecommendation` were removed from the

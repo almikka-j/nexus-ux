@@ -88,10 +88,20 @@ type CreditCheckingResultModalProps = {
   onClose: () => void;
 };
 
+const NEGATIVE_SECTION_TITLES: Record<
+  'cancelledCreditCards' | 'adverseClassifiedLoans' | 'closedCurrentAccounts',
+  string
+> = {
+  cancelledCreditCards: 'Cancelled Credit Cards File',
+  adverseClassifiedLoans: 'Adversely Classified Loan File',
+  closedCurrentAccounts: 'Closed Current Account',
+};
+
 export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResultModalProps) {
   const { signUpData, application } = useRegistration();
   const { review } = useAdmin();
-  const { cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload } = review;
+  const { creditChecking, negativeCreditReport, cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload } =
+    review;
 
   if (!signUpData) return null;
 
@@ -102,6 +112,13 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
     : null;
   const generatedLabel = generatedAt
     ? `${generatedAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} · ${generatedAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+    : '—';
+  const applicationDateLabel = application.submittedAt
+    ? new Date(application.submittedAt).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
     : '—';
 
   const allBureauReportsUploaded =
@@ -118,6 +135,19 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
   ).level;
 
   const isCleared = initialRiskLevel === 'good' && allBureauReportsUploaded;
+
+  // Only when the simulated bureau review actually came back negative AND
+  // the officer has submitted the manual report do we show real data here —
+  // otherwise (clean, or negative-but-not-yet-submitted) this falls back to
+  // the hardcoded all-clear content below, unchanged.
+  const showNegativeReport =
+    creditChecking.bureauFindingStatus === 'negative' && negativeCreditReport.submitted;
+
+  const recommendationLines = negativeCreditReport.recommendationRemarks
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const [recommendationLead, ...recommendationBullets] = recommendationLines;
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -180,7 +210,10 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
             <SectionLabel>Credit Checking Report</SectionLabel>
             <Stack spacing={1.25} sx={{ mt: 1.5 }}>
               <FieldRow label="Application No." value={applicationNo} />
-              <FieldRow label="Applicant" value={fullName} />
+              <FieldRow label="Client Name" value={fullName} />
+              <FieldRow label="Email Address" value={signUpData.email} />
+              <FieldRow label="Contact Number" value={signUpData.mobile || '—'} />
+              <FieldRow label="Date of Application" value={applicationDateLabel} />
               <FieldRow label="To" value="Credit Committee" />
               <FieldRow label="Thru" value={application.assignedOfficer ?? '—'} />
               <FieldRow label="From" value="Credit and Collection Department" />
@@ -193,32 +226,69 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
             <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
               Negative Record
             </Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 2 }}>
-              Source: BAP Credit Bureau / CMAP report on accounts under watch lists, cancelled
-              credit cards, adversely classified loan files, closed current accounts and court
-              case files.
-            </Typography>
-            <Stack spacing={1}>
-              <CheckRow>No negative findings on both CMAP &amp; NFIS</CheckRow>
-              <CheckRow>No cancelled credit cards on file</CheckRow>
-              <CheckRow>No adversely classified loan file</CheckRow>
-              <CheckRow>No closed current account</CheckRow>
-            </Stack>
+            {showNegativeReport ? (
+              <Stack spacing={1.5}>
+                <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Negative Report</Typography>
+                <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  {negativeCreditReport.negativeRecordText}
+                </Typography>
+                {negativeCreditReport.accountFindings.map((entry) => (
+                  <Typography key={entry.id} sx={{ fontSize: 13.5, color: '#3B4256' }}>
+                    {entry.label} : {entry.findings}
+                  </Typography>
+                ))}
+                {(['cancelledCreditCards', 'adverseClassifiedLoans', 'closedCurrentAccounts'] as const).map(
+                  (listKey) => {
+                    const entries = negativeCreditReport[listKey];
+                    return entries.length === 0 ? (
+                      <Typography
+                        key={listKey}
+                        sx={{ fontSize: 13.5, fontWeight: 700, textAlign: 'center', color: '#3B4256' }}
+                      >
+                        No {NEGATIVE_SECTION_TITLES[listKey]}
+                      </Typography>
+                    ) : (
+                      entries.map((entry) => (
+                        <Typography key={entry.id} sx={{ fontSize: 13.5, color: '#3B4256' }}>
+                          {entry.label} : {entry.findings}
+                        </Typography>
+                      ))
+                    );
+                  }
+                )}
+              </Stack>
+            ) : (
+              <>
+                <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 2 }}>
+                  Source: BAP Credit Bureau / CMAP report on accounts under watch lists, cancelled
+                  credit cards, adversely classified loan files, closed current accounts and court
+                  case files.
+                </Typography>
+                <Stack spacing={1}>
+                  <CheckRow>No negative findings on both CMAP &amp; NFIS</CheckRow>
+                  <CheckRow>No cancelled credit cards on file</CheckRow>
+                  <CheckRow>No adversely classified loan file</CheckRow>
+                  <CheckRow>No closed current account</CheckRow>
+                </Stack>
+              </>
+            )}
           </Box>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
-              Findings by Name
-            </Typography>
-            <Stack spacing={1}>
-              <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#1C2A6E' }}>
-                {fullName}
+          {!showNegativeReport && (
+            <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+              <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
+                Findings by Name
               </Typography>
-              <FindingBullet>No negative findings on both CMAP &amp; NFIS</FindingBullet>
-              <FindingBullet>CIC: No match</FindingBullet>
-              <FindingBullet>No current exposure loan in Loandex</FindingBullet>
-            </Stack>
-          </Box>
+              <Stack spacing={1}>
+                <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#1C2A6E' }}>
+                  {fullName}
+                </Typography>
+                <FindingBullet>No negative findings on both CMAP &amp; NFIS</FindingBullet>
+                <FindingBullet>CIC: No match</FindingBullet>
+                <FindingBullet>No current exposure loan in Loandex</FindingBullet>
+              </Stack>
+            </Box>
+          )}
 
           <Box sx={{ p: 2.5, borderRadius: '14px', bgcolor: '#EEF1FE' }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
@@ -239,11 +309,25 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
                 }}
               />
             </Stack>
-            <Typography sx={{ fontSize: 13.5, color: '#3448B0', lineHeight: 1.6 }}>
-              {isCleared
-                ? 'In view of the foregoing, the Credit Department is hereby recommending the said loan application to proceed.'
-                : 'In view of the foregoing, the Credit Department will issue a recommendation once the credit checking review is complete.'}
-            </Typography>
+            {showNegativeReport ? (
+              <Stack spacing={1}>
+                {recommendationLead && (
+                  <Typography sx={{ fontSize: 13.5, color: '#3448B0', lineHeight: 1.6 }}>
+                    {recommendationLead}
+                  </Typography>
+                )}
+                {recommendationBullets.map((line, index) => (
+                  // eslint-disable-next-line react/no-array-index-key
+                  <FindingBullet key={index}>{line}</FindingBullet>
+                ))}
+              </Stack>
+            ) : (
+              <Typography sx={{ fontSize: 13.5, color: '#3448B0', lineHeight: 1.6 }}>
+                {isCleared
+                  ? 'In view of the foregoing, the Credit Department is hereby recommending the said loan application to proceed.'
+                  : 'In view of the foregoing, the Credit Department will issue a recommendation once the credit checking review is complete.'}
+              </Typography>
+            )}
           </Box>
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />

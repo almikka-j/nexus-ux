@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -23,6 +23,8 @@ import { ApplicationDetailsCard } from './application-details-card';
 import { computeInstallment } from './cibi-form-card';
 import { BureauReportsCard } from './bureau-reports-card';
 import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
+import { NegativeCreditReportCard } from './negative-credit-report-card';
+import { simulateBureauFinding } from './simulate-bureau-finding';
 import { buildInitialAiRecommendation } from './initial-credit-checking-risk';
 import type { InitialRiskLevel } from './initial-credit-checking-risk';
 
@@ -60,6 +62,7 @@ export function InitialCreditCheckingView() {
     setCicUpload,
     setCmapUpload,
     setNfisBapUpload,
+    resetNegativeCreditReport,
   } = useAdmin();
   // "No" and "For Reconsideration" both require the officer to type a reason
   // in a confirmation dialog before proceeding — captured separately from the
@@ -75,22 +78,56 @@ export function InitialCreditCheckingView() {
   const [isSplitLayout, setIsSplitLayout] = useState(false);
   const [resultModalOpen, setResultModalOpen] = useState(false);
 
-  if (!signUpData || !application.personalInfo) return null;
-
   const { creditChecking, cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload } = review;
-  const initialAiRecommendation = buildInitialAiRecommendation(
-    application.financialInfo?.desiredLoanAmount ?? 0,
-    application.financialInfo?.monthlyIncome ?? 0,
-    application.financialInfo?.employmentStatus ?? 'Unknown'
-  );
-  const initialRiskStyle = INITIAL_RISK_STYLES[initialAiRecommendation.level];
   const allBureauReportsUploaded =
     !!cibiForm.reportFileName &&
     !!loandexUpload.fileName &&
     !!cicUpload.fileName &&
     !!cmapUpload.fileName &&
     !!nfisBapUpload.fileName;
+
+  // Simulated AI review of the bureau uploads — see simulate-bureau-finding.ts
+  // for why this is a deterministic hash rather than Math.random(). Runs
+  // exactly once per upload session (guarded by bureauFindingStatus still
+  // being 'pending'); the result is then sticky, read directly by this page
+  // (to decide whether NegativeCreditReportCard should render) and by
+  // CreditCheckingResultModal (to decide which content to show) — neither
+  // ever re-derives it independently.
+  useEffect(() => {
+    if (!signUpData) return;
+    if (!allBureauReportsUploaded) return;
+    if (creditChecking.bureauFindingStatus !== 'pending') return;
+
+    const result = simulateBureauFinding([
+      signUpData.email,
+      cibiForm.reportFileName ?? '',
+      loandexUpload.fileName ?? '',
+      cicUpload.fileName ?? '',
+      cmapUpload.fileName ?? '',
+      nfisBapUpload.fileName ?? '',
+    ]);
+    setCreditChecking({ bureauFindingStatus: result });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    allBureauReportsUploaded,
+    creditChecking.bureauFindingStatus,
+    cibiForm.reportFileName,
+    loandexUpload.fileName,
+    cicUpload.fileName,
+    cmapUpload.fileName,
+    nfisBapUpload.fileName,
+  ]);
+
+  if (!signUpData || !application.personalInfo) return null;
+  const initialAiRecommendation = buildInitialAiRecommendation(
+    application.financialInfo?.desiredLoanAmount ?? 0,
+    application.financialInfo?.monthlyIncome ?? 0,
+    application.financialInfo?.employmentStatus ?? 'Unknown'
+  );
+  const initialRiskStyle = INITIAL_RISK_STYLES[initialAiRecommendation.level];
   const canDecide = allBureauReportsUploaded;
+  const showNegativeReportCard =
+    allBureauReportsUploaded && creditChecking.bureauFindingStatus === 'negative';
 
   const aiSummary = allBureauReportsUploaded
     ? buildAiSummary(
@@ -160,7 +197,9 @@ export function InitialCreditCheckingView() {
     setCreditChecking({
       documentUploaded: false,
       documentName: null,
+      bureauFindingStatus: 'pending',
     });
+    resetNegativeCreditReport();
 
     setCibiForm({
       firstName: '',
@@ -343,6 +382,8 @@ export function InitialCreditCheckingView() {
           )}
         </Box>
 
+        {showNegativeReportCard && <NegativeCreditReportCard />}
+
         <Box
           sx={{
             p: { xs: 3, md: 4 },
@@ -506,6 +547,43 @@ export function InitialCreditCheckingView() {
       >
         {isSplitLayout ? 'Switch to 1-Column Layout' : 'Switch to 2-Column Layout'}
       </Button>
+
+      {allBureauReportsUploaded && (
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ position: 'fixed', bottom: 144, right: 24, zIndex: 1200 }}
+        >
+          <Button
+            onClick={() => setCreditChecking({ bureauFindingStatus: 'clean' })}
+            variant="contained"
+            size="small"
+            sx={{
+              bgcolor: '#0C8A4F',
+              borderRadius: '999px',
+              px: 2,
+              boxShadow: '0 8px 24px -8px rgba(20,23,42,0.4)',
+              '&:hover': { bgcolor: '#0A6E40' },
+            }}
+          >
+            Force Clean
+          </Button>
+          <Button
+            onClick={() => setCreditChecking({ bureauFindingStatus: 'negative' })}
+            variant="contained"
+            size="small"
+            sx={{
+              bgcolor: '#B32C22',
+              borderRadius: '999px',
+              px: 2,
+              boxShadow: '0 8px 24px -8px rgba(20,23,42,0.4)',
+              '&:hover': { bgcolor: '#8F231A' },
+            }}
+          >
+            Force Negative
+          </Button>
+        </Stack>
+      )}
     </Container>
   );
 }

@@ -12,10 +12,23 @@ export type AdminUser = {
 
 export type CreditCheckDecision = 'pending' | 'approved' | 'rejected';
 
+/**
+ * Whether the (simulated) AI review of the uploaded bureau reports came back
+ * clean or found a negative record. `'pending'` until all 5 bureau reports
+ * are uploaded; computed exactly once per upload session (see
+ * `simulateBureauFinding` in `src/sections/admin/simulate-bureau-finding.ts`)
+ * and then sticky — both the Initial Credit Checking page (to decide whether
+ * to show `NegativeCreditReportCard`) and `CreditCheckingResultModal` (to
+ * decide which content to render) read this same stored value, so they can
+ * never disagree.
+ */
+export type BureauFindingStatus = 'pending' | 'clean' | 'negative';
+
 export type CreditChecking = {
   documentUploaded: boolean;
   documentName: string | null;
   decision: CreditCheckDecision;
+  bureauFindingStatus: BureauFindingStatus;
   /**
    * Free-form notes the credit-checking officer types while reviewing —
    * carries forward and is shown read-only on later steps (starting with
@@ -69,6 +82,40 @@ export type LoandexUpload = BureauUpload;
 export type Reconsideration = {
   notes: string;
   decision: CreditCheckDecision;
+};
+
+// The four repeatable lists on the manual Negative Credit Checking Report
+// share one entry shape — `label` is "Account Name" for `accountFindings`
+// and the one free-text line for each of the three special sections.
+export type NegativeReportEntryListKey =
+  | 'accountFindings'
+  | 'cancelledCreditCards'
+  | 'adverseClassifiedLoans'
+  | 'closedCurrentAccounts';
+
+export type NegativeReportEntry = {
+  id: string;
+  label: string;
+  findings: string;
+};
+
+/**
+ * Filled out by the officer only when `CreditChecking.bureauFindingStatus`
+ * comes back `'negative'` — see `NegativeCreditReportCard`. Every field is
+ * optional except `recommendationRemarks`, which is required before
+ * `submitted` can be set to `true`. `to`/`from`/`date`/`subject` are not
+ * stored here — they're either fixed strings or trivially derived at render
+ * time (see `NegativeCreditReportCard` and `CreditCheckingResultModal`).
+ */
+export type NegativeCreditReport = {
+  thru: string;
+  negativeRecordText: string;
+  accountFindings: NegativeReportEntry[];
+  cancelledCreditCards: NegativeReportEntry[];
+  adverseClassifiedLoans: NegativeReportEntry[];
+  closedCurrentAccounts: NegativeReportEntry[];
+  recommendationRemarks: string;
+  submitted: boolean;
 };
 
 export type CallType = 'in-person' | 'phone' | 'video';
@@ -315,6 +362,7 @@ export type ApplicationReview = {
   cmapUpload: BureauUpload;
   nfisBapUpload: BureauUpload;
   reconsideration: Reconsideration;
+  negativeCreditReport: NegativeCreditReport;
   callReport: CallReport;
   transactionType: TransactionType | null;
   requirementChecklist: RequirementChecklist;
@@ -337,6 +385,17 @@ type AdminContextValue = AdminState & {
   setCmapUpload: (data: Partial<BureauUpload>) => void;
   setNfisBapUpload: (data: Partial<BureauUpload>) => void;
   setReconsideration: (data: Partial<Reconsideration>) => void;
+  setNegativeCreditReport: (
+    data: Partial<Pick<NegativeCreditReport, 'thru' | 'negativeRecordText' | 'recommendationRemarks' | 'submitted'>>
+  ) => void;
+  addNegativeReportEntry: (listKey: NegativeReportEntryListKey, seedLabel?: string) => void;
+  updateNegativeReportEntry: (
+    listKey: NegativeReportEntryListKey,
+    id: string,
+    data: Partial<NegativeReportEntry>
+  ) => void;
+  removeNegativeReportEntry: (listKey: NegativeReportEntryListKey, id: string) => void;
+  resetNegativeCreditReport: () => void;
   setCallReport: (data: Partial<CallReport>) => void;
   addCollateralEntry: () => void;
   updateCollateralEntry: (id: string, data: Partial<CollateralEntry>) => void;
@@ -351,6 +410,24 @@ type AdminContextValue = AdminState & {
 
 const STORAGE_KEY = 'hhc-lms-admin-session';
 
+// Same factory-not-constant rationale as createInitialReview below — also
+// reused directly by resetNegativeCreditReport(), so "start the form over"
+// and "start a whole new review" can never drift out of sync.
+function createInitialNegativeCreditReport(): NegativeCreditReport {
+  return {
+    thru: '',
+    negativeRecordText:
+      'Source of information: BAP Credit Bureau / CMAP report on accounts under watch lists, cancelled credit cards, adverse classified loan file, closed current account and court case file as of ',
+    accountFindings: [],
+    cancelledCreditCards: [],
+    adverseClassifiedLoans: [],
+    closedCurrentAccounts: [],
+    recommendationRemarks:
+      'In view of the foregoing, Credit Department is hereby recommending the said loan application to proceed.',
+    submitted: false,
+  };
+}
+
 // Factory (not a shared constant) so `resetReview()` gets a fresh object each
 // call — reusing one constant reference across resets risks accidental
 // mutation-sharing bugs if any setter ever mutated in place instead of
@@ -361,6 +438,7 @@ function createInitialReview(): ApplicationReview {
       documentUploaded: false,
       documentName: null,
       decision: 'pending',
+      bureauFindingStatus: 'pending',
       notes: '',
       decisionReason: '',
     },
@@ -392,6 +470,7 @@ function createInitialReview(): ApplicationReview {
     cmapUpload: { fileName: null },
     nfisBapUpload: { fileName: null },
     reconsideration: { notes: '', decision: 'pending' },
+    negativeCreditReport: createInitialNegativeCreditReport(),
     callReport: {
       approved: false,
       clientType: '',
@@ -549,6 +628,57 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         setState((prev) => ({
           ...prev,
           review: { ...prev.review, reconsideration: { ...prev.review.reconsideration, ...data } },
+        })),
+      setNegativeCreditReport: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            negativeCreditReport: { ...prev.review.negativeCreditReport, ...data },
+          },
+        })),
+      addNegativeReportEntry: (listKey, seedLabel = '') =>
+        setState((prev) => {
+          const newEntry: NegativeReportEntry = { id: crypto.randomUUID(), label: seedLabel, findings: '' };
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              negativeCreditReport: {
+                ...prev.review.negativeCreditReport,
+                [listKey]: [...prev.review.negativeCreditReport[listKey], newEntry],
+              },
+            },
+          };
+        }),
+      updateNegativeReportEntry: (listKey, id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            negativeCreditReport: {
+              ...prev.review.negativeCreditReport,
+              [listKey]: prev.review.negativeCreditReport[listKey].map((entry) =>
+                entry.id === id ? { ...entry, ...data } : entry
+              ),
+            },
+          },
+        })),
+      removeNegativeReportEntry: (listKey, id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            negativeCreditReport: {
+              ...prev.review.negativeCreditReport,
+              [listKey]: prev.review.negativeCreditReport[listKey].filter((entry) => entry.id !== id),
+            },
+          },
+        })),
+      resetNegativeCreditReport: () =>
+        setState((prev) => ({
+          ...prev,
+          review: { ...prev.review, negativeCreditReport: createInitialNegativeCreditReport() },
         })),
       setCallReport: (data) =>
         setState((prev) => ({
