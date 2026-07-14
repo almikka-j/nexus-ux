@@ -1,0 +1,37 @@
+.floatingImage {
+  position: fixed;
+  top: 100px;
+  right: 24px;
+  width: 140px;
+  height: 140px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* Move to lower right on mobile and tablet */
+@media (max-width: 1200px) {
+  .floatingImage {
+    top: auto;
+    bottom: 24px;
+    right: 24px;
+    width: 120px;
+    height: 120px;
+  }
+  .floatingImg {
+    width: 110px !important;
+    height: 110px !important;
+  }
+}
+
+/* Hide on extra small screens */
+@media (max-width: 400px) {
+  .floatingImage {
+    display: none;
+  }
+}

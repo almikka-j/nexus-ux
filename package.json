@@ -9,16 +9,47 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "react": "^18",
-    "react-dom": "^18",
-    "next": "14.2.4"
+    "@emotion/cache": "^11.11.0",
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
+    "@fontsource/barlow": "^5.0.13",
+    "@fontsource/dm-sans": "^5.0.21",
+    "@fontsource/inter": "^5.0.18",
+    "@fontsource/montserrat": "^5.2.5",
+    "@fontsource/nunito-sans": "^5.0.13",
+    "@fontsource/plus-jakarta-sans": "^5.2.8",
+    "@fontsource/public-sans": "^5.0.18",
+    "@hookform/resolvers": "^5.4.0",
+    "@iconify/react": "^5.0.1",
+    "@mui/lab": "^5.0.0-alpha.170",
+    "@mui/material": "^5.15.20",
+    "@mui/material-nextjs": "^5.15.11",
+    "@mui/x-data-grid": "^7.7.0",
+    "@mui/x-date-pickers": "^7.7.0",
+    "@mui/x-tree-view": "^7.7.0",
+    "date-fns": "^3.6.0",
+    "embla-carousel-autoplay": "8.1.5",
+    "embla-carousel-react": "^8.1.5",
+    "framer-motion": "^11.2.10",
+    "mui-one-time-password-input": "^2.0.2",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-dropzone": "^14.2.3",
+    "react-hook-form": "^7.80.0",
+    "react-lazy-load-image-component": "^1.6.3",
+    "react-number-format": "^5.4.5",
+    "react-phone-number-input": "^3.4.3",
+    "sonner": "^1.5.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/react-lazy-load-image-component": "^1.6.5",
     "eslint": "^8",
-    "eslint-config-next": "14.2.4"
+    "eslint-config-next": "14.2.4",
+    "typescript": "^5"
   }
 }

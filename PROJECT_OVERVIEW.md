@@ -402,16 +402,35 @@ content in `CreditCheckingResultModal`.
   `cardSx`/`fieldSx` since this isn't a Call Report concept): renders only
   when `allBureauReportsUploaded && bureauFindingStatus === 'negative'`,
   directly below the "AI review, summary & recommendation" card and above
-  "Approved?". Read-only header fields (To/From fixed strings, Date/Subject
-  derived at render time, not stored) plus one required officer-typed field
-  (Thru); a "Negative Record" textarea (prefilled boilerplate the officer
-  completes); a repeatable Account Name/Findings list ("+ Add More
-  Accounts"); three optional special-finding lists (Cancelled Credit Cards
-  File / Adversely Classified Loan File / Closed Current Account), each a
-  dark-navy-header + "+ Add ___" repeatable list, sharing one internal
-  `SpecialSectionList` sub-component; and a required Recommendation/Remarks
-  textarea. Submit is disabled until Recommendation/Remarks is non-blank.
-  Every field except Recommendation/Remarks is optional.
+  "Approved?". **Deliberately not a 1:1 copy of the original reference
+  screenshot's dense stacked form** — restructured for scannability:
+  - The To/From/Date/Subject read-only fields are shown as a compact
+    2-column summary block (`SummaryField`) instead of 5 stacked
+    label:value rows, with the one real input (Thru, required) as a
+    proper `TextField` below a divider inside the same block.
+  - Account Findings entries render as numbered `EntryCard`s (a "Entry N"
+    `Chip` + a "Remove" button, matching the Call Report collateral-entry
+    visual language already established in `collateral-information-card.tsx`)
+    rather than three bare inline fields in a row.
+  - The three special-finding lists (Cancelled Credit Cards File /
+    Adversely Classified Loan File / Closed Current Account) are
+    **collapsible** (`SpecialSection`, reusing the `ButtonBase` + `Collapse`
+    + chevron pattern from `ApplicationDetailsCard`), each showing an
+    at-a-glance status chip ("None added" / "N added") instead of three
+    permanently-expanded, visually-identical dark navy bars — an officer
+    scanning the form immediately sees what's filled without expanding
+    anything, and empty sections don't waste vertical space.
+  - A small completion counter ("N of 4 optional sections filled") gives a
+    sense of report thoroughness before submitting, since only
+    Recommendation/Remarks is actually required.
+  - Once submitted, the entire form collapses into a compact green
+    confirmation banner ("Negative Credit Report submitted") with an
+    "Edit" button that flips `negativeCreditReport.submitted` back to
+    `false` and re-shows the full editable form — the original design's
+    plain "Submitted" button label (which looked like a static, unclickable
+    state) was replaced with this explicit, re-openable banner.
+  Submit is disabled until Recommendation/Remarks is non-blank. Every field
+  except Recommendation/Remarks is optional.
 - **Data model** (`src/auth/admin-context.tsx`): `NegativeCreditReport` on
   `ApplicationReview.negativeCreditReport`, with 4 `NegativeReportEntry[]`
   lists (`accountFindings`, `cancelledCreditCards`, `adverseClassifiedLoans`,
