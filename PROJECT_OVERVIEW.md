@@ -67,22 +67,40 @@ src/
 sessionStorage key: `hhc-lms-registration`
 
 ```ts
-SignUpData     { firstName, middleName?, lastName, extensionName?, email, mobile,
+SignUpData     { prefix?, firstName, middleName?, lastName, extensionName?, email, mobile,
                  password, marketingConsent, termsAccepted }
+// password stays '' permanently — the borrower is never asked to set one; see
+// docs/BORROWER_SIGNUP_FLOW.md. termsAccepted flips true from the Selfie
+// screen's consent checkboxes, not a dedicated step.
 LoanType       'personal' | 'business'
-FinancialInfo  { desiredLoanAmount, loanTermMonths, employmentStatus, monthlyIncome, loanPurpose }
-PersonalInfo   { idType, idNumber, idFile, address, province, city, barangay,
-                 civilStatus, gender, tinNumber, referralSource }
-ApplicationData { loanType, financialInfo, personalInfo, selfieVerified, selfiePhoto }
+FinancialInfo  { desiredLoanAmount, loanTermMonths, employmentStatus, monthlyIncome, loanPurpose,
+                 businessType?, businessDocument? }
+// loanPurpose is a single string — multiple Preliminary Application selections are
+// joined with ", ". businessType/businessDocument collected only when
+// employmentStatus === 'Business Owner' (businessDocument is a base64 data URL).
+PersonalInfo   { idType, idNumber, idFile, idFileBack, birthday, address, province,
+                 city, barangay, zipCode, civilStatus, gender, tinNumber,
+                 referralSource, spouseName?, spouseBirthday?, spouseAddress?,
+                 spouseProvince? }
+// spouse fields collected only when civilStatus === 'Married'. idFileBack is
+// non-null only for two-sided ID types (Driver's License/UMID/SSS ID/PhilHealth
+// ID) — null for PhilSys/National ID and Passport. See "ID type-dependent
+// front/back upload" below. birthday is the borrower's own (distinct from
+// spouseBirthday).
+ApplicationData { loanType, financialInfo, personalInfo, selfieVerified, selfiePhoto,
+                   submittedAt, assignedOfficer }
 // loanType/financialInfo/personalInfo nullable until each step submits; selfieVerified
-// defaults false; selfiePhoto defaults null
+// defaults false; selfiePhoto/submittedAt/assignedOfficer default null
 
-RegistrationState { signUpData, verified, application }
+PreliminaryStatus 'declined' | 'qualified' | null
+
+RegistrationState { signUpData, verified, preliminaryStatus, application }
 ```
 
 Exposed via `useRegistration()`: `hydrated`, `setSignUpData`, `setVerified`,
-`setLoanType`, `setFinancialInfo`, `setPersonalInfo`, `setSelfieVerified`,
-`setSelfiePhoto`, `loadSample(state)`, `reset()`.
+`setPreliminaryStatus`, `setLoanType`, `setFinancialInfo`, `setPersonalInfo`,
+`setSelfieVerified`, `setSelfiePhoto`, `markSubmitted()`, `loadSample(state)`,
+`reset()`.
 
 **`PersonalInfo.idFile` is a data URL string, not a `File` object.**
 `step-personal-info.tsx` converts the uploaded `File` via
@@ -194,31 +212,34 @@ production service with real users to hide dev tooling from), that gate was
 removed everywhere — these buttons now always render, regardless of how the
 server was started.
 
-**"Fill with Sample Data" is a toggle, not a one-shot action, in 7 of these
+**"Fill with Sample Data" is a toggle, not a one-shot action, in most of these
 spots.** Clicking it a second time (once already filled) flips it to a "Remove
 Sample Data" button that clears the form/state back to blank — the label always
-reflects current fill state. Covered: sign-up, login, admin login (react-hook-form
-`reset()` toggling between the sample values object and a blank-values object,
-tracked via a local `isSample` boolean state, since react-hook-form has no
-built-in "is this filled with X" check); onboarding's Loan Type step (toggles
-`application.loanType` between `'personal'` and `null` — `setLoanType`'s type
-signature was widened from `(loanType: LoanType) => void` to `(loanType: LoanType
-| null) => void` to allow this); onboarding's Financial Info and Personal Info
-steps (toggle between the sample values and the step's own hydrated
-`defaultValues` — **not** hardcoded blanks, since these steps can already be
-pre-filled from a prior session and blanking past that would destroy real
-in-progress data, not just "sample" data); and Initial Credit Checking's floating
-button, which toggles based on the pre-existing `canDecide` boolean and calls a
-new `handleClearSampleData()` — a scoped undo of exactly what
-`handleFillSampleData()` sets (`creditChecking`'s document/AI fields, the CIBI
-form, and the four bureau uploads) — deliberately **not** `resetReview()`, since
-that clears the entire `ApplicationReview` including unrelated steps
-(Reconsideration, Call Report, Transaction Type, Requirement Checklist) this
-button has no business touching. The Officer Notes field is untouched by this
-clear, since it's a separate, intentionally-persistent field.
+reflects current fill state. Covered: Preliminary Application, login, admin login
+(react-hook-form `reset()` toggling between the sample values object and a
+blank-values object, tracked via a local `isSample` boolean state, since
+react-hook-form has no built-in "is this filled with X" check); the Verify
+screen's Create Password sub-step (same pattern, Password/Confirm/consent
+checkboxes); `/borrower/apply`'s Loan Type step (unaffected by the 2026-07-15
+restructuring — toggles `application.loanType` between `'personal'` and `null`,
+`setLoanType`'s type signature is `(loanType: LoanType | null) => void` to allow
+this) and its Financial Info/Personal Info steps (toggle between the sample
+values and the step's own hydrated `defaultValues` — **not** hardcoded blanks,
+since these steps can already be pre-filled from a prior session); onboarding's
+Personal Info step (still used by the primary flow, retitled "Upload ID" —
+its sample-fill populates a Married example instantly (no OCR delay to skip
+anymore) so the conditional Spouse Information section is exercised too); and
+Initial Credit Checking's floating button, which toggles based on the
+pre-existing `canDecide` boolean and calls a new `handleClearSampleData()` — a
+scoped undo of exactly what `handleFillSampleData()` sets (`creditChecking`'s
+document/AI fields, the CIBI form, and the four bureau uploads) — deliberately
+**not** `resetReview()`, since that clears the entire `ApplicationReview`
+including unrelated steps (Reconsideration, Call Report, Transaction Type,
+Requirement Checklist) this button has no business touching. The Officer Notes
+field is untouched by this clear, since it's a separate, intentionally-persistent
+field.
 
-**Left as one-directional, not converted to a toggle:** onboarding's "Skip to
-Dashboard" (a navigation shortcut, not a data-fill action), the Application
+**Left as one-directional, not converted to a toggle:** the Application
 List's "Clear Sample Data" (already the remove side of a pair, paired with an
 auto-load `useEffect` rather than a fill button), and the borrower dashboard's
 "Reset Application" (already one-directional, paired with a distinct empty-state
@@ -228,42 +249,309 @@ screen rather than a fill button).
 
 ## Borrower flow
 
+> **Restructured 2026-07-16** — see `docs/BORROWER_SIGNUP_FLOW.md` for the
+> full step-by-step writeup. Summary: the flow is a **Loan Application
+> experience**, not account registration. The borrower is never asked to
+> manually create a password — Preliminary Application screens eligibility
+> (₱150,000 minimum) before any account exists; once qualified, Mobile OTP
+> Verification alone auto-creates/activates the account, landing on an
+> auto-advancing Welcome screen before Upload ID (no OCR/extraction —
+> removed since; every field is plain and directly editable); Selfie
+> Verification folds in Terms/Privacy/consent right before final submit;
+> Application Confirmation shows real derived data (reference number,
+> dates, status). **2026-07-16 also added:** Purpose of Loan is now
+> multi-select, Desired Loan Amount auto-formats with thousands separators,
+> selecting "Business Owner" as Source of Income reveals a Business Type
+> select + a business-document upload whose required document changes per
+> type (Corporation → GIS, Cooperative → CDA, Sole Proprietorship → DTI
+> Certificate, Partnership → SEC Certificate), and a Terms & Conditions/
+> Privacy Policy consent checkbox on Preliminary Application itself.
+> **Later same-day revisions:** the OCR "reading"/review flow on Upload ID
+> was removed entirely (flat form, no delay); First/Middle/Extension Name
+> fields moved there (Preliminary Application only collects Surname); ID
+> Type now determines front-only vs. front+back upload; and the onboarding
+> wizard's Upload ID/Selfie Verification steps no longer use the
+> split-panel `AuthBrandPanel` layout — both render centered on plain white.
+
 ```
-/auth/sign-up  →  /auth/verify (OTP)  →  [Verified success animation]
-  →  /auth/onboarding (Welcome → Loan Type → Preliminary/Financial Info → Personal Info
-                        → Selfie Verification)
-  →  /auth/thank-you  →  /borrower/dashboard
+/auth/sign-up (Preliminary Application: name/email/mobile/purpose(multi)/amount/term/income/[business info]/consent)
+  → [soft-decline in place, if desired loan < ₱150,000 — no navigation, no account created]
+  → /auth/verify (OTP only — no password step; [Verified animation] → account auto-created)
+  → /auth/onboarding (Welcome (auto-advances) → Upload ID (flat form, no OCR) → Selfie Verification (+ consent) — 3 steps)
+  → /auth/thank-you (Application Confirmation: reference #, dates, status)  →  /borrower/dashboard
 ```
 
+Preliminary Application and Verify share the **split-panel layout** — blue
+`AuthBrandPanel` on the left, form card on the right, no progress bar. The
+onboarding wizard's Welcome step is full-bleed (its own dark-blue treatment,
+not `AuthBrandPanel`); its Upload ID/Selfie Verification steps render
+centered on plain white with no side panel at all.
+
+`/borrower/apply` (filing a second application from the dashboard) was
+**intentionally left untouched** by both the 2026-07-15 and 2026-07-16
+restructurings — it's still the original 4-step wizard (Loan Type →
+Financial Info → Personal Info → Selfie), with no Preliminary screening, no
+multi-select Purpose of Loan, no Business Type/document fields, and no
+re-verification step. Bringing it in line with the new flow is a known
+follow-up, not yet requested.
+
+**Loan Type is no longer collected from borrowers.** `application.loanType`
+stays `null` for every new sign-up (the type/setter still exist in
+`RegistrationContext` since `/borrower/apply` still uses them). The borrower
+dashboard's loan-type label (`'Business Loan'`/`'Personal Loan'` based on
+`application.loanType === 'business'`) now always shows "Personal Loan" for
+freshly-submitted applications — an accepted, unfixed cosmetic side-effect,
+not a bug. This is distinct from the new **"Business Owner" income source**
+on Preliminary Application, which only sets `FinancialInfo.businessType`/
+`businessDocument`, never `application.loanType`.
+
+**Preliminary Application only collects Prefix + Surname.** First/Middle/
+Suffix are no longer part of this form — `PreliminarySchema` was trimmed to
+`prefix`/`lastName` only, and `SignUpData.firstName`/`middleName`/
+`extensionName` stay blank until the borrower fills them in later, on the
+Upload ID step's First Name/Middle Name/Extension row (see
+"Onboarding welcome step re-added" section below for the current Upload ID
+implementation — this row isn't seeded from anything, since there's no OCR
+to seed it with; it's a plain blank/editable row). This keeps
+`SignUpData`'s shape unchanged (still used pervasively downstream — dashboard
+greeting, admin call reports, application detail cards) while shortening the
+first screen. The heading/subtitle were also revised: "Step 1 · Loan
+Application" / "See how much you qualify for" / "Takes about 2 minutes —
+checking won't affect your credit score." (previously "Step 1 · Preliminary"
+/ "Preliminary application" / "Let's check if you qualify — no impact on
+your credit score.").
+
+**Purpose of Loan is multi-select.** `PreliminaryApplicationView` wires a raw
+MUI `Select multiple` through a react-hook-form `Controller` (not
+`Field.Select`, which doesn't support multiple selection), rendering chosen
+options as `Chip`s. Selected values are joined with `", "` into
+`FinancialInfo.loanPurpose` (kept as a single string, not `string[]`, so
+every existing admin-side consumer — call report, credit-checking summary
+text, application detail cards — keeps working unchanged).
+
+**Desired Loan Amount auto-formats with thousands separators.** Also wired
+through a `Controller`: on change, non-digit characters are stripped and the
+result coerced to `Number` for the RHF/Zod value, while the displayed string
+is reformatted via a small `formatThousands()` helper (e.g. typing `250000`
+displays `250,000`). The underlying stored value is still a plain `number`.
+
+**Business Owner conditional fields.** Selecting "Business Owner" as Source
+of Income reveals a "Business information" card: a Business Type select
+(Corporation / Cooperative / Sole Proprietorship / Partnership) and a
+document upload whose helper text names the specific document required for
+that type. Both fields are required only when shown, enforced via
+`PreliminarySchema.superRefine`. The uploaded document is converted to a
+base64 data URL (same `fileToDataUrl()` reasoning as the ID/selfie images)
+and stored as `FinancialInfo.businessDocument`. No admin-side view surfaces
+these new fields yet — they're stored but not displayed anywhere
+admin-side, an accepted gap rather than a bug.
+
+**Business document upload is a compact custom dropzone, not `Field.Upload`.**
+The shared `Field.Upload`/`Upload` component (`src/components/upload/upload.tsx`)
+is built for photo uploads — a large dashed dropzone that pads to `28% 0`
+once a file is selected, plus a `SingleFilePreview` that renders the file as
+a full-bleed background image — and stays oversized for a document field
+even with `sx` overrides, since that padding lives on the same element the
+override targets. `BusinessDocumentUpload` in
+`preliminary-application-view.tsx` instead defines a local `CompactDropzone`
+component using `useDropzone` (`react-dropzone`, same library `Upload` uses
+internally) directly, rendering a single ~44px-tall row: a `FileThumbnail`
+icon (`src/components/file-thumbnail/`, which already handles PDF vs. image
+icons correctly) + filename + a remove button once a file is chosen, or a
+placeholder icon + "Choose a file — {document label}" text when empty. Wired
+to the form via a `Controller` on `businessDocument` (`CompactDropzone` takes
+plain `value`/`onChange` props so `useDropzone` — a hook — stays at the top
+of a real component, not inside the `Controller` render callback, per
+`react-hooks/rules-of-hooks`).
+
+**Preliminary Application now requires Terms & Conditions / Privacy Policy
+consent.** A `dataConsent` checkbox (Zod: `.refine((v) => v === true)`) sits
+right above the submit button, wired through a `Controller` like
+`loanPurpose`. Checking it is required to submit; on success its value is
+persisted onto `SignUpData.termsAccepted` (previously always defaulted to
+`false` on this screen, since nothing here set it). This is in addition to,
+not a replacement for, the separate accurate-info / T&C / privacy /
+verification-consent block already collected at the final
+`step-selfie-verification.tsx` step — that block's own comment documents
+consent being collected there deliberately, once, right before submit. Two
+consent touchpoints now exist by design: this screen consents to collecting
+PII (email, mobile, income) upfront, the later screen consents to ID/selfie
+verification processing specifically.
+
+**Blue `AuthBrandPanel` side no longer scrolls with the form.** In
+`PreliminaryApplicationView`, the outer row `Stack` uses a capped
+`height: '100vh'` (not `minHeight: '100vh'`), and the form column carries its
+own `height: '100%'` alongside the existing `overflowY: 'auto'`. Previously,
+`minHeight: '100vh'` let the whole row grow taller than the viewport when the
+form content was long, so the entire page — including the fixed dark
+`AuthBrandPanel` — scrolled together. Now only the white form column scrolls;
+the blue panel stays pinned. `onboarding-view.tsx` and `login-view.tsx` still
+use the old `minHeight: '100vh'` pattern and have the same latent issue —
+not yet fixed there.
+
+**Onboarding welcome step re-added, full-bleed.**
+`OnboardingView` (`src/sections/auth/onboarding/onboarding-view.tsx`) now
+tracks `step: 0 | 1 | 2` instead of `1 | 2` — `0` is `StepWelcome`
+(`src/sections/auth/onboarding/step-welcome.tsx`), shown right after OTP
+verification, before Upload ID. `OnboardingView` returns it early
+(`if (step === 0) return <StepWelcome .../>`), **before** reaching the rest
+of the component — so this step renders standalone. It reuses the original
+pre-restructure visual treatment almost verbatim (full-bleed `#132155`
+background, texture overlay, two floating gradient circles, centered "Hey
+{firstName}! Welcome to PG Finance" message, `LogoFull` at the bottom — see
+the dated note above for that original component); the only functional
+change is that the old manual "Continue"/"Skip to Dashboard" buttons are
+replaced with a "Getting things ready…" spinner, and it **auto-advances to
+step 1 after 5 seconds** via `setTimeout` in a `useEffect` — same pattern as
+`VerifiedTransition` on the OTP screen — no button or user action required.
+The "← Back" link on steps 1/2 is unaffected, still only appears on step 2.
+
+**Steps 1/2 (Upload ID, Selfie Verification) no longer use
+`AuthBrandPanel`/the split-panel treatment either.** Both now render inside
+a single centered `Stack` (`alignItems: 'center', justifyContent: 'center'`)
+on a plain white background — `AuthBrandPanel` was dropped from
+`OnboardingView` entirely, not just from step 0. This relies on each step
+already self-constraining its own content width (`StepPersonalInfo` to
+640px via its own `sx={{ maxWidth: 640 }}`, `StepSelfieVerification` to
+460px), so centering them without a competing side panel needed no changes
+inside either step component.
+
+**ID type-dependent front/back upload.** `ID_TYPES_REQUIRING_BACK` (a `Set`
+in `step-personal-info.tsx`) lists the ID types whose two sides carry
+different information — Driver's License, UMID, SSS ID, PhilHealth ID —
+and for those, the single "Upload a valid ID" dropzone is replaced with two
+side-by-side dropzones, "Upload ID — Front" / "Upload ID — Back", both
+required (enforced via `PersonalInfoSchema.superRefine`, which adds an
+issue on `idFileBack` when a two-sided type has none). PhilSys/National ID
+and Philippine Passport keep the original single dropzone, since neither
+has a second side worth scanning (blank/QR-only back, and booklet page,
+respectively). Switching `idType` away from a two-sided type clears any
+already-uploaded `idFileBack` via a `useEffect` keyed on a
+`useRef`-tracked previous `idType` value — same clear-on-type-change
+pattern as `businessDocument` on Preliminary Application. The back image
+converts to a base64 data URL the same way as the front (`fileToDataUrl()`)
+and is surfaced admin-side too: `application-details-card.tsx` renders a
+second `DocumentPreview` ("Uploaded ID — Back") whenever
+`personalInfo.idFileBack` is set.
+
+**Front/Back ID dropzones are a custom fixed-height component, not
+`Field.Upload`.** `IdUploadSlot`/`IdUploadField` in `step-personal-info.tsx`
+(via `useDropzone` + a `Controller`) replaced `Field.Upload` for both
+slots — `Field.Upload`'s underlying `Upload` component pads to `28% 0`
+once a file is selected (`src/components/upload/upload.tsx`), so an empty
+Back slot next to a filled Front slot rendered at different heights, and
+both were oversized regardless. `IdUploadSlot` is a fixed 140px
+(`ID_UPLOAD_HEIGHT`) box for both Front and Back — same size whether empty
+or filled — with a compact icon+label prompt when empty, or a cropped
+`object-fit: cover` image preview plus a small remove (×) button once a
+file is chosen.
+
+**Upload ID — OCR simulation removed, flat form, ID Type shown first,
+upload box gated behind it.** `src/sections/auth/onboarding/step-personal-info.tsx`
+(`StepPersonalInfo`, onboarding step 1 of 2 — i.e. the first of the two
+form steps, not counting the auto-advancing Welcome step 0) used to
+simulate OCR extraction (a 2.2s "Reading your ID…" spinner, then a
+"review" section that progressively revealed the remaining fields).
+**That's gone** — no delay, and no progressive reveal for the form fields
+(ID Number, Name, Birthday, Address, etc. are all always visible). The
+upload box is the one deliberate exception: `{!!idType && (...)}` means it
+only renders once ID Type is chosen — before that, the screen shows just
+the ID Type select, alone. Order, top to bottom: **ID Type** (select,
+alone at first) → upload dropzone(s), appearing once ID Type is set → ID
+Number → **First Name/Middle Name/Extension** → **Birthday/Gender** →
+Address → **Province/City/Barangay/Zip Code** → an "Additional
+information" section label → Civil Status → (Spouse Information, if
+Married) → TIN Number → Referral Source → "Continue →". Heading/copy also
+changed: "Step 1 · Upload ID" / "Upload a valid ID" (previously "Step 1 ·
+ID Verification" / "Verify your ID"), button label "Continue →" (previously
+"Confirm & Continue").
+
+**Instant auto-fill on upload, no delay.** The moment the front ID image is
+selected, `AUTOFILL_VALUES` (a fixed object in `step-personal-info.tsx`:
+ID Number, First Name, Middle Name, Birthday, Address, Province, City,
+Barangay, Zip Code) populates any of those fields the borrower hasn't
+already typed into — driven by a `useEffect` on the `idFile` field value,
+guarded by a ref so it only fires once per new upload. This is explicitly
+**not** real OCR (there's no OCR/AI service anywhere in this codebase);
+it's an instant, honest-about-being-fake UX convenience, replacing the
+prior simulated "reading" delay entirely rather than reviving it with a
+spinner.
+
+**First/Middle/Extension Name moved here from a "Full name" field.** There
+used to be a single "Full name" text field, seeded with just the Surname
+from Preliminary Application (no real OCR, so nothing was actually
+extracted). That's replaced with three separate fields — First Name
+(required), Middle Name (optional), Extension (optional) — matching
+`SignUpData`'s existing shape. `StepPersonalInfo`'s
+`onSubmitApplication(data: PersonalInfo, nameFields: PersonalInfoNameFields)`
+callback signature grew a second argument for this — the name fields aren't
+part of `PersonalInfo` at all, they route to `SignUpData` instead. Both
+consumers (`OnboardingView.handlePersonalInfo` and
+`LoanApplicationView.handlePersonalInfo` in `loan-application-view.tsx`,
+`/borrower/apply`'s second-application flow, which shares this same
+component) merge the returned name fields into `SignUpData` via
+`setSignUpData()`, and both pass a `nameDefaultValues` prop sourced from the
+existing `signUpData` so a returning borrower's name pre-fills. Surname
+itself isn't shown or re-editable on this screen.
+
+**New fields: `PersonalInfo.birthday` and `.zipCode`.** Birthday is the
+borrower's own (distinct from the existing `spouseBirthday`); Zip Code
+joins Province/City/Barangay in the address row. Both are required, both
+surfaced admin-side in `application-details-card.tsx`'s "Personal & ID
+information" section.
+
+**Spouse's Address split into Address + Province.** If Civil Status is
+Married, the conditional Spouse Information box still appears (Spouse's
+Name, Spouse's Birthday, "Same address as spouse" checkbox), but "Same
+address as spouse" unchecked now reveals **two** fields — Spouse's Address
+and Spouse's Province (`PersonalInfo.spouseProvince`, new) — mirroring the
+borrower's own Address/Province split, rather than one free-text address
+field. Checked copies both `address` and `province` from the borrower's
+own fields. Both required when shown, via `PersonalInfoSchema.superRefine`.
+
 **Selfie with ID verification** (`src/sections/auth/onboarding/step-selfie-verification.tsx`)
-is the final step before submit, both in the main onboarding flow (`OnboardingView`, step 5
-of 5, right after Welcome) and in the "Apply for Loan" second-application flow from the
-dashboard (`LoanApplicationView`, step 4 of 4, which has no Welcome screen). It follows a
+is the final step before submit, both in the main onboarding flow (`OnboardingView`, step 2
+of 2, right after Upload ID) and in the "Apply for Loan" second-application flow from the
+dashboard (`LoanApplicationView`, step 4 of 4, unaffected by either restructuring). It follows a
 **KYC-style "selfie with ID" pattern** (not a plain face-only selfie): live camera feed in
 a portrait frame with a dashed face-oval guide up top and a card-shaped ID-rectangle guide
 below it + corner brackets, instructing the user to hold their physical ID next to their
-face. An "I'm Ready" trigger starts a 3-2-1 auto-capture countdown ("Hold still —
+face. A lighting tip ("Find a well-lit spot…") shows before the camera starts. An "I'm
+Ready" trigger starts a 3-2-1 auto-capture countdown ("Hold still —
 capturing…") instead of a manual shutter button, then on the captured frame a
 "Verify Selfie with ID" action runs a simulated ~1.8s "Matching your face to your ID…"
 check (spinner overlay) before showing both guide shapes turned green with a checkmark
-overlay — **no success text/alert is shown**, the user just clicks "Submit Application"
-directly off the green checkmark state. Camera access is via
+overlay. Once verified, a **4-checkbox consent section** appears (accurate info, Terms &
+Conditions, Privacy Policy, ID/facial-image processing consent) — all four required before
+"Submit Application →" enables; on submit, `signUpData.termsAccepted` flips to `true` here
+(there's no separate consent step). Camera access is via
 `navigator.mediaDevices.getUserMedia`, capture is drawn
 to a `<canvas>`. **The match/verify step is intentionally simulated, not a real
 face-match/liveness backend** — there is no actual comparison against the uploaded ID
 happening. If camera permission is denied, it shows an inline warning and a retry button
-rather than blocking the flow. Sets `application.selfieVerified = true` on success before
-advancing to Thank You.
+rather than blocking the flow. Sets `application.selfieVerified = true` and calls
+`markSubmitted()` on success before advancing to the Application Confirmation screen.
 
-- Sign Up, Verify, and the Welcome step render **full-bleed split-panel** layouts
-  (dark textured `AuthBrandPanel` + form), bypassing the card-based `OnboardingLayout`.
-- Loan Type, Preliminary Application, and Personal Info render inside
-  `OnboardingLayout` (light top-bar with progress + back/exit link, centered white card).
-- "Verified" (post-OTP) and "Thank You" (post-submit) are transient success screens,
-  not steps a user should deep-link to.
-- Applying for a *second* loan from the dashboard ("Apply for Loan") reuses the same
-  Loan Type → Financial Info → Personal Info steps via
-  `src/sections/borrower/loan-application-view.tsx`.
+- Preliminary Application and Verify render **full-bleed split-panel**
+  layouts (dark textured `AuthBrandPanel` + form), bypassing the card-based
+  `OnboardingLayout` entirely. Upload ID and Selfie Verification, inside the
+  onboarding wizard, bypass `OnboardingLayout` too but **no longer** use the
+  split-panel treatment either — see "Steps 1/2 (Upload ID, Selfie
+  Verification) no longer use `AuthBrandPanel`" above; both render centered
+  on plain white instead. A plain "← Back" text link (visible only on the
+  Selfie step) replaces the old back/exit link. `/borrower/apply`
+  (`loan-application-view.tsx`) still renders `StepPersonalInfo`/
+  `StepSelfieVerification` inside the original `OnboardingLayout` —
+  intentionally untouched.
+- "Verified" (post-OTP) and the Application Confirmation screen (post-submit)
+  are transient success screens, not steps a user should deep-link to (see
+  the hydration-race note further down for why hard-navigating directly to
+  them in a test can misbehave even though the app itself is fine).
+- Applying for a *second* loan from the dashboard ("Apply for Loan") is
+  **unaffected by either restructuring** — it still reuses the original
+  Loan Type → Financial Info → Personal Info → Selfie steps via
+  `src/sections/borrower/loan-application-view.tsx`, with no Preliminary
+  screening, multi-select purpose, business fields, or re-verification.
 - Dashboard loan card intentionally shows only 3 real-data columns (Total Loan
   Amount, Loan Term, Application Status) — no invented Total Payment / Amount Due /
   Due Date fields, since there's no real payments/amortization model yet.
@@ -992,16 +1280,21 @@ stale silently.
   `src/sections/admin/admin-login-view.tsx` — it inlines its own texture/circle
   treatment instead of reusing `AuthBrandPanel`, since the shared component is
   structurally a side panel, not a background.
-- **Welcome step** (`src/sections/auth/onboarding/step-welcome.tsx`, the full-bleed
-  dark splash right after OTP verification) also inlines its own texture + animated
-  floating circles rather than reusing `AuthBrandPanel` (same reasoning — it's a
-  full-bleed background, not a side panel). It intentionally has **no icon badge**
-  above the headline (removed per user request) and uses smaller heading sizes
-  (32/24px) than the earlier iteration, to match the scale of the rest of the
-  re-themed flow rather than the original Figma-literal sizing. Its CTA buttons are
-  bottom-anchored (own `Stack` above the footer logo, separate from the centered
-  heading/copy block) rather than sitting inline with the text, and the primary CTA
-  reads "Continue to Loan Application" (not just "Continue").
+- **Welcome step — deleted 2026-07-15, re-added 2026-07-16 with the same
+  full-bleed visual treatment.** `src/sections/auth/onboarding/step-welcome.tsx`
+  (full-bleed dark splash with animated floating circles, bottom-anchored CTAs
+  reading "Continue to Loan Application" / "Skip to Dashboard") was removed as
+  part of restructuring sign-up to be eligibility-first, since `OnboardingView`
+  (at the time still using its original split-panel shell) no longer had an
+  intermediate screen positioned between account creation and the application
+  wizard to host it. It's since been **re-added**, keeping the original
+  full-bleed dark-blue/texture/floating-circle treatment (it does not use
+  `AuthBrandPanel`), with only the manual "Continue"/"Skip to Dashboard"
+  buttons swapped for an auto-advancing spinner. `OnboardingView`'s
+  split-panel shell was itself later dropped for steps 1/2 as well (both now
+  render centered on plain white, no `AuthBrandPanel` anywhere in this view)
+  — see "Onboarding welcome step re-added" below for the current
+  implementation.
 - **Borrower dashboard empty-state hero card** (`EmptyDashboardState` in
   `src/sections/borrower/dashboard-view.tsx`) also carries the same texture +
   animated floating-circle treatment as the auth screens above (scaled down to fit

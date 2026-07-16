@@ -26,6 +26,13 @@ import { VerifiedTransition } from './verified-transition';
 import { authPrimaryButtonSx } from './auth-input-styles';
 
 // ----------------------------------------------------------------------
+// Mobile OTP verification only — no visible password step. Once the code
+// is verified, the borrower account is considered auto-created (a
+// temporary password is described as emailed on the Application
+// Confirmation screen, but never shown anywhere in this UI, since there's
+// no real email delivery to simulate against honestly in this prototype).
+// `verified` flips to true immediately on OTP success.
+// ----------------------------------------------------------------------
 
 export type VerifySchemaType = zod.infer<typeof VerifySchema>;
 
@@ -39,7 +46,7 @@ export function VerifyView() {
   const router = useRouter();
   const { signUpData, setVerified } = useRegistration();
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [showVerified, setShowVerified] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
 
   const methods = useForm<VerifySchemaType>({
     resolver: zodResolver(VerifySchema),
@@ -60,8 +67,7 @@ export function VerifyView() {
       return;
     }
 
-    setVerified(true);
-    setShowVerified(true);
+    setShowTransition(true);
   });
 
   const handleResend = () => {
@@ -78,8 +84,15 @@ export function VerifyView() {
     }, 1000);
   };
 
-  if (showVerified) {
-    return <VerifiedTransition onDone={() => router.push(paths.auth.onboarding)} />;
+  if (showTransition) {
+    return (
+      <VerifiedTransition
+        onDone={() => {
+          setVerified(true);
+          router.push(paths.auth.onboarding);
+        }}
+      />
+    );
   }
 
   const minutes = Math.floor(resendCooldown / 60);
@@ -124,13 +137,13 @@ export function VerifyView() {
           </Stack>
 
           <Typography sx={{ fontSize: 27, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em', mb: 1.25 }}>
-            Verify your identity
+            Verify your mobile number
           </Typography>
           <Typography sx={{ fontSize: 14.5, color: '#667085', lineHeight: 1.6, mb: 4 }}>
             We sent a 6-digit code to
             <br />
             <Box component="strong" sx={{ color: '#14172A' }}>
-              {signUpData?.email || 'your email'}
+              {signUpData?.mobile ? `+63 ${signUpData.mobile}` : 'your mobile number'}
             </Box>
             . Enter it below to continue.
           </Typography>
@@ -189,7 +202,7 @@ export function VerifyView() {
                 href={paths.auth.signUp}
                 sx={{ fontSize: 13.5, fontWeight: 600, color: '#667085', mt: 1 }}
               >
-                ← Return to sign up
+                ← Return to preliminary application
               </Link>
             </Stack>
           </Form>

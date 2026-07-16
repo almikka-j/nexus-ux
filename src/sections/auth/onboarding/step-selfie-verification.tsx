@@ -3,10 +3,18 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Typography from '@mui/material/Typography';
+import FormControlLabel from '@mui/material/FormControlLabel';
+
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
+import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -31,6 +39,7 @@ type StepSelfieVerificationProps = {
 };
 
 export function StepSelfieVerification({ onContinue }: StepSelfieVerificationProps) {
+  const { signUpData, setSignUpData } = useRegistration();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -38,6 +47,16 @@ export function StepSelfieVerification({ onContinue }: StepSelfieVerificationPro
   const [state, setState] = useState<CaptureState>('idle');
   const [photo, setPhoto] = useState<string | null>(null);
   const [count, setCount] = useState(COUNTDOWN_START);
+
+  // Consent — collected here, right before final submit, rather than as a
+  // separate step. termsAccepted also persists onto SignUpData so it isn't
+  // simply discarded once this screen is left behind.
+  const [accurateInfo, setAccurateInfo] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
+  const [verificationConsent, setVerificationConsent] = useState(false);
+  const allConsentsGiven =
+    accurateInfo && termsAccepted && privacyAcknowledged && verificationConsent;
 
   const isLiveFeed = state === 'positioning' || state === 'countdown';
 
@@ -136,6 +155,12 @@ export function StepSelfieVerification({ onContinue }: StepSelfieVerificationPro
           you.
         </Typography>
       </Stack>
+
+      {state === 'idle' && (
+        <Typography sx={{ fontSize: 12.5, color: '#8891A6', textAlign: 'center', mb: 1.5 }}>
+          Find a well-lit spot and make sure your face is clearly visible before you begin.
+        </Typography>
+      )}
 
       <Box
         sx={{
@@ -438,14 +463,90 @@ export function StepSelfieVerification({ onContinue }: StepSelfieVerificationPro
         )}
 
         {state === 'verified' && (
-          <Button
-            fullWidth
-            onClick={() => onContinue(photo)}
-            variant="contained"
-            sx={authPrimaryButtonSx}
-          >
-            Submit Application →
-          </Button>
+          <Stack spacing={1.5}>
+            <Stack spacing={0.75} sx={{ p: 2, borderRadius: '12px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={accurateInfo}
+                    onChange={(event) => setAccurateInfo(event.target.checked)}
+                  />
+                }
+                label={
+                  <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
+                    The information I&apos;ve provided in this application is accurate.
+                  </Typography>
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={termsAccepted}
+                    onChange={(event) => setTermsAccepted(event.target.checked)}
+                  />
+                }
+                label={
+                  <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
+                    I agree to the{' '}
+                    <Link component={RouterLink} href={paths.terms} sx={{ color: '#4361EE', fontWeight: 600 }}>
+                      Terms &amp; Conditions
+                    </Link>
+                    .
+                  </Typography>
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={privacyAcknowledged}
+                    onChange={(event) => setPrivacyAcknowledged(event.target.checked)}
+                  />
+                }
+                label={
+                  <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
+                    I acknowledge the{' '}
+                    <Link component={RouterLink} href={paths.privacyPolicy} sx={{ color: '#4361EE', fontWeight: 600 }}>
+                      Privacy Policy
+                    </Link>
+                    .
+                  </Typography>
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={verificationConsent}
+                    onChange={(event) => setVerificationConsent(event.target.checked)}
+                  />
+                }
+                label={
+                  <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
+                    I consent to the processing and verification of my personal information,
+                    government ID, and facial image.
+                  </Typography>
+                }
+              />
+            </Stack>
+
+            <Button
+              fullWidth
+              disabled={!allConsentsGiven}
+              onClick={() => {
+                if (signUpData) {
+                  setSignUpData({ ...signUpData, termsAccepted: true });
+                }
+                onContinue(photo);
+              }}
+              variant="contained"
+              sx={authPrimaryButtonSx}
+            >
+              Submit Application →
+            </Button>
+          </Stack>
         )}
       </Stack>
     </Box>

@@ -9,15 +9,40 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
+import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { OnboardingLayout } from 'src/layouts/onboarding';
 
 // ----------------------------------------------------------------------
 
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <Stack direction="row" justifyContent="space-between" spacing={2}>
+      <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>{label}</Typography>
+      <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#14172A', textAlign: 'right' }}>
+        {value}
+      </Typography>
+    </Stack>
+  );
+}
+
 export function ThankYouView() {
   const router = useRouter();
+  const { signUpData, application } = useRegistration();
+
+  const referenceNumber = signUpData ? getLoanNumber(signUpData.email) : '—';
+  const submittedDate = application.submittedAt
+    ? new Date(application.submittedAt).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : '—';
 
   return (
     <OnboardingLayout step={4} totalSteps={4} complete>
@@ -53,13 +78,27 @@ export function ThankYouView() {
         </Box>
 
         <Typography sx={{ fontSize: 27, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em', mb: 1.5 }}>
-          Thank you for submitting your loan application!
+          Your loan application has been submitted!
         </Typography>
         <Typography sx={{ fontSize: 15, color: '#667085', lineHeight: 1.65, mb: 3.25 }}>
-          Your application is now undergoing initial screening. We&apos;ll notify you once the
-          review is complete, bringing you a step closer to being pre-qualified to connect with a
-          loan facility.
+          We&apos;ve automatically created your borrower account and sent a temporary password to
+          your registered email — use it to log in and track your application anytime.
+          You&apos;ll be asked to set a new password the first time you log in.
         </Typography>
+
+        <Stack
+          spacing={1.25}
+          sx={{ textAlign: 'left', bgcolor: 'common.white', border: '1px solid #EBEDF3', borderRadius: '12px', p: 2.5, mb: 2.5 }}
+        >
+          <DetailRow label="Reference Number" value={referenceNumber} />
+          <DetailRow label="Submitted On" value={submittedDate} />
+          <DetailRow label="Status" value="Under Review" />
+          <DetailRow label="Registered Email" value={signUpData?.email ?? '—'} />
+          <DetailRow
+            label="Verified Mobile"
+            value={signUpData?.mobile ? `+63 ${signUpData.mobile}` : '—'}
+          />
+        </Stack>
 
         <Stack
           direction="row"
@@ -76,22 +115,32 @@ export function ThankYouView() {
           </Typography>
         </Stack>
 
-        <Button
-          variant="contained"
-          onClick={() => router.push(paths.borrower.dashboard)}
-          sx={{
-            height: 52,
-            px: 5,
-            borderRadius: '12px',
-            bgcolor: '#1C2A6E',
-            fontSize: 15,
-            fontWeight: 700,
-            boxShadow: '0 12px 24px -10px rgba(28,42,110,0.6)',
-            '&:hover': { bgcolor: '#14205A' },
-          }}
-        >
-          Go to my dashboard →
-        </Button>
+        <Stack spacing={1.5} alignItems="center">
+          <Button
+            variant="contained"
+            onClick={() => router.push(paths.borrower.dashboard)}
+            sx={{
+              height: 52,
+              px: 5,
+              borderRadius: '12px',
+              bgcolor: '#1C2A6E',
+              fontSize: 15,
+              fontWeight: 700,
+              boxShadow: '0 12px 24px -10px rgba(28,42,110,0.6)',
+              '&:hover': { bgcolor: '#14205A' },
+            }}
+          >
+            Go to my dashboard →
+          </Button>
+
+          <Link
+            component={RouterLink}
+            href={paths.auth.login}
+            sx={{ fontSize: 13.5, fontWeight: 600, color: '#667085' }}
+          >
+            Log in later using your temporary password
+          </Link>
+        </Stack>
       </Box>
     </OnboardingLayout>
   );

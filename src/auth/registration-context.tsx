@@ -5,6 +5,7 @@ import { useMemo, useState, useEffect, useContext, createContext } from 'react';
 // ----------------------------------------------------------------------
 
 export type SignUpData = {
+  prefix?: string;
   firstName: string;
   middleName?: string;
   lastName: string;
@@ -24,20 +25,37 @@ export type FinancialInfo = {
   employmentStatus: string;
   monthlyIncome: number;
   loanPurpose: string;
+  // Collected only when employmentStatus === 'Business Owner' — see
+  // PreliminaryApplicationView's conditional "Business Type" + document
+  // upload fields. businessDocument is stored as a base64 data URL (a raw
+  // File can't survive JSON.stringify into sessionStorage).
+  businessType?: string;
+  businessDocument?: string | null;
 };
 
 export type PersonalInfo = {
   idType: string;
   idNumber: string;
   idFile: File | string | null;
+  idFileBack: File | string | null;
+  birthday: string;
   address: string;
   province: string;
   city: string;
   barangay: string;
+  zipCode: string;
   civilStatus: string;
   gender: string;
   tinNumber: string;
   referralSource: string;
+  // Collected only when civilStatus === 'Married' — see StepPersonalInfo's
+  // "Spouse Information" section. spouseAddress/spouseProvince are either a
+  // direct copy of the borrower's own address/province (when "Same address
+  // as spouse" is checked) or separately-entered values.
+  spouseName?: string;
+  spouseBirthday?: string;
+  spouseAddress?: string;
+  spouseProvince?: string;
 };
 
 export type ApplicationData = {
@@ -50,9 +68,18 @@ export type ApplicationData = {
   assignedOfficer: string | null;
 };
 
+// Recorded the moment Preliminary Application is submitted — 'declined'
+// when the desired loan amount is below the qualification threshold
+// (no account is created in that case), 'qualified' otherwise. Persists via
+// the same sessionStorage mechanism as the rest of this state, so a
+// declined submission leaves a durable record even though no downstream
+// screen currently reads it beyond this.
+export type PreliminaryStatus = 'declined' | 'qualified' | null;
+
 export type RegistrationState = {
   signUpData: SignUpData | null;
   verified: boolean;
+  preliminaryStatus: PreliminaryStatus;
   application: ApplicationData;
 };
 
@@ -60,6 +87,7 @@ type RegistrationContextValue = RegistrationState & {
   hydrated: boolean;
   setSignUpData: (data: SignUpData) => void;
   setVerified: (verified: boolean) => void;
+  setPreliminaryStatus: (status: PreliminaryStatus) => void;
   setLoanType: (loanType: LoanType | null) => void;
   setFinancialInfo: (info: FinancialInfo) => void;
   setPersonalInfo: (info: PersonalInfo) => void;
@@ -75,6 +103,7 @@ const STORAGE_KEY = 'hhc-lms-registration';
 const initialState: RegistrationState = {
   signUpData: null,
   verified: false,
+  preliminaryStatus: null,
   application: {
     loanType: null,
     financialInfo: null,
@@ -145,6 +174,8 @@ export function RegistrationProvider({ children }: { children: React.ReactNode }
       hydrated,
       setSignUpData: (signUpData) => setState((prev) => ({ ...prev, signUpData })),
       setVerified: (verified) => setState((prev) => ({ ...prev, verified })),
+      setPreliminaryStatus: (preliminaryStatus) =>
+        setState((prev) => ({ ...prev, preliminaryStatus })),
       setLoanType: (loanType) =>
         setState((prev) => ({ ...prev, application: { ...prev.application, loanType } })),
       setFinancialInfo: (financialInfo) =>

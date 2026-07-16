@@ -1,3 +1,7 @@
+'use client';
+
+import { useEffect } from 'react';
+
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -6,13 +10,19 @@ import { LogoFull } from 'src/components/logo/logo-full';
 
 // ----------------------------------------------------------------------
 
+const AUTO_ADVANCE_DELAY = 5000;
+
 type StepWelcomeProps = {
   firstName: string;
-  onContinue: () => void;
-  onSkipToDashboard: () => void;
+  onDone: () => void;
 };
 
-export function StepWelcome({ firstName, onContinue, onSkipToDashboard }: StepWelcomeProps) {
+export function StepWelcome({ firstName, onDone }: StepWelcomeProps) {
+  useEffect(() => {
+    const timer = setTimeout(onDone, AUTO_ADVANCE_DELAY);
+    return () => clearTimeout(timer);
+  }, [onDone]);
+
   return (
     <Box
       sx={{
@@ -96,59 +106,25 @@ export function StepWelcome({ firstName, onContinue, onSkipToDashboard }: StepWe
       </Stack>
 
       <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1.5}
+        direction="row"
         alignItems="center"
-        justifyContent="center"
+        spacing={1.25}
         sx={{ position: 'relative', zIndex: 1, pb: 5 }}
       >
         <Box
-          component="button"
-          onClick={onSkipToDashboard}
           sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: 48,
-            border: '1px solid rgba(255,255,255,0.4)',
-            borderRadius: '11px',
-            bgcolor: 'transparent',
-            color: 'common.white',
-            fontSize: 14,
-            fontWeight: 600,
-            px: 3,
-            cursor: 'pointer',
-            transition: 'background-color 0.15s ease',
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+            width: 20,
+            height: 20,
+            border: '2.5px solid rgba(255,255,255,0.25)',
+            borderTopColor: 'common.white',
+            borderRadius: '50%',
+            animation: 'pgWelcomeSpin 0.8s linear infinite',
+            '@keyframes pgWelcomeSpin': { to: { transform: 'rotate(360deg)' } },
           }}
-        >
-          Skip to Dashboard
-        </Box>
-
-        <Box
-          component="button"
-          onClick={onContinue}
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 1,
-            height: 48,
-            px: 3.5,
-            borderRadius: '11px',
-            border: 'none',
-            bgcolor: 'common.white',
-            color: '#1C2A6E',
-            fontSize: 14.5,
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 16px 34px -14px rgba(0,0,0,0.5)',
-            transition: 'transform 0.12s ease',
-            '&:hover': { transform: 'translateY(-2px)' },
-          }}
-        >
-          Continue to Loan Application <span>→</span>
-        </Box>
+        />
+        <Typography sx={{ fontSize: 13.5, color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
+          Getting things ready…
+        </Typography>
       </Stack>
 
       <Box sx={{ position: 'relative', zIndex: 1, pb: 5, opacity: 0.92, filter: 'brightness(0) invert(1)' }}>

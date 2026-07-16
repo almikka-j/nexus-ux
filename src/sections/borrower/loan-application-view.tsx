@@ -15,6 +15,7 @@ import { StepPersonalInfo } from 'src/sections/auth/onboarding/step-personal-inf
 import { StepSelfieVerification } from 'src/sections/auth/onboarding/step-selfie-verification';
 
 import type { FinancialInfo, PersonalInfo } from 'src/auth/registration-context';
+import type { PersonalInfoNameFields } from 'src/sections/auth/onboarding/step-personal-info';
 
 // ----------------------------------------------------------------------
 
@@ -23,6 +24,7 @@ export function LoanApplicationView() {
   const {
     signUpData,
     application,
+    setSignUpData,
     setLoanType,
     setFinancialInfo,
     setPersonalInfo,
@@ -39,7 +41,15 @@ export function LoanApplicationView() {
     setStep(3);
   };
 
-  const handlePersonalInfo = (personalInfo: PersonalInfo) => {
+  const handlePersonalInfo = (personalInfo: PersonalInfo, nameFields: PersonalInfoNameFields) => {
+    if (signUpData) {
+      setSignUpData({
+        ...signUpData,
+        firstName: nameFields.firstName,
+        middleName: nameFields.middleName,
+        extensionName: nameFields.extensionName,
+      });
+    }
     setPersonalInfo(personalInfo);
     setStep(4);
   };
@@ -81,6 +91,11 @@ export function LoanApplicationView() {
       {step === 3 && (
         <StepPersonalInfo
           defaultValues={application.personalInfo || {}}
+          nameDefaultValues={{
+            firstName: signUpData?.firstName,
+            middleName: signUpData?.middleName,
+            extensionName: signUpData?.extensionName,
+          }}
           onSubmitApplication={handlePersonalInfo}
         />
       )}

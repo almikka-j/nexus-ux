@@ -221,6 +221,7 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
             <Stack spacing={1.5}>
               <SectionLabel>Personal &amp; ID information</SectionLabel>
               <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
+                <DetailField label="Birthday" value={personalInfo.birthday} />
                 <DetailField label="Gender" value={personalInfo.gender} />
                 <DetailField label="Civil status" value={personalInfo.civilStatus} />
                 <DetailField label="ID type" value={personalInfo.idType} />
@@ -232,6 +233,7 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
                 <DetailField label="Barangay" value={personalInfo.barangay} />
                 <DetailField label="City" value={personalInfo.city} />
                 <DetailField label="Province" value={personalInfo.province} />
+                <DetailField label="Zip code" value={personalInfo.zipCode} />
               </Stack>
               <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
                 <DetailField label="Referral source" value={personalInfo.referralSource} />
@@ -244,10 +246,17 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
               <SectionLabel>Uploaded documents</SectionLabel>
               <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
                 <DocumentPreview
-                  label="Uploaded ID"
+                  label={personalInfo.idFileBack ? 'Uploaded ID — Front' : 'Uploaded ID'}
                   src={typeof personalInfo.idFile === 'string' ? personalInfo.idFile : null}
                   placeholderIcon="solar:card-2-bold-duotone"
                 />
+                {!!personalInfo.idFileBack && (
+                  <DocumentPreview
+                    label="Uploaded ID — Back"
+                    src={typeof personalInfo.idFileBack === 'string' ? personalInfo.idFileBack : null}
+                    placeholderIcon="solar:card-2-bold-duotone"
+                  />
+                )}
                 <DocumentPreview
                   label="Selfie with ID"
                   src={application.selfiePhoto}

@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 
-import { SignUpView } from 'src/sections/auth/sign-up-view';
+import { PreliminaryApplicationView } from 'src/sections/auth/preliminary-application-view';
 
 // ----------------------------------------------------------------------
 
 export const metadata: Metadata = {
-  title: 'Sign Up | HHC LMS',
+  title: 'Preliminary Application | HHC LMS',
 };
 
 export default function Page() {
-  return <SignUpView />;
+  return <PreliminaryApplicationView />;
 }

@@ -73,6 +73,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
         termsAccepted: true,
       },
       verified: true,
+      preliminaryStatus: 'qualified',
       application: {
         loanType: 'personal',
         financialInfo: {
@@ -86,10 +87,13 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
           idType: 'PhilSys / National ID',
           idNumber: 'P7788990011',
           idFile: svgIdPhoto('PhilSys / National ID (sample)'),
+          idFileBack: null,
+          birthday: '1998-02-10',
           address: '9 Bonifacio Street',
           province: 'Rizal',
           city: 'Antipolo',
           barangay: 'San Roque',
+          zipCode: '1870',
           civilStatus: 'Single',
           gender: 'Male',
           tinNumber: '654-321-000-000',
@@ -117,6 +121,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
         termsAccepted: true,
       },
       verified: true,
+      preliminaryStatus: 'qualified',
       application: {
         loanType: 'personal',
         financialInfo: {
@@ -129,11 +134,14 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
         personalInfo: {
           idType: 'Driver’s License',
           idNumber: 'N01-23-456789',
-          idFile: svgIdPhoto('Driver’s License (sample)'),
+          idFile: svgIdPhoto('Driver’s License (sample) — Front'),
+          idFileBack: svgIdPhoto('Driver’s License (sample) — Back'),
+          birthday: '1995-11-30',
           address: '12 Mabini Street',
           province: 'Cebu',
           city: 'Cebu City',
           barangay: 'Lahug',
+          zipCode: '6000',
           civilStatus: 'Single',
           gender: 'Female',
           tinNumber: '123-456-987-000',
@@ -161,6 +169,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
         termsAccepted: true,
       },
       verified: true,
+      preliminaryStatus: 'qualified',
       application: {
         loanType: 'business',
         financialInfo: {
@@ -174,10 +183,13 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
           idType: 'PhilSys / National ID',
           idNumber: 'P5551234A',
           idFile: svgIdPhoto('PhilSys / National ID (sample)'),
+          idFileBack: null,
+          birthday: '1988-05-04',
           address: '78 Rizal Avenue',
           province: 'Laguna',
           city: 'Santa Rosa',
           barangay: 'Balibago',
+          zipCode: '4026',
           civilStatus: 'Married',
           gender: 'Male',
           tinNumber: '456-789-123-000',
@@ -205,6 +217,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
         termsAccepted: true,
       },
       verified: true,
+      preliminaryStatus: 'qualified',
       application: {
         loanType: 'personal',
         financialInfo: {
@@ -217,11 +230,14 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
         personalInfo: {
           idType: 'UMID',
           idNumber: 'U-9988776655',
-          idFile: svgIdPhoto('UMID (sample)'),
+          idFile: svgIdPhoto('UMID (sample) — Front'),
+          idFileBack: svgIdPhoto('UMID (sample) — Back'),
+          birthday: '1975-09-18',
           address: '5 Aguinaldo Highway',
           province: 'Cavite',
           city: 'Dasmariñas',
           barangay: 'Zone IV',
+          zipCode: '4114',
           civilStatus: 'Widowed',
           gender: 'Female',
           tinNumber: '789-123-456-000',
@@ -249,6 +265,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
         termsAccepted: true,
       },
       verified: true,
+      preliminaryStatus: 'qualified',
       application: {
         loanType: 'personal',
         financialInfo: {
@@ -262,10 +279,13 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
           idType: 'Philippine Passport',
           idNumber: 'P3344556677',
           idFile: svgIdPhoto('Philippine Passport (sample)'),
+          idFileBack: null,
+          birthday: '1982-01-27',
           address: '33 Katipunan Avenue',
           province: 'Metro Manila',
           city: 'Quezon City',
           barangay: 'Loyola Heights',
+          zipCode: '1108',
           civilStatus: 'Married',
           gender: 'Male',
           tinNumber: '321-654-987-000',

@@ -53,6 +53,7 @@ export const SAMPLE_APPLICATION: RegistrationState = {
     termsAccepted: true,
   },
   verified: true,
+  preliminaryStatus: 'qualified',
   application: {
     loanType: 'personal',
     financialInfo: {
@@ -66,10 +67,13 @@ export const SAMPLE_APPLICATION: RegistrationState = {
       idType: 'PhilSys / National ID',
       idNumber: 'P9876543Z',
       idFile: SAMPLE_ID_PHOTO,
+      idFileBack: null,
+      birthday: '1991-08-22',
       address: '45 Aurora Boulevard',
       province: 'Metro Manila',
       city: 'Makati',
       barangay: 'Bel-Air',
+      zipCode: '1210',
       civilStatus: 'Married',
       gender: 'Female',
       tinNumber: '987-654-321-000',
