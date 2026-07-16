@@ -13,15 +13,15 @@ import { VerifyView } from 'src/sections/auth/verify-view';
 
 export default function Page() {
   const router = useRouter();
-  const { signUpData } = useRegistration();
+  const { hydrated, signUpData } = useRegistration();
 
   useEffect(() => {
-    if (!signUpData) {
+    if (hydrated && !signUpData) {
       router.replace(paths.auth.signUp);
     }
-  }, [signUpData, router]);
+  }, [hydrated, signUpData, router]);
 
-  if (!signUpData) return null;
+  if (!hydrated || !signUpData) return null;
 
   return <VerifyView />;
 }

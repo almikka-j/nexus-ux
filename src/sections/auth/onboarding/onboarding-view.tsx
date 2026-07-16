@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -25,13 +24,15 @@ export function OnboardingView() {
   const {
     signUpData,
     application,
+    onboardingStep,
     setSignUpData,
+    setOnboardingStep,
     setPersonalInfo,
     setSelfieVerified,
     setSelfiePhoto,
     markSubmitted,
   } = useRegistration();
-  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const step = onboardingStep;
   const firstName = signUpData?.firstName || 'there';
 
   const handlePersonalInfo = (personalInfo: PersonalInfo, nameFields: PersonalInfoNameFields) => {
@@ -44,7 +45,7 @@ export function OnboardingView() {
       });
     }
     setPersonalInfo(personalInfo);
-    setStep(2);
+    setOnboardingStep(2);
   };
 
   const handleSelfieVerified = (photo: string | null) => {
@@ -55,7 +56,7 @@ export function OnboardingView() {
   };
 
   if (step === 0) {
-    return <StepWelcome firstName={firstName} onDone={() => setStep(1)} />;
+    return <StepWelcome firstName={firstName} onDone={() => setOnboardingStep(1)} />;
   }
 
   return (
@@ -73,7 +74,7 @@ export function OnboardingView() {
         <Box sx={{ width: 1, maxWidth: 640, mb: 1.5 }}>
           <Link
             component="button"
-            onClick={() => setStep(1)}
+            onClick={() => setOnboardingStep(1)}
             sx={{ fontSize: 13.5, color: '#667085', fontWeight: 600 }}
           >
             ← Back

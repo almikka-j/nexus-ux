@@ -44,7 +44,7 @@ export const VerifySchema = zod.object({
 
 export function VerifyView() {
   const router = useRouter();
-  const { signUpData, setVerified } = useRegistration();
+  const { signUpData, setVerified, setOnboardingStep } = useRegistration();
   const [resendCooldown, setResendCooldown] = useState(0);
   const [showTransition, setShowTransition] = useState(false);
 
@@ -89,6 +89,7 @@ export function VerifyView() {
       <VerifiedTransition
         onDone={() => {
           setVerified(true);
+          setOnboardingStep(0);
           router.push(paths.auth.onboarding);
         }}
       />

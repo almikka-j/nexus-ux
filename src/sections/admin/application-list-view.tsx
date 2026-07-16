@@ -69,10 +69,10 @@ export function ApplicationListView() {
 
   const hasApplication = !!signUpData && !!application.personalInfo;
 
-  // Auto-load the sample "live" application once sessionStorage has hydrated,
+  // Auto-load the sample "live" application once localStorage has hydrated,
   // if the session is still empty, so the list isn't empty by default. Gating
   // on `hydrated` avoids clobbering a real application that just hasn't loaded
-  // from sessionStorage yet. Also re-fires whenever `hasApplication` flips
+  // from localStorage yet. Also re-fires whenever `hasApplication` flips
   // back to false (e.g. after "Clear Sample Data" calls `reset()`) — the
   // dependency array used to be just `[hydrated]`, which only ever fires once
   // on mount, so clearing the sample never actually reloaded a fresh one;

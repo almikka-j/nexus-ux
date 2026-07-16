@@ -13,15 +13,15 @@ import { ThankYouView } from 'src/sections/auth/thank-you-view';
 
 export default function Page() {
   const router = useRouter();
-  const { application } = useRegistration();
+  const { hydrated, application } = useRegistration();
 
   useEffect(() => {
-    if (!application.personalInfo) {
+    if (hydrated && !application.personalInfo) {
       router.replace(paths.auth.signUp);
     }
-  }, [application.personalInfo, router]);
+  }, [hydrated, application.personalInfo, router]);
 
-  if (!application.personalInfo) return null;
+  if (!hydrated || !application.personalInfo) return null;
 
   return <ThankYouView />;
 }

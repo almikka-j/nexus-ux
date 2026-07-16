@@ -362,7 +362,7 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
 
   const onSubmit = handleSubmit(async (data) => {
     // Persist the uploaded ID as a data URL — a raw File object can't
-    // survive JSON.stringify into sessionStorage (it serializes to `{}`),
+    // survive JSON.stringify into localStorage (it serializes to `{}`),
     // so the admin side would otherwise have no way to see the image.
     const idFile =
       data.idFile instanceof File ? await fileToDataUrl(data.idFile) : (data.idFile ?? null);
@@ -440,7 +440,24 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
         <Stack spacing={2}>
           <Box>
             <Typography sx={authFieldLabelSx}>ID type</Typography>
-            <Field.Select name="idType" sx={authFieldSx}>
+            <Field.Select
+              name="idType"
+              sx={authFieldSx}
+              SelectProps={{
+                displayEmpty: true,
+                renderValue: (value) =>
+                  value ? (
+                    String(value)
+                  ) : (
+                    <Typography component="span" sx={{ fontSize: 14, color: 'text.disabled' }}>
+                      Select ID type
+                    </Typography>
+                  ),
+              }}
+            >
+              <MenuItem value="" disabled>
+                Select ID type
+              </MenuItem>
               {ID_TYPES.map((type) => (
                 <MenuItem key={type} value={type}>
                   {type}
@@ -449,8 +466,9 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
             </Field.Select>
           </Box>
 
-          {!!idType &&
-            (requiresIdBack ? (
+          {!!idType && (
+            <>
+              {requiresIdBack ? (
               <Stack direction="row" spacing={1.75}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <IdUploadField name="idFile" label="Upload ID — Front" />
@@ -461,7 +479,7 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
               </Stack>
             ) : (
               <IdUploadField name="idFile" label="Upload a valid ID" />
-            ))}
+              )}
 
           <Box>
             <Typography sx={authFieldLabelSx}>ID number</Typography>
@@ -614,9 +632,11 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
             </Field.Select>
           </Box>
 
-          <Button fullWidth type="submit" variant="contained" sx={authPrimaryButtonSx}>
-            Continue →
-          </Button>
+              <Button fullWidth type="submit" variant="contained" sx={authPrimaryButtonSx}>
+                Continue →
+              </Button>
+            </>
+          )}
         </Stack>
       </Form>
     </Box>

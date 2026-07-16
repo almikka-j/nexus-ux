@@ -6,7 +6,7 @@ Companion to `PROJECT_OVERVIEW.md` (the admin/review-flow side); update both
 when this flow changes.
 
 All state lives in `RegistrationContext` (`src/auth/registration-context.tsx`),
-persisted to `sessionStorage` under the key `hhc-lms-registration`. There is no
+persisted to `localStorage` under the key `hhc-lms-registration`. There is no
 real backend — every "submission" is just a write to this one client-side object.
 
 > **Restructured 2026-07-16:** the flow is now a **Loan Application
@@ -42,15 +42,9 @@ Route guards (client-side, `useEffect` + `router.replace`, reading `useRegistrat
 - `/auth/verify` → redirects to `/auth/sign-up` if no `signUpData`.
 - `/auth/thank-you` → redirects to `/auth/sign-up` if `application.personalInfo` isn't set.
 
-> **Known limitation (pre-existing, not introduced by either restructuring):**
-> these guards read `useRegistration()` state on their very first render, but
-> `RegistrationProvider` re-hydrates from `sessionStorage` asynchronously (in
-> a `useEffect`). On a **hard** navigation (full page load / browser refresh /
-> direct URL entry — e.g. Playwright's `page.goto()`), the guard's first
-> render sees empty `initialState` and redirects away *before* the real
-> stored state loads a moment later. This does **not** affect normal in-app
-> navigation (`router.push()` from an already-hydrated session) — only hard
-> reloads. Confirmed via full in-app Playwright runs, which pass end-to-end.
+All three guards wait for `RegistrationProvider.hydrated` before evaluating
+redirects. A hard reload therefore restores the saved state before deciding
+whether the borrower may remain on the current route.
 
 ## State shape (`src/auth/registration-context.tsx`)
 
@@ -114,21 +108,23 @@ type ApplicationData = {
 };
 
 type PreliminaryStatus = 'declined' | 'qualified' | null;
+type OnboardingStep = 0 | 1 | 2;
 
 type RegistrationState = {
   signUpData: SignUpData | null;
   verified: boolean; // now means "OTP passed" — no password gate
   preliminaryStatus: PreliminaryStatus; // set the moment Preliminary Application is submitted
+  onboardingStep: OnboardingStep; // Welcome / Upload ID / Selfie, persisted across reloads
   application: ApplicationData;
 };
 ```
 
 Setters exposed via `useRegistration()`: `setSignUpData`, `setVerified`,
-`setPreliminaryStatus`, `setLoanType` (unused by the primary flow now, still
+`setPreliminaryStatus`, `setOnboardingStep`, `setLoanType` (unused by the primary flow now, still
 used by `/borrower/apply`), `setFinancialInfo`, `setPersonalInfo`,
 `setSelfieVerified`, `setSelfiePhoto`, `markSubmitted`, `loadSample`
 (admin-side only, injects canned demo applications), `reset` (wipes
-sessionStorage, used by the dashboard's "Reset Application" button).
+localStorage, used by the dashboard's "Reset Application" button).
 
 `signUpData` is captured **once**, at Preliminary Application submission
 (name/email/mobile; `password`/`marketingConsent` default to blank/false and
@@ -240,8 +236,9 @@ here or anywhere else in this flow.
 
 ### 3. Onboarding wizard (`src/sections/auth/onboarding/onboarding-view.tsx`, at `/auth/onboarding`)
 
-A welcome step followed by 2 form steps. Internally tracked as
-`step: 0 | 1 | 2`. Step 0 (Welcome) renders standalone, full-bleed — an
+A welcome step followed by 2 form steps. Internally tracked as the persistent
+`RegistrationState.onboardingStep: 0 | 1 | 2`, so refreshing `/auth/onboarding`
+returns the borrower to the same internal step. Step 0 (Welcome) renders standalone, full-bleed — an
 early `if (step === 0) return <StepWelcome .../>` in `OnboardingView`, before
 the rest of the component is reached. **Steps 1/2 no longer use
 `AuthBrandPanel`/the split-panel treatment** — both render inside a single
@@ -265,11 +262,10 @@ button or user action required.
 
 **Step 1 — Upload ID** (`StepPersonalInfo`,
 `src/sections/auth/onboarding/step-personal-info.tsx`, "Step 1 · Upload ID"
-/ "Upload a valid ID"). **No simulated OCR/"reading" delay**, and every
-field *except the upload box itself* renders at once (no progressive
-reveal for ID Number, Name, Birthday, Address, etc. — those are always
-visible). The upload box specifically **is** gated: it only appears once
-an ID Type is chosen. Order, top to bottom:
+/ "Upload a valid ID"). The ID Type select is the only control shown
+initially and displays a muted "Select ID type" placeholder. Choosing an ID
+type reveals the required upload slot(s) and the remaining personal-detail
+form. There is no simulated OCR/"reading" delay. Order, top to bottom:
 
 1. **ID Type** (select) — shown first, alone. Nothing upload-related is
    visible until this is set.
@@ -410,7 +406,7 @@ Unchanged. `hasApplication = !!signUpData && !!application.personalInfo`.
   of the applicant's email — see `src/utils/get-loan-number.ts`), a Loan Type
   label, a status chip that is **always "Under Review"**, and (if financial
   info exists) Total Loan Amount / Loan Term stats. A "Reset Application"
-  button calls `reset()`, wiping sessionStorage back to the empty state.
+  button calls `reset()`, wiping localStorage back to the empty state.
 
   **Loan Type label side-effect:** since new sign-ups never set
   `application.loanType` (see below), this label (`application.loanType ===
@@ -496,7 +492,7 @@ wraps its children in the *same* `RegistrationProvider` that the borrower flow
 uses. Any admin view that calls `useRegistration()` — the credit-checking,
 call-report, reconsideration, transaction-type, and requirement-checklist
 screens — reads the exact same `signUpData`/`application` object the borrower
-just wrote, via the shared `hhc-lms-registration` sessionStorage key. This
+just wrote, via the shared `hhc-lms-registration` localStorage key. This
 includes the `businessType`/`businessDocument` fields on `FinancialInfo`,
 and `spouseName`/`spouseBirthday`/`spouseAddress`/`spouseProvince` on
 `PersonalInfo` — none of the existing admin display components read these

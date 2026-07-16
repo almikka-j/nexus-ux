@@ -558,12 +558,12 @@ function readStoredState(): AdminState {
   if (typeof window === 'undefined') return initialState;
 
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return initialState;
     const stored = JSON.parse(raw);
     // Merge one level into `review` too — a shallow top-level spread alone
     // would drop any review sub-key (e.g. cicUpload) added after a session
-    // was already saved to sessionStorage, since the stored `review` object
+    // was already saved to localStorage, since the stored `review` object
     // would fully replace initialState.review instead of filling gaps in it.
     return {
       ...initialState,
@@ -586,7 +586,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state, hydrated]);
 
   const value = useMemo<AdminContextValue>(
@@ -775,7 +775,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       // record, not per-applicant scratch state) untouched.
       resetReview: () => setState((prev) => ({ ...prev, review: createInitialReview() })),
       logout: () => {
-        window.sessionStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(STORAGE_KEY);
         setState(initialState);
       },
     }),

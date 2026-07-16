@@ -28,7 +28,7 @@ export type FinancialInfo = {
   // Collected only when employmentStatus === 'Business Owner' — see
   // PreliminaryApplicationView's conditional "Business Type" + document
   // upload fields. businessDocument is stored as a base64 data URL (a raw
-  // File can't survive JSON.stringify into sessionStorage).
+  // File can't survive JSON.stringify into localStorage).
   businessType?: string;
   businessDocument?: string | null;
 };
@@ -71,15 +71,17 @@ export type ApplicationData = {
 // Recorded the moment Preliminary Application is submitted — 'declined'
 // when the desired loan amount is below the qualification threshold
 // (no account is created in that case), 'qualified' otherwise. Persists via
-// the same sessionStorage mechanism as the rest of this state, so a
+// the same localStorage mechanism as the rest of this state, so a
 // declined submission leaves a durable record even though no downstream
 // screen currently reads it beyond this.
 export type PreliminaryStatus = 'declined' | 'qualified' | null;
+export type OnboardingStep = 0 | 1 | 2;
 
 export type RegistrationState = {
   signUpData: SignUpData | null;
   verified: boolean;
   preliminaryStatus: PreliminaryStatus;
+  onboardingStep: OnboardingStep;
   application: ApplicationData;
 };
 
@@ -88,6 +90,7 @@ type RegistrationContextValue = RegistrationState & {
   setSignUpData: (data: SignUpData) => void;
   setVerified: (verified: boolean) => void;
   setPreliminaryStatus: (status: PreliminaryStatus) => void;
+  setOnboardingStep: (step: OnboardingStep) => void;
   setLoanType: (loanType: LoanType | null) => void;
   setFinancialInfo: (info: FinancialInfo) => void;
   setPersonalInfo: (info: PersonalInfo) => void;
@@ -104,6 +107,7 @@ const initialState: RegistrationState = {
   signUpData: null,
   verified: false,
   preliminaryStatus: null,
+  onboardingStep: 0,
   application: {
     loanType: null,
     financialInfo: null,
@@ -136,12 +140,12 @@ function readStoredState(): RegistrationState {
   if (typeof window === 'undefined') return initialState;
 
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return initialState;
     const stored = JSON.parse(raw);
     // Merge one level into `application` too — a shallow top-level spread
     // alone would drop any application sub-key (e.g. assignedOfficer) added
-    // after a session was already saved to sessionStorage, since the stored
+    // after a session was already saved to localStorage, since the stored
     // `application` object would fully replace initialState.application
     // instead of filling gaps in it.
     return {
@@ -165,7 +169,7 @@ export function RegistrationProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!hydrated) return;
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state, hydrated]);
 
   const value = useMemo<RegistrationContextValue>(
@@ -176,6 +180,8 @@ export function RegistrationProvider({ children }: { children: React.ReactNode }
       setVerified: (verified) => setState((prev) => ({ ...prev, verified })),
       setPreliminaryStatus: (preliminaryStatus) =>
         setState((prev) => ({ ...prev, preliminaryStatus })),
+      setOnboardingStep: (onboardingStep) =>
+        setState((prev) => ({ ...prev, onboardingStep })),
       setLoanType: (loanType) =>
         setState((prev) => ({ ...prev, application: { ...prev.application, loanType } })),
       setFinancialInfo: (financialInfo) =>
@@ -197,7 +203,7 @@ export function RegistrationProvider({ children }: { children: React.ReactNode }
         })),
       loadSample: (sampleState) => setState(sampleState),
       reset: () => {
-        window.sessionStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(STORAGE_KEY);
         setState(initialState);
       },
     }),

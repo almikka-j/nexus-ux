@@ -3,7 +3,7 @@ import type { RegistrationState } from 'src/auth/registration-context';
 // ----------------------------------------------------------------------
 // Sample borrower application used to auto-populate the Admin Application
 // List for demo/testing, since the admin portal has no backend of its own
-// and reads the same sessionStorage the borrower flow writes to.
+// and reads the same localStorage the borrower flow writes to.
 // ----------------------------------------------------------------------
 
 // Inline SVG placeholders (data URIs) standing in for a real uploaded ID
@@ -54,6 +54,7 @@ export const SAMPLE_APPLICATION: RegistrationState = {
   },
   verified: true,
   preliminaryStatus: 'qualified',
+  onboardingStep: 2,
   application: {
     loanType: 'personal',
     financialInfo: {

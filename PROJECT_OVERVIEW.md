@@ -16,7 +16,7 @@ with two portals:
   checklist, with reconsideration as a rejection branch off initial credit
   checking rather than a forward step — see Admin flow below).
 
-There is **no real backend**. All "data" lives in the browser's `sessionStorage` via
+There is **no real backend**. All "data" lives in the browser's `localStorage` via
 React Context, and all authentication is mocked against hardcoded demo accounts. This
 is a frontend prototype for design/flow validation, not a production system.
 
@@ -42,8 +42,8 @@ src/
     admin/                 login, dashboard, applications/[id]/...
     (marketing pages)      about-us, contact, *-loan, faq, etc.
   auth/
-    registration-context.tsx   Borrower session state (sessionStorage: hhc-lms-registration)
-    admin-context.tsx          Admin session + review state (sessionStorage: hhc-lms-admin-session)
+    registration-context.tsx   Borrower session state (localStorage: hhc-lms-registration)
+    admin-context.tsx          Admin session + review state (localStorage: hhc-lms-admin-session)
     mock-login.ts               Mocked borrower + admin login, mocked OTP
   layouts/
     borrower/               Borrower app shell (sidebar + topbar)
@@ -64,7 +64,7 @@ src/
 ## Data model (client-side only)
 
 ### Borrower: `src/auth/registration-context.tsx`
-sessionStorage key: `hhc-lms-registration`
+localStorage key: `hhc-lms-registration`
 
 ```ts
 SignUpData     { prefix?, firstName, middleName?, lastName, extensionName?, email, mobile,
@@ -105,7 +105,7 @@ Exposed via `useRegistration()`: `hydrated`, `setSignUpData`, `setVerified`,
 **`PersonalInfo.idFile` is a data URL string, not a `File` object.**
 `step-personal-info.tsx` converts the uploaded `File` via
 `src/utils/file-to-data-url.ts` (`fileToDataUrl`) before calling
-`setPersonalInfo` — this matters because sessionStorage persistence goes through
+`setPersonalInfo` — this matters because localStorage persistence goes through
 `JSON.stringify`, and a raw `File` object serializes to `{}` (silently losing the
 upload). `application.selfiePhoto` is already a data URL (captured straight off a
 `<canvas>` in the selfie step) so it needs no conversion, just storage via
@@ -113,7 +113,7 @@ upload). `application.selfiePhoto` is already a data URL (captured straight off 
 `ApplicationDetailsCard` (see Admin flow below) — this is the only reason either
 field needs to survive as a displayable string rather than an in-memory File/Blob.
 
-`hydrated` flips to `true` once the provider has finished reading `sessionStorage`
+`hydrated` flips to `true` once the provider has finished reading `localStorage`
 on mount — consumers that need to distinguish "genuinely empty" from "hasn't loaded
 yet" (e.g. the admin sample-application auto-load below) must gate on it, per the
 hydration race caveat further down this doc. `loadSample(state)` replaces the entire
@@ -121,7 +121,7 @@ registration state wholesale (used by the admin portal to seed a demo applicatio
 see below).
 
 ### Admin: `src/auth/admin-context.tsx`
-sessionStorage key: `hhc-lms-admin-session`
+localStorage key: `hhc-lms-admin-session`
 
 ```ts
 AdminUser            { email, firstName, lastName }
@@ -155,7 +155,7 @@ Exposed via `useAdmin()`: `setAdminUser`, `setCreditChecking`, `setReconsiderati
 
 **Important limitation:** the admin portal does *not* have its own applicant
 database. There is exactly one **"live" application** — whichever one exists in the
-current browser's `useRegistration()` sessionStorage (or none) — plus a fixed set of
+current browser's `useRegistration()` localStorage (or none) — plus a fixed set of
 **read-only sample applications** (see below) that only exist to populate the list.
 There is no cross-browser/cross-user visibility for the live application: to demo the
 full interactive admin flow with a real borrower-submitted application, submit one
@@ -184,7 +184,7 @@ after any round of testing (filling in CIBI, uploading bureau reports, approving
 etc.), "Clear Sample Data" looked like it reset things, but every review screen
 kept showing that old filled-in data indefinitely — there was no way to get back
 to a genuinely blank Initial Credit Checking (or any other step) short of clearing
-`sessionStorage` by hand. `AdminContext.resetReview()`
+`localStorage` by hand. `AdminContext.resetReview()`
 (`src/auth/admin-context.tsx`) replaces `state.review` with a freshly-constructed
 `createInitialReview()` object (a factory function, not a shared constant, to
 avoid any risk of accidental mutation-sharing across resets) — `adminUser` (stay
@@ -674,7 +674,7 @@ content in `CreditCheckingResultModal`.
   upload session in a `useEffect` in `initial-credit-checking-view.tsx`,
   guarded by `creditChecking.bureauFindingStatus === 'pending'` — once it
   resolves to `'clean'` or `'negative'` it's sticky (persisted via the normal
-  `AdminContext` sessionStorage effect) and never re-rolled. Both this page
+  `AdminContext` localStorage effect) and never re-rolled. Both this page
   (to decide whether to show `NegativeCreditReportCard`) and
   `CreditCheckingResultModal` (to decide which content to render) read
   `review.creditChecking.bureauFindingStatus` directly — neither ever
@@ -1158,7 +1158,7 @@ only — hidden below that breakpoint since a rigid two-column layout doesn't
 work on narrow viewports. Labeled "Switch to 2-Column Layout" / "Switch to
 1-Column Layout", backed by local `isSplitLayout` state in
 `InitialCreditCheckingView` — a pure display preference, not persisted to
-`AdminContext`/sessionStorage, so it resets to the 1-column default on
+`AdminContext`/localStorage, so it resets to the 1-column default on
 navigation or refresh. This button was originally placed inline next to
 `ApplicationReviewHeader`, but that broke the header's own internal row layout
 (`ApplicationReviewHeader` is a self-contained full-width block with its own
@@ -1247,7 +1247,7 @@ stale silently.
     card, "Overdue (3d+)", counting applications where total aging
     (`getAgingLevel(application.submittedAt)`) is `'overdue'`. Currently
     always 0 or 1 since there's only ever one application in this
-    sessionStorage-backed prototype; the card is built to scale once real
+    localStorage-backed prototype; the card is built to scale once real
     multi-application data exists.
 
 ---
@@ -1325,7 +1325,7 @@ stale silently.
   so a plain production build doesn't silently hide it again.
 - **Registration/admin context hydration race — fixed for admin routes.**
   `RegistrationProvider` and `AdminProvider` both start with `initialState` and
-  hydrate from `sessionStorage` in a `useEffect` on mount; both now expose a
+  hydrate from `localStorage` in a `useEffect` on mount; both now expose a
   `hydrated` boolean (`useRegistration().hydrated` / `useAdmin().hydrated`) for
   consumers that need to tell "genuinely empty" apart from "hasn't loaded yet."
   All four admin route guards (`src/app/admin/{applications,credit-checking,
@@ -1334,7 +1334,7 @@ stale silently.
   `adminUser` on the very first render, before the provider's own hydration
   effect had run, so **any hard refresh on an admin page bounced the admin back
   to `/admin/login`** even though their session and all filled-in review fields
-  were still sitting in `sessionStorage`; logging back in and re-opening the same
+  were still sitting in `localStorage`; logging back in and re-opening the same
   application then looked like the fields had been wiped, when really the admin
   had just been logged out and was seeing a fresh page load. Borrower-side guards
   (e.g. `/auth/onboarding`) have the same shape but were not part of this fix —
@@ -1342,8 +1342,10 @@ stale silently.
   When testing with Playwright, walking the UI from the entry point
   (`/auth/sign-up`, `/admin/login`) rather than deep-linking with `page.goto()`
   still avoids the borrower-side version of this race.
-- **No real backend.** Everything resets on `sessionStorage.clear()` / closing the
-  tab. There is no persistence across browsers or devices.
+- **No real backend.** Everything persists in the browser's `localStorage` (survives
+  tab/browser close, unlike the `sessionStorage` this used before) until
+  `localStorage.clear()`, an explicit `reset()`, or the browser's storage is
+  otherwise cleared. There is no persistence across different browsers or devices.
 - **Marketing site colors not migrated.** The re-theme (Plus Jakarta Sans, navy
   `#1C2A6E`) was scoped to auth + borrower + admin portals only. The public
   marketing pages (home, about, loan product pages, contact, footer/header) and the

@@ -74,6 +74,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
       },
       verified: true,
       preliminaryStatus: 'qualified',
+      onboardingStep: 2,
       application: {
         loanType: 'personal',
         financialInfo: {
@@ -122,6 +123,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
       },
       verified: true,
       preliminaryStatus: 'qualified',
+      onboardingStep: 2,
       application: {
         loanType: 'personal',
         financialInfo: {
@@ -170,6 +172,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
       },
       verified: true,
       preliminaryStatus: 'qualified',
+      onboardingStep: 2,
       application: {
         loanType: 'business',
         financialInfo: {
@@ -218,6 +221,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
       },
       verified: true,
       preliminaryStatus: 'qualified',
+      onboardingStep: 2,
       application: {
         loanType: 'personal',
         financialInfo: {
@@ -266,6 +270,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
       },
       verified: true,
       preliminaryStatus: 'qualified',
+      onboardingStep: 2,
       application: {
         loanType: 'personal',
         financialInfo: {

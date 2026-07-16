@@ -13,17 +13,19 @@ import { OnboardingView } from 'src/sections/auth/onboarding/onboarding-view';
 
 export default function Page() {
   const router = useRouter();
-  const { signUpData, verified } = useRegistration();
+  const { hydrated, signUpData, verified } = useRegistration();
 
   useEffect(() => {
+    if (!hydrated) return;
+
     if (!signUpData) {
       router.replace(paths.auth.signUp);
     } else if (!verified) {
       router.replace(paths.auth.verify);
     }
-  }, [signUpData, verified, router]);
+  }, [hydrated, signUpData, verified, router]);
 
-  if (!signUpData || !verified) return null;
+  if (!hydrated || !signUpData || !verified) return null;
 
   return <OnboardingView />;
 }
