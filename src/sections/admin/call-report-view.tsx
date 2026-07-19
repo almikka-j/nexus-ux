@@ -53,7 +53,7 @@ export function CallReportView() {
     setCallReport({ approved: true });
 
     if (proceed) {
-      router.push(paths.admin.transactionType(encodeURIComponent(signUpData.email)));
+      router.push(paths.admin.requirementChecklist(encodeURIComponent(signUpData.email)));
     } else {
       router.push(paths.admin.applications);
     }

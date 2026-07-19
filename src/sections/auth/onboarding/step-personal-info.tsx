@@ -1,18 +1,20 @@
 'use client';
 
 import { z as zod } from 'zod';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useContext, createContext } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useForm, useWatch, Controller, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
 import FormHelperText from '@mui/material/FormHelperText';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
@@ -74,6 +76,18 @@ const AUTOFILL_VALUES = {
   zipCode: '1121',
 };
 
+// Civil status/gender/TIN/referral defaults for the ID-read simulation —
+// kept separate from SAMPLE_PERSONAL_INFO (which is Married, for the "Fill
+// with Sample Data" dev button to exercise the spouse-info section) since a
+// borrower reading their own ID for the first time should default to Single,
+// not be auto-flagged as married with a fabricated spouse.
+const ID_READ_ADDITIONAL_INFO = {
+  gender: 'Male',
+  civilStatus: 'Single',
+  tinNumber: '123-456-789-000',
+  referralSource: 'Referral from a Friend',
+};
+
 export type PersonalInfoSchemaType = zod.infer<typeof PersonalInfoSchema>;
 
 export const PersonalInfoSchema = zod
@@ -84,6 +98,7 @@ export const PersonalInfoSchema = zod
     idFileBack: zod.any().nullable(),
     firstName: zod.string().min(1, { message: 'First name is required.' }),
     middleName: zod.string().optional(),
+    lastName: zod.string().min(1, { message: 'Last name is required.' }),
     extensionName: zod.string().optional(),
     birthday: zod.string().min(1, { message: 'Birthday is required.' }),
     address: zod.string().min(1, { message: 'Address is required.' }),
@@ -95,13 +110,26 @@ export const PersonalInfoSchema = zod
     gender: zod.string().min(1, { message: 'Select your gender.' }),
     tinNumber: zod.string().optional(),
     referralSource: zod.string().min(1, { message: 'Select how you discovered PG Finance.' }),
-    spouseName: zod.string().optional(),
+    spouseFirstName: zod.string().optional(),
+    spouseMiddleName: zod.string().optional(),
+    spouseLastName: zod.string().optional(),
+    spouseExtensionName: zod.string().optional(),
     spouseBirthday: zod.string().optional(),
     spouseAddress: zod.string().optional(),
     spouseProvince: zod.string().optional(),
+    spouseCity: zod.string().optional(),
+    spouseBarangay: zod.string().optional(),
+    spouseZipCode: zod.string().optional(),
     sameAddressAsSpouse: zod.boolean(),
   })
   .superRefine((data, ctx) => {
+    if (!data.idFile) {
+      ctx.addIssue({
+        code: zod.ZodIssueCode.custom,
+        path: ['idFile'],
+        message: 'Upload a valid ID.',
+      });
+    }
     if (ID_TYPES_REQUIRING_BACK.has(data.idType) && !data.idFileBack) {
       ctx.addIssue({
         code: zod.ZodIssueCode.custom,
@@ -110,11 +138,18 @@ export const PersonalInfoSchema = zod
       });
     }
     if (data.civilStatus === 'Married') {
-      if (!data.spouseName) {
+      if (!data.spouseFirstName) {
         ctx.addIssue({
           code: zod.ZodIssueCode.custom,
-          path: ['spouseName'],
-          message: "Spouse's name is required.",
+          path: ['spouseFirstName'],
+          message: "Spouse's first name is required.",
+        });
+      }
+      if (!data.spouseLastName) {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          path: ['spouseLastName'],
+          message: "Spouse's last name is required.",
         });
       }
       if (!data.spouseBirthday) {
@@ -139,6 +174,27 @@ export const PersonalInfoSchema = zod
             message: "Spouse's province is required.",
           });
         }
+        if (!data.spouseCity) {
+          ctx.addIssue({
+            code: zod.ZodIssueCode.custom,
+            path: ['spouseCity'],
+            message: "Spouse's city is required.",
+          });
+        }
+        if (!data.spouseBarangay) {
+          ctx.addIssue({
+            code: zod.ZodIssueCode.custom,
+            path: ['spouseBarangay'],
+            message: "Spouse's barangay is required.",
+          });
+        }
+        if (!data.spouseZipCode) {
+          ctx.addIssue({
+            code: zod.ZodIssueCode.custom,
+            path: ['spouseZipCode'],
+            message: "Spouse's zip code is required.",
+          });
+        }
       }
     }
   });
@@ -150,6 +206,7 @@ const SAMPLE_PERSONAL_INFO: PersonalInfoSchemaType = {
   idFileBack: null,
   firstName: 'Juan',
   middleName: 'Santos',
+  lastName: 'Dela Cruz',
   extensionName: '',
   birthday: '1994-06-12',
   address: '123 Rizal Street',
@@ -161,16 +218,25 @@ const SAMPLE_PERSONAL_INFO: PersonalInfoSchemaType = {
   gender: 'Male',
   tinNumber: '123-456-789-000',
   referralSource: 'Referral from a Friend',
-  spouseName: 'Maria Dela Cruz',
+  spouseFirstName: 'Maria',
+  spouseMiddleName: 'Reyes',
+  spouseLastName: 'Dela Cruz',
+  spouseExtensionName: '',
   spouseBirthday: '1992-03-14',
   spouseAddress: '',
   spouseProvince: '',
+  spouseCity: '',
+  spouseBarangay: '',
+  spouseZipCode: '',
   sameAddressAsSpouse: true,
 };
 
 // ----------------------------------------------------------------------
 
 const ID_UPLOAD_HEIGHT = 140;
+const ID_PROCESSING_DELAY = 1800;
+
+type DetailsState = 'idle' | 'processing' | 'ready';
 
 type IdUploadSlotProps = {
   value: File | string | null;
@@ -240,13 +306,65 @@ function IdUploadSlot({ value, onChange, error, label }: IdUploadSlotProps) {
   );
 }
 
+// Matches the admin CIC form's "Auto-filled" chip (see
+// src/sections/admin/bureau-reports-card.tsx) for a consistent auto-fill
+// indicator across borrower and admin portals.
+function AutofilledChip() {
+  return (
+    <Chip
+      label="Auto-filled"
+      size="small"
+      sx={{
+        height: 18,
+        fontSize: 10,
+        fontWeight: 700,
+        bgcolor: '#E7F8F0',
+        color: '#0C8A4F',
+        '& .MuiChip-label': { px: 0.75 },
+      }}
+    />
+  );
+}
+
+// Tracks which fields were *actually* set by the ID-read simulation this
+// session — not just which fields are name-eligible for autofill. A resumed
+// application (idFile/idNumber already saved from an earlier visit) can have
+// some of those fields still genuinely blank (e.g. TIN/referral source were
+// never filled in that prior visit); fillMissingFields() only fills gaps, so
+// the chip must reflect what was actually written, or a blank field would
+// wrongly show "Auto-filled".
+const AutofilledFieldsContext = createContext<Set<keyof PersonalInfoSchemaType>>(new Set());
+
+type FieldLabelProps = {
+  children: React.ReactNode;
+  name?: keyof PersonalInfoSchemaType;
+  autofilled?: boolean;
+};
+
+// Wraps the field-label `Typography` used across this form, optionally
+// showing an "Auto-filled" chip when this field was populated by the ID-read
+// simulation — either pass `name` (checked against the current autofilled-
+// fields set) or `autofilled` directly for fields not tracked there (e.g.
+// spouse address fields copied from the borrower's own address).
+function FieldLabel({ children, name, autofilled }: FieldLabelProps) {
+  const autofilledFields = useContext(AutofilledFieldsContext);
+  const showChip = autofilled ?? (name ? autofilledFields.has(name) : false);
+
+  return (
+    <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.75 }}>
+      <Typography sx={{ ...authFieldLabelSx, mb: 0 }}>{children}</Typography>
+      {showChip && <AutofilledChip />}
+    </Stack>
+  );
+}
+
 type IdUploadFieldProps = {
   name: 'idFile' | 'idFileBack';
   label: string;
 };
 
 function IdUploadField({ name, label }: IdUploadFieldProps) {
-  const { control } = useFormContext<PersonalInfoSchemaType>();
+  const { control, setValue } = useFormContext<PersonalInfoSchemaType>();
 
   return (
     <Controller
@@ -257,7 +375,14 @@ function IdUploadField({ name, label }: IdUploadFieldProps) {
           <Typography sx={authFieldLabelSx}>{label}</Typography>
           <IdUploadSlot
             value={field.value as File | string | null}
-            onChange={field.onChange}
+            // setValue(..., { shouldValidate: true }) instead of the bare
+            // Controller field.onChange — a dropzone drop doesn't fire a
+            // native input change event, so without an explicit revalidation
+            // a stale "Upload a valid ID."/"Upload the back of your ID."
+            // error (e.g. left over from switching ID type, which clears
+            // idFile/idFileBack with shouldValidate: true) never clears once
+            // a new file is actually uploaded.
+            onChange={(file) => setValue(name, file, { shouldValidate: true })}
             error={!!error}
             label={label}
           />
@@ -271,6 +396,7 @@ function IdUploadField({ name, label }: IdUploadFieldProps) {
 export type PersonalInfoNameFields = {
   firstName: string;
   middleName?: string;
+  lastName: string;
   extensionName?: string;
 };
 
@@ -288,6 +414,7 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
     idFileBack: defaultValues.idFileBack || null,
     firstName: nameDefaultValues?.firstName || '',
     middleName: nameDefaultValues?.middleName || '',
+    lastName: nameDefaultValues?.lastName || '',
     extensionName: nameDefaultValues?.extensionName || '',
     birthday: defaultValues.birthday || '',
     address: defaultValues.address || '',
@@ -299,10 +426,16 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
     gender: defaultValues.gender || '',
     tinNumber: defaultValues.tinNumber || '',
     referralSource: defaultValues.referralSource || '',
-    spouseName: defaultValues.spouseName || '',
+    spouseFirstName: defaultValues.spouseFirstName || '',
+    spouseMiddleName: defaultValues.spouseMiddleName || '',
+    spouseLastName: defaultValues.spouseLastName || '',
+    spouseExtensionName: defaultValues.spouseExtensionName || '',
     spouseBirthday: defaultValues.spouseBirthday || '',
     spouseAddress: defaultValues.spouseAddress || '',
     spouseProvince: defaultValues.spouseProvince || '',
+    spouseCity: defaultValues.spouseCity || '',
+    spouseBarangay: defaultValues.spouseBarangay || '',
+    spouseZipCode: defaultValues.spouseZipCode || '',
     sameAddressAsSpouse: !defaultValues.spouseAddress,
   };
 
@@ -312,53 +445,109 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
   });
 
   const { handleSubmit, reset, control, setValue } = methods;
+  const hasSavedDetails = !!defaultValues.idFile && !!defaultValues.idNumber;
+  const [detailsState, setDetailsState] = useState<DetailsState>(
+    hasSavedDetails ? 'ready' : 'idle'
+  );
   const [isSample, setIsSample] = useState(false);
+  const [autofilledFields, setAutofilledFields] = useState<Set<keyof PersonalInfoSchemaType>>(
+    new Set()
+  );
+  const restoredDetailsRef = useRef(hasSavedDetails);
 
   const civilStatus = useWatch({ control, name: 'civilStatus' });
   const sameAddressAsSpouse = useWatch({ control, name: 'sameAddressAsSpouse' });
   const idType = useWatch({ control, name: 'idType' });
   const idFile = useWatch({ control, name: 'idFile' });
+  const idFileBack = useWatch({ control, name: 'idFileBack' });
   const isMarried = civilStatus === 'Married';
   const requiresIdBack = ID_TYPES_REQUIRING_BACK.has(idType);
   const previousIdTypeRef = useRef(idType);
-  const autofilledRef = useRef(false);
 
-  // Clears a stale back-image if the borrower switches away from a
-  // two-sided ID type to one that doesn't need it (same pattern as
-  // clearing businessDocument when businessType changes on Preliminary
-  // Application).
+  // A different ID type must be uploaded and read again; do not carry an
+  // image from the previously selected document type into the new choice.
+  // Not shouldValidate here — the borrower just switched types and hasn't
+  // had a chance to upload yet, so forcing validation would show a red
+  // "required" error on an empty slot that isn't actually an error yet.
+  // (IdUploadField's own setValue on actual upload still validates, so a
+  // genuinely-submitted-then-cleared error still clears correctly.)
   useEffect(() => {
-    if (
-      previousIdTypeRef.current &&
-      previousIdTypeRef.current !== idType &&
-      !ID_TYPES_REQUIRING_BACK.has(idType)
-    ) {
-      setValue('idFileBack', null, { shouldValidate: true });
+    if (previousIdTypeRef.current && previousIdTypeRef.current !== idType) {
+      setValue('idFile', null);
+      setValue('idFileBack', null);
+      setDetailsState('idle');
     }
 
     previousIdTypeRef.current = idType;
   }, [idType, setValue]);
 
-  // Instant "auto-fill" the moment the front ID image is uploaded — no
-  // real OCR anywhere in this codebase, so this just fills the remaining
-  // fields with placeholder-style values rather than simulating a delay.
-  // Fires once per upload (guarded by a ref, same idea as the old OCR
-  // file-watch), and does not overwrite fields the borrower already typed.
+  // Frontend-only ID reading simulation. Once every required side has been
+  // uploaded, briefly show a processing state, then populate the details
+  // using the existing sample record as if they were extracted from the ID.
   useEffect(() => {
-    if (!idFile) {
-      autofilledRef.current = false;
-      return;
-    }
-    if (autofilledRef.current) return;
-    autofilledRef.current = true;
+    const hasRequiredUploads = !!idFile && (!requiresIdBack || !!idFileBack);
 
-    const current = methods.getValues();
-    (Object.keys(AUTOFILL_VALUES) as Array<keyof typeof AUTOFILL_VALUES>).forEach((field) => {
-      if (!current[field]) {
-        setValue(field, AUTOFILL_VALUES[field], { shouldValidate: true });
+    if (!hasRequiredUploads) {
+      restoredDetailsRef.current = false;
+      setDetailsState('idle');
+      return undefined;
+    }
+
+    // Fills every autofill-eligible field that is still empty — used both
+    // for the full "just read the ID" pass below and for a resumed session
+    // (restoredDetailsRef.current), where earlier saved data may already
+    // cover some fields (address, civil status, etc. from a previous visit
+    // to this step) but leave others genuinely blank (e.g. TIN/referral
+    // source were never filled in that prior visit). Only touching empty
+    // fields means real saved answers are never overwritten with sample data.
+    const fillMissingFields = () => {
+      const current = methods.getValues();
+      const filled = new Set<keyof PersonalInfoSchemaType>();
+      const fillIfEmpty = (field: keyof PersonalInfoSchemaType, value: string) => {
+        if (!current[field]) {
+          setValue(field, value, { shouldValidate: true });
+          filled.add(field);
+        }
+      };
+
+      (Object.keys(AUTOFILL_VALUES) as Array<keyof typeof AUTOFILL_VALUES>).forEach((field) => {
+        fillIfEmpty(field, AUTOFILL_VALUES[field]);
+      });
+      fillIfEmpty('gender', ID_READ_ADDITIONAL_INFO.gender);
+      fillIfEmpty('civilStatus', ID_READ_ADDITIONAL_INFO.civilStatus);
+      fillIfEmpty('tinNumber', ID_READ_ADDITIONAL_INFO.tinNumber);
+      fillIfEmpty('referralSource', ID_READ_ADDITIONAL_INFO.referralSource);
+      if ((current.civilStatus || ID_READ_ADDITIONAL_INFO.civilStatus) === 'Married') {
+        fillIfEmpty('spouseFirstName', SAMPLE_PERSONAL_INFO.spouseFirstName || '');
+        fillIfEmpty('spouseMiddleName', SAMPLE_PERSONAL_INFO.spouseMiddleName || '');
+        fillIfEmpty('spouseLastName', SAMPLE_PERSONAL_INFO.spouseLastName || '');
+        fillIfEmpty('spouseBirthday', SAMPLE_PERSONAL_INFO.spouseBirthday || '');
       }
-    });
-  }, [idFile, methods, setValue]);
+
+      setAutofilledFields((prev) => {
+        const next = new Set(prev);
+        filled.forEach((field) => next.add(field));
+        return next;
+      });
+    };
+
+    if (restoredDetailsRef.current) {
+      fillMissingFields();
+      setDetailsState('ready');
+      return undefined;
+    }
+
+    setDetailsState('processing');
+    const timer = setTimeout(() => {
+      fillMissingFields();
+      setValue('sameAddressAsSpouse', SAMPLE_PERSONAL_INFO.sameAddressAsSpouse, {
+        shouldValidate: true,
+      });
+      setDetailsState('ready');
+    }, ID_PROCESSING_DELAY);
+
+    return () => clearTimeout(timer);
+  }, [idFile, idFileBack, requiresIdBack, setValue, methods]);
 
   const onSubmit = handleSubmit(async (data) => {
     // Persist the uploaded ID as a data URL — a raw File object can't
@@ -379,11 +568,27 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
         ? data.province
         : data.spouseProvince
       : undefined;
+    const spouseCity = isMarried
+      ? data.sameAddressAsSpouse
+        ? data.city
+        : data.spouseCity
+      : undefined;
+    const spouseBarangay = isMarried
+      ? data.sameAddressAsSpouse
+        ? data.barangay
+        : data.spouseBarangay
+      : undefined;
+    const spouseZipCode = isMarried
+      ? data.sameAddressAsSpouse
+        ? data.zipCode
+        : data.spouseZipCode
+      : undefined;
 
     const {
       sameAddressAsSpouse: _unused,
       firstName,
       middleName,
+      lastName,
       extensionName,
       ...personalInfo
     } = data;
@@ -393,12 +598,18 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
         ...personalInfo,
         idFile,
         idFileBack: requiresIdBack ? idFileBack : null,
-        spouseName: isMarried ? data.spouseName : undefined,
+        spouseFirstName: isMarried ? data.spouseFirstName : undefined,
+        spouseMiddleName: isMarried ? data.spouseMiddleName : undefined,
+        spouseLastName: isMarried ? data.spouseLastName : undefined,
+        spouseExtensionName: isMarried ? data.spouseExtensionName : undefined,
         spouseBirthday: isMarried ? data.spouseBirthday : undefined,
         spouseAddress,
         spouseProvince,
+        spouseCity,
+        spouseBarangay,
+        spouseZipCode,
       } as PersonalInfo,
-      { firstName, middleName, extensionName }
+      { firstName, middleName, lastName, extensionName }
     );
   });
 
@@ -406,7 +617,7 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
     <Box
       sx={{
         width: 1,
-        maxWidth: 640,
+        maxWidth: 720,
         bgcolor: 'common.white',
         borderRadius: '18px',
         boxShadow: '0 22px 60px -30px rgba(20,23,42,0.28)',
@@ -426,17 +637,29 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
 
         <Button
           onClick={() => {
-            reset(isSample ? initialValues : SAMPLE_PERSONAL_INFO);
-            setIsSample((prev) => !prev);
+            if (isSample) {
+              reset(initialValues);
+              setDetailsState('idle');
+            } else {
+              restoredDetailsRef.current = false;
+              previousIdTypeRef.current = SAMPLE_PERSONAL_INFO.idType;
+              reset({
+                ...SAMPLE_PERSONAL_INFO,
+                idFile: '/assets/placeholder.svg',
+              });
+            }
+            setIsSample((current) => !current);
           }}
           size="small"
           sx={{ color: 'text.disabled' }}
         >
           {isSample ? 'Remove Sample Data' : 'Fill with Sample Data'}
         </Button>
+
       </Stack>
 
       <Form methods={methods} onSubmit={onSubmit}>
+        <AutofilledFieldsContext.Provider value={autofilledFields}>
         <Stack spacing={2}>
           <Box>
             <Typography sx={authFieldLabelSx}>ID type</Typography>
@@ -466,6 +689,27 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
             </Field.Select>
           </Box>
 
+          {!idType && (
+            <Box
+              sx={{
+                height: ID_UPLOAD_HEIGHT,
+                borderRadius: '11px',
+                border: '1px dashed #D6DAE3',
+                bgcolor: '#F9FAFC',
+              }}
+            >
+              <Stack alignItems="center" justifyContent="center" spacing={0.5} sx={{ width: 1, height: 1, px: 1.5 }}>
+                <Iconify icon="solar:upload-minimalistic-bold-duotone" width={22} sx={{ color: '#8891A6' }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#344054' }}>
+                  Your ID upload will appear here
+                </Typography>
+                <Typography sx={{ fontSize: 11, color: '#8891A6' }}>
+                  Select an ID type above to continue
+                </Typography>
+              </Stack>
+            </Box>
+          )}
+
           {!!idType && (
             <>
               {requiresIdBack ? (
@@ -481,33 +725,80 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
               <IdUploadField name="idFile" label="Upload a valid ID" />
               )}
 
+              {detailsState === 'processing' && (
+                <Stack
+                  direction="row"
+                  spacing={1.25}
+                  alignItems="center"
+                  justifyContent="center"
+                  sx={{ p: 2.25, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}
+                >
+                  <CircularProgress size={20} sx={{ color: '#1C2A6E' }} />
+                  <Box>
+                    <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#344054' }}>
+                      Reading your ID…
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
+                      We&apos;re securely extracting your information.
+                    </Typography>
+                  </Box>
+                </Stack>
+              )}
+
+              {detailsState === 'ready' && (
+                <>
+          <Stack
+            direction="row"
+            spacing={1.25}
+            alignItems="flex-start"
+            sx={{ p: 1.75, borderRadius: '11px', bgcolor: '#FFF8E6', border: '1px solid #F5E3AA' }}
+          >
+            <Iconify icon="solar:danger-triangle-bold" width={18} sx={{ color: '#B7791F', mt: 0.25 }} />
+            <Typography sx={{ fontSize: 12.5, color: '#7A5A0B', lineHeight: 1.5 }}>
+              Fields marked <b>Auto-filled</b> were populated from your ID. Please double-check
+              the information below before continuing.
+            </Typography>
+          </Stack>
+
           <Box>
-            <Typography sx={authFieldLabelSx}>ID number</Typography>
+            <FieldLabel name="idNumber">ID number</FieldLabel>
             <Field.Text name="idNumber" placeholder="0000 0000 0000" sx={authFieldSx} />
           </Box>
 
           <Stack direction="row" spacing={1.75}>
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>First name</Typography>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <FieldLabel name="firstName" autofilled={detailsState === 'ready'}>
+                First name
+              </FieldLabel>
               <Field.Text name="firstName" placeholder="Juan" sx={authFieldSx} />
             </Box>
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>Middle name</Typography>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <FieldLabel name="middleName" autofilled={detailsState === 'ready'}>
+                Middle name
+              </FieldLabel>
               <Field.Text name="middleName" placeholder="Santos" sx={authFieldSx} />
             </Box>
-            <Box sx={{ width: 120 }}>
-              <Typography sx={authFieldLabelSx}>Extension</Typography>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <FieldLabel name="lastName" autofilled={detailsState === 'ready'}>
+                Last name
+              </FieldLabel>
+              <Field.Text name="lastName" placeholder="Dela Cruz" sx={authFieldSx} />
+            </Box>
+            <Box sx={{ width: 140, flexShrink: 0 }}>
+              <FieldLabel name="extensionName" autofilled={detailsState === 'ready'}>
+                Extension
+              </FieldLabel>
               <Field.Text name="extensionName" placeholder="Jr." sx={authFieldSx} />
             </Box>
           </Stack>
 
           <Stack direction="row" spacing={1.75}>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>Birthday</Typography>
+              <FieldLabel name="birthday">Birthday</FieldLabel>
               <Field.Text name="birthday" type="date" sx={authFieldSx} InputLabelProps={{ shrink: true }} />
             </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>Gender</Typography>
+              <FieldLabel name="gender">Gender</FieldLabel>
               <Field.Select name="gender" sx={authFieldSx}>
                 {GENDERS.map((gender) => (
                   <MenuItem key={gender} value={gender}>
@@ -519,13 +810,13 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
           </Stack>
 
           <Box>
-            <Typography sx={authFieldLabelSx}>Address (House / Unit No., Street)</Typography>
+            <FieldLabel name="address">Address (House / Unit No., Street)</FieldLabel>
             <Field.Text name="address" placeholder="123 Mabini St." sx={authFieldSx} />
           </Box>
 
           <Stack direction="row" spacing={1.75}>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>Province</Typography>
+              <FieldLabel name="province">Province</FieldLabel>
               <Field.Select name="province" sx={authFieldSx}>
                 {PROVINCES.map((province) => (
                   <MenuItem key={province} value={province}>
@@ -535,15 +826,15 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
               </Field.Select>
             </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>City</Typography>
+              <FieldLabel name="city">City</FieldLabel>
               <Field.Text name="city" sx={authFieldSx} />
             </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>Barangay</Typography>
+              <FieldLabel name="barangay">Barangay</FieldLabel>
               <Field.Text name="barangay" sx={authFieldSx} />
             </Box>
-            <Box sx={{ width: 120 }}>
-              <Typography sx={authFieldLabelSx}>Zip code</Typography>
+            <Box sx={{ width: 140, flexShrink: 0 }}>
+              <FieldLabel name="zipCode">Zip code</FieldLabel>
               <Field.Text name="zipCode" placeholder="1121" sx={authFieldSx} />
             </Box>
           </Stack>
@@ -570,15 +861,28 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
               </Typography>
               <Stack spacing={1.75}>
                 <Stack direction="row" spacing={1.75}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={authFieldLabelSx}>Spouse&apos;s name</Typography>
-                    <Field.Text name="spouseName" sx={authFieldSx} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={authFieldLabelSx}>Spouse&apos;s first name</Typography>
+                    <Field.Text name="spouseFirstName" placeholder="Maria" sx={authFieldSx} />
                   </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={authFieldLabelSx}>Spouse&apos;s birthday</Typography>
-                    <Field.Text name="spouseBirthday" type="date" sx={authFieldSx} InputLabelProps={{ shrink: true }} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={authFieldLabelSx}>Spouse&apos;s middle name</Typography>
+                    <Field.Text name="spouseMiddleName" placeholder="Reyes" sx={authFieldSx} />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography sx={authFieldLabelSx}>Spouse&apos;s last name</Typography>
+                    <Field.Text name="spouseLastName" placeholder="Dela Cruz" sx={authFieldSx} />
+                  </Box>
+                  <Box sx={{ width: 110, flexShrink: 0 }}>
+                    <Typography sx={authFieldLabelSx}>Extension</Typography>
+                    <Field.Text name="spouseExtensionName" placeholder="Jr." sx={authFieldSx} />
                   </Box>
                 </Stack>
+
+                <Box>
+                  <Typography sx={authFieldLabelSx}>Spouse&apos;s birthday</Typography>
+                  <Field.Text name="spouseBirthday" type="date" sx={authFieldSx} InputLabelProps={{ shrink: true }} />
+                </Box>
 
                 <FormControlLabel
                   control={
@@ -595,21 +899,35 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
                 />
 
                 {!sameAddressAsSpouse && (
-                  <Stack direction="row" spacing={1.75}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography sx={authFieldLabelSx}>Spouse&apos;s address</Typography>
+                  <Stack spacing={1.75}>
+                    <Box>
+                      <Typography sx={authFieldLabelSx}>Address (House / Unit No., Street)</Typography>
                       <Field.Text name="spouseAddress" placeholder="123 Mabini St." sx={authFieldSx} />
                     </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography sx={authFieldLabelSx}>Spouse&apos;s province</Typography>
-                      <Field.Select name="spouseProvince" sx={authFieldSx}>
-                        {PROVINCES.map((province) => (
-                          <MenuItem key={province} value={province}>
-                            {province}
-                          </MenuItem>
-                        ))}
-                      </Field.Select>
-                    </Box>
+                    <Stack direction="row" spacing={1.75}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography sx={authFieldLabelSx}>Province</Typography>
+                        <Field.Select name="spouseProvince" sx={authFieldSx}>
+                          {PROVINCES.map((province) => (
+                            <MenuItem key={province} value={province}>
+                              {province}
+                            </MenuItem>
+                          ))}
+                        </Field.Select>
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography sx={authFieldLabelSx}>City</Typography>
+                        <Field.Text name="spouseCity" sx={authFieldSx} />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography sx={authFieldLabelSx}>Barangay</Typography>
+                        <Field.Text name="spouseBarangay" sx={authFieldSx} />
+                      </Box>
+                      <Box sx={{ width: 120 }}>
+                        <Typography sx={authFieldLabelSx}>Zip code</Typography>
+                        <Field.Text name="spouseZipCode" placeholder="1121" sx={authFieldSx} />
+                      </Box>
+                    </Stack>
                   </Stack>
                 )}
               </Stack>
@@ -635,9 +953,12 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
               <Button fullWidth type="submit" variant="contained" sx={authPrimaryButtonSx}>
                 Continue →
               </Button>
+                </>
+              )}
             </>
           )}
         </Stack>
+        </AutofilledFieldsContext.Provider>
       </Form>
     </Box>
   );

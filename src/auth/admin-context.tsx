@@ -314,24 +314,6 @@ export type CallReport = {
   additionalRemarks: string;
 };
 
-export type TransactionType =
-  | 'New'
-  | 'Renew'
-  | 'Additional/Increase'
-  | 'Compromised'
-  | 'Restructured'
-  | 'Rollover'
-  | 'Extension'
-  | 'Repricing'
-  | 'Others';
-
-export const SUPPORTED_TRANSACTION_TYPES: TransactionType[] = [
-  'New',
-  'Renew',
-  'Additional/Increase',
-  'Others',
-];
-
 export type RequirementChecklist = {
   checkedItems: string[];
   collateralNotes: string;
@@ -342,7 +324,6 @@ export type ReviewStep =
   | 'creditChecking'
   | 'reconsideration'
   | 'callReport'
-  | 'transactionType'
   | 'requirementChecklist';
 
 export type StepTimestamps = Partial<Record<ReviewStep, string>>;
@@ -364,7 +345,6 @@ export type ApplicationReview = {
   reconsideration: Reconsideration;
   negativeCreditReport: NegativeCreditReport;
   callReport: CallReport;
-  transactionType: TransactionType | null;
   requirementChecklist: RequirementChecklist;
   stepTimestamps: StepTimestamps;
 };
@@ -400,7 +380,6 @@ type AdminContextValue = AdminState & {
   addCollateralEntry: () => void;
   updateCollateralEntry: (id: string, data: Partial<CollateralEntry>) => void;
   removeCollateralEntry: (id: string) => void;
-  setTransactionType: (type: TransactionType) => void;
   setRequirementChecklist: (data: Partial<RequirementChecklist>) => void;
   markStepEntered: (step: ReviewStep) => void;
   addToNegativeList: (entry: Omit<NegativeListEntry, 'recordedAt'>) => void;
@@ -540,7 +519,6 @@ function createInitialReview(): ApplicationReview {
       callSummaryEdited: false,
       additionalRemarks: '',
     },
-    transactionType: null,
     requirementChecklist: { checkedItems: [], collateralNotes: '', endorsed: false },
     stepTimestamps: {},
   };
@@ -732,8 +710,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             },
           },
         })),
-      setTransactionType: (transactionType) =>
-        setState((prev) => ({ ...prev, review: { ...prev.review, transactionType } })),
       setRequirementChecklist: (data) =>
         setState((prev) => ({
           ...prev,

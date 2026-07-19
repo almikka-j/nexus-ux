@@ -129,10 +129,10 @@ CreditChecking        { documentUploaded, documentName, decision, bureauFindingS
                         notes, decisionReason }
                         — aiSummary/aiRecommendation are NOT stored; computed at render
                         time in initial-credit-checking-view.tsx from the uploaded bureau
-                        reports + application details (see "Initial AI Recommendation"
-                        below). bureauFindingStatus ('pending'|'clean'|'negative') is the
-                        simulated AI bureau-review outcome — see "Negative Credit Report"
-                        below.
+                        reports + application details (see
+                        docs/ADMIN_INITIAL_CREDIT_CHECKING.md). bureauFindingStatus
+                        ('pending'|'clean'|'negative') is the simulated AI bureau-review
+                        outcome — see "Negative Credit Report" below.
 NegativeCreditReport  { thru, negativeRecordText, accountFindings, cancelledCreditCards,
                         adverseClassifiedLoans, closedCurrentAccounts, recommendationRemarks,
                         submitted } — see "Negative Credit Report" below. The four list
@@ -140,18 +140,16 @@ NegativeCreditReport  { thru, negativeRecordText, accountFindings, cancelledCred
 Reconsideration       { notes, decision }
 CallReport            { approved, ...~75 structured fields across 9 sections — see
                         "Call Report" below }
-TransactionType        'New'|'Renew'|'Additional/Increase'|'Compromised'|'Restructured'
-                        |'Rollover'|'Extension'|'Repricing'|'Others'
 RequirementChecklist  { checkedItems, collateralNotes, endorsed }
 
-ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callReport, transactionType, requirementChecklist }
+ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callReport, requirementChecklist }
 ```
 
 Exposed via `useAdmin()`: `setAdminUser`, `setCreditChecking`, `setReconsideration`,
 `setNegativeCreditReport`, `addNegativeReportEntry`, `updateNegativeReportEntry`,
 `removeNegativeReportEntry`, `resetNegativeCreditReport`, `setCallReport`,
 `addCollateralEntry`, `updateCollateralEntry`, `removeCollateralEntry`,
-`setTransactionType`, `setRequirementChecklist`, `logout()`.
+`setRequirementChecklist`, `logout()`.
 
 **Important limitation:** the admin portal does *not* have its own applicant
 database. There is exactly one **"live" application** — whichever one exists in the
@@ -229,13 +227,13 @@ since these steps can already be pre-filled from a prior session); onboarding's
 Personal Info step (still used by the primary flow, retitled "Upload ID" —
 its sample-fill populates a Married example instantly (no OCR delay to skip
 anymore) so the conditional Spouse Information section is exercised too); and
-Initial Credit Checking's floating button, which toggles based on the
-pre-existing `canDecide` boolean and calls a new `handleClearSampleData()` — a
+Initial Credit Checking's floating button, which toggles based on
+`allBureauReportsUploaded` and calls a new `handleClearSampleData()` — a
 scoped undo of exactly what `handleFillSampleData()` sets (`creditChecking`'s
 document/AI fields, the CIBI form, and the four bureau uploads) — deliberately
 **not** `resetReview()`, since that clears the entire `ApplicationReview`
-including unrelated steps (Reconsideration, Call Report, Transaction Type,
-Requirement Checklist) this button has no business touching. The Officer Notes
+including unrelated steps (Reconsideration, Call Report, Requirement
+Checklist) this button has no business touching. The Officer Notes
 field is untouched by this clear, since it's a separate, intentionally-persistent
 field.
 
@@ -564,10 +562,7 @@ rather than blocking the flow. Sets `application.selfieVerified = true` and call
 /admin/login  →  /admin/dashboard  →  /admin/credit-checking (list, all applications)
   →  /admin/applications/[id]/credit-checking
        ├─ Approved → /admin/applications/[id]/call-report
-       │              → Proceed → /admin/applications/[id]/transaction-type
-       │                            ├─ type ∈ {New, Renew, Additional/Increase, Others} (1,2,3,9)
-       │                            │     → /admin/applications/[id]/requirement-checklist → Endorse
-       │                            └─ other types → "coming soon" placeholder (not built yet)
+       │              → Proceed → /admin/applications/[id]/requirement-checklist → Endorse
        └─ No → /admin/applications/[id]/reconsideration
                  ├─ Approve → rejoins at call-report
                  └─ No → "Client notified" terminal state
@@ -587,76 +582,18 @@ email is the de facto key back into the shared `useRegistration()` session).
 
 This flow was built directly from a process-flow diagram the user provided
 (System / Client / LMS User swimlanes). Initial Credit Checking includes a mocked
-"AI" step (upload document → simulated analysis steps → generated summary +
+"AI" step (uploaded bureau reports + application details → generated summary +
 recommendation text) — not a real AI integration.
 
-**Bureau Reports card** (`src/sections/admin/bureau-reports-card.tsx`,
-`<BureauReportsCard />`, rendered once in `initial-credit-checking-view.tsx` right
-after document upload): a single compact, space-saving card replacing what used
-to be 5 separate full-width cards (one always-expanded CIBI form + 4 individual
-upload cards). It renders "Bureau Reports" / "Upload the returned reports. All are
-required to make a decision." followed by 5 rows — CIBI, LOANDEX, CIC, CMAP,
-NFIS/BAP — each just an icon + name + caption + a right-aligned action, instead
-of a full card each.
-
-- **CIBI row** is the only one with a data-entry form (per the source diagram's
-  callout — "CIBI, CIC, CMAP, NFIS/BAP — as of now, only CIBI has an API
-  integration"). Its right-side action is a **"Create Report"** button that
-  toggles a `<Collapse>` open directly below the row, inside the same card,
-  revealing the CIBI form (14 fields, same auto-fill logic as before — 11
-  fields pre-filled from real applicant data with a green "Auto-filled" chip;
-  Date of Birth and Address Region left blank since nothing in the borrower
-  flow collects them; Installment computed live as `financedAmount ÷ terms`).
-  Clicking "Submit to CIBI" inside the form sets `cibiForm.submitted = true` and
-  collapses the form back down. Once submitted, the row's right side shows a
-  green **"Sent"** status chip plus a separate **"Upload document"** button
-  (for the CIBI report file, `cibiForm.reportFile`/`reportFileName` via
-  `fileToDataUrl`) — after that upload, the row shows the filename + checkmark
-  + "Replace", same as the other 4 rows.
-- **LOANDEX / CIC / CMAP / NFIS-BAP rows** are plain manual-upload rows (no
-  data-entry form) — "Upload report" button that becomes a filename + checkmark
-  + "Replace" once uploaded. State lives in
-  `AdminContext.review.{loandexUpload,cicUpload,cmapUpload,nfisBapUpload}`,
-  unchanged from before this layout consolidation.
-- `computeInstallment` (the amount÷terms math) was kept in
-  `src/sections/admin/cibi-form-card.tsx` — that file used to contain the whole
-  standalone `CibiFormCard` component, which is now dead (superseded by the
-  CIBI row inside `BureauReportsCard`) and was removed; only the shared math
-  helper remains there, since both `bureau-reports-card.tsx` and
-  `initial-credit-checking-view.tsx` (for "Fill with Sample Data") need it.
-  `bureau-upload-card.tsx` (the old standalone per-bureau card component) was
-  deleted outright, fully superseded by the compact rows.
-
-**Initial AI Recommendation** (`buildInitialAiRecommendation`, extracted to
-`src/sections/admin/initial-credit-checking-risk.ts` so `CreditCheckingResultModal`
-can reuse the same risk level — see "View Initial Credit Checking Result"
-under Call Report — rendered right after `ApplicationDetailsCard` on Initial
-Credit Checking): a lightweight, immediately-visible read computed purely
-from data already on the Application Details card — desired loan amount,
-monthly income, employment status — with **no document upload or "Run AI
-Analysis" click required**. This is deliberately separate from (and lighter
-than) the deeper "AI review, summary & recommendation" section further down
-the page. The initial recommendation buckets into 3 levels by debt-to-income
-ratio (annual loan amount vs. income): **Low risk** (≤35%, green, `'good'`),
-**Needs a closer look** (35–60%, amber, `'watch'`, also shown when monthly
-income isn't on file at all), **High risk** (>60%, red, `'high'`) — each
-rendered as a colored callout with an icon, risk-level label, and a sentence
-naming the actual computed ratio. The "AI review, summary & recommendation"
-card below it also gets a "View Initial Credit Checking Result" button (see
-Call Report section) once `allBureauReportsUploaded`.
-
-**"1. Upload document" card removed.** There used to be a standalone dropzone
-card ("1. Upload document") between the Initial AI Recommendation card and
-`BureauReportsCard`, and the "AI review, summary & recommendation" section below
-it was headed "2–4." and gated (both the `Run AI Analysis` button's `disabled`
-state and the card's `opacity`) on `creditChecking.documentUploaded` being
-`true`. Both the card and that gate were removed — the section heading dropped
-its "2–4." prefix (nothing numbered "1." precedes it anymore). `documentUploaded`/
-`documentName` remain on the `CreditChecking` type and are still set by "Fill with
-Sample Data"/"Remove Sample Data" (`handleFillSampleData`/`handleClearSampleData`)
-for data consistency, even though no UI reads or writes them anymore — removing
-the fields from the type entirely was treated as a larger, separate change than
-what was asked.
+**Initial Credit Checking has its own dedicated doc:
+`docs/ADMIN_INITIAL_CREDIT_CHECKING.md`.** It covers the layout (stacked vs.
+split), `ApplicationDetailsCard` (including the conditional Spouse information
+block), `BureauReportsCard` (the CIBI row's "Auto-filled" form + the 4
+plain-upload rows), the simulated bureau finding, the merged "AI review,
+summary & recommendation" card (risk-level read + AI Summary/Recommendation),
+the always-clickable decision gate (Approve/No/For Reconsideration no longer
+require bureau reports to be uploaded first), and what's real vs. simulated on
+this screen. Update that file, not this section, when this screen changes.
 
 **Negative Credit Report** — a manual report the officer fills out when the
 (simulated) AI review of the bureau uploads comes back with a negative
@@ -760,22 +697,15 @@ content in `CreditCheckingResultModal`.
   Checking Report" field block, unconditionally on both the clean and
   negative paths.
 
-**"AI review, summary & recommendation" is now fully automatic — no "Run AI
-Analysis" button.** `aiSummary`/`aiRecommendation` were removed from the
-`CreditChecking` type entirely (previously stored, written by a button click
-with a fake multi-step "analyzing…" animation). They're now computed directly
-in `initial-credit-checking-view.tsx` — `buildAiSummary`/`buildAiRecommendation`
-(renamed from `buildMockAiSummary`/`buildMockAiRecommendation`) run inline off
-`application` (Application Details) and are only produced once all 5 bureau
-reports are on file (`allBureauReportsUploaded`: CIBI, LOANDEX, CIC, CMAP,
-NFIS/BAP — the same condition `canDecide` already required). The card's
-subtitle switches between an upload-prompt ("Upload the CIBI, LOANDEX, CIC,
-CMAP, and NFIS/BAP reports above to generate the AI review.") and a
-based-on-reports statement once they're all present; the AI Summary/AI
-Recommendation blocks simply appear/disappear as bureau uploads change — no
-button, no `analyzing` state, no `CircularProgress`. This follows the same
-"pure computation, never stored" pattern as the Call Report financial ratios
-in `call-report-computations.ts`.
+**"AI review, summary & recommendation" is fully automatic — no "Run AI
+Analysis" button.** `aiSummary`/`aiRecommendation` are never stored (previously
+they were, written by a button click with a fake multi-step "analyzing…"
+animation) — computed directly in `initial-credit-checking-view.tsx` from
+`application` (Application Details), same "pure computation, never stored"
+pattern as the Call Report financial ratios in `call-report-computations.ts`.
+See `docs/ADMIN_INITIAL_CREDIT_CHECKING.md` for this card's current content
+and gating (it now also always shows a risk-level read, merged in from the
+former standalone "Initial AI Recommendation" card).
 
 **Application Details card** (`src/sections/admin/application-details-card.tsx`,
 shared by Initial Credit Checking and Call Report) shows everything the borrower
@@ -803,14 +733,12 @@ whole mechanism is deliberately a *different* field from `Reconsideration.notes`
 (the officer-editable textarea on the Reconsideration screen itself) — one is a
 general running note, the other is what happens during reconsideration itself.
 
-**The "Approved?" card always renders**, dimmed (`opacity: canDecide ? 1 : 0.5`)
-with all three buttons `disabled` until `canDecide` (all 5 bureau reports
-uploaded) is true — it used to be wrapped in `{aiSummary && (...)}`, which hid
-the entire card until the AI review had something to show, meaning officers
-couldn't even see a decision was coming until every report was in. Removed
-that outer gate on request so the card is visible (just inactive) from the
-start, matching how the AI review card above it handles the same not-ready
-state (dimmed/placeholder text, not hidden).
+**The "Approved?" card always renders, fully active from the start** — all
+three buttons (Approve/No/For Reconsideration) are clickable regardless of
+bureau-upload status; bureau reports are supporting evidence, not a
+prerequisite to decide. See `docs/ADMIN_INITIAL_CREDIT_CHECKING.md`'s
+"Decision gate" section for the current behavior and history (it used to be
+dimmed + all three buttons disabled until every bureau report was uploaded).
 
 **"No" and "For Reconsideration" require a reason, captured via a confirmation
 dialog at the moment of clicking.** The "Approved?" card has three buttons:
@@ -856,7 +784,7 @@ badge right) with no aging info inside it at all.
 (`src/layouts/admin/nav-vertical.tsx`, `src/layouts/admin/config-nav-admin.tsx`):
 
 - **"Application List"** — the forward-moving process only: Initial Credit
-  Checking, Call Report, Transaction Type, Requirement Checklist. Reconsideration
+  Checking, Call Report, Requirement Checklist. Reconsideration
   is deliberately **not** here — being sent to Reconsideration means the
   application was already rejected at Initial Credit Checking, so it isn't a
   forward step in "the process," it's an exception branch.
@@ -1026,13 +954,14 @@ The page's own intro card ("Call Report & Loan Package Proposal / Complete this 
 above) shows **multiple applications**, not just one: the one **live** application (the real
 `useRegistration()` session, fully interactive as described throughout this doc) plus
 **5 hardcoded read-only sample applications** (`src/sections/admin/sample-applications.ts`,
-`SAMPLE_APPLICATIONS`), one parked at each of the 5 review steps (Initial Credit
-Checking, Reconsideration, Call Report, Transaction Type, Requirement Checklist) so
-every step always has content to show, even the ones the live application has
-already passed through or hasn't reached yet. Each sample carries its own
-`RegistrationState` (name, loan details, personal info, backdated `submittedAt` for
-realistic aging) and a `step` — there is **no `ApplicationReview` state for
-samples** (no CIBI form, no uploads, no decision state) since they're display-only.
+`SAMPLE_APPLICATIONS`), covering the 4 review steps (Initial Credit
+Checking, Reconsideration, Call Report, Requirement Checklist — two samples
+land on Requirement Checklist) so every step always has content to show, even
+the ones the live application has already passed through or hasn't reached
+yet. Each sample carries its own `RegistrationState` (name, loan details,
+personal info, backdated `submittedAt` for realistic aging) and a `step` —
+there is **no `ApplicationReview` state for samples** (no CIBI form, no
+uploads, no decision state) since they're display-only.
 
 - **Why read-only, not fully interactive:** making all 6 applications fully workable
   (independent Approve/No, CIBI forms, uploads, etc. per applicant) would require
@@ -1132,19 +1061,21 @@ no search/remove yet since there's only ever one applicant in this prototype.
 Checking only)**: a floating action button fixed to the bottom-right of
 `InitialCreditCheckingView`, always visible (no longer additionally gated on
 `NODE_ENV` — see the "Known issues" entry on the `NODE_ENV` gate removal below),
-with its label and behavior driven by the pre-existing `canDecide` boolean.
-While `!canDecide`, one click (`handleFillSampleData`) fills the entire screen
-to a decidable state in one step: uploads the document, sets the AI summary/
-recommendation directly (skipping the animated `setInterval` steps), fills
-and submits the CIBI form (including a sample report), and uploads all four
-bureau reports (LOANDEX/CIC/CMAP/NFIS-BAP) — letting a tester skip the
-manual click-through and jump straight to Approve/No. Once `canDecide` becomes
-true, the button relabels to "Remove Sample Data" and clicking it calls
-`handleClearSampleData()` instead — a scoped undo of exactly the fields
-`handleFillSampleData` set (document/AI fields on `creditChecking`, the CIBI
-form, and the four bureau uploads), deliberately not `resetReview()`, which
-would also wipe unrelated steps (Reconsideration, Call Report, Transaction
-Type, Requirement Checklist) this button has no business touching. The Officer
+with its label and behavior driven by `allBureauReportsUploaded`. Note this
+button no longer gates the decision buttons themselves (Approve/No/For
+Reconsideration are always clickable — see
+`docs/ADMIN_INITIAL_CREDIT_CHECKING.md`'s "Decision gate" section) — it only
+controls whether the bureau reports/CIBI form are pre-filled for demo
+purposes. While not yet uploaded, one click (`handleFillSampleData`) fills the
+entire screen in one step: uploads the document, fills and submits the CIBI
+form (including a sample report), and uploads all four bureau reports
+(LOANDEX/CIC/CMAP/NFIS-BAP) — letting a tester skip the manual click-through.
+Once all 5 are uploaded, the button relabels to "Remove Sample Data" and
+clicking it calls `handleClearSampleData()` instead — a scoped undo of exactly
+the fields `handleFillSampleData` set (document/AI fields on `creditChecking`,
+the CIBI form, and the four bureau uploads), deliberately not `resetReview()`,
+which would also wipe unrelated steps (Reconsideration, Call Report,
+Requirement Checklist) this button has no business touching. The Officer
 Notes textarea is untouched by either direction, since it's a separate field.
 `computeInstallment` was exported from `cibi-form-card.tsx` so
 `handleFillSampleData` can reuse the same installment math instead of
@@ -1206,7 +1137,7 @@ stale silently.
   at the end of onboarding — not when an admin first opens the application.
 - **Per-step clock**: `review.stepTimestamps` (`src/auth/admin-context.tsx`), a
   `Partial<Record<ReviewStep, string>>` where `ReviewStep` is one of
-  `'creditChecking' | 'reconsideration' | 'callReport' | 'transactionType' |
+  `'creditChecking' | 'reconsideration' | 'callReport' |
   'requirementChecklist'`. `markStepEntered(step)` writes an ISO timestamp the
   first time an admin lands on that step and is a no-op on repeat visits, so
   revisiting a step doesn't reset its clock.

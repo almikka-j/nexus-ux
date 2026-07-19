@@ -26,7 +26,6 @@ const STEP_LABELS: Record<ReviewStep, string> = {
   creditChecking: 'Initial Credit Checking',
   reconsideration: 'Reconsideration',
   callReport: 'Call Report',
-  transactionType: 'Transaction Type',
   requirementChecklist: 'Requirement Checklist',
 };
 

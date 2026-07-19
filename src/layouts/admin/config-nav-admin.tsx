@@ -20,7 +20,6 @@ import { paths } from 'src/routes/paths';
 export const applicationReviewSteps = [
   { title: 'Initial Credit Checking', step: 'creditChecking', path: paths.admin.applications },
   { title: 'Call Report', step: 'callReport', path: paths.admin.applicationsByStep('callReport') },
-  { title: 'Transaction Type', step: 'transactionType', path: paths.admin.applicationsByStep('transactionType') },
   { title: 'Requirement Checklist', step: 'requirementChecklist', path: paths.admin.applicationsByStep('requirementChecklist') },
 ];
 

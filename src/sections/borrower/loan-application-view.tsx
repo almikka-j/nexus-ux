@@ -47,6 +47,7 @@ export function LoanApplicationView() {
         ...signUpData,
         firstName: nameFields.firstName,
         middleName: nameFields.middleName,
+        lastName: nameFields.lastName,
         extensionName: nameFields.extensionName,
       });
     }
@@ -94,6 +95,7 @@ export function LoanApplicationView() {
           nameDefaultValues={{
             firstName: signUpData?.firstName,
             middleName: signUpData?.middleName,
+            lastName: signUpData?.lastName,
             extensionName: signUpData?.extensionName,
           }}
           onSubmitApplication={handlePersonalInfo}

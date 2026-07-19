@@ -206,7 +206,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
     },
   },
   {
-    step: 'transactionType',
+    step: 'requirementChecklist',
     registration: {
       signUpData: {
         firstName: 'Cristina',

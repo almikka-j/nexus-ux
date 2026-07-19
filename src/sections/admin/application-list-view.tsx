@@ -38,7 +38,6 @@ const STEP_ORDER: ReviewStep[] = [
   'creditChecking',
   'reconsideration',
   'callReport',
-  'transactionType',
   'requirementChecklist',
 ];
 
@@ -46,7 +45,6 @@ const STEP_LABELS: Record<ReviewStep, string> = {
   creditChecking: 'Initial Credit Checking',
   reconsideration: 'Reconsideration',
   callReport: 'Call Report',
-  transactionType: 'Transaction Type',
   requirementChecklist: 'Requirement Checklist',
 };
 
@@ -144,7 +142,6 @@ export function ApplicationListView() {
     creditChecking: paths.admin.creditChecking,
     reconsideration: paths.admin.reconsideration,
     callReport: paths.admin.callReport,
-    transactionType: paths.admin.transactionType,
     requirementChecklist: paths.admin.requirementChecklist,
   };
 

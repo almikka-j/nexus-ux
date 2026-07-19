@@ -28,7 +28,6 @@ const REQUIREMENT_ITEMS = [
   'Credit report reviewed (CIBI)',
   'Call report and loan package proposal approved',
   'Collateral details confirmed (if applicable)',
-  'Transaction type classification confirmed',
 ];
 
 export function RequirementChecklistView() {
@@ -105,7 +104,7 @@ export function RequirementChecklistView() {
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
-      <ApplicationReviewHeader step="Step 4 · Requirement Checklist" reviewStep="requirementChecklist" />
+      <ApplicationReviewHeader step="Step 3 · Requirement Checklist" reviewStep="requirementChecklist" />
 
       <Stack spacing={2.5}>
         <Box

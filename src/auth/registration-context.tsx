@@ -52,10 +52,16 @@ export type PersonalInfo = {
   // "Spouse Information" section. spouseAddress/spouseProvince are either a
   // direct copy of the borrower's own address/province (when "Same address
   // as spouse" is checked) or separately-entered values.
-  spouseName?: string;
+  spouseFirstName?: string;
+  spouseMiddleName?: string;
+  spouseLastName?: string;
+  spouseExtensionName?: string;
   spouseBirthday?: string;
   spouseAddress?: string;
   spouseProvince?: string;
+  spouseCity?: string;
+  spouseBarangay?: string;
+  spouseZipCode?: string;
 };
 
 export type ApplicationData = {

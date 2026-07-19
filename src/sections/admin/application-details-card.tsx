@@ -13,6 +13,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { FileThumbnail } from 'src/components/file-thumbnail';
 
 // ----------------------------------------------------------------------
 
@@ -70,6 +71,45 @@ function DocumentPreview({
   );
 }
 
+// Separate from DocumentPreview (which assumes an image) since the business
+// registration document can be a PDF — see CompactDropzone's
+// `accept: { 'image/*': [], 'application/pdf': [] }` on Preliminary
+// Application. FileThumbnail already handles the image-or-non-image case.
+function BusinessDocumentPreview({ label, src }: { label: string; src: string | null }) {
+  return (
+    <Stack direction="row" spacing={1.25} alignItems="center">
+      {src ? (
+        <FileThumbnail
+          file={src}
+          sx={{ width: THUMB_SIZE, height: THUMB_SIZE, flexShrink: 0 }}
+          slotProps={{ img: { borderRadius: '10px' } }}
+        />
+      ) : (
+        <Stack
+          alignItems="center"
+          justifyContent="center"
+          sx={{
+            width: THUMB_SIZE,
+            height: THUMB_SIZE,
+            flexShrink: 0,
+            borderRadius: '10px',
+            border: '1.5px dashed #E1E4ED',
+            bgcolor: '#FAFBFD',
+          }}
+        >
+          <Iconify icon="solar:document-bold-duotone" width={30} sx={{ color: '#C7CCDA' }} />
+        </Stack>
+      )}
+      <Stack spacing={0.25}>
+        <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#14172A' }}>{label}</Typography>
+        <Typography sx={{ fontSize: 11.5, color: src ? '#12B76A' : '#8891A6' }}>
+          {src ? 'Provided' : 'Not provided'}
+        </Typography>
+      </Stack>
+    </Stack>
+  );
+}
+
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <Stack spacing={0.4} sx={{ minWidth: 120 }}>
@@ -113,9 +153,16 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
 
   const { loanType, financialInfo, personalInfo } = application;
 
-  const loanTypeLabel =
-    loanType === 'business' ? 'Business Loan' : loanType === 'personal' ? 'Personal Loan' : '—';
-  const fullName = `${signUpData.firstName}${signUpData.middleName ? ` ${signUpData.middleName}` : ''} ${signUpData.lastName}${signUpData.extensionName ? ` ${signUpData.extensionName}` : ''}`;
+  // application.loanType stays null for every new sign-up (the primary flow
+  // never collects a dedicated Loan Type step — see
+  // docs/BORROWER_SIGNUP_FLOW.md's "Loan Type removed from the primary flow")
+  // — so fall back to the Business Owner income-source signal instead of
+  // always reading as "Personal Loan" regardless of what the borrower
+  // actually told us.
+  const isBusinessLoan =
+    loanType === 'business' || financialInfo?.employmentStatus === 'Business Owner';
+  const loanTypeLabel = isBusinessLoan ? 'Business Loan' : 'Personal Loan';
+  const fullName = `${signUpData.prefix ? `${signUpData.prefix} ` : ''}${signUpData.firstName}${signUpData.middleName ? ` ${signUpData.middleName}` : ''} ${signUpData.lastName}${signUpData.extensionName ? ` ${signUpData.extensionName}` : ''}`;
   const applicationDate = application.submittedAt
     ? new Date(application.submittedAt).toLocaleDateString()
     : '—';
@@ -178,10 +225,7 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
         <Stack spacing={1.5}>
           <SectionLabel>Applicant</SectionLabel>
           <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-            <DetailField
-              label="Full name"
-              value={`${signUpData.firstName}${signUpData.middleName ? ` ${signUpData.middleName}` : ''} ${signUpData.lastName}${signUpData.extensionName ? ` ${signUpData.extensionName}` : ''}`}
-            />
+            <DetailField label="Full name" value={fullName} />
             <DetailField label="Email address" value={signUpData.email} />
             <DetailField label="Mobile number" value={signUpData.mobile ? `+63 ${signUpData.mobile}` : ''} />
           </Stack>
@@ -192,10 +236,7 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
         <Stack spacing={1.5}>
           <SectionLabel>Loan request</SectionLabel>
           <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-            <DetailField
-              label="Loan type"
-              value={loanType === 'business' ? 'Business Loan' : loanType === 'personal' ? 'Personal Loan' : ''}
-            />
+            <DetailField label="Loan type" value={loanTypeLabel} />
             {financialInfo && (
               <>
                 <DetailField
@@ -212,6 +253,11 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
               </>
             )}
           </Stack>
+          {financialInfo?.employmentStatus === 'Business Owner' && (
+            <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
+              <DetailField label="Business type" value={financialInfo.businessType} />
+            </Stack>
+          )}
         </Stack>
 
         {personalInfo && (
@@ -238,6 +284,25 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
               <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
                 <DetailField label="Referral source" value={personalInfo.referralSource} />
               </Stack>
+
+              {personalInfo.civilStatus === 'Married' && (
+                <>
+                  <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
+                    <DetailField
+                      label="Spouse's name"
+                      value={`${personalInfo.spouseFirstName ?? ''}${personalInfo.spouseMiddleName ? ` ${personalInfo.spouseMiddleName}` : ''} ${personalInfo.spouseLastName ?? ''}${personalInfo.spouseExtensionName ? ` ${personalInfo.spouseExtensionName}` : ''}`.trim()}
+                    />
+                    <DetailField label="Spouse's birthday" value={personalInfo.spouseBirthday} />
+                  </Stack>
+                  <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
+                    <DetailField label="Spouse's address" value={personalInfo.spouseAddress} />
+                    <DetailField label="Spouse's barangay" value={personalInfo.spouseBarangay} />
+                    <DetailField label="Spouse's city" value={personalInfo.spouseCity} />
+                    <DetailField label="Spouse's province" value={personalInfo.spouseProvince} />
+                    <DetailField label="Spouse's zip code" value={personalInfo.spouseZipCode} />
+                  </Stack>
+                </>
+              )}
             </Stack>
 
             <Divider sx={{ borderColor: '#EEF0F5' }} />
@@ -262,6 +327,12 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
                   src={application.selfiePhoto}
                   placeholderIcon="solar:user-rounded-bold-duotone"
                 />
+                {financialInfo?.employmentStatus === 'Business Owner' && (
+                  <BusinessDocumentPreview
+                    label={financialInfo.businessType ? `${financialInfo.businessType} document` : 'Business document'}
+                    src={financialInfo.businessDocument ?? null}
+                  />
+                )}
               </Stack>
             </Stack>
           </>

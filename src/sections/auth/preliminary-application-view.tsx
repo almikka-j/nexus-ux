@@ -204,8 +204,14 @@ function CompactDropzone({ value, onChange, error, documentLabel }: CompactDropz
         </>
       ) : (
         <>
-          <Iconify icon="solar:upload-minimalistic-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
-          <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Choose a file — {documentLabel}</Typography>
+          <Iconify
+            icon="solar:upload-minimalistic-bold-duotone"
+            width={18}
+            sx={{ color: error ? 'error.main' : '#8891A6' }}
+          />
+          <Typography sx={{ fontSize: 12.5, color: error ? 'error.main' : '#8891A6' }}>
+            Choose a file — {documentLabel}
+          </Typography>
         </>
       )}
     </Box>
@@ -299,6 +305,7 @@ export function PreliminaryApplicationView() {
     reset,
     control,
     setValue,
+    clearErrors,
     formState: { isSubmitting },
   } = methods;
   const [isSample, setIsSample] = useState(false);
@@ -313,11 +320,12 @@ export function PreliminaryApplicationView() {
       previousBusinessTypeRef.current &&
       previousBusinessTypeRef.current !== businessType
     ) {
-      setValue('businessDocument', null, { shouldValidate: true });
+      setValue('businessDocument', null, { shouldValidate: false });
+      clearErrors('businessDocument');
     }
 
     previousBusinessTypeRef.current = businessType;
-  }, [businessType, setValue]);
+  }, [businessType, clearErrors, setValue]);
 
   const onSubmit = handleSubmit(async (data) => {
     await new Promise((resolve) => setTimeout(resolve, 400));

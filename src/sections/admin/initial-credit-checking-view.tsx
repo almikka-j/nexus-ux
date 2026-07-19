@@ -30,19 +30,42 @@ import type { InitialRiskLevel } from './initial-credit-checking-risk';
 
 // ----------------------------------------------------------------------
 
-// AI summary/recommendation are computed directly from the uploaded Bureau
-// Reports and Application details — no manual "run analysis" step. Purely
-// derived (not stored), same pattern as the Call Report financial ratios.
-function buildAiSummary(firstName: string, loanAmount: number, employmentStatus: string) {
-  return `${firstName}'s bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) are on file and consistent with the application details submitted. Stated employment status is "${employmentStatus}" with a requested loan amount of ₱${loanAmount.toLocaleString()}. No mismatches were found between the bureau reports and the application form.`;
+// AI summary/recommendation are computed directly from Application details,
+// and additionally from the uploaded Bureau Reports once those are on file —
+// no manual "run analysis" step, no gating on bureau uploads before showing
+// anything. Purely derived (not stored), same pattern as the Call Report
+// financial ratios. Before bureau reports are uploaded, both fall back to a
+// read based on application details alone (this is what used to be a
+// separate "Initial AI Recommendation" card — merged in here so there's one
+// AI-output card instead of two, always populated).
+function buildAiSummary(
+  firstName: string,
+  loanAmount: number,
+  employmentStatus: string,
+  allBureauReportsUploaded: boolean
+) {
+  if (allBureauReportsUploaded) {
+    return `${firstName}'s bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) are on file and consistent with the application details submitted. Stated employment status is "${employmentStatus}" with a requested loan amount of ₱${loanAmount.toLocaleString()}. No mismatches were found between the bureau reports and the application form.`;
+  }
+  return `${firstName} has requested ₱${loanAmount.toLocaleString()} with stated employment status "${employmentStatus}". Bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) haven't been uploaded yet, so this summary is based on application details only.`;
 }
 
-function buildAiRecommendation(loanAmount: number, monthlyIncome: number) {
+function buildAiRecommendation(
+  loanAmount: number,
+  monthlyIncome: number,
+  allBureauReportsUploaded: boolean
+) {
   const ratio = monthlyIncome > 0 ? loanAmount / (monthlyIncome * 12) : null;
-  if (ratio !== null && ratio <= 0.5) {
-    return 'Debt-to-income indicators are within an acceptable range. Recommend proceeding to Call Report preparation.';
+  const withinRange = ratio !== null && ratio <= 0.5;
+
+  if (allBureauReportsUploaded) {
+    return withinRange
+      ? 'Debt-to-income indicators are within an acceptable range. Recommend proceeding to Call Report preparation.'
+      : 'Requested amount is high relative to stated monthly income. Recommend proceeding with added scrutiny during Call Report review.';
   }
-  return 'Requested amount is high relative to stated monthly income. Recommend proceeding with added scrutiny during Call Report review.';
+  return withinRange
+    ? 'Debt-to-income indicators are within an acceptable range based on application details alone. Upload the bureau reports above to confirm before proceeding to Call Report.'
+    : 'Requested amount is high relative to stated monthly income, based on application details alone. Upload the bureau reports above for a fuller picture before proceeding.';
 }
 
 const INITIAL_RISK_STYLES: Record<InitialRiskLevel, { bg: string; color: string; icon: string; label: string }> = {
@@ -125,23 +148,20 @@ export function InitialCreditCheckingView() {
     application.financialInfo?.employmentStatus ?? 'Unknown'
   );
   const initialRiskStyle = INITIAL_RISK_STYLES[initialAiRecommendation.level];
-  const canDecide = allBureauReportsUploaded;
   const showNegativeReportCard =
     allBureauReportsUploaded && creditChecking.bureauFindingStatus === 'negative';
 
-  const aiSummary = allBureauReportsUploaded
-    ? buildAiSummary(
-        signUpData.firstName,
-        application.financialInfo?.desiredLoanAmount ?? 0,
-        application.financialInfo?.employmentStatus ?? 'Unknown'
-      )
-    : null;
-  const aiRecommendation = allBureauReportsUploaded
-    ? buildAiRecommendation(
-        application.financialInfo?.desiredLoanAmount ?? 0,
-        application.financialInfo?.monthlyIncome ?? 0
-      )
-    : null;
+  const aiSummary = buildAiSummary(
+    signUpData.firstName,
+    application.financialInfo?.desiredLoanAmount ?? 0,
+    application.financialInfo?.employmentStatus ?? 'Unknown',
+    allBureauReportsUploaded
+  );
+  const aiRecommendation = buildAiRecommendation(
+    application.financialInfo?.desiredLoanAmount ?? 0,
+    application.financialInfo?.monthlyIncome ?? 0,
+    allBureauReportsUploaded
+  );
 
   const handleFillSampleData = () => {
     const loanAmount = application.financialInfo?.desiredLoanAmount ?? 0;
@@ -191,8 +211,8 @@ export function InitialCreditCheckingView() {
   // Undoes exactly what handleFillSampleData sets — scoped to only the
   // document/AI/CIBI/bureau-upload fields it touches, NOT a full
   // `resetReview()` (which would also wipe unrelated steps like
-  // Reconsideration, Call Report, Transaction Type, and Requirement
-  // Checklist that this button has no business touching).
+  // Reconsideration, Call Report, and Requirement Checklist that this
+  // button has no business touching).
   const handleClearSampleData = () => {
     setCreditChecking({
       documentUploaded: false,
@@ -253,39 +273,6 @@ export function InitialCreditCheckingView() {
 
   const rightColumnCards = (
     <Stack spacing={2.5}>
-        <Box
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
-            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-          }}
-        >
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-            <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              Initial AI Recommendation
-            </Typography>
-          </Stack>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-            A quick read based on the application details above — not a substitute for the full
-            AI review below.
-          </Typography>
-
-          <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ p: 2, borderRadius: '11px', bgcolor: initialRiskStyle.bg }}>
-            <Iconify icon={initialRiskStyle.icon} width={18} sx={{ color: initialRiskStyle.color, mt: 0.25 }} />
-            <Stack spacing={0.25}>
-              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: initialRiskStyle.color }}>
-                {initialRiskStyle.label}
-              </Typography>
-              <Typography sx={{ fontSize: 13.5, color: initialRiskStyle.color, lineHeight: 1.6 }}>
-                {initialAiRecommendation.text}
-              </Typography>
-            </Stack>
-          </Stack>
-        </Box>
-
         <BureauReportsCard />
 
         <Box
@@ -326,60 +313,59 @@ export function InitialCreditCheckingView() {
             boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
           }}
         >
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-            AI review, summary &amp; recommendation
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+            <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+              AI review, summary &amp; recommendation
+            </Typography>
+          </Stack>
           <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
             {allBureauReportsUploaded
               ? 'Based on the uploaded bureau reports and application details.'
-              : 'Upload the CIBI, LOANDEX, CIC, CMAP, and NFIS/BAP reports above to generate the AI review.'}
+              : 'Based on application details — upload the CIBI, LOANDEX, CIC, CMAP, and NFIS/BAP reports above to confirm with the full bureau review.'}
           </Typography>
 
-          {allBureauReportsUploaded && (
-            <Button
-              onClick={() => setResultModalOpen(true)}
-              variant="outlined"
-              startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-              sx={{
-                mb: 2.5,
-                color: '#1C2A6E',
-                borderColor: '#C7CEEA',
-                borderRadius: '10px',
-                px: 2,
-                '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
-              }}
-            >
-              View Initial Credit Checking Result
-            </Button>
-          )}
+          <Button
+            onClick={() => setResultModalOpen(true)}
+            variant="outlined"
+            startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+            sx={{
+              mb: 2.5,
+              color: '#1C2A6E',
+              borderColor: '#C7CEEA',
+              borderRadius: '10px',
+              px: 2,
+              '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
+            }}
+          >
+            View Initial Credit Checking Result
+          </Button>
 
-          {aiSummary && aiRecommendation && (
-            <Stack spacing={2}>
-              <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Iconify icon="solar:document-text-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
-                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>
-                    AI Summary
-                  </Typography>
-                </Stack>
-                <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
-                  {aiSummary}
+          <Stack spacing={2}>
+            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Iconify icon="solar:document-text-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>
+                  AI Summary
                 </Typography>
-              </Box>
+              </Stack>
+              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
+                {aiSummary}
+              </Typography>
+            </Box>
 
-              <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#EEF1FE' }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Iconify icon="solar:lightbulb-bold-duotone" width={16} sx={{ color: '#3448B0' }} />
-                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#3448B0' }}>
-                    AI Recommendation
-                  </Typography>
-                </Stack>
-                <Typography sx={{ fontSize: 13.5, color: '#3448B0', lineHeight: 1.6 }}>
-                  {aiRecommendation}
+            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: initialRiskStyle.bg }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Iconify icon={initialRiskStyle.icon} width={16} sx={{ color: initialRiskStyle.color }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: initialRiskStyle.color }}>
+                  AI Recommendation · {initialRiskStyle.label}
                 </Typography>
-              </Box>
-            </Stack>
-          )}
+              </Stack>
+              <Typography sx={{ fontSize: 13.5, color: initialRiskStyle.color, lineHeight: 1.6 }}>
+                {aiRecommendation}
+              </Typography>
+            </Box>
+          </Stack>
         </Box>
 
         {showNegativeReportCard && <NegativeCreditReportCard />}
@@ -391,22 +377,19 @@ export function InitialCreditCheckingView() {
             bgcolor: 'common.white',
             border: '1px solid #EBEDF3',
             boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-            opacity: canDecide ? 1 : 0.5,
           }}
         >
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
             Approved?
           </Typography>
           <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-            {canDecide
-              ? 'Based on the AI review and all bureau reports, decide whether this application proceeds.'
-              : 'Upload the CIBI, LOANDEX, CIC, CMAP, and NFIS/BAP reports above before making a decision.'}
+            Based on the AI review above, decide whether this application proceeds. Bureau
+            reports are supporting evidence, not required to make a decision.
           </Typography>
 
           <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
             <Button
               onClick={handleApprove}
-              disabled={!canDecide}
               variant="contained"
               startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
               sx={{
@@ -420,7 +403,6 @@ export function InitialCreditCheckingView() {
             </Button>
             <Button
               onClick={() => setPendingAction('rejected')}
-              disabled={!canDecide}
               variant="outlined"
               startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
               sx={{
@@ -435,7 +417,6 @@ export function InitialCreditCheckingView() {
             </Button>
             <Button
               onClick={() => setPendingAction('reconsideration')}
-              disabled={!canDecide}
               variant="outlined"
               startIcon={<Iconify icon="solar:refresh-circle-bold" width={18} />}
               sx={{
@@ -508,7 +489,7 @@ export function InitialCreditCheckingView() {
       />
 
       <Button
-        onClick={canDecide ? handleClearSampleData : handleFillSampleData}
+        onClick={allBureauReportsUploaded ? handleClearSampleData : handleFillSampleData}
         variant="contained"
         startIcon={<Iconify icon="solar:magic-stick-3-bold-duotone" width={18} />}
         sx={{
@@ -524,7 +505,7 @@ export function InitialCreditCheckingView() {
           '&:hover': { bgcolor: '#14205A' },
         }}
       >
-        {canDecide ? 'Remove Sample Data' : 'Fill with Sample Data'}
+        {allBureauReportsUploaded ? 'Remove Sample Data' : 'Fill with Sample Data'}
       </Button>
 
       <Button

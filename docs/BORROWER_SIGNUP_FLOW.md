@@ -20,8 +20,8 @@ real backend — every "submission" is just a write to this one client-side obje
 > **Welcome** step before **Upload ID**, where the borrower uploads their ID
 > and fills out all remaining personal details in one flat form (no
 > simulated OCR/"reading" delay — that was removed; every field shows at
-> once). **Selfie Verification** folds in a second, more specific
-> Terms/Privacy/verification-consent block immediately before final submit.
+> once). **Selfie Verification** allows final submission immediately after
+> the simulated match succeeds.
 > **Application Confirmation** shows real derived data (reference number,
 > dates, status). See "Complete ordered journey" below.
 
@@ -59,7 +59,7 @@ type SignUpData = {
   mobile: string;
   password: string; // never set by the borrower anymore — stays '' permanently
   marketingConsent: boolean;
-  termsAccepted: boolean; // set true from Preliminary Application's consent checkbox; re-confirmed at the Selfie screen
+  termsAccepted: boolean; // set true from Preliminary Application's consent checkbox
 };
 
 type LoanType = 'personal' | 'business'; // kept for type-shape compat; no longer collected — see below
@@ -130,9 +130,7 @@ localStorage, used by the dashboard's "Reset Application" button).
 (name/email/mobile; `password`/`marketingConsent` default to blank/false and
 are read forward from any existing value). `termsAccepted` is set from
 Preliminary Application's own `dataConsent` checkbox at that same submission
-— no longer defaults to `false` there — and is re-confirmed (set to `true`
-again) at the Selfie screen once all four of its consent checkboxes are
-checked and the borrower submits.
+and is not collected again during Selfie Verification.
 
 ## Step by step
 
@@ -194,14 +192,8 @@ Hook Form + Zod (`PreliminarySchema`). Fields, in this order:
   for this loan application.") sits directly above the submit button,
   validated via `dataConsent: zod.boolean().refine((v) => v === true)`.
   Checking it is required to submit `PreliminarySchema`. On submit, its
-  value is persisted onto `SignUpData.termsAccepted` (previously this
-  screen never set `termsAccepted` at all — it stayed `false` until the
-  Selfie Verification consent block flipped it later). This is a second,
-  earlier consent touchpoint, not a replacement for the 4-checkbox block at
-  Selfie Verification — that block covers the ID/selfie
-  processing-specific consent, collected right before final submit; this
-  one covers consenting to the collection of PII (email, mobile, income)
-  up front, on the very first screen.
+  value is persisted onto `SignUpData.termsAccepted`. This is the only
+  consent checkpoint in the borrower flow.
 
 A "Fill with Sample Data" toggle populates a canned identity (Mr. Juan Santos
 Dela Cruz / juan.delacruz@example.com / 9171234567 / ₱200,000 / 12 months /
@@ -244,7 +236,7 @@ the rest of the component is reached. **Steps 1/2 no longer use
 `AuthBrandPanel`/the split-panel treatment** — both render inside a single
 centered `Stack` (`alignItems: 'center', justifyContent: 'center'`) on a
 plain white background, since each step already self-constrains its own
-content width (`StepPersonalInfo` to 640px, `StepSelfieVerification` to
+content width (`StepPersonalInfo` to 720px, `StepSelfieVerification` to
 460px). A "← Back" text link (shown only on step 2) returns to step 1
 without losing entered values.
 
@@ -264,8 +256,10 @@ button or user action required.
 `src/sections/auth/onboarding/step-personal-info.tsx`, "Step 1 · Upload ID"
 / "Upload a valid ID"). The ID Type select is the only control shown
 initially and displays a muted "Select ID type" placeholder. Choosing an ID
-type reveals the required upload slot(s) and the remaining personal-detail
-form. There is no simulated OCR/"reading" delay. Order, top to bottom:
+type reveals only the required upload slot(s). Once every required ID side
+is uploaded, a short frontend-only "Reading your ID…" state runs before the
+remaining personal-detail form is revealed and populated with sample data.
+Order, top to bottom:
 
 1. **ID Type** (select) — shown first, alone. Nothing upload-related is
    visible until this is set.
@@ -279,10 +273,8 @@ form. There is no simulated OCR/"reading" delay. Order, top to bottom:
    issue on `idFileBack` if missing for these types). PhilSys/National ID
    (blank/QR-only back) and Philippine Passport (booklet page, no second
    side to scan) keep a single "Upload a valid ID" dropzone. Switching ID
-   Type away from a two-sided type clears any already-uploaded
-   `idFileBack` (`useEffect` keyed on a `useRef`-tracked previous `idType`,
-   same pattern as clearing `businessDocument` when `businessType` changes
-   on Preliminary Application). The back image is converted to a base64
+   Type clears the previously uploaded front/back images and requires the
+   newly selected document type to be uploaded and read again. The back image is converted to a base64
    data URL the same way as the front (`fileToDataUrl()`) and stored as
    `PersonalInfo.idFileBack`, `null` for single-upload ID types.
 
@@ -296,17 +288,17 @@ form. There is no simulated OCR/"reading" delay. Order, top to bottom:
    whether empty or filled — showing a compact upload prompt when empty or
    a cropped `object-fit: cover` image preview with a small remove (×)
    button once a file is chosen.
-3. **Instant auto-fill on upload.** The moment the front ID image is
-   selected, a fixed set of remaining fields (`AUTOFILL_VALUES` in
+3. **Simulated ID reading and auto-fill.** Once the required ID image(s) are
+   selected, the personal inputs remain hidden during a 1.8-second loading
+   state. A fixed set of remaining fields (`AUTOFILL_VALUES` in
    `step-personal-info.tsx`: ID Number, First Name, Middle Name, Birthday,
-   Address, Province, City, Barangay, Zip Code) populate immediately with
-   placeholder-style values — **not real OCR**, just an honest-about-being-
-   fake UX convenience (no delay, no spinner, unlike the old removed
-   simulation). Guarded by a ref so it only fires once per upload and never
-   overwrites a field the borrower already typed into. Fully editable
-   afterward.
+   Address, Province, City, Barangay, Zip Code), plus the other canned sample
+   details, then populate before the inputs are revealed. This is **not real
+   OCR**; it is a frontend-only design simulation and the revealed values
+   remain editable. Previously submitted details reopen immediately when the
+   borrower returns from the selfie step and are not overwritten.
 4. ID Number.
-5. **First Name, Middle Name (optional), Extension (optional)** — one row.
+5. **First Name, Middle Name (optional), Last Name, Extension (optional)** — one row.
    This is where the borrower fills in the name parts Preliminary
    Application didn't collect (which only took Surname). On submit these
    are passed up to `OnboardingView` as a separate `PersonalInfoNameFields`
@@ -331,9 +323,10 @@ form. There is no simulated OCR/"reading" delay. Order, top to bottom:
    - "How did you discover PG Finance?" (Referral Source, select).
 10. "Continue →".
 
-"Fill with Sample Data" populates a canned Married example (spouse fields
-populated) instantly — no delay of any kind, since there's no OCR
-simulation left to skip.
+The "Fill with Sample Data" link remains available for demos. It selects a
+sample ID, supplies a placeholder upload, runs the same reading loader, and
+then reveals the canned values. "Remove Sample Data" returns the screen to
+the initial ID-type-only state.
 
 The uploaded ID `File`(s) are converted to a base64 data URL
 (`fileToDataUrl()`) before being stored. On submit → `setSignUpData()` (name
@@ -343,18 +336,9 @@ fields only) + `setPersonalInfo()` → advances to step 2.
 `src/sections/auth/onboarding/step-selfie-verification.tsx`, "Step 4 ·
 Verify it's you" / "Selfie with ID" — see the dedicated section below for
 the capture state machine). A lighting tip ("Find a well-lit spot…") shows
-before the camera starts. Once verified, a **4-checkbox consent section**
-appears directly above the submit button — all four required before
-"Submit Application →" enables:
-  - "The information I've provided in this application is accurate."
-  - "I agree to the [Terms & Conditions]."
-  - "I acknowledge the [Privacy Policy]."
-  - "I consent to the processing and verification of my personal
-    information, government ID, and facial image."
-
-  On submit: `setSignUpData({ ...signUpData, termsAccepted: true })`, then
-  `setSelfiePhoto()`, `setSelfieVerified(true)`, `markSubmitted()` →
-  navigates to `/auth/thank-you`.
+before the camera starts. Once verified, "Submit Application →" appears
+immediately. On submit: `setSelfiePhoto()`, `setSelfieVerified(true)`,
+`markSubmitted()` → navigates to `/auth/thank-you`.
 
 > **`Field.Upload`/`onDrop` pitfall (historical, no longer applicable to
 > any upload field in this flow):** `RHFUpload`
@@ -414,7 +398,11 @@ Unchanged. `hasApplication = !!signUpData && !!application.personalInfo`.
   Loan" for freshly-submitted applications — an accepted, unfixed cosmetic
   side-effect of removing Loan Type from the borrower-facing flow, distinct
   from the new "Business Owner" *income source* (which doesn't set
-  `loanType` either).
+  `loanType` either). **`application-details-card.tsx` has since been fixed**
+  to fall back to `financialInfo.employmentStatus === 'Business Owner'` (see
+  "Completion & admin visibility" below) — this dashboard label is a
+  separate component with its own copy of the same ternary and was not
+  touched by that fix.
 
 ## Loan Type removed from the primary flow
 
@@ -465,7 +453,7 @@ directly-editable form field from the start.
 3. **countdown**: a 3-2-1 visual countdown that auto-triggers capture — no manual shutter.
 4. **captured**: frame drawn to an off-screen `<canvas>`, exported via `toDataURL('image/jpeg')`.
 5. **verifying**: a `setTimeout(1800ms)` spinner labeled "Matching your face to your ID…"
-6. **verified**: green checkmark, then the 4-checkbox consent section, then "Submit Application →".
+6. **verified**: green checkmark, then "Submit Application →".
 
 **Both the "liveness check" and "ID match" are cosmetic, fixed-timer animations —
 there is no real computer-vision face comparison anywhere in this codebase.**
@@ -490,21 +478,40 @@ markSubmitted: () =>
 Because there's no backend, "admin visibility" just means: `src/app/admin/layout.tsx`
 wraps its children in the *same* `RegistrationProvider` that the borrower flow
 uses. Any admin view that calls `useRegistration()` — the credit-checking,
-call-report, reconsideration, transaction-type, and requirement-checklist
+call-report, reconsideration, and requirement-checklist
 screens — reads the exact same `signUpData`/`application` object the borrower
 just wrote, via the shared `hhc-lms-registration` localStorage key. This
-includes the `businessType`/`businessDocument` fields on `FinancialInfo`,
-and `spouseName`/`spouseBirthday`/`spouseAddress`/`spouseProvince` on
-`PersonalInfo` — none of the existing admin display components read these
-fields yet (they're stored, not surfaced anywhere admin-side), which is an
-accepted gap, not a bug. **`PersonalInfo.idFileBack`, `birthday`, and
-`zipCode` are exceptions** — unlike the spouse/business fields, they *are*
-surfaced: `application-details-card.tsx`'s "Personal & ID information"
-section shows Birthday and Zip Code alongside the existing fields, and its
-"Uploaded documents" section renders a second `DocumentPreview` labeled
-"Uploaded ID — Back" whenever `personalInfo.idFileBack` is set (and
-relabels the front preview "Uploaded ID — Front" in that case, otherwise it
-stays plain "Uploaded ID").
+includes the `businessType`/`businessDocument` fields on `FinancialInfo` and
+the `spouseFirstName`/`spouseMiddleName`/`spouseLastName`/`spouseExtensionName`/
+`spouseBirthday`/`spouseAddress`/`spouseProvince`/`spouseCity`/`spouseBarangay`/
+`spouseZipCode` fields on `PersonalInfo` — both sets are fully surfaced on
+`application-details-card.tsx`, not just stored. Specifically:
+- **Personal & ID information** shows a conditional Spouse information block
+  (name composed from the four spouse name parts, birthday, full address)
+  whenever `personalInfo.civilStatus === 'Married'`.
+- **Loan request** shows "Business type" (`financialInfo.businessType`)
+  whenever `financialInfo.employmentStatus === 'Business Owner'`.
+- **Uploaded documents** shows a `BusinessDocumentPreview` (uses
+  `FileThumbnail`, not a plain `<img>`, since `businessDocument` can be a PDF
+  — see `CompactDropzone`'s accepted types on Preliminary Application) under
+  the same Business Owner condition, and a second ID `DocumentPreview`
+  labeled "Uploaded ID — Back" whenever `personalInfo.idFileBack` is set
+  (relabeling the front preview "Uploaded ID — Front" in that case, otherwise
+  it stays plain "Uploaded ID").
+
+The card's "Loan type" field also no longer always reads "Personal Loan" for
+every new sign-up (a known cosmetic bug from `application.loanType` staying
+`null` — see "Loan Type removed from the primary flow" above): it now falls
+back to reading "Business Loan" when `financialInfo.employmentStatus ===
+'Business Owner'`, matching what the borrower actually told the company about
+themselves. The Dashboard's own "Loan Type label side-effect" (see the
+Borrower Dashboard section above) is **not** fixed by this — it's a separate
+component with its own copy of the same `loanType === 'business' ? ... : ...`
+logic and wasn't touched.
+
+Also newly surfaced: `signUpData.prefix` (Mr./Mrs./Ms./etc., collected on
+Preliminary Application) now prepends the "Full name" field in the Applicant
+section — previously captured but never displayed anywhere.
 
 ## Assigned officer
 
