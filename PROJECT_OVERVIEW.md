@@ -140,7 +140,11 @@ NegativeCreditReport  { thru, negativeRecordText, accountFindings, cancelledCred
 Reconsideration       { notes, decision }
 CallReport            { approved, ...~75 structured fields across 9 sections — see
                         "Call Report" below }
-RequirementChecklist  { checkedItems, collateralNotes, endorsed }
+RequirementChecklist  { documents, collateralNotes, endorsed, returnedToApplicant,
+                        returnReason } — documents is RequirementDoc[] (fixed
+                        16-document/3-category list, not a flat checklist of
+                        checked/unchecked items). See
+                        docs/ADMIN_REQUIREMENT_CHECKLIST.md.
 
 ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callReport, requirementChecklist }
 ```
@@ -675,15 +679,16 @@ content in `CreditCheckingResultModal`.
   — while negative-but-not-yet-submitted, the modal still falls back to the
   original hardcoded all-clear content (deliberate: no separate "report
   pending" state was requested). When `showNegativeReport` is true: the
-  "Negative Record" block renders the officer's typed narrative, each
+  "Bureau Reports Result" block first renders an AI-read result for each
+  uploaded source (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP). When a submitted
+  negative report exists, its consolidated officer finding then renders the officer's typed narrative, each
   Account Findings entry as `{label} : {findings}`, and for each of the 3
   special lists either its entries (same format) or, if empty, a centered
   bold **"No {Section Title}"** fallback (exact strings: "No Cancelled
   Credit Cards File", "No Adversely Classified Loan File", "No Closed
-  Current Account"). The "Findings by Name" block is **hidden entirely**
-  when `showNegativeReport` (superseded by the Account Findings rows above
-  it — showing both would duplicate the same information under two
-  headers). The "Recommendation" text splits `recommendationRemarks` on
+  Current Account"). The old separate "Findings by Name" block was removed
+  because the per-bureau result rows now provide the report-by-report AI read.
+  The "Recommendation" text splits `recommendationRemarks` on
   newlines: the first non-empty line renders as the lead paragraph, any
   remaining non-empty lines render as bullets (`FindingBullet`) below it —
   no extra field, the officer just presses Enter for additional freeform
@@ -896,10 +901,9 @@ Modal content: status banner (Cleared/not-cleared), a "Credit Checking
 Report" field block (Application No. via `getLoanNumber(signUpData.email)`,
 Applicant, To — fixed "Credit Committee", Thru — `application.assignedOfficer`,
 From — fixed "Credit and Collection Department", Date/report-generated
-timestamp from `review.stepTimestamps.creditChecking`, Subject), a "Negative
-Record" checklist (4 fixed green check rows), a "Findings by Name" section
-(**applicant only — no co-maker**, since that concept doesn't exist anywhere
-else in this app; explicitly scoped out rather than guessed at), a
+timestamp from `review.stepTimestamps.creditChecking`, Subject), a **Bureau
+Reports Result** section with one simulated AI-read finding per uploaded bureau,
+a
 "Recommendation" box with a Proceed/Pending chip, and a Prepared by/Noted by
 two-column footer.
 
@@ -946,6 +950,23 @@ The page's own intro card ("Call Report & Loan Package Proposal / Complete this 
 **Proceed gate**: the existing "Proceed application?" card's Proceed button is disabled until `callStatus`, `identityConfirmed`, and `preliminaryRecommendation` are all set, and — only when `followUpRequired === 'yes'` — `followUpDate` is also filled in. "Do Not Proceed" stays ungated, consistent with how declining never requires as much as approving elsewhere in this app.
 
 **Floating "Fill with Sample Data" / "Remove Sample Data" toggle** — same pattern as Initial Credit Checking's floating button (fixed bottom-right, always visible, no `NODE_ENV` gate). Label and behavior are driven by `canProceed` (the same boolean gating the Proceed button): while incomplete, one click fills every section with representative sample values in one shot (including a synthesized one-item collateral entry, built inline with `crypto.randomUUID()` rather than via `addCollateralEntry()`+`updateCollateralEntry()`, since those are two separate async state updates and the sample-fill needs the entry's data present in the same synchronous `setCallReport` call); once complete, the button relabels to "Remove Sample Data" and clicking it resets every field in the report back to its blank default (leaving `AdminContext`'s other steps, and the read-only Application Details data pulled from `RegistrationContext`, untouched). `clientType` still exists on `CallReport` (kept for potential future use) but currently has no rendered UI anywhere, since the card that used to show it was removed.
+
+### Requirement Checklist (`src/sections/admin/requirement-checklist-view.tsx`)
+
+Rendered at `/admin/applications/[id]/requirement-checklist`, "Step 3 ·
+Requirement Checklist". Reviews a fixed 16-document/3-category list against
+what's on file, shows a merged AI review/summary/recommendation card, and
+either endorses the application onward or returns it to the applicant with a
+recorded reason.
+
+**Requirement Checklist has its own dedicated doc:
+`docs/ADMIN_REQUIREMENT_CHECKLIST.md`.** It covers the fixed document list
+(`requirement-checklist-docs.ts`), the `RequirementDoc` state shape, the
+`RequirementDocRow` View/Upload behavior, the progress counter and
+Endorse-gating rule, the AI summary/recommendation derivation
+(`requirement-checklist-risk.ts`), the Return to Applicant flow, and the
+explicit (deliberate) scope limitation that the document set does not vary by
+application.
 
 ### Multi-application list & read-only samples
 
