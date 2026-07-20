@@ -2,6 +2,9 @@
 
 import { useMemo, useState, useEffect, useContext, createContext } from 'react';
 
+import type { RequirementDocStatus } from 'src/sections/admin/requirement-checklist-docs';
+import { REQUIREMENT_DOC_META } from 'src/sections/admin/requirement-checklist-docs';
+
 // ----------------------------------------------------------------------
 
 export type AdminUser = {
@@ -44,6 +47,14 @@ export type CreditChecking = {
    * reason it was sent there.
    */
   decisionReason: string;
+  /**
+   * The officer's own written recommendation, typed directly into
+   * CreditCheckingResultModal — distinct from the auto-generated
+   * "Recommendation" block there (buildAiRecommendation()/the negative-report
+   * remarks), which is derived/read-only. This is the officer's own words,
+   * carried on the generated report alongside that derived text.
+   */
+  officerRecommendation: string;
 };
 
 export type CibiForm = {
@@ -68,6 +79,7 @@ export type CibiForm = {
   submitted: boolean;
   reportFile: string | null;
   reportFileName: string | null;
+  reportUploadedAt: string | null;
 };
 
 // Shared shape for the non-CIBI bureau report uploads (LOANDEX, CIC, CMAP,
@@ -75,6 +87,7 @@ export type CibiForm = {
 // integration, so these are all just document dropzones, no data-entry form.
 export type BureauUpload = {
   fileName: string | null;
+  uploadedAt: string | null;
 };
 
 export type LoandexUpload = BureauUpload;
@@ -314,10 +327,20 @@ export type CallReport = {
   additionalRemarks: string;
 };
 
+export type RequirementDoc = {
+  key: string;
+  status: RequirementDocStatus;
+  aiNote: string;
+  fileName: string | null;
+  uploadedAt: string | null;
+};
+
 export type RequirementChecklist = {
-  checkedItems: string[];
+  documents: RequirementDoc[];
   collateralNotes: string;
   endorsed: boolean;
+  returnedToApplicant: boolean;
+  returnReason: string;
 };
 
 export type ReviewStep =
@@ -407,6 +430,27 @@ function createInitialNegativeCreditReport(): NegativeCreditReport {
   };
 }
 
+// Pre-populates 14 of the 16 documents as already received (matching the
+// design spec's "12/13 Required Received" starting screenshot) — every doc
+// except incomeTaxReturn and taxMappingAuthorization starts with a sample
+// fileName and its metadata's freshStatus/freshNote already applied.
+const DOCS_STARTING_MISSING = new Set(['incomeTaxReturn', 'taxMappingAuthorization']);
+
+function createInitialRequirementDocuments(): RequirementDoc[] {
+  return REQUIREMENT_DOC_META.map((meta) => {
+    if (DOCS_STARTING_MISSING.has(meta.key)) {
+      return { key: meta.key, status: 'missing', aiNote: '', fileName: null, uploadedAt: null };
+    }
+    return {
+      key: meta.key,
+      status: meta.freshStatus,
+      aiNote: meta.freshNote,
+      fileName: `${meta.key}-sample.pdf`,
+      uploadedAt: new Date(0).toISOString(),
+    };
+  });
+}
+
 // Factory (not a shared constant) so `resetReview()` gets a fresh object each
 // call — reusing one constant reference across resets risks accidental
 // mutation-sharing bugs if any setter ever mutated in place instead of
@@ -420,6 +464,7 @@ function createInitialReview(): ApplicationReview {
       bureauFindingStatus: 'pending',
       notes: '',
       decisionReason: '',
+      officerRecommendation: '',
     },
     cibiForm: {
       firstName: '',
@@ -443,11 +488,12 @@ function createInitialReview(): ApplicationReview {
       submitted: false,
       reportFile: null,
       reportFileName: null,
+      reportUploadedAt: null,
     },
-    loandexUpload: { fileName: null },
-    cicUpload: { fileName: null },
-    cmapUpload: { fileName: null },
-    nfisBapUpload: { fileName: null },
+    loandexUpload: { fileName: null, uploadedAt: null },
+    cicUpload: { fileName: null, uploadedAt: null },
+    cmapUpload: { fileName: null, uploadedAt: null },
+    nfisBapUpload: { fileName: null, uploadedAt: null },
     reconsideration: { notes: '', decision: 'pending' },
     negativeCreditReport: createInitialNegativeCreditReport(),
     callReport: {
@@ -519,7 +565,13 @@ function createInitialReview(): ApplicationReview {
       callSummaryEdited: false,
       additionalRemarks: '',
     },
-    requirementChecklist: { checkedItems: [], collateralNotes: '', endorsed: false },
+    requirementChecklist: {
+      documents: createInitialRequirementDocuments(),
+      collateralNotes: '',
+      endorsed: false,
+      returnedToApplicant: false,
+      returnReason: '',
+    },
     stepTimestamps: {},
   };
 }
@@ -543,10 +595,30 @@ function readStoredState(): AdminState {
     // would drop any review sub-key (e.g. cicUpload) added after a session
     // was already saved to localStorage, since the stored `review` object
     // would fully replace initialState.review instead of filling gaps in it.
+    const storedReview = stored.review ?? {};
+
     return {
       ...initialState,
       ...stored,
-      review: { ...initialState.review, ...stored.review },
+      review: {
+        ...initialState.review,
+        ...storedReview,
+        creditChecking: {
+          ...initialState.review.creditChecking,
+          ...storedReview.creditChecking,
+        },
+        cibiForm: { ...initialState.review.cibiForm, ...storedReview.cibiForm },
+        loandexUpload: {
+          ...initialState.review.loandexUpload,
+          ...storedReview.loandexUpload,
+        },
+        cicUpload: { ...initialState.review.cicUpload, ...storedReview.cicUpload },
+        cmapUpload: { ...initialState.review.cmapUpload, ...storedReview.cmapUpload },
+        nfisBapUpload: {
+          ...initialState.review.nfisBapUpload,
+          ...storedReview.nfisBapUpload,
+        },
+      },
     };
   } catch {
     return initialState;
