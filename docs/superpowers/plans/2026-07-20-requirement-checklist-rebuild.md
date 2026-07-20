@@ -53,16 +53,20 @@ browser walkthroughs (see each task's Verify step).
 - Create: `src/sections/admin/requirement-checklist-docs.ts`
 
 **Interfaces:**
-- Produces: `RequirementDocCategory` type (`'loan' | 'financial' |
+- Produces: `RequirementDocStatus` type (`'verified' | 'needs-review' |
+  'missing'`), `RequirementDocCategory` type (`'loan' | 'financial' |
   'appraisal'`), `RequirementDocMeta` type (`{ key: string; label: string;
   category: RequirementDocCategory; required: boolean; freshNote: string;
   freshStatus: 'verified' | 'needs-review' }`), `REQUIREMENT_DOC_META:
   RequirementDocMeta[]` (the fixed 16-item list), `REQUIREMENT_CATEGORY_LABELS:
-  Record<RequirementDocCategory, string>`, `INITIAL_REQUIREMENT_DOCUMENTS:
-  RequirementDoc[]` (16-item array matching `admin-context.tsx`'s
-  `RequirementDoc` shape — built in Task 2, but this file defines the
-  literal starting `status`/`aiNote`/`fileName`/`uploadedAt` per document
-  that `admin-context.tsx` imports and spreads into its initial state).
+  Record<RequirementDocCategory, string>`. Task 1 does NOT build the initial
+  per-application documents array — that's `createInitialRequirementDocuments()`
+  in Task 2 (`admin-context.tsx`), which consumes `REQUIREMENT_DOC_META` from
+  this file directly rather than a separate `INITIAL_REQUIREMENT_DOCUMENTS`
+  export. (This corrects an earlier draft of this plan that named such an
+  export here without ever defining it in Task 1's code block — Task 2's
+  own code block was always the actual, sole source of the initial-state
+  logic; this line just brings the prose in line with it.)
 
 - [ ] **Step 1: Write the metadata file**
 
