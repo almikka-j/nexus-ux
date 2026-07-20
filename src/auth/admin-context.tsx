@@ -431,7 +431,7 @@ function createInitialNegativeCreditReport(): NegativeCreditReport {
 }
 
 // Pre-populates 14 of the 16 documents as already received (matching the
-// design spec's "12/13 Required Received" starting screenshot) — every doc
+// design spec's "13/15 Required Received" starting screenshot) — every doc
 // except incomeTaxReturn and taxMappingAuthorization starts with a sample
 // fileName and its metadata's freshStatus/freshNote already applied.
 const DOCS_STARTING_MISSING = new Set(['incomeTaxReturn', 'taxMappingAuthorization']);
@@ -617,6 +617,13 @@ function readStoredState(): AdminState {
         nfisBapUpload: {
           ...initialState.review.nfisBapUpload,
           ...storedReview.nfisBapUpload,
+        },
+        requirementChecklist: {
+          ...initialState.review.requirementChecklist,
+          ...storedReview.requirementChecklist,
+          documents:
+            storedReview.requirementChecklist?.documents ??
+            initialState.review.requirementChecklist.documents,
         },
       },
     };

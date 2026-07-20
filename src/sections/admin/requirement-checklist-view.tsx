@@ -199,7 +199,7 @@ export function RequirementChecklistView() {
           </Typography>
 
           <Box sx={{ height: 6, borderRadius: 999, bgcolor: '#EEF0F5', overflow: 'hidden', mb: 3 }}>
-            <Box sx={{ width: `${progressFraction * 100}%`, height: 1, bgcolor: '#1C2A6E', transition: 'width 0.2s ease' }} />
+            <Box sx={{ width: `${progressFraction * 100}%`, height: '100%', bgcolor: '#1C2A6E', transition: 'width 0.2s ease' }} />
           </Box>
 
           <Stack spacing={3}>

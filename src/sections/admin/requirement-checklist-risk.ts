@@ -26,7 +26,7 @@ export function buildRequirementChecklistSummary(
   const missingCount = documents.filter((doc) => doc.status === 'missing').length;
   const missingRequiredCount = requiredDocs.filter((doc) => doc.status === 'missing').length;
 
-  const summary = `${documents.length - missingCount} of ${documents.length} required documents are on file. AI verified ${verifiedCount} document(s), flagged ${needsReviewCount} for review, and found ${missingCount} still missing. Extracted monthly income (₱${monthlyIncome.toLocaleString()}) is consistent with the ₱${desiredLoanAmount.toLocaleString()} loan request.`;
+  const summary = `${documents.length - missingCount} of ${documents.length} documents are on file. AI verified ${verifiedCount} document(s), flagged ${needsReviewCount} for review, and found ${missingCount} still missing. Extracted monthly income (₱${monthlyIncome.toLocaleString()}) is consistent with the ₱${desiredLoanAmount.toLocaleString()} loan request.`;
 
   const outstanding = documents
     .filter((doc) => doc.status !== 'verified')
