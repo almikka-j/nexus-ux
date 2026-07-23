@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, cloneElement, isValidElement } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
+import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import ButtonBase from '@mui/material/ButtonBase';
 
@@ -21,6 +22,13 @@ import { AdminHeaderActions } from './header';
 
 function isInsideSection(item: (typeof adminNavData)[number], pathname: string) {
   return !!item.children?.some((child) => pathname === child.path.split('?')[0]);
+}
+
+// Nav icons are sized 24px for the sidebar's own row — too large next to
+// 14px text in this compact top-bar pill, so shrink them just for this view.
+function NavIcon({ icon }: { icon: React.ReactNode }) {
+  if (!isValidElement<{ width?: number }>(icon)) return icon;
+  return cloneElement(icon, { width: 19 });
 }
 
 type AdminNavHorizontalProps = {
@@ -53,7 +61,7 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
-        gap: 3,
+        gap: 4,
         px: { xs: 2, md: 5 },
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
         bgcolor: 'common.white',
@@ -63,7 +71,7 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
         <LogoFull width={132} height={32} />
       </Box>
 
-      <Stack direction="row" spacing={0.5} sx={{ flex: 1, overflowX: 'auto' }}>
+      <Stack direction="row" spacing={0.75} sx={{ flex: 1, overflowX: 'auto' }}>
         {adminNavData.map((item) => {
           const hasChildren = !!item.children?.length;
           const active = !hasChildren && (pathname === item.path || pathname.startsWith(`${item.path}/`));
@@ -73,16 +81,21 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
           const commonSx = {
             flexShrink: 0,
             height: 40,
-            px: 1.75,
+            px: 2,
             borderRadius: '10px',
             color: '#5A6273',
             fontSize: 14,
             fontWeight: 600,
             gap: 1,
+            transition: 'background-color 0.15s ease, color 0.15s ease',
+            '&:hover': {
+              bgcolor: '#F5F6FA',
+            },
             ...(active && {
               bgcolor: '#EEF1FE',
               color: '#1C2A6E',
               fontWeight: 700,
+              '&:hover': { bgcolor: '#EEF1FE' },
             }),
             ...(isSectionActive && {
               color: '#1C2A6E',
@@ -98,13 +111,14 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
                 onClick={(event) => handleOpenMenu(event, item.title)}
                 sx={commonSx}
               >
-                {item.icon}
+                <NavIcon icon={item.icon} />
                 <Box component="span">{item.title}</Box>
                 <Iconify
                   icon="eva:chevron-down-fill"
-                  width={16}
+                  width={15}
                   sx={{
                     color: 'inherit',
+                    opacity: 0.7,
                     transition: 'transform 0.15s ease',
                     transform: isMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                   }}
@@ -115,12 +129,14 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
 
           return (
             <ButtonBase key={item.title} component={RouterLink} href={item.path!} sx={commonSx}>
-              {item.icon}
+              <NavIcon icon={item.icon} />
               <Box component="span">{item.title}</Box>
             </ButtonBase>
           );
         })}
       </Stack>
+
+      <Divider orientation="vertical" flexItem sx={{ my: 1.5, borderColor: '#EBEDF3' }} />
 
       <AdminHeaderActions displayName={displayName} />
 
