@@ -68,6 +68,65 @@ naming (`Credit Investigation` / `Appraisal` / `Financial Evaluation`),
 superseding the "keep app wording" note in the History section below, which
 now only applies to the page's own title/step badge, not these card labels.
 
+## Page-wide UX: sticky summary bar, collapsible cards, status-first sorting, jump-to-outstanding
+
+Four related additions aimed at making the long, multi-card page easier to
+navigate once documents start piling up (all in `requirement-checklist-view.tsx`):
+
+- **Sticky mini summary bar** — a condensed bar (`position: sticky, top: 68`,
+  `zIndex: 2`, sitting just below `AdminNavHorizontal`'s own sticky top bar)
+  rendered above the full progress card, containing the same
+  `{receivedRequiredCount}/{totalRequiredCount}` counter, the same progress
+  fill, an "N outstanding" button, and the "Request Documents" button. It
+  stays visible while scrolling through the three document cards so the
+  officer never has to scroll back up to check overall progress or open the
+  Request Documents drawer. The full, non-sticky progress card below it is
+  unchanged and still the first thing shown on load.
+- **Each document card collapses independently** — `creditInvestigationCollapsed`
+  / `appraisalCollapsed` / `financialEvaluationCollapsed`, one `useState` per
+  card, toggled by clicking anywhere in that card's header (wrapped in a
+  `ButtonBase`-backed `Stack`) or its chevron icon specifically. Collapsing
+  hides that card's rows but keeps its header (including status badges)
+  visible, so a collapsed card still communicates its state at a glance.
+- **Cards auto-collapse the moment they become fully verified** — stricter
+  than the required-received gate used elsewhere on this page:
+  `creditInvestigationFullyVerified` / `financialEvaluationFullyVerified` /
+  `appraisalFullyVerified` all require **every** document in that card to be
+  `status === 'verified'` (not merely "not missing" — a lingering
+  `'needs-review'` item keeps the card open and un-collapsed). Each is driven
+  by its own `useEffect` that only ever sets the collapse state to `true`
+  when the completeness boolean flips to `true` — it never force-expands a
+  card, so a manual collapse the officer chose earlier is left alone, and
+  collapsing never happens on first load just because a card already
+  happened to be complete when the page opened. `appraisalFullyVerified` is
+  also `true` whenever `appraisalNotApplicable` is set, consistent with that
+  state's exclusion everywhere else on this screen. A small green check
+  icon appears next to the card title whenever its fully-verified boolean is
+  true, regardless of collapse state.
+- **Rows sort outstanding-first within every card/sub-group/property group**
+  — `sortByAttentionFirst()` (a small generic stable sort) reorders each
+  list so every `needsAttention(doc)` row (`status !== 'verified'` — this
+  intentionally covers `'missing'` and `'needs-review'` alike, since both
+  need officer action) appears before every already-verified row, preserving
+  original relative order within each group. This applies independently to
+  Credit Investigation's two sub-groups, each Appraisal property group, and
+  the Financial Evaluation list — so an officer chasing outstanding items
+  never has to scan past a long run of already-verified rows to find what's
+  left.
+- **"Jump to outstanding" cycles through every pending row on the page** —
+  `outstandingRowIds` is a flat list, in on-page visual order (Credit
+  Investigation → every Appraisal group → Financial Evaluation), of every
+  row currently needing attention; Appraisal row ids are namespaced
+  `${group.id}:${meta.key}` since the same document key repeats across
+  groups. Clicking the sticky bar's "N outstanding" button
+  (`handleJumpToOutstanding`) expands whichever card owns the next id in the
+  cycle (if collapsed), then smooth-scrolls that specific row into view via
+  a `rowRefs` map of `HTMLDivElement` refs keyed by the same row id — one ref
+  per row, registered by every `RequirementDocRow`'s wrapping `Box`. Each
+  click advances `jumpCursor` and wraps back to the first item once past the
+  end, so repeated clicks tour every outstanding row in order rather than
+  re-scrolling to the same one.
+
 ## The fixed document list (`requirement-checklist-docs.ts`)
 
 `REQUIREMENT_DOC_META` covers **Credit Investigation and Financial
