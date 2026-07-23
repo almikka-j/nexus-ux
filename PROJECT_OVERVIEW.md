@@ -47,7 +47,7 @@ src/
     mock-login.ts               Mocked borrower + admin login, mocked OTP
   layouts/
     borrower/               Borrower app shell (sidebar + topbar)
-    admin/                   Admin app shell (sidebar + topbar) — mirrors borrower/
+    admin/                   Admin app shell — top nav bar by default (side nav available via floating settings toggle)
     onboarding/              Shared onboarding step chrome (progress bar, back/exit)
     auth/                    OLD split-panel auth layout — no longer used (see Deprecated below)
   sections/
@@ -595,7 +595,7 @@ split), `ApplicationDetailsCard` (including the conditional Spouse information
 block), `BureauReportsCard` (the CIBI row's "Auto-filled" form + the 4
 plain-upload rows), the simulated bureau finding, the merged "AI review,
 summary & recommendation" card (risk-level read + AI Summary/Recommendation),
-the always-clickable decision gate (Approve/No/For Reconsideration no longer
+the always-clickable decision gate (Proceed to Call Report/Disapprove do not
 require bureau reports to be uploaded first), and what's real vs. simulated on
 this screen. Update that file, not this section, when this screen changes.
 
@@ -716,50 +716,60 @@ former standalone "Initial AI Recommendation" card).
 shared by Initial Credit Checking and Call Report) shows everything the borrower
 submitted — contact info, full loan request, personal/ID fields — grouped into
 labeled sections, plus a compact "Uploaded Documents" section. This is what admins
-actually review before clicking Approve/No.
+actually review before deciding whether to proceed or disapprove.
 
-**Officer notes carry forward, read-only.** A standalone "Officer notes" card
-sits right after `BureauReportsCard` on Initial Credit Checking, with a free-form
-**Notes** textarea (`creditChecking.notes` in `AdminContext`) the officer can type
-general observations into at any point in the review — independent of whether a
-decision has been made yet. Once filled, that same text is surfaced read-only in
-two other places: inside `ApplicationDetailsCard`'s "Notes from initial credit
-checking" section when the card is in its non-collapsible form (Initial Credit
-Checking only — `application-details-card.tsx` suppresses that block when
-`collapsible` is true, to avoid showing the note twice on Call Report), and
-separately in `ReconsiderationView` (which doesn't render `ApplicationDetailsCard`
-at all, so it gets its own read-only block instead). On Call Report specifically,
-the note gets its own dedicated top-level card, `OfficerNotesCard`
-(`src/sections/admin/call-report/officer-notes-card.tsx`), rendered right after
-`ApplicationDetailsCard collapsible` and before `CallDetailsCard` — visible
-immediately without expanding anything, since the note is useful context before
-starting the call. It renders `null` when `creditChecking.notes` is empty. This
-whole mechanism is deliberately a *different* field from `Reconsideration.notes`
-(the officer-editable textarea on the Reconsideration screen itself) — one is a
-general running note, the other is what happens during reconsideration itself.
+Initial Credit Checking also opts into `ApplicationReviewHeader`'s
+`applicationSummaryStyle` for its first card: rounded clipboard/list icon, full
+borrower name and contact line, assigned officer, and application-number pill.
+This variant is page-scoped; other screens retain the default header treatment,
+while Call Report hides the separate header card entirely in favor of its merged
+Application Details summary. Large stale-step alerts have been removed globally;
+all process pages retain only their compact aging values and step pill.
 
-**The "Approved?" card always renders, fully active from the start** — all
-three buttons (Approve/No/For Reconsideration) are clickable regardless of
+**Officer notes are appended with attribution and carry forward read-only.** A
+standalone "Officer notes" card sits right after `BureauReportsCard` on Initial
+Credit Checking. It has a draft textarea, an explicit **Add note** button, and a
+system-styled outlined **View all officer notes** button in the upper-right. Each
+added entry stores Officer, localized Date & time, Process (`Initial Credit
+Checking`), and Note in the existing `creditChecking.notes` string. The shared
+`OfficerNotesHistory` component (`src/sections/admin/officer-notes-history.tsx`)
+parses that history into one visual card per entry and supports both the current
+format and legacy plain-text/`Officer · timestamp` notes. It is used by Initial
+Credit Checking's and Call Report's **View all officer notes** actions, plus
+Reconsideration's read-only note block, so connected pages cannot drift. The
+first two mount the same `OfficerNotesDialog`, standardizing the "All officer
+notes" title, generic subtitle ("Notes recorded throughout the application
+process."), close behavior, compact content layout, and empty state. To conserve
+vertical space, each history card keeps officer, date/time, and process on one
+wrapping metadata row, followed directly by the note with reduced padding and
+spacing. This mechanism remains distinct from
+`Reconsideration.notes`, which records the reconsideration officer's own work.
+Both Initial Credit Checking and Call Report also provide an editable Officer
+Notes card with a draft field and explicit **Add note** button. They share
+`buildOfficerNoteEntry()`; Call Report entries are tagged with Process = `Call
+Report`, while Initial Credit Checking entries use `Initial Credit Checking`.
+Initial Credit Checking's expanded `ApplicationDetailsCard` does not duplicate
+the notes; its dedicated Officer Notes card and shared history modal are the
+only note surfaces on that page.
+
+**The "Approved?" card always renders, fully active from the start** — both
+buttons (Proceed to Call Report/Disapprove) are clickable regardless of
 bureau-upload status; bureau reports are supporting evidence, not a
 prerequisite to decide. See `docs/ADMIN_INITIAL_CREDIT_CHECKING.md`'s
 "Decision gate" section for the current behavior and history (it used to be
-dimmed + all three buttons disabled until every bureau report was uploaded).
+dimmed and disabled until every bureau report was uploaded).
 
-**"No" and "For Reconsideration" require a reason, captured via a confirmation
-dialog at the moment of clicking.** The "Approved?" card has three buttons:
-**Approve**, **No**, and **For Reconsideration**. Approve proceeds immediately
-(`handleApprove`). Clicking "No" or "For Reconsideration" instead opens a
-`ConfirmDialog` (`src/components/custom-dialog`) titled "Reason for declining" /
-"Reason for reconsideration", with a required textarea — the Confirm button stays
-disabled until a reason is typed. This reason is stored as
+**Disapprove requires a reason, captured via a confirmation dialog at the
+moment of clicking.** Proceed to Call Report immediately records
+`decision: 'approved'` and routes forward. Disapprove opens a `ConfirmDialog`
+(`src/components/custom-dialog`) titled "Reason for disapproval", with a
+required textarea — the Confirm button stays disabled until a reason is typed.
+This reason is stored as
 `creditChecking.decisionReason`, a field distinct from the general Officer Notes
 above (that one is always-visible context; this one is captured only at the
 instant of that specific decision) and is shown on the Reconsideration screen's
-top banner as the quoted reason the application landed there. Both buttons route
-to `/reconsideration` on confirm, but differ in what they record: "No" sets
-`decision: 'rejected'` (a hard rejection), "For Reconsideration" leaves `decision`
-at `'pending'` — a lighter-weight "send for a second look" path rather than an
-outright decline.
+top banner as the quoted reason the application landed there. Confirmation sets
+`decision: 'rejected'` and routes to `/reconsideration`.
 
 **Uploaded Documents is compact, with proper empty-state placeholders**:
 `DocumentPreview` renders small 76×76 thumbnails side by side (label + "Provided"/
@@ -785,8 +795,19 @@ above the white header card rather than inside it. The header card itself is bac
 to its simpler original two-column layout (applicant info left, Officer + step
 badge right) with no aging info inside it at all.
 
-**Two independent collapsible sidebar sections**
-(`src/layouts/admin/nav-vertical.tsx`, `src/layouts/admin/config-nav-admin.tsx`):
+**Admin nav layout: top bar by default, side nav as an opt-in switch**
+(`src/layouts/admin/layout.tsx`, `src/layouts/admin/nav-mode-context.tsx`):
+
+The admin shell renders one of two nav components depending on the current
+`navMode` (`'top' | 'side'`, default `'top'`), persisted to `localStorage`
+(`admin-nav-mode`) via `AdminNavModeProvider`/`useAdminNavMode`:
+
+- **`AdminNavHorizontal`** (`nav-horizontal.tsx`) — default. A single top bar:
+  logo, flattened nav items inline, each item with children (`hasChildren`)
+  opening its own MUI `Menu` dropdown on click instead of expanding in place.
+- **`AdminNav`** (`nav-vertical.tsx`) — the original fixed left sidebar,
+  selectable from the settings panel below. Two independent collapsible
+  sections (`src/layouts/admin/config-nav-admin.tsx`):
 
 - **"Application List"** — the forward-moving process only: Initial Credit
   Checking, Call Report, Requirement Checklist. Reconsideration
@@ -813,6 +834,13 @@ landing state; Negative List (`step: null`, a real standalone page, not a filter
 view) compares pathname only. Sub-items render as a plain flat list — no number
 badges, no left-border accents — with the active one shown via a background-color
 highlight only, kept deliberately simple.
+
+A **floating settings button** (`nav-settings-button.tsx`, bottom-right,
+`position: fixed`, rendered in both layout branches of `AdminLayout`) opens a
+popover ("Menu navigation") with two options, "Top navigation" and "Side
+navigation" — the only UI for changing `navMode`. Both nav components read the
+same `adminNavData` config and active-state logic described above, so
+switching layouts changes only presentation, not what's navigable.
 
 The "Application List" section's sub-links point at
 `paths.admin.applicationsByStep(<step>)` (`/admin/credit-checking?step=<reviewStep>`,
@@ -871,28 +899,61 @@ array-mutation setters for collateral (`addCollateralEntry`,
 - `call-report-types.ts` — every enum's `{value,label}` option list, plus shared `fieldSx`/`cardSx` and a `labelFor()` lookup helper. `call-details-card.tsx` additionally exports two shared UI primitives used by every other card: `RadioRow` (a labeled `RadioGroup` wrapper with an optional `disabled` prop) and `ChipToggleGroup` (a multiselect chip row backing every checklist field).
 - `call-report-computations.ts` — pure functions (`toNumber`, `computeTotalMonthlyIncome`, `computeTotalMonthlyObligations`, `computeDisposableIncome`, `computeDti`, `compareAmount`, `compareTerm`). Financial ratios are **never stored** — always recomputed at render time from the raw input fields, so they can't drift out of sync.
 - `call-report-summary.ts` — `buildCallSummary(callReport, signUpData)`, a pure function that composes the auto-generated Call Summary text, skipping any section whose fields are still empty.
-- `officer-notes-card.tsx` — `OfficerNotesCard`, a small read-only card that renders `review.creditChecking.notes` (or `null` if empty); not one of the interview sections listed below, just a carry-forward display.
+- `officer-notes-history.tsx` (shared one directory above `call-report/`) —
+  `OfficerNotesHistory`, the reusable structured history renderer used by
+  Initial Credit Checking, Call Report, and Reconsideration, plus
+  `OfficerNotesDialog` and the shared `buildOfficerNoteEntry()` serializer.
+- `officer-notes-card.tsx` — the editable Call Report Officer Notes card,
+  matching Initial Credit Checking's View all / draft / Add note workflow and
+  tagging new entries with the `Call Report` process.
 - `credit-checking-result-modal.tsx` — `CreditCheckingResultModal`, a centered MUI `Dialog`, opened from both this page and Initial Credit Checking (see "View Initial Credit Checking Result" below).
 - One card component per section (see below), each reading/writing `AdminContext` directly via `useAdmin()` — no props, no react-hook-form (deliberately: every other admin review screen in this codebase manages state the same way, and this page was kept consistent rather than introducing a form library for just one screen).
 
 **No section numbering** — headings were originally numbered ("1. Call Details", "2. Borrower Interview", etc.) but the numbers were removed on request; section order in the page is still fixed, just not labeled with digits.
 
-**Application Details is collapsible on this page only.** `ApplicationDetailsCard` (`src/sections/admin/application-details-card.tsx`, shared with Initial Credit Checking) takes an optional `collapsible` prop, default `false`. Call Report renders `<ApplicationDetailsCard collapsible />`; Initial Credit Checking's call site is unchanged (`<ApplicationDetailsCard />`, always fully expanded — officers need the full detail there before deciding). When `collapsible` is `true`, the card starts **collapsed**, showing only a compact summary row (Client name, Loan type, Application date from `application.submittedAt`, Desired loan amount) behind a clickable header with a chevron; clicking anywhere on that header expands/collapses the full Applicant/Loan Request/Personal & ID/Uploaded Documents/Notes content via a MUI `Collapse`. This replaced a dedicated read-only "Application Summary" card (`application-summary-card.tsx`, since deleted) that used to show a similar-but-not-identical field set as its own section — that card also carried Application Number and Account/Credit Officer, which the collapsed summary row does not currently surface (only the 4 fields named above).
+**Application Details is a compact summary with modal actions on Call Report.**
+`ApplicationDetailsCard` (`src/sections/admin/application-details-card.tsx`,
+shared with Initial Credit Checking) still takes the legacy-named optional
+`collapsible` prop, default `false`, but the Call Report variant no longer uses
+an accordion or MUI `Collapse`. `<ApplicationDetailsCard collapsible />` renders
+a responsive borrower summary based on the supplied reference: initials avatar,
+full name, email/mobile, application-number pill (with no redundant "Call Report"
+status pill), and six loan fields (Loan type, Amount, Term, Purpose, Monthly
+income, Date filed). Its single action row contains:
 
-Immediately below the (collapsed) Application Details card, `OfficerNotesCard`
-renders the Initial Credit Checking officer's `notes` read-only — see "Officer
-notes carry forward, read-only" above — so it's visible without expanding
-anything, before any of the interview sections begin.
+Call Report passes `hideApplicationCard` to `ApplicationReviewHeader`, so the
+header still owns step-entry tracking, back navigation, total/step aging, and
+the step pill but does not render its separate borrower/loan card.
+`ApplicationDetailsCard` is therefore always the first card on Call Report.
+Those previously duplicated first and second cards are merged into this single
+Application Details summary. Other review screens retain the standard header
+card.
 
-**"View Initial Credit Checking Result" button + modal — opened from two
+- **View full application** — opens the complete Applicant, Loan Request,
+  Personal & ID, spouse, and Uploaded Documents content in a responsive modal.
+- **Initial credit checking result** — calls the callback owned by
+  `CallReportView` and opens `CreditCheckingResultModal`.
+- **View all officer notes** — opens the shared read-only `OfficerNotesDialog`
+  using the structured
+  `OfficerNotesHistory` cards.
+
+The previous standalone *read-only* note display and standalone Initial Credit
+Checking Result button beneath Application Details are no longer rendered.
+An editable `OfficerNotesCard` now follows Application Details, while the result
+button remains consolidated in Application Details' action row. Initial Credit
+Checking continues to call `<ApplicationDetailsCard />`, so its full read-only
+submission remains inline rather than modal-only.
+
+**"Initial credit checking result" button + modal — opened from two
 screens.** `CreditCheckingResultModal` (`call-report/credit-checking-result-modal.tsx`)
-is a centered MUI `Dialog` (`maxWidth="sm"`, scrollable) showing a
+is a centered, scrollable MUI `Dialog` showing a
 generated-looking Initial Credit Checking report. It's opened from:
-- **Call Report** — an outlined button right below `OfficerNotesCard`.
+- **Call Report** — an outlined action inside the compact Application Details
+  card's bottom action row.
 - **Initial Credit Checking** (`initial-credit-checking-view.tsx`) — an
   outlined button inside the "AI review, summary & recommendation" card
-  itself, shown once `allBureauReportsUploaded` is true (same gating as that
-  card's AI Summary/Recommendation content).
+  itself, always available and able to degrade gracefully when reports are
+  still missing.
 
 Each screen owns its own `resultModalOpen` local `useState` — it's pure UI
 state, not application data, so it isn't lifted into `AdminContext`.
@@ -903,9 +964,11 @@ Applicant, To — fixed "Credit Committee", Thru — `application.assignedOffice
 From — fixed "Credit and Collection Department", Date/report-generated
 timestamp from `review.stepTimestamps.creditChecking`, Subject), a **Bureau
 Reports Result** section with one simulated AI-read finding per uploaded bureau,
-a
-"Recommendation" box with a Proceed/Pending chip, and a Prepared by/Noted by
-two-column footer.
+a "Recommendation" box with a Proceed/Pending chip, **Recommendation &
+Remarks**, and a Prepared by/Noted by two-column footer. Recommendation &
+Remarks is editable and locally persisted when opened from Initial Credit
+Checking. Call Report passes `recommendationEditable={false}`, so the same
+section renders as read-only text there rather than as a `TextField`.
 
 **Cleared/not-cleared (`isCleared`) is driven by the shared debt-to-income
 risk level, not `creditChecking.decision`.** It's computed as
@@ -919,7 +982,7 @@ Initial-Credit-Checking integration: `decision === 'approved'` (the original
 gate, still fine when opened from Call Report where a decision has already
 been made) doesn't work as the "negative" signal on Initial Credit Checking
 itself, since `decision` is still `'pending'` there — the officer hasn't
-clicked Approve/No/For Reconsideration yet at the point they'd want to preview
+clicked Proceed to Call Report/Disapprove yet at the point they'd want to preview
 this report.
 
 **Every value is computed inline at render time from existing state**
@@ -945,7 +1008,7 @@ library exists in this project); and a working X close button.
 - **Follow-up and Next Step** (`agreed-next-steps-card.tsx`, renamed from "Next Steps") — Follow-up Required (`followUpRequired: 'yes' | 'no' | ''`, explicit radio, replacing the old implicit rule that derived required-ness from Call Status/checklist selections); Follow-up Date only renders (and is required) when Follow-up Required is Yes — switching back to No clears `followUpDate`. Next Action (`nextAction: NextAction | ''`) is a **single-select** `RadioRow` (`Proceed to Next Process` / `Request Additional Requirements` / `Verify Information` / `Conduct Site Visit` / `Request Appraisal` / `Schedule Another Call` / `Other`), replacing the old `nextSteps: NextStepItem[]` multiselect checklist — only one next action applies at a time now. `Other` reveals a companion free-text field, `nextActionOther`, matching every other "Other" option's pattern elsewhere in this form. Short Instructions closes out the card.
 - **Call Summary** (`call-summary-card.tsx`) — `buildCallSummary()` composes a plain-text summary from whichever fields are filled; the officer can edit it directly (`callSummaryEdited` flips to `true` on any manual edit). A "Generate Summary"/"Regenerate Summary" button (label depends on whether `callSummary` is already non-empty) regenerates on click — if `callSummaryEdited` is `true`, a `ConfirmDialog` ("Replace edited summary?") asks first so a manual edit is never silently overwritten; if `false`, it regenerates immediately since there's nothing to lose. Additional Remarks (the one general free-text field) is a second `TextField` folded into this same card rather than its own section.
 
-The page's own intro card ("Call Report & Loan Package Proposal / Complete this structured interview live while on the call with the borrower.") was removed on request, so the page now opens directly with the (collapsed) Application Details card.
+The page's own intro card ("Call Report & Loan Package Proposal / Complete this structured interview live while on the call with the borrower.") was removed on request, so the page now opens directly with the compact Application Details summary card.
 
 **Proceed gate**: the existing "Proceed application?" card's Proceed button is disabled until `callStatus`, `identityConfirmed`, and `preliminaryRecommendation` are all set, and — only when `followUpRequired === 'yes'` — `followUpDate` is also filled in. "Do Not Proceed" stays ungated, consistent with how declining never requires as much as approving elsewhere in this app.
 
@@ -958,6 +1021,29 @@ Requirement Checklist". Reviews a fixed 16-document/3-category list against
 what's on file, shows a merged AI review/summary/recommendation card, and
 either endorses the application onward or returns it to the applicant with a
 recorded reason.
+
+`ApplicationDetailsCard` is always the first card on this page, including the
+Endorsed and Returned completion states. Requirement Checklist hides
+`ApplicationReviewHeader`'s separate borrower card while
+retaining back navigation, compact aging, step tracking, and the amber Step 3
+pill. The compact Application Details variant provides borrower/application/
+loan context plus the Full application and All officer notes modal actions
+before any checklist or completion-state content. Requirement Checklist also
+passes `showCallReportAction`, adding **View call report** to the action row.
+That button opens `call-report/call-report-result-modal.tsx`, a read-only dialog
+containing key call metadata, the stored or derived Call Summary, preliminary
+recommendation, and additional remarks. The action remains available in the
+Endorsed and Returned completion states.
+It also passes `showCreditCheckingResultAction`, adding **Initial credit
+checking result** via the existing `CreditCheckingResultModal`. Requirement
+Checklist opens that report with `recommendationEditable={false}`, keeping its
+Recommendation & Remarks read-only at this later workflow stage. Both report
+actions remain available in the Endorsed and Returned states. The shared action
+row is `nowrap` and progressively reveals actions as space increases: View Full
+Application always stays visible, Initial Credit Checking Result appears next,
+then View Call Report and View All Officer Notes. The bordered three-dot menu
+contains only the actions hidden at the current breakpoint and disappears once
+all buttons fit, preventing a second line.
 
 **Requirement Checklist has its own dedicated doc:
 `docs/ADMIN_REQUIREMENT_CHECKLIST.md`.** It covers the fixed document list
@@ -1176,7 +1262,9 @@ stale silently.
     submission, next to the status chip.
   - `ApplicationReviewHeader` (`application-review-header.tsx`), on every
     review screen — total aging since submission, plus "On this step" aging
-    since `markStepEntered` fired for that screen's `reviewStep`. The header
+    since `markStepEntered` fired for that screen's `reviewStep`. Every process
+    page shows its current step as a separate amber pill on the right side of
+    the aging row; the pill is not duplicated inside the card below. The header
     calls `markStepEntered` itself via a `useEffect` keyed on the `reviewStep`
     prop, so each view only has to pass its step name.
 - **Design decisions**: "Endorsed" (end of `RequirementChecklistView`) is
@@ -1184,17 +1272,11 @@ stale silently.
   "Released" step or release timestamp. Aging is not tracked from admin
   first-view, only from borrower submission, since the flowchart's "aging"
   concept was scoped to the whole application lifecycle, not queue wait time.
-- **Stale-application signals** (built on top of the aging levels above, so
-  admins don't have to notice staleness themselves):
-  - **Warning banner** — `ApplicationReviewHeader` shows a dismissible MUI
-    `Alert` (amber for `warning`, red for `overdue`) whenever the *current
-    step's* aging level is non-normal: "This application has been on `<step
-    label>` for `<duration>`" (overdue adds "— it needs attention."). Keyed
-    off `stepEnteredAt`, not total aging, since it's meant to flag a
-    specific step stalling, not the whole application. Dismissal is local
-    `useState` — it resets if the admin navigates away and back, by design
-    (a stale application should keep resurfacing, not be permanently
-    silenced from one click).
+- **Stale-application signals** (built on top of the aging levels above):
+  - The former dismissible "This application has been on…" warning/error
+    banner was removed from `ApplicationReviewHeader` for every process page.
+    Admins now see only the compact total-aging and per-step-aging values beside
+    the amber step pill.
   - **Dashboard overdue count** — `AdminDashboardView` has a fourth stat
     card, "Overdue (3d+)", counting applications where total aging
     (`getAgingLevel(application.submittedAt)`) is `'overdue'`. Currently
