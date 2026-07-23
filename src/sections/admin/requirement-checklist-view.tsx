@@ -133,8 +133,18 @@ export function RequirementChecklistView() {
   const [returnReasonDraft, setReturnReasonDraft] = useState('');
   const [newTctNumber, setNewTctNumber] = useState('');
 
-  const { documents, appraisalGroups, endorsed, returnedToApplicant } = review.requirementChecklist;
+  const {
+    documents,
+    appraisalGroups,
+    appraisalNotApplicable,
+    endorsed,
+    returnedToApplicant,
+  } = review.requirementChecklist;
   const officerName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Credit Officer';
+
+  const handleToggleAppraisalNotApplicable = () => {
+    setRequirementChecklist({ appraisalNotApplicable: !appraisalNotApplicable });
+  };
 
   const patchDoc = (key: string, data: Partial<RequirementDoc>) => {
     setRequirementChecklist({
@@ -224,6 +234,7 @@ export function RequirementChecklistView() {
           })),
         },
       ],
+      appraisalNotApplicable: false,
     });
   };
 
@@ -238,6 +249,7 @@ export function RequirementChecklistView() {
         uploadedBy: null,
         reviewed: false,
       })),
+      appraisalNotApplicable: false,
       appraisalGroups: [],
     });
   };
@@ -249,7 +261,9 @@ export function RequirementChecklistView() {
   // Every group's required docs must be complete — one incomplete property
   // is enough to withhold that "required received" credit, matching "at
   // least one complete TCT group is always required" (see
-  // requirement-checklist-risk.ts's buildRequirementChecklistSummary).
+  // requirement-checklist-risk.ts's buildRequirementChecklistSummary) —
+  // unless the officer has declared Appraisal not applicable, in which case
+  // it's excluded from this gate entirely (see totalRequiredCount below).
   const appraisalRequiredMeta = APPRAISAL_DOC_META.filter((meta) => meta.required);
   const appraisalGroupsComplete =
     hasAppraisalGroups &&
@@ -260,8 +274,9 @@ export function RequirementChecklistView() {
 
   const receivedRequiredCount =
     requiredMeta.filter((meta) => requiredDocsByKey.get(meta.key)?.status !== 'missing').length +
-    (appraisalGroupsComplete ? appraisalRequiredMeta.length : 0);
-  const totalRequiredCount = requiredMeta.length + appraisalRequiredMeta.length;
+    (!appraisalNotApplicable && appraisalGroupsComplete ? appraisalRequiredMeta.length : 0);
+  const totalRequiredCount =
+    requiredMeta.length + (appraisalNotApplicable ? 0 : appraisalRequiredMeta.length);
   const allRequiredReceived = receivedRequiredCount === totalRequiredCount;
   const progressFraction = totalRequiredCount > 0 ? receivedRequiredCount / totalRequiredCount : 0;
 
@@ -290,7 +305,8 @@ export function RequirementChecklistView() {
     application.financialInfo?.desiredLoanAmount ?? 0,
     allAppraisalDocs,
     APPRAISAL_DOC_META,
-    hasAppraisalGroups
+    hasAppraisalGroups,
+    appraisalNotApplicable
   );
   const riskStyle = RISK_STYLES[level];
 
@@ -414,82 +430,161 @@ export function RequirementChecklistView() {
 
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 0.5 }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              Appraisal
-            </Typography>
-          </Stack>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-            Add a property by its TCT/CCT number — each one gets its own document checklist.
-          </Typography>
-
-          <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
-            <TextField
-              size="small"
-              placeholder="e.g. TCT-2024-00981"
-              value={newTctNumber}
-              onChange={(event) => setNewTctNumber(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') handleAddTctGroup();
-              }}
-              sx={{ flex: 1, maxWidth: 320, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
-            />
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+                Appraisal
+              </Typography>
+              {!appraisalNotApplicable && appraisalGroups.length > 0 && (
+                <Box
+                  sx={{
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: '999px',
+                    bgcolor: appraisalGroupsComplete ? '#E7F8F0' : '#FEF0D6',
+                    color: appraisalGroupsComplete ? '#0C8A4F' : '#B36A05',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                  }}
+                >
+                  {appraisalGroups.length} {appraisalGroups.length === 1 ? 'property' : 'properties'}
+                </Box>
+              )}
+            </Stack>
             <Button
-              onClick={handleAddTctGroup}
-              disabled={!newTctNumber.trim()}
-              variant="outlined"
-              startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
-              sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: 2, flexShrink: 0, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
+              onClick={handleToggleAppraisalNotApplicable}
+              disabled={!appraisalNotApplicable && hasAppraisalGroups}
+              size="small"
+              variant="text"
+              sx={{
+                color: appraisalNotApplicable ? '#1C2A6E' : '#8891A6',
+                fontWeight: 700,
+                fontSize: 12.5,
+                flexShrink: 0,
+                '&:hover': { bgcolor: 'rgba(28,42,110,0.04)' },
+              }}
             >
-              Add Property
+              {appraisalNotApplicable ? 'Mark as Applicable' : 'Set as Not Applicable'}
             </Button>
           </Stack>
 
-          {appraisalGroups.length === 0 ? (
-            <Typography sx={{ fontSize: 13.5, color: '#B0B6C3', fontStyle: 'italic' }}>
-              No properties added yet. Add a TCT/CCT number above to start its checklist.
-            </Typography>
-          ) : (
-            <Stack spacing={3}>
-              {appraisalGroups.map((group) => {
-                const groupDocsByKey = new Map(group.documents.map((doc) => [doc.key, doc]));
-                return (
-                  <Box key={group.id} sx={{ p: 2.5, borderRadius: '13px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 1.5 }}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Iconify icon="solar:home-2-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
-                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
-                          {group.tctNumber}
-                        </Typography>
-                      </Stack>
-                      <IconButton
-                        onClick={() => removeAppraisalGroup(group.id)}
-                        aria-label={`Remove property ${group.tctNumber}`}
-                        size="small"
-                        sx={{ color: '#B0B6C3', '&:hover': { color: '#F04438', bgcolor: 'rgba(240,68,56,0.06)' } }}
-                      >
-                        <Iconify icon="solar:trash-bin-trash-bold" width={18} />
-                      </IconButton>
-                    </Stack>
-                    <Stack spacing={1.25}>
-                      {APPRAISAL_DOC_META.map((meta) => {
-                        const doc = groupDocsByKey.get(meta.key);
-                        if (!doc) return null;
-                        return (
-                          <RequirementDocRow
-                            key={meta.key}
-                            meta={meta}
-                            doc={doc}
-                            onUpload={handleUploadAppraisalDoc(group.id, meta.key)}
-                            onRemove={handleRemoveAppraisalDoc(group.id, meta.key)}
-                            onToggleReviewed={handleToggleAppraisalDocReviewed(group.id, meta.key)}
-                          />
-                        );
-                      })}
-                    </Stack>
-                  </Box>
-                );
-              })}
+          {appraisalNotApplicable ? (
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1.5}
+              sx={{ p: 2, borderRadius: '11px', bgcolor: '#F5F6FA', border: '1px solid #EEF0F5' }}
+            >
+              <Iconify icon="solar:check-circle-bold" width={20} sx={{ color: '#8891A6', flexShrink: 0 }} />
+              <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
+                Marked as not applicable — this application has no real-estate collateral to appraise.
+              </Typography>
             </Stack>
+          ) : (
+            <>
+              <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
+                Add a property by its TCT/CCT number — each one gets its own document checklist.
+                {hasAppraisalGroups && ' Remove every property below to mark this application as not applicable.'}
+              </Typography>
+
+              <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+                <TextField
+                  size="small"
+                  placeholder="e.g. TCT-2024-00981"
+                  value={newTctNumber}
+                  onChange={(event) => setNewTctNumber(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') handleAddTctGroup();
+                  }}
+                  sx={{ flex: 1, maxWidth: 320, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+                />
+                <Button
+                  onClick={handleAddTctGroup}
+                  disabled={!newTctNumber.trim()}
+                  variant="outlined"
+                  startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
+                  sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: 2, flexShrink: 0, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
+                >
+                  Add Property
+                </Button>
+              </Stack>
+
+              {appraisalGroups.length === 0 ? (
+                <Stack
+                  alignItems="center"
+                  textAlign="center"
+                  spacing={1}
+                  sx={{ py: 4, borderRadius: '11px', border: '1px dashed #E1E4ED' }}
+                >
+                  <Iconify icon="solar:home-2-bold-duotone" width={26} sx={{ color: '#C7CCDA' }} />
+                  <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+                    No properties added yet.
+                  </Typography>
+                  <Typography sx={{ fontSize: 12.5, color: '#B0B6C3' }}>
+                    Add a TCT/CCT number above, or mark this application as not applicable if there
+                    is no real-estate collateral.
+                  </Typography>
+                </Stack>
+              ) : (
+                <Stack spacing={3}>
+                  {appraisalGroups.map((group) => {
+                    const groupDocsByKey = new Map(group.documents.map((doc) => [doc.key, doc]));
+                    const groupRequiredReceived = appraisalRequiredMeta.filter(
+                      (meta) => groupDocsByKey.get(meta.key)?.status !== 'missing'
+                    ).length;
+                    const groupComplete = groupRequiredReceived === appraisalRequiredMeta.length;
+                    return (
+                      <Box key={group.id} sx={{ p: 2.5, borderRadius: '13px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 1.5 }}>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Iconify icon="solar:home-2-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
+                            <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
+                              {group.tctNumber}
+                            </Typography>
+                            <Box
+                              sx={{
+                                px: 1,
+                                py: 0.15,
+                                borderRadius: '999px',
+                                bgcolor: groupComplete ? '#E7F8F0' : '#FEF0D6',
+                                color: groupComplete ? '#0C8A4F' : '#B36A05',
+                                fontSize: 11,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {groupRequiredReceived}/{appraisalRequiredMeta.length} required
+                            </Box>
+                          </Stack>
+                          <IconButton
+                            onClick={() => removeAppraisalGroup(group.id)}
+                            aria-label={`Remove property ${group.tctNumber}`}
+                            size="small"
+                            sx={{ color: '#B0B6C3', '&:hover': { color: '#F04438', bgcolor: 'rgba(240,68,56,0.06)' } }}
+                          >
+                            <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                          </IconButton>
+                        </Stack>
+                        <Stack spacing={1.25}>
+                          {APPRAISAL_DOC_META.map((meta) => {
+                            const doc = groupDocsByKey.get(meta.key);
+                            if (!doc) return null;
+                            return (
+                              <RequirementDocRow
+                                key={meta.key}
+                                meta={meta}
+                                doc={doc}
+                                onUpload={handleUploadAppraisalDoc(group.id, meta.key)}
+                                onRemove={handleRemoveAppraisalDoc(group.id, meta.key)}
+                                onToggleReviewed={handleToggleAppraisalDocReviewed(group.id, meta.key)}
+                              />
+                            );
+                          })}
+                        </Stack>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              )}
+            </>
           )}
         </Box>
 

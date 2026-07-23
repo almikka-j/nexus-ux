@@ -16,10 +16,13 @@ export type RequirementChecklistRiskLevel = 'good' | 'watch' | 'high';
 // documents flattened together — the AI summary/recommendation treats them
 // exactly like the fixed Credit Investigation/Financial Evaluation documents
 // for counting purposes (a missing document in any group is still a missing
-// document), it just also needs `hasAppraisalGroups` to require at least one
-// group before calling the checklist "good"/ready — see
-// requirement-checklist-view.tsx's "at least one complete TCT group is
-// always required" gating.
+// document). `hasAppraisalGroups` requires at least one group before calling
+// the checklist "good"/ready — see requirement-checklist-view.tsx's "at
+// least one complete TCT group is always required" gating — UNLESS
+// `appraisalNotApplicable` is true, in which case Appraisal is excluded from
+// every count entirely (no missing-property penalty, no appraisal
+// documents counted, no outstanding-property note): the officer has
+// declared this application has no real-estate collateral at all.
 export function buildRequirementChecklistSummary(
   documents: RequirementDoc[],
   docMeta: RequirementDocMeta[],
@@ -27,14 +30,18 @@ export function buildRequirementChecklistSummary(
   desiredLoanAmount: number,
   appraisalDocs: RequirementDoc[],
   appraisalDocMeta: AppraisalDocMeta[],
-  hasAppraisalGroups: boolean
+  hasAppraisalGroups: boolean,
+  appraisalNotApplicable: boolean
 ): { level: RequirementChecklistRiskLevel; summary: string; recommendation: string } {
   const metaByKey = new Map(docMeta.map((meta) => [meta.key, meta]));
-  const allDocs = [...documents, ...appraisalDocs];
+  const effectiveAppraisalDocs = appraisalNotApplicable ? [] : appraisalDocs;
+  const allDocs = [...documents, ...effectiveAppraisalDocs];
   const requiredDocs = [
     ...documents.filter((doc) => metaByKey.get(doc.key)?.required),
-    ...(hasAppraisalGroups
-      ? appraisalDocs.filter((doc) => appraisalDocMeta.find((meta) => meta.key === doc.key)?.required)
+    ...(hasAppraisalGroups && !appraisalNotApplicable
+      ? effectiveAppraisalDocs.filter(
+          (doc) => appraisalDocMeta.find((meta) => meta.key === doc.key)?.required
+        )
       : []),
   ];
 
@@ -42,7 +49,8 @@ export function buildRequirementChecklistSummary(
   const needsReviewCount = allDocs.filter((doc) => doc.status === 'needs-review').length;
   const missingCount = allDocs.filter((doc) => doc.status === 'missing').length;
   const missingRequiredCount =
-    requiredDocs.filter((doc) => doc.status === 'missing').length + (hasAppraisalGroups ? 0 : 1);
+    requiredDocs.filter((doc) => doc.status === 'missing').length +
+    (appraisalNotApplicable || hasAppraisalGroups ? 0 : 1);
 
   const summary = `${allDocs.length - missingCount} of ${allDocs.length} documents are on file. AI verified ${verifiedCount} document(s), flagged ${needsReviewCount} for review, and found ${missingCount} still missing. Extracted monthly income (₱${monthlyIncome.toLocaleString()}) is consistent with the ₱${desiredLoanAmount.toLocaleString()} loan request.`;
 
@@ -50,12 +58,13 @@ export function buildRequirementChecklistSummary(
     .filter((doc) => doc.status !== 'verified')
     .map((doc) => metaByKey.get(doc.key)?.label)
     .filter((label): label is string => !!label);
-  const outstandingAppraisalLabels = appraisalDocs
+  const outstandingAppraisalLabels = effectiveAppraisalDocs
     .filter((doc) => doc.status !== 'verified')
     .map((doc) => appraisalDocMeta.find((meta) => meta.key === doc.key)?.label)
     .filter((label): label is string => !!label);
   const outstanding = [...outstandingFixedLabels, ...outstandingAppraisalLabels];
-  const noPropertyNote = hasAppraisalGroups ? [] : ['at least one property (TCT/CCT group)'];
+  const noPropertyNote =
+    appraisalNotApplicable || hasAppraisalGroups ? [] : ['at least one property (TCT/CCT group)'];
   const allOutstanding = [...outstanding, ...noPropertyNote];
 
   if (missingRequiredCount > 0 || needsReviewCount > 0) {

@@ -167,15 +167,80 @@ other collateral types (vehicle, equipment, etc.) aren't represented here.
   single document within one specific group (used by that group's Upload /
   Remove / Mark as Reviewed actions) — every mutation targets one group by
   `id`, never all groups at once.
-- **Gating: at least one *complete* group is always required to endorse.**
-  `appraisalGroupsComplete` (`requirement-checklist-view.tsx`) is true only
-  when `appraisalGroups.length > 0` AND every single group has all 5 required
+- **Gating: at least one *complete* group is required to endorse, unless
+  marked Not Applicable.** `appraisalGroupsComplete`
+  (`requirement-checklist-view.tsx`) is true only when
+  `appraisalGroups.length > 0` AND every single group has all 5 required
   appraisal documents received (`status !== 'missing'`) — one incomplete
   property is enough to withhold the appraisal-required credit entirely from
   the header counter, even if every other group is fully complete. Zero
-  groups is not treated as "no appraisal requirement" — it's treated as
-  incomplete, since every application is assumed to have at least one
-  pledged property.
+  groups is not treated as "no appraisal requirement" by default — it's
+  treated as incomplete, since every application is assumed to have at least
+  one pledged property, UNLESS the officer has explicitly marked Appraisal
+  Not Applicable (see below), which is the one way to reach a passing state
+  with zero properties.
+
+### Not Applicable: the escape hatch for applications with no real-estate collateral
+
+`RequirementChecklist.appraisalNotApplicable: boolean` (default `false`) —
+an explicit officer declaration that this application has no real-estate
+collateral to appraise at all. Toggled via a single button in the Appraisal
+card's header that relabels itself: **"Set as Not Applicable"** when
+`false`, **"Mark as Applicable"** when `true` (re-clicking the same button
+flips it back — there's no separate undo control).
+
+- **The toggle button is disabled while any Appraisal group exists**
+  (`disabled={!appraisalNotApplicable && hasAppraisalGroups}`) — the officer
+  must remove every property first via each group's trash icon before they
+  can mark the application Not Applicable. This is a deliberate guard against
+  accidentally discarding in-progress property data: there is no
+  confirmation dialog, and marking Not Applicable while groups exist would
+  otherwise silently orphan real uploaded documents that no longer show
+  anywhere in the UI.
+- **When `true`, Appraisal is fully excluded from every count** — not just
+  hidden from view. `totalRequiredCount`/`receivedRequiredCount`
+  (`requirement-checklist-view.tsx`) drop `appraisalRequiredMeta.length`
+  from the denominator entirely rather than crediting it as satisfied; the
+  Endorse gate (`allRequiredReceived`) can now pass on Credit
+  Investigation/Financial Evaluation alone. `buildRequirementChecklistSummary`
+  (`requirement-checklist-risk.ts`) takes the same `appraisalNotApplicable`
+  boolean as its final parameter — when true it treats `appraisalDocs` as an
+  empty array for every count (`effectiveAppraisalDocs`), skips the
+  "at least one property" missing-requirement penalty entirely, and omits the
+  "at least one property (TCT/CCT group)" note from the AI Recommendation's
+  outstanding-items list.
+- **UI when `true`**: the Add Property form and the property list are both
+  hidden, replaced by a single banner row ("Marked as not applicable — this
+  application has no real-estate collateral to appraise.") with a check
+  icon. No property-count chip is shown in the card header in this state
+  either.
+- **"Fill with Sample Data" always sets `appraisalNotApplicable: false`**
+  (it adds a fresh property group, which is the opposite state) and **"Remove
+  Sample Data" also resets it to `false`** (clearing back to the same blank
+  slate a fresh session would have — no groups, not marked Not Applicable,
+  ready for the officer to choose either path).
+
+### Appraisal card UX details
+
+- **Property-count chip** next to the card title (visible only when there
+  are groups and Appraisal isn't Not Applicable): "N property"/"N
+  properties," colored green when `appraisalGroupsComplete`, amber
+  otherwise — a way to see at a glance whether *any* property still needs
+  attention without scanning every row.
+- **Per-group required-count chip** ("N/5 required," same green/amber
+  coloring) next to each group's TCT number, computed from that group's own
+  documents only — lets an officer spot which specific property is holding
+  up the overall Appraisal completeness when there are several.
+- **Empty state** (no groups, not Not Applicable) is a dashed-border box
+  with a house icon and copy that explicitly surfaces the Not Applicable
+  option ("...or mark this application as not applicable if there is no
+  real-estate collateral"), so the option is discoverable from the very
+  first empty-state view, not just from the header button.
+- **Helper text changes when groups exist**: the intro line under the card
+  title appends "Remove every property below to mark this application as not
+  applicable." only when `hasAppraisalGroups` is true — explaining *why* the
+  header toggle is currently disabled, right where the officer would
+  otherwise be confused by a greyed-out button.
 
 ## `RequirementDoc` state shape (`src/auth/admin-context.tsx`)
 
@@ -184,7 +249,8 @@ RequirementDoc        { key, status, aiNote, fileName, uploadedAt, uploadedBy, r
                        — status: 'verified' | 'needs-review' | 'missing'
 AppraisalTctGroup     { id, tctNumber, documents: RequirementDoc[] }
 RequirementChecklist  { documents: RequirementDoc[], appraisalGroups: AppraisalTctGroup[],
-                        collateralNotes, endorsed, returnedToApplicant, returnReason }
+                        appraisalNotApplicable: boolean, collateralNotes, endorsed,
+                        returnedToApplicant, returnReason }
 ```
 
 `uploadedBy` and `reviewed` were added alongside the AI summary/date-display
@@ -301,14 +367,17 @@ actions, no `NODE_ENV` gate. Label and behavior are driven by
   to its `meta.freshStatus`/`meta.freshNote`, gives it a sample filename,
   today's `uploadedAt`, `uploadedBy` set to the current officer, and
   `reviewed: false` — **and** replaces `appraisalGroups` with a single fresh
-  group (`TCT-2024-00981`) with all 8 of its documents filled the same way.
-  One click reaches `allRequiredReceived === true` and enables Endorse.
+  group (`TCT-2024-00981`) with all 8 of its documents filled the same way,
+  and sets `appraisalNotApplicable: false` (in case the checklist was
+  previously marked Not Applicable). One click reaches
+  `allRequiredReceived === true` and enables Endorse.
 - **Once complete** → "Remove Sample Data": resets every fixed document back
   to `missing` (clearing `fileName`/`uploadedAt`/`uploadedBy`/`aiNote`,
-  `reviewed: false`) **and clears `appraisalGroups` to `[]` entirely** — not
+  `reviewed: false`), **clears `appraisalGroups` to `[]` entirely** — not
   just resetting each group's documents to missing, since the toggle's
-  "blank" state for Appraisal is having no properties added at all, matching
-  what a truly fresh session looks like.
+  "blank" state for Appraisal is having no properties added at all — and
+  resets `appraisalNotApplicable: false` too, so "Remove Sample Data" always
+  lands on the exact same blank slate a brand-new session starts from.
 
 This action's `useRegisterPageActions` call sits **before** the
 `if (!signUpData) return null;` guard (moved down for this reason) — the
@@ -320,16 +389,19 @@ hook call to run unconditionally on every render regardless.
 ## AI summary/recommendation derivation (`requirement-checklist-risk.ts`)
 
 `buildRequirementChecklistSummary(documents, docMeta, monthlyIncome,
-desiredLoanAmount, appraisalDocs, appraisalDocMeta, hasAppraisalGroups)` is a
-pure function, recomputed at render time, never stored — same pattern as
-`initial-credit-checking-risk.ts`'s `buildInitialAiRecommendation`. The
-caller (`requirement-checklist-view.tsx`) passes `appraisalGroups.flatMap(g
-=> g.documents)` as `appraisalDocs` — every group's documents flattened
-together, counted exactly like the fixed Credit Investigation/Financial
-Evaluation documents (a missing document in any group is still a missing
-document for this purpose; it's only the header counter's "all groups must
-be complete" all-or-nothing rule that's stricter, not this function's raw
-counting). It returns `{ level, summary, recommendation }`:
+desiredLoanAmount, appraisalDocs, appraisalDocMeta, hasAppraisalGroups,
+appraisalNotApplicable)` is a pure function, recomputed at render time, never
+stored — same pattern as `initial-credit-checking-risk.ts`'s
+`buildInitialAiRecommendation`. The caller (`requirement-checklist-view.tsx`)
+passes `appraisalGroups.flatMap(g => g.documents)` as `appraisalDocs` — every
+group's documents flattened together, counted exactly like the fixed Credit
+Investigation/Financial Evaluation documents (a missing document in any
+group is still a missing document for this purpose; it's only the header
+counter's "all groups must be complete" all-or-nothing rule that's stricter,
+not this function's raw counting) — UNLESS `appraisalNotApplicable` is true,
+in which case the function treats `appraisalDocs` as empty
+(`effectiveAppraisalDocs`) for every count, regardless of what's actually
+passed in. It returns `{ level, summary, recommendation }`:
 
 - **AI Summary** is always the same shape of sentence: how many of the total
   documents (fixed list + every Appraisal group's documents combined) are on
@@ -340,12 +412,13 @@ counting). It returns `{ level, summary, recommendation }`:
   Recommendation** card's background/text color and its label ("Ready" /
   "Almost ready" / "Not ready"):
   - `'high'` — at least one **required** document (fixed-list or
-    appraisal) is still missing, OR `hasAppraisalGroups` is false (zero
-    properties added counts as a missing requirement, forcing at least
-    `'high'`).
-  - `'watch'` — no required document is missing and at least one property
-    exists, but at least one document (required or not, anywhere) is
-    `'needs-review'`.
+    appraisal) is still missing, OR `hasAppraisalGroups` is false and
+    `appraisalNotApplicable` is also false (zero properties with no Not
+    Applicable declaration counts as a missing requirement, forcing at
+    least `'high'`).
+  - `'watch'` — no required document is missing and (at least one property
+    exists OR Appraisal is marked Not Applicable), but at least one document
+    (required or not, anywhere) is `'needs-review'`.
   - `'good'` — every document across the fixed list and every Appraisal
     group is `'verified'`.
 - **AI Recommendation** text lists every non-verified document by label

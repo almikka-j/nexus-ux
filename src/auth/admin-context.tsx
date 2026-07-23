@@ -358,6 +358,13 @@ export type AppraisalTctGroup = {
 export type RequirementChecklist = {
   documents: RequirementDoc[];
   appraisalGroups: AppraisalTctGroup[];
+  // Officer-declared "this application has no real-estate collateral" state
+  // — when true, Appraisal's required documents are excluded entirely from
+  // the header counter/Endorse gate/AI summary, instead of the default
+  // assumption that every application has at least one pledged property.
+  // Mutually exclusive with appraisalGroups in the UI (the toggle button is
+  // blocked while any group exists) but not enforced at the type level.
+  appraisalNotApplicable: boolean;
   collateralNotes: string;
   endorsed: boolean;
   returnedToApplicant: boolean;
@@ -649,6 +656,7 @@ function createInitialReview(): ApplicationReview {
       // can still reach via "Remove Property", but a fresh session
       // shouldn't start there.
       appraisalGroups: [createAppraisalGroup('TCT-2024-00981', true)],
+      appraisalNotApplicable: false,
       collateralNotes: '',
       endorsed: false,
       returnedToApplicant: false,
