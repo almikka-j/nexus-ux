@@ -288,6 +288,35 @@ copy switches between "All required documents are on file — ready to
 endorse" and "Clear the N outstanding item(s) above" based on this same
 `allRequiredReceived` boolean.
 
+## "Fill with Sample Data" / "Remove Sample Data" page action
+
+Registered as a page action into the shared settings popover (see
+`page-actions-context.tsx`/`PROJECT_OVERVIEW.md`'s "Page actions" section),
+same pattern as Initial Credit Checking's and Call Report's sample-data
+actions, no `NODE_ENV` gate. Label and behavior are driven by
+`allRequiredReceived` (the same boolean gating the Endorse button):
+
+- **While incomplete** → "Fill with Sample Data": sets every fixed
+  document's (Credit Investigation + Financial Evaluation) `status`/`aiNote`
+  to its `meta.freshStatus`/`meta.freshNote`, gives it a sample filename,
+  today's `uploadedAt`, `uploadedBy` set to the current officer, and
+  `reviewed: false` — **and** replaces `appraisalGroups` with a single fresh
+  group (`TCT-2024-00981`) with all 8 of its documents filled the same way.
+  One click reaches `allRequiredReceived === true` and enables Endorse.
+- **Once complete** → "Remove Sample Data": resets every fixed document back
+  to `missing` (clearing `fileName`/`uploadedAt`/`uploadedBy`/`aiNote`,
+  `reviewed: false`) **and clears `appraisalGroups` to `[]` entirely** — not
+  just resetting each group's documents to missing, since the toggle's
+  "blank" state for Appraisal is having no properties added at all, matching
+  what a truly fresh session looks like.
+
+This action's `useRegisterPageActions` call sits **before** the
+`if (!signUpData) return null;` guard (moved down for this reason) — the
+guard only exists to gate rendering on the borrower's registration data,
+which `handleFillSampleData`/`handleClearSampleData` and
+`allRequiredReceived` don't need, but React's rules-of-hooks require the
+hook call to run unconditionally on every render regardless.
+
 ## AI summary/recommendation derivation (`requirement-checklist-risk.ts`)
 
 `buildRequirementChecklistSummary(documents, docMeta, monthlyIncome,
@@ -338,7 +367,7 @@ proceed.
 an officer can return an application at any point, complete or not). Clicking
 it opens a `ConfirmDialog` with a required free-text reason field; **Confirm**
 stays disabled until the reason is non-empty (after `.trim()`). Confirming
-calls `setRequirementChecklist({ collateralNotes, returnedToApplicant: true,
+calls `setRequirementChecklist({ returnedToApplicant: true,
 returnReason: reason })` and the view switches to a "Returned to applicant"
 success screen (green check replaced with an amber undo icon), distinct from
 but structurally identical to the "Endorsed for comprehensive process" success
@@ -382,7 +411,15 @@ confirmation screen, not an actual message sent to anyone.
   fixed metadata). It was fully replaced by the `RequirementDoc[]` model
   described above — there is no remaining reference to `checkedItems`
   anywhere in the codebase.
-- Not touching the `Collateral` card's existing free-form-notes behavior.
+- **Collateral card removed.** The free-form "Collateral" notes card (a
+  `collateralNotes: string` textarea, requested-but-adjust text) was removed
+  from the page entirely, per direct request. `RequirementChecklist` still
+  carries the `collateralNotes` field for any already-stored session data,
+  but nothing in this view reads or writes it anymore — `handleEndorse` and
+  `confirmReturn` no longer pass it to `setRequirementChecklist`, so it's
+  simply frozen at whatever value a session already had, never touched
+  going forward. Collateral information now lives entirely in Appraisal's
+  per-property TCT groups instead.
 
 ## Fabricated claims — what's real vs. simulated
 

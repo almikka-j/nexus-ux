@@ -1,10 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -20,6 +18,8 @@ import { useRegistration } from 'src/auth/registration-context';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
+import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
+
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
 import { RequirementDocRow } from './requirement-doc-row';
@@ -27,13 +27,12 @@ import { buildRequirementChecklistSummary } from './requirement-checklist-risk';
 import {
   REQUIREMENT_DOC_META,
   APPRAISAL_DOC_META,
-  REQUIREMENT_TAB_ORDER,
   REQUIREMENT_TAB_LABELS,
   REQUIREMENT_SUBGROUP_LABELS,
 } from './requirement-checklist-docs';
 
 import type { RequirementDoc } from 'src/auth/admin-context';
-import type { RequirementDocTab, RequirementDocSubgroup } from './requirement-checklist-docs';
+import type { RequirementDocSubgroup } from './requirement-checklist-docs';
 import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk';
 
 // ----------------------------------------------------------------------
@@ -130,13 +129,9 @@ export function RequirementChecklistView() {
     removeAppraisalGroup,
     updateAppraisalGroupDoc,
   } = useAdmin();
-  const [collateralNotes, setCollateralNotes] = useState(review.requirementChecklist.collateralNotes);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnReasonDraft, setReturnReasonDraft] = useState('');
   const [newTctNumber, setNewTctNumber] = useState('');
-  const [activeTab, setActiveTab] = useState<RequirementDocTab>('creditInvestigation');
-
-  if (!signUpData) return null;
 
   const { documents, appraisalGroups, endorsed, returnedToApplicant } = review.requirementChecklist;
   const officerName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Credit Officer';
@@ -192,6 +187,61 @@ export function RequirementChecklistView() {
     updateAppraisalGroupDoc(groupId, key, { reviewed });
   };
 
+  // Fills every fixed document plus a single fresh Appraisal group with
+  // representative sample data in one click, mirroring Initial Credit
+  // Checking's/Call Report's floating-button-turned-page-action toggle —
+  // same button relabels to "Remove Sample Data" and clears everything back
+  // to blank (including clearing appraisalGroups entirely, not just
+  // resetting their documents) once filled.
+  const handleFillSampleData = () => {
+    const uploadedAt = new Date().toISOString();
+    setRequirementChecklist({
+      documents: documents.map((doc) => {
+        const meta = REQUIREMENT_DOC_META.find((entry) => entry.key === doc.key);
+        if (!meta) return doc;
+        return {
+          ...doc,
+          status: meta.freshStatus,
+          aiNote: meta.freshNote,
+          fileName: `${meta.key}-sample.pdf`,
+          uploadedAt,
+          uploadedBy: officerName,
+          reviewed: false,
+        };
+      }),
+      appraisalGroups: [
+        {
+          id: crypto.randomUUID(),
+          tctNumber: 'TCT-2024-00981',
+          documents: APPRAISAL_DOC_META.map((meta) => ({
+            key: meta.key,
+            status: meta.freshStatus,
+            aiNote: meta.freshNote,
+            fileName: `${meta.key}-sample.pdf`,
+            uploadedAt,
+            uploadedBy: officerName,
+            reviewed: false,
+          })),
+        },
+      ],
+    });
+  };
+
+  const handleClearSampleData = () => {
+    setRequirementChecklist({
+      documents: documents.map((doc) => ({
+        ...doc,
+        status: 'missing',
+        aiNote: '',
+        fileName: null,
+        uploadedAt: null,
+        uploadedBy: null,
+        reviewed: false,
+      })),
+      appraisalGroups: [],
+    });
+  };
+
   const requiredMeta = REQUIREMENT_DOC_META.filter((meta) => meta.required);
   const requiredDocsByKey = new Map(documents.map((doc) => [doc.key, doc]));
   const hasAppraisalGroups = appraisalGroups.length > 0;
@@ -215,6 +265,23 @@ export function RequirementChecklistView() {
   const allRequiredReceived = receivedRequiredCount === totalRequiredCount;
   const progressFraction = totalRequiredCount > 0 ? receivedRequiredCount / totalRequiredCount : 0;
 
+  useRegisterPageActions(
+    useMemo(
+      () => [
+        {
+          key: 'sample-data',
+          label: allRequiredReceived ? 'Remove Sample Data' : 'Fill with Sample Data',
+          icon: 'solar:magic-stick-3-bold-duotone',
+          onClick: allRequiredReceived ? handleClearSampleData : handleFillSampleData,
+        },
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [allRequiredReceived]
+    )
+  );
+
+  if (!signUpData) return null;
+
   const allAppraisalDocs = appraisalGroups.flatMap((group) => group.documents);
   const { level, summary, recommendation } = buildRequirementChecklistSummary(
     documents,
@@ -228,7 +295,7 @@ export function RequirementChecklistView() {
   const riskStyle = RISK_STYLES[level];
 
   const handleEndorse = () => {
-    setRequirementChecklist({ collateralNotes, endorsed: true });
+    setRequirementChecklist({ endorsed: true });
   };
 
   const closeReturnDialog = () => {
@@ -239,7 +306,6 @@ export function RequirementChecklistView() {
   const confirmReturn = () => {
     if (!returnReasonDraft.trim()) return;
     setRequirementChecklist({
-      collateralNotes,
       returnedToApplicant: true,
       returnReason: returnReasonDraft.trim(),
     });
@@ -448,24 +514,6 @@ export function RequirementChecklistView() {
               );
             })}
           </Stack>
-        </Box>
-
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-            Collateral
-          </Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-            Request or adjust collateral details for this application, if applicable.
-          </Typography>
-          <TextField
-            fullWidth
-            multiline
-            minRows={3}
-            placeholder="e.g. Request updated collateral appraisal for the pledged property…"
-            value={collateralNotes}
-            onChange={(event) => setCollateralNotes(event.target.value)}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
-          />
         </Box>
 
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
