@@ -8,6 +8,7 @@ import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 
@@ -25,6 +26,7 @@ import { RequirementDocRow } from './requirement-doc-row';
 import { buildRequirementChecklistSummary } from './requirement-checklist-risk';
 import {
   REQUIREMENT_DOC_META,
+  APPRAISAL_DOC_META,
   REQUIREMENT_TAB_ORDER,
   REQUIREMENT_TAB_LABELS,
   REQUIREMENT_SUBGROUP_LABELS,
@@ -36,7 +38,7 @@ import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk
 
 // ----------------------------------------------------------------------
 
-// Credit Investigation is the only tab with a further nested grouping —
+// Credit Investigation is the only card with a further nested grouping —
 // this fixed order matches the two sub-groups' presentation order in the
 // design reference (Loan Credit Checking Documents above Loan Requirements).
 const SUBGROUP_ORDER: RequirementDocSubgroup[] = ['loanCreditChecking', 'loanRequirements'];
@@ -84,7 +86,12 @@ function SuccessState({
       />
 
       <Box sx={{ mb: 2.5 }}>
-        <ApplicationDetailsCard collapsible showCallReportAction />
+        <ApplicationDetailsCard
+          collapsible
+          showCreditCheckingResultAction
+          showCallReportAction
+          officerNotesProcess="Requirement Checklist"
+        />
       </Box>
 
       <Stack
@@ -115,35 +122,108 @@ function SuccessState({
 
 export function RequirementChecklistView() {
   const { signUpData, application } = useRegistration();
-  const { review, setRequirementChecklist } = useAdmin();
+  const {
+    review,
+    adminUser,
+    setRequirementChecklist,
+    addAppraisalGroup,
+    removeAppraisalGroup,
+    updateAppraisalGroupDoc,
+  } = useAdmin();
   const [collateralNotes, setCollateralNotes] = useState(review.requirementChecklist.collateralNotes);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnReasonDraft, setReturnReasonDraft] = useState('');
-  const [activeTab, setActiveTab] = useState<RequirementDocTab>(REQUIREMENT_TAB_ORDER[0]);
+  const [newTctNumber, setNewTctNumber] = useState('');
+  const [activeTab, setActiveTab] = useState<RequirementDocTab>('creditInvestigation');
 
   if (!signUpData) return null;
 
-  const { documents, endorsed, returnedToApplicant } = review.requirementChecklist;
+  const { documents, appraisalGroups, endorsed, returnedToApplicant } = review.requirementChecklist;
+  const officerName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Credit Officer';
 
-  const handleUploadDoc = (key: string) => (data: Partial<RequirementDoc>) => {
+  const patchDoc = (key: string, data: Partial<RequirementDoc>) => {
     setRequirementChecklist({
       documents: documents.map((doc) => (doc.key === key ? { ...doc, ...data } : doc)),
     });
   };
 
+  const handleUploadDoc = (key: string) => (data: Partial<RequirementDoc>) => {
+    patchDoc(key, { ...data, uploadedBy: officerName, reviewed: false });
+  };
+
+  const handleRemoveDoc = (key: string) => () => {
+    patchDoc(key, {
+      status: 'missing',
+      aiNote: '',
+      fileName: null,
+      uploadedAt: null,
+      uploadedBy: null,
+      reviewed: false,
+    });
+  };
+
+  const handleToggleReviewed = (key: string) => (reviewed: boolean) => {
+    patchDoc(key, { reviewed });
+  };
+
+  const handleAddTctGroup = () => {
+    const trimmed = newTctNumber.trim();
+    if (!trimmed) return;
+    addAppraisalGroup(trimmed);
+    setNewTctNumber('');
+  };
+
+  const handleUploadAppraisalDoc = (groupId: string, key: string) => (data: Partial<RequirementDoc>) => {
+    updateAppraisalGroupDoc(groupId, key, { ...data, uploadedBy: officerName, reviewed: false });
+  };
+
+  const handleRemoveAppraisalDoc = (groupId: string, key: string) => () => {
+    updateAppraisalGroupDoc(groupId, key, {
+      status: 'missing',
+      aiNote: '',
+      fileName: null,
+      uploadedAt: null,
+      uploadedBy: null,
+      reviewed: false,
+    });
+  };
+
+  const handleToggleAppraisalDocReviewed = (groupId: string, key: string) => (reviewed: boolean) => {
+    updateAppraisalGroupDoc(groupId, key, { reviewed });
+  };
+
   const requiredMeta = REQUIREMENT_DOC_META.filter((meta) => meta.required);
   const requiredDocsByKey = new Map(documents.map((doc) => [doc.key, doc]));
-  const receivedRequiredCount = requiredMeta.filter(
-    (meta) => requiredDocsByKey.get(meta.key)?.status !== 'missing'
-  ).length;
-  const allRequiredReceived = receivedRequiredCount === requiredMeta.length;
-  const progressFraction = requiredMeta.length > 0 ? receivedRequiredCount / requiredMeta.length : 0;
+  const hasAppraisalGroups = appraisalGroups.length > 0;
 
+  // Every group's required docs must be complete — one incomplete property
+  // is enough to withhold that "required received" credit, matching "at
+  // least one complete TCT group is always required" (see
+  // requirement-checklist-risk.ts's buildRequirementChecklistSummary).
+  const appraisalRequiredMeta = APPRAISAL_DOC_META.filter((meta) => meta.required);
+  const appraisalGroupsComplete =
+    hasAppraisalGroups &&
+    appraisalGroups.every((group) => {
+      const docsByKey = new Map(group.documents.map((doc) => [doc.key, doc]));
+      return appraisalRequiredMeta.every((meta) => docsByKey.get(meta.key)?.status !== 'missing');
+    });
+
+  const receivedRequiredCount =
+    requiredMeta.filter((meta) => requiredDocsByKey.get(meta.key)?.status !== 'missing').length +
+    (appraisalGroupsComplete ? appraisalRequiredMeta.length : 0);
+  const totalRequiredCount = requiredMeta.length + appraisalRequiredMeta.length;
+  const allRequiredReceived = receivedRequiredCount === totalRequiredCount;
+  const progressFraction = totalRequiredCount > 0 ? receivedRequiredCount / totalRequiredCount : 0;
+
+  const allAppraisalDocs = appraisalGroups.flatMap((group) => group.documents);
   const { level, summary, recommendation } = buildRequirementChecklistSummary(
     documents,
     REQUIREMENT_DOC_META,
     application.financialInfo?.monthlyIncome ?? 0,
-    application.financialInfo?.desiredLoanAmount ?? 0
+    application.financialInfo?.desiredLoanAmount ?? 0,
+    allAppraisalDocs,
+    APPRAISAL_DOC_META,
+    hasAppraisalGroups
   );
   const riskStyle = RISK_STYLES[level];
 
@@ -201,7 +281,12 @@ export function RequirementChecklistView() {
       />
 
       <Stack spacing={2.5}>
-        <ApplicationDetailsCard collapsible showCallReportAction />
+        <ApplicationDetailsCard
+          collapsible
+          showCreditCheckingResultAction
+          showCallReportAction
+          officerNotesProcess="Requirement Checklist"
+        />
 
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
           <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ mb: 0.5 }}>
@@ -210,87 +295,159 @@ export function RequirementChecklistView() {
             </Typography>
             <Stack alignItems="flex-end" spacing={0.25}>
               <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#14172A' }}>
-                {receivedRequiredCount}/{requiredMeta.length}
+                {receivedRequiredCount}/{totalRequiredCount}
               </Typography>
               <Typography sx={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#8891A6' }}>
                 Required received
               </Typography>
             </Stack>
           </Stack>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
             Collect and verify all required documents before endorsing the application.
           </Typography>
 
-          <Box sx={{ height: 6, borderRadius: 999, bgcolor: '#EEF0F5', overflow: 'hidden', mb: 3 }}>
+          <Box sx={{ height: 6, borderRadius: 999, bgcolor: '#EEF0F5', overflow: 'hidden', mt: 2 }}>
             <Box sx={{ width: `${progressFraction * 100}%`, height: '100%', bgcolor: '#1C2A6E', transition: 'width 0.2s ease' }} />
           </Box>
+        </Box>
 
-          <Tabs
-            value={activeTab}
-            onChange={(_event, value) => setActiveTab(value)}
-            sx={{
-              minHeight: 40,
-              mb: 2.5,
-              borderBottom: '1px solid #EBEDF3',
-              '& .MuiTab-root': {
-                minHeight: 40,
-                fontSize: 13.5,
-                fontWeight: 700,
-                textTransform: 'none',
-                color: '#8891A6',
-              },
-              '& .Mui-selected': { color: '#1C2A6E' },
-              '& .MuiTabs-indicator': { bgcolor: '#1C2A6E' },
-            }}
-          >
-            {REQUIREMENT_TAB_ORDER.map((tab) => (
-              <Tab key={tab} value={tab} label={REQUIREMENT_TAB_LABELS[tab]} />
-            ))}
-          </Tabs>
+        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 2 }}>
+            {REQUIREMENT_TAB_LABELS.creditInvestigation}
+          </Typography>
 
-          {activeTab === 'creditInvestigation' ? (
+          <Stack spacing={3}>
+            {SUBGROUP_ORDER.map((subgroup) => {
+              const subgroupMeta = REQUIREMENT_DOC_META.filter(
+                (meta) => meta.tabs.includes('creditInvestigation') && meta.subgroup === subgroup
+              );
+              return (
+                <Stack key={subgroup} spacing={1.25}>
+                  <SectionLabel>{REQUIREMENT_SUBGROUP_LABELS[subgroup]}</SectionLabel>
+                  <Stack spacing={1.25}>
+                    {subgroupMeta.map((meta) => {
+                      const doc = requiredDocsByKey.get(meta.key);
+                      if (!doc) return null;
+                      return (
+                        <RequirementDocRow
+                          key={meta.key}
+                          meta={meta}
+                          doc={doc}
+                          onUpload={handleUploadDoc(meta.key)}
+                          onRemove={handleRemoveDoc(meta.key)}
+                          onToggleReviewed={handleToggleReviewed(meta.key)}
+                        />
+                      );
+                    })}
+                  </Stack>
+                </Stack>
+              );
+            })}
+          </Stack>
+        </Box>
+
+        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 0.5 }}>
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+              Appraisal
+            </Typography>
+          </Stack>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
+            Add a property by its TCT/CCT number — each one gets its own document checklist.
+          </Typography>
+
+          <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+            <TextField
+              size="small"
+              placeholder="e.g. TCT-2024-00981"
+              value={newTctNumber}
+              onChange={(event) => setNewTctNumber(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') handleAddTctGroup();
+              }}
+              sx={{ flex: 1, maxWidth: 320, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+            />
+            <Button
+              onClick={handleAddTctGroup}
+              disabled={!newTctNumber.trim()}
+              variant="outlined"
+              startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
+              sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: 2, flexShrink: 0, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
+            >
+              Add Property
+            </Button>
+          </Stack>
+
+          {appraisalGroups.length === 0 ? (
+            <Typography sx={{ fontSize: 13.5, color: '#B0B6C3', fontStyle: 'italic' }}>
+              No properties added yet. Add a TCT/CCT number above to start its checklist.
+            </Typography>
+          ) : (
             <Stack spacing={3}>
-              {SUBGROUP_ORDER.map((subgroup) => {
-                const subgroupMeta = REQUIREMENT_DOC_META.filter(
-                  (meta) => meta.tabs.includes('creditInvestigation') && meta.subgroup === subgroup
-                );
+              {appraisalGroups.map((group) => {
+                const groupDocsByKey = new Map(group.documents.map((doc) => [doc.key, doc]));
                 return (
-                  <Stack key={subgroup} spacing={1.25}>
-                    <SectionLabel>{REQUIREMENT_SUBGROUP_LABELS[subgroup]}</SectionLabel>
+                  <Box key={group.id} sx={{ p: 2.5, borderRadius: '13px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 1.5 }}>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Iconify icon="solar:home-2-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
+                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
+                          {group.tctNumber}
+                        </Typography>
+                      </Stack>
+                      <IconButton
+                        onClick={() => removeAppraisalGroup(group.id)}
+                        aria-label={`Remove property ${group.tctNumber}`}
+                        size="small"
+                        sx={{ color: '#B0B6C3', '&:hover': { color: '#F04438', bgcolor: 'rgba(240,68,56,0.06)' } }}
+                      >
+                        <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                      </IconButton>
+                    </Stack>
                     <Stack spacing={1.25}>
-                      {subgroupMeta.map((meta) => {
-                        const doc = requiredDocsByKey.get(meta.key);
+                      {APPRAISAL_DOC_META.map((meta) => {
+                        const doc = groupDocsByKey.get(meta.key);
                         if (!doc) return null;
                         return (
                           <RequirementDocRow
                             key={meta.key}
                             meta={meta}
                             doc={doc}
-                            onUpload={handleUploadDoc(meta.key)}
+                            onUpload={handleUploadAppraisalDoc(group.id, meta.key)}
+                            onRemove={handleRemoveAppraisalDoc(group.id, meta.key)}
+                            onToggleReviewed={handleToggleAppraisalDocReviewed(group.id, meta.key)}
                           />
                         );
                       })}
                     </Stack>
-                  </Stack>
-                );
-              })}
-            </Stack>
-          ) : (
-            <Stack spacing={1.25}>
-              {REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes(activeTab)).map((meta) => {
-                const doc = requiredDocsByKey.get(meta.key);
-                if (!doc) return null;
-                return (
-                  <RequirementDocRow
-                    key={meta.key}
-                    meta={meta}
-                    doc={doc}
-                    onUpload={handleUploadDoc(meta.key)}
-                  />
+                  </Box>
                 );
               })}
             </Stack>
           )}
+        </Box>
+
+        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 2 }}>
+            {REQUIREMENT_TAB_LABELS.financialEvaluation}
+          </Typography>
+
+          <Stack spacing={1.25}>
+            {REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation')).map((meta) => {
+              const doc = requiredDocsByKey.get(meta.key);
+              if (!doc) return null;
+              return (
+                <RequirementDocRow
+                  key={meta.key}
+                  meta={meta}
+                  doc={doc}
+                  onUpload={handleUploadDoc(meta.key)}
+                  onRemove={handleRemoveDoc(meta.key)}
+                  onToggleReviewed={handleToggleReviewed(meta.key)}
+                />
+              );
+            })}
+          </Stack>
         </Box>
 
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
@@ -355,7 +512,7 @@ export function RequirementChecklistView() {
           <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
             {allRequiredReceived
               ? 'All required documents are on file — ready to endorse to the next step.'
-              : `Clear the ${requiredMeta.length - receivedRequiredCount} outstanding item(s) above, then endorse this application to the next step.`}
+              : `Clear the ${totalRequiredCount - receivedRequiredCount} outstanding item(s) above, then endorse this application to the next step.`}
           </Typography>
 
           <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>

@@ -140,10 +140,13 @@ NegativeCreditReport  { thru, negativeRecordText, accountFindings, cancelledCred
 Reconsideration       { notes, decision }
 CallReport            { approved, ...~75 structured fields across 9 sections — see
                         "Call Report" below }
-RequirementChecklist  { documents, collateralNotes, endorsed, returnedToApplicant,
-                        returnReason } — documents is RequirementDoc[] (fixed
-                        24-document list across 3 tabs, not a flat checklist of
-                        checked/unchecked items). See
+RequirementChecklist  { documents, appraisalGroups, collateralNotes, endorsed,
+                        returnedToApplicant, returnReason } — documents is
+                        RequirementDoc[] (fixed 19-document list across Credit
+                        Investigation/Financial Evaluation, not a flat checklist
+                        of checked/unchecked items); appraisalGroups is
+                        AppraisalTctGroup[], one officer-added entry per pledged
+                        property, each with its own 8-document set. See
                         docs/ADMIN_REQUIREMENT_CHECKLIST.md.
 
 ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callReport, requirementChecklist }
@@ -741,7 +744,11 @@ Credit Checking's and Call Report's **View all officer notes** actions, plus
 Reconsideration's read-only note block, so connected pages cannot drift. The
 first two mount the same `OfficerNotesDialog`, standardizing the "All officer
 notes" title, generic subtitle ("Notes recorded throughout the application
-process."), close behavior, compact content layout, and empty state. To conserve
+process."), close behavior, compact content layout, and empty state. The modal
+also contains its own Add Officer Note form. Each caller passes the current
+process label, so notes created inside the modal automatically record where they
+were added (Initial Credit Checking, Call Report, or Requirement Checklist),
+along with officer and date/time. To conserve
 vertical space, each history card keeps officer, date/time, and process on one
 wrapping metadata row, followed directly by the note with reduced padding and
 spacing. This mechanism remains distinct from
@@ -1058,13 +1065,15 @@ The page's own intro card ("Call Report & Loan Package Proposal / Complete this 
 ### Requirement Checklist (`src/sections/admin/requirement-checklist-view.tsx`)
 
 Rendered at `/admin/applications/[id]/requirement-checklist`, "Step 3 ·
-Requirement Checklist". Reviews a fixed 24-document list — presented as 3
-tabs (Credit Investigation / Appraisal / Financial Evaluation; Credit
-Investigation further split into two named sub-groups) rather than one flat
-list, with several documents shared across tabs — against what's on file,
-shows a merged AI review/summary/recommendation card, and either endorses the
-application onward or returns it to the applicant with a recorded reason. See
-`docs/ADMIN_REQUIREMENT_CHECKLIST.md` for the full document breakdown by tab.
+Requirement Checklist". Presents three stacked cards, not tabs — Credit
+Investigation (19-document fixed list split with Financial Evaluation, plus
+two named sub-groups), Appraisal (an officer-managed set of per-property TCT/
+CCT groups, each with its own independent 8-document checklist — a borrower
+can pledge more than one property), and Financial Evaluation — against what's
+on file, shows a merged AI review/summary/recommendation card, and either
+endorses the application onward or returns it to the applicant with a
+recorded reason. See `docs/ADMIN_REQUIREMENT_CHECKLIST.md` for the full
+document breakdown and the Appraisal group model.
 
 `ApplicationDetailsCard` is always the first card on this page, including the
 Endorsed and Returned completion states. Requirement Checklist hides

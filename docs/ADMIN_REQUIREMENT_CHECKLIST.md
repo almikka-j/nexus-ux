@@ -52,38 +52,43 @@ Endorse or Return to Applicant as well; the relevant success-state card follows
 it and the Call Report action remains available.
 Both prior-process report actions remain available.
 
+Opening **View all officer notes** passes `Requirement Checklist` to the shared
+`OfficerNotesDialog`. Officers can add a note directly inside the modal; the new
+history entry automatically displays the officer name, date/time, note, and
+Process = Requirement Checklist.
+
+## Layout: three stacked cards, not tabs
+
+The screen renders **Credit Investigation**, **Appraisal**, and **Financial
+Evaluation** as three separate cards, one after another, all visible at
+once — not as tabs behind a single switcher (an earlier iteration of this
+screen used MUI `Tabs`; that was replaced with plain stacked cards per
+direct request). Card labels deliberately use this earlier design mockup's
+naming (`Credit Investigation` / `Appraisal` / `Financial Evaluation`),
+superseding the "keep app wording" note in the History section below, which
+now only applies to the page's own title/step badge, not these card labels.
+
 ## The fixed document list (`requirement-checklist-docs.ts`)
 
-`REQUIREMENT_DOC_META` is a **static array of 24 documents across 3 tabs** —
-the same list renders for every application, regardless of employment
-status, loan type, or any other application field. The screen presents these
-via MUI `Tabs` (`Credit Investigation` / `Appraisal` / `Financial
-Evaluation` — deliberately using this earlier mockup's naming for the tabs
-specifically, superseding the "keep app wording" note in the History section
-below, which now only applies to the page's own title/step badge, not tab
-labels):
+`REQUIREMENT_DOC_META` covers **Credit Investigation and Financial
+Evaluation only** — 19 documents across those two cards, the same list for
+every application regardless of employment status, loan type, or any other
+application field:
 
 - **Credit Investigation** (14 documents, split into two named sub-groups —
-  the only tab with this nesting):
+  the only card with this nesting):
   - **Loan Credit Checking Documents**: CIC Check, CMAP Check, NFIS/BAP Check
     (all 3 required).
   - **Loan Requirements**: Bank Authorization Form (signed, required),
     POEA Contract (not required — shared with Financial Evaluation), Working
     Visa (required — shared with Financial Evaluation), Flight Details
     (required), Proof of Billing (required — shared with Financial
-    Evaluation), Statement of Account (not required — shared with Appraisal
-    and Financial Evaluation), Primary IDs of Mortgagor w/ 3 specimen
-    signature (not required — shared with Appraisal), Primary IDs of Spouse
-    w/ 3 specimen signature (not required), Primary IDs Borrowers w/ 3
-    specimen signature (required), Additional/Other Documents (not required —
-    shared with Appraisal and Financial Evaluation), TIN – Primary
-    ID(Principal/consumer) (required).
-- **Appraisal** (8 documents, flat list — real-estate collateral document set
-  only; other collateral types aren't modeled): Photocopy of TCT/CCT (all
-  pages), Photocopy of Tax Declaration, Photocopy of realty tax payment, Lot
-  Plan/Floor Plan, Tax Mapping Authorization (all 5 required), plus the
-  shared Statement of Account, Primary IDs of Mortgagor, and Additional/Other
-  Documents from Credit Investigation's Loan Requirements sub-group.
+    Evaluation), Statement of Account (not required — shared with Financial
+    Evaluation), Primary IDs of Mortgagor w/ 3 specimen signature (not
+    required), Primary IDs of Spouse w/ 3 specimen signature (not required),
+    Primary IDs Borrowers w/ 3 specimen signature (required),
+    Additional/Other Documents (not required — shared with Financial
+    Evaluation), TIN – Primary ID(Principal/consumer) (required).
 - **Financial Evaluation** (11 documents, flat list): 6 months Bank Statement
   of Main Depository Bank (required), Certificate of Employment indicating
   status, service tenure and compensation breakdown (required), Individual
@@ -93,36 +98,106 @@ labels):
   POEA Contract, Working Visa, Proof of Billing, Statement of Account, and
   Additional/Other Documents.
 
-**Documents shared across tabs are one underlying document, not duplicates.**
-Working Visa, Proof of Billing, POEA Contract, Statement of Account, Primary
-IDs of Mortgagor, and Additional/Other Documents each appear in more than one
-tab's list — but each has exactly **one** `RequirementDocMeta` entry (one
-`key`, so one `RequirementDoc` in state). `RequirementDocMeta.tabs:
-RequirementDocTab[]` lists every tab a document belongs to; the view filters
-`REQUIREMENT_DOC_META` by `meta.tabs.includes(activeTab)` rather than by a
-single owning category. Uploading a shared document in one tab updates the
-same underlying `RequirementDoc`, so switching to another tab that also lists
-it immediately shows the new status — there is no way for the same real-world
-document to read "uploaded" in one tab and "missing" in another.
+**Documents shared between these two cards are one underlying document, not
+duplicates.** Working Visa, Proof of Billing, POEA Contract, Statement of
+Account, and Additional/Other Documents each appear on both cards — but each
+has exactly **one** `RequirementDocMeta` entry (one `key`, so one
+`RequirementDoc` in state). `RequirementDocMeta.tabs: RequirementDocTab[]`
+(named `tabs` from this screen's earlier tab-based iteration; kept as-is
+rather than renamed for a naming-only change) lists every card a document
+belongs to — `RequirementDocTab` is now just `'creditInvestigation' |
+'financialEvaluation'`. The view filters `REQUIREMENT_DOC_META` by
+`meta.tabs.includes('financialEvaluation')` etc. rather than by a single
+owning category. Uploading a shared document on one card updates the same
+underlying `RequirementDoc`, so the other card that also lists it
+immediately shows the new status — there is no way for the same real-world
+document to read "uploaded" on one card and "missing" on the other.
 
-16 of the 24 documents are `required: true`. Each `RequirementDocMeta` entry
+12 of the 19 documents are `required: true`. Each `RequirementDocMeta` entry
 carries `{ key, label, tabs, subgroup?, required, freshStatus, freshNote }` —
 `subgroup` (`'loanCreditChecking' | 'loanRequirements'`) is only set on
-Credit Investigation's 14 documents; every other tab ignores it since it
+Credit Investigation's 14 documents; Financial Evaluation ignores it since it
 renders a flat list. `freshStatus`/`freshNote` are the deterministic outcome
 assigned the moment an admin uploads a file for that document while it's
 `'missing'` (see `RequirementDocRow` below). These are fixed per document
 key, never randomized — the same document key always produces the same
 canned note.
 
+## Appraisal: per-property (TCT/CCT), not part of the fixed list above
+
+Appraisal is **not** part of `REQUIREMENT_DOC_META` — it's a repeatable,
+officer-managed set of "property groups," because a borrower can pledge more
+than one property as collateral, each with its own TCT/CCT number and its
+own independent set of paperwork. This only models real-estate collateral;
+other collateral types (vehicle, equipment, etc.) aren't represented here.
+
+- **`APPRAISAL_DOC_META`** (`requirement-checklist-docs.ts`): a fixed
+  8-document list — Photocopy of TCT/CCT (all pages), Photocopy of Tax
+  Declaration, Photocopy of realty tax payment, Lot Plan/Floor Plan, Tax
+  Mapping Authorization (all 5 required), plus Statement of Account, Primary
+  IDs of Mortgagor w/ 3 specimen signature, and Additional/Other Documents
+  (not required). This is a **leaner `AppraisalDocMeta` type** (`{ key,
+  label, required, freshStatus, freshNote }`, no `tabs`/`subgroup`) since
+  appraisal documents don't belong to Credit Investigation/Financial
+  Evaluation's shared-tab model at all.
+- **Deliberately NOT shared with Credit Investigation's same-named
+  documents.** Even though "Statement of Account," "Primary IDs of
+  Mortgagor," and "Additional/Other Documents" have the same labels as
+  entries in `REQUIREMENT_DOC_META`, the appraisal copies use different keys
+  (`appraisalStatementOfAccount`, `appraisalPrimaryIdsMortgagor`,
+  `appraisalAdditionalOtherDocuments`) and are fully independent per property
+  group — a decision made explicitly when this was built, since each
+  property's paperwork is its own thing, not the same physical document as
+  the borrower's general Credit Investigation/Financial Evaluation
+  submissions.
+- **`AppraisalTctGroup`** (`src/auth/admin-context.tsx`): `{ id, tctNumber,
+  documents: RequirementDoc[] }` — one group per pledged property, each with
+  its own full copy of the 8 `APPRAISAL_DOC_META` documents (generated by
+  `createAppraisalGroupDocuments()`). `RequirementChecklist.appraisalGroups:
+  AppraisalTctGroup[]` starts with **one seeded group** (`TCT-2024-00981`,
+  mostly received except `taxMappingAuthorization` — same pre-populated demo
+  pattern as `createInitialRequirementDocuments()`), not empty, so a fresh
+  session isn't permanently blocked from endorsing.
+- **Officer-managed, not fixed.** The Appraisal card has a "TCT/CCT number"
+  text field + **Add Property** button (`addAppraisalGroup(tctNumber)`) that
+  appends a new group with all 8 documents starting `missing`, and each
+  group has its own trash-icon **Remove Property** button
+  (`removeAppraisalGroup(groupId)`) that deletes the whole group and its
+  documents. `updateAppraisalGroupDoc(groupId, docKey, data)` patches a
+  single document within one specific group (used by that group's Upload /
+  Remove / Mark as Reviewed actions) — every mutation targets one group by
+  `id`, never all groups at once.
+- **Gating: at least one *complete* group is always required to endorse.**
+  `appraisalGroupsComplete` (`requirement-checklist-view.tsx`) is true only
+  when `appraisalGroups.length > 0` AND every single group has all 5 required
+  appraisal documents received (`status !== 'missing'`) — one incomplete
+  property is enough to withhold the appraisal-required credit entirely from
+  the header counter, even if every other group is fully complete. Zero
+  groups is not treated as "no appraisal requirement" — it's treated as
+  incomplete, since every application is assumed to have at least one
+  pledged property.
+
 ## `RequirementDoc` state shape (`src/auth/admin-context.tsx`)
 
 ```ts
-RequirementDoc        { key, status, aiNote, fileName, uploadedAt }
+RequirementDoc        { key, status, aiNote, fileName, uploadedAt, uploadedBy, reviewed }
                        — status: 'verified' | 'needs-review' | 'missing'
-RequirementChecklist  { documents: RequirementDoc[], collateralNotes, endorsed,
-                        returnedToApplicant, returnReason }
+AppraisalTctGroup     { id, tctNumber, documents: RequirementDoc[] }
+RequirementChecklist  { documents: RequirementDoc[], appraisalGroups: AppraisalTctGroup[],
+                        collateralNotes, endorsed, returnedToApplicant, returnReason }
 ```
+
+`uploadedBy` and `reviewed` were added alongside the AI summary/date-display
+work below — `uploadedBy` records the officer's name (from `AdminUser`,
+falling back to `'Credit Officer'`) at the moment of upload; `reviewed` is
+the officer's own "I looked at this" confirmation, independent of `status`
+(see `RequirementDocRow` below for how the two differ). Every document
+mutation — `handleUploadDoc`, `handleRemoveDoc`, `handleToggleReviewed`, and
+their Appraisal-group equivalents — sets both fields explicitly: upload sets
+`uploadedBy` to the current officer and resets `reviewed: false` (a
+newly-uploaded file hasn't been reviewed yet, even if it replaces a
+previously-reviewed one); remove clears `uploadedBy`/`reviewed` back to
+`null`/`false` along with the other fields.
 
 `review.requirementChecklist.documents` is one `RequirementDoc` per entry in
 `REQUIREMENT_DOC_META` (matched by `key`), created fresh per session by
@@ -132,68 +207,122 @@ document as already received except two — `incomeTaxReturn` and
 (`DOCS_STARTING_MISSING`), so there's always at least one outstanding item to
 upload and endorse past on first load. Received documents get a sample
 filename + that document's `freshStatus`/`freshNote` already applied,
-`uploadedAt` backdated to epoch. Only `taxMappingAuthorization` is
-`required: true` of the two starting-missing documents, so the header
-counter starts at 15/16 required received, not 16/16.
+`uploadedAt` backdated to epoch, `uploadedBy: 'Ramon Cruz'`, `reviewed:
+false`. Only `taxMappingAuthorization` is `required: true` of the two
+starting-missing documents, so the header counter starts partway rather than
+at the full required count.
+
+`review.requirementChecklist.appraisalGroups` starts with one seeded group
+(`createAppraisalGroup('TCT-2024-00981', true)`) — see "Appraisal:
+per-property" above for its own pre-populated pattern (mostly received,
+`taxMappingAuthorization` starts missing there too).
+
+`readStoredState()`'s localStorage migration (`admin-context.tsx`) merges
+stored `documents`/`appraisalGroups` onto the fresh default set **by `key`/
+`id`**, rather than trusting a stored array wholesale — a session saved
+before a doc-list or field-shape change (new keys, new fields like
+`uploadedBy`/`reviewed`) would otherwise carry forward a stale/incomplete
+array missing them.
 
 ## `RequirementDocRow` (`src/sections/admin/requirement-doc-row.tsx`)
 
-One row per document, rendering a status icon, the document label (prefixed
-with a red `*` when `meta.required`), the current `aiNote` (if any), a status
-chip, and one action button:
+One row per document, rendering: a checkbox (missing docs show a status icon
+instead, since there's nothing to review yet) · the document label (prefixed
+with a red `*` when `meta.required`) · the AI note, if any · "Uploaded
+{date} by {uploadedBy}" (missing docs omit this line) · a status chip ·
+a "Reviewed" chip when `doc.reviewed` · and one or two action buttons.
+`meta` accepts either `RequirementDocMeta` (Credit Investigation/Financial
+Evaluation) or the leaner `AppraisalDocMeta` (Appraisal groups) — the
+component only reads `required`/`label`/`freshStatus`/`freshNote`, fields
+both types share, so the same row renders either kind without a type
+discriminator:
 
-- **Verified / Needs review** → **View** button opens a lightweight `Dialog`
-  showing the filename, status chip, and AI note. There is no real document
-  viewer anywhere in this app — this is filename + note only, not a rendered
-  file.
+- **Verified / Needs review** → the **checkbox toggles `reviewed`**
+  independently of `status` — this is the officer's own "Mark as Reviewed"
+  confirmation, separate from the AI's Verified/Needs Review read (a
+  document can be AI-verified but not yet officer-reviewed, or reviewed but
+  still flagged needs-review). **View** opens a lightweight `Dialog` showing
+  the filename, status chip, Reviewed chip (if set), upload date/uploader,
+  and AI note. There is no real document viewer anywhere in this app — this
+  is filename + note only, not a rendered file. A trash-icon **Remove**
+  button resets the document straight back to `missing` (clearing
+  `fileName`/`uploadedAt`/`uploadedBy`/`aiNote`/`reviewed`) with no
+  confirmation dialog — re-uploading is one click away if removed by
+  mistake.
 - **Missing** → **Upload** button opens a real hidden `<input type="file"
   accept="image/*,.pdf">` file picker. Picking a file does **not** read or
   parse the file's contents — it deterministically assigns that document's
   `meta.freshStatus`/`meta.freshNote` (from `requirement-checklist-docs.ts`),
-  records the picked file's own `name` as `fileName`, and stamps
-  `uploadedAt: new Date().toISOString()`. A document that starts "needs
-  review" stays "needs review" after upload if that's its `freshStatus` —
-  uploading a file for a missing document does not automatically mean
-  "verified."
+  records the picked file's own `name` as `fileName`, stamps `uploadedAt: new
+  Date().toISOString()`, sets `uploadedBy` to the current officer, and resets
+  `reviewed: false`. A document that starts "needs review" stays "needs
+  review" after upload if that's its `freshStatus` — uploading a file for a
+  missing document does not automatically mean "verified."
 
 ## Progress counter and Endorse-gating rule
 
-The header counter (`{receivedRequiredCount}/{requiredMeta.length}`, e.g.
-"13/15") and the progress bar both count **only required documents**, and
-count a document as "received" whenever its `status !== 'missing'` — i.e.
+The header counter (`{receivedRequiredCount}/{totalRequiredCount}`) and the
+progress bar count **required documents across Credit
+Investigation/Financial Evaluation's fixed list AND every Appraisal
+group's required documents together** — one combined fraction, not one per
+card. A document counts as "received" whenever its `status !== 'missing'` —
 `'needs-review'` counts as received for this purpose, only `'missing'`
 doesn't.
 
+**Appraisal contributes to this count only as a complete unit.**
+`appraisalGroupsComplete` is true only when at least one group exists AND
+every single group has all 5 required appraisal documents received — if even
+one group is missing a required document, **none** of the appraisal required
+count is added to `receivedRequiredCount` (not "credit for the complete
+groups minus the incomplete one" — all-or-nothing across every group). Zero
+groups is treated as incomplete, not "not applicable" — every application is
+assumed to have at least one pledged property.
+
 **The Endorse button is gated the same way:** `allRequiredReceived =
-receivedRequiredCount === requiredMeta.length`. This means a required document
+receivedRequiredCount === totalRequiredCount`. This means a required document
 sitting at `'needs-review'` does **not** block endorsement — only a required
-document still `'missing'` does. The non-required `statementOfAccount`
-document never factors into the counter or the gate regardless of its status.
-"Ready to endorse?" card copy switches between "All required documents are on
-file — ready to endorse" and "Clear the N outstanding item(s) above" based on
-this same `allRequiredReceived` boolean.
+document still `'missing'` (in either the fixed list or any Appraisal group)
+does. Non-required documents (e.g. `statementOfAccount`) never factor into
+the counter or the gate regardless of their status. "Ready to endorse?" card
+copy switches between "All required documents are on file — ready to
+endorse" and "Clear the N outstanding item(s) above" based on this same
+`allRequiredReceived` boolean.
 
 ## AI summary/recommendation derivation (`requirement-checklist-risk.ts`)
 
 `buildRequirementChecklistSummary(documents, docMeta, monthlyIncome,
-desiredLoanAmount)` is a pure function, recomputed at render time, never
-stored — same pattern as `initial-credit-checking-risk.ts`'s
-`buildInitialAiRecommendation`. It returns `{ level, summary, recommendation
-}`:
+desiredLoanAmount, appraisalDocs, appraisalDocMeta, hasAppraisalGroups)` is a
+pure function, recomputed at render time, never stored — same pattern as
+`initial-credit-checking-risk.ts`'s `buildInitialAiRecommendation`. The
+caller (`requirement-checklist-view.tsx`) passes `appraisalGroups.flatMap(g
+=> g.documents)` as `appraisalDocs` — every group's documents flattened
+together, counted exactly like the fixed Credit Investigation/Financial
+Evaluation documents (a missing document in any group is still a missing
+document for this purpose; it's only the header counter's "all groups must
+be complete" all-or-nothing rule that's stricter, not this function's raw
+counting). It returns `{ level, summary, recommendation }`:
 
 - **AI Summary** is always the same shape of sentence: how many of the total
-  documents are on file, how many the "AI" verified vs. flagged for review vs.
-  found missing, and a one-line income/loan-amount consistency check pulled
-  straight from `application.financialInfo`.
+  documents (fixed list + every Appraisal group's documents combined) are on
+  file, how many the "AI" verified vs. flagged for review vs. found missing,
+  and a one-line income/loan-amount consistency check pulled straight from
+  `application.financialInfo`.
 - **Risk level** (`'good' | 'watch' | 'high'`) drives both the **AI
   Recommendation** card's background/text color and its label ("Ready" /
   "Almost ready" / "Not ready"):
-  - `'high'` — at least one **required** document is still missing.
-  - `'watch'` — no required document is missing, but at least one document
-    (required or not) is `'needs-review'`.
-  - `'good'` — every document is `'verified'`.
-- **AI Recommendation** text lists every non-verified document by label (not
-  just required ones) when there's outstanding work, or a plain "Ready to
+  - `'high'` — at least one **required** document (fixed-list or
+    appraisal) is still missing, OR `hasAppraisalGroups` is false (zero
+    properties added counts as a missing requirement, forcing at least
+    `'high'`).
+  - `'watch'` — no required document is missing and at least one property
+    exists, but at least one document (required or not, anywhere) is
+    `'needs-review'`.
+  - `'good'` — every document across the fixed list and every Appraisal
+    group is `'verified'`.
+- **AI Recommendation** text lists every non-verified document by label
+  (fixed-list and appraisal both, not just required ones) when there's
+  outstanding work — appending "at least one property (TCT/CCT group)" to
+  that list when `hasAppraisalGroups` is false — or a plain "Ready to
   endorse" line once everything is verified.
 
 Note the risk level's `'watch'`/`'high'` split is **stricter** than the
@@ -221,13 +350,18 @@ confirmation screen, not an actual message sent to anyone.
 
 ## Non-goals / History
 
-- **No conditional document sets.** This screen's document list does **not**
-  vary by application — every borrower sees the same fixed 16
-  documents/3 categories regardless of employment status, loan type, income,
-  or any other application field. This is a deliberate, explicit scope
-  limitation from the original design spec (see
+- **No conditional document sets — Credit Investigation/Financial Evaluation
+  only; Appraisal is a deliberate, later exception.** The 19-document fixed
+  list still does **not** vary by application — every borrower sees the same
+  documents on those two cards regardless of employment status, loan type,
+  income, or any other application field. This was a deliberate, explicit
+  scope limitation from the original design spec (see
   `docs/superpowers/specs/2026-07-20-requirement-checklist-rebuild-design.md`'s
-  "Non-goals"), not a bug or an oversight to "fix" by adding conditional logic.
+  "Non-goals"). Appraisal's per-property groups (see "Appraisal: per-property"
+  above) are a later, explicitly-requested exception to that limitation, not
+  a quiet erosion of it — the officer adding/removing TCT groups is a real,
+  intentional per-application variation, scoped narrowly to real-estate
+  collateral only.
 - **No real document viewer.** "View" shows filename + AI note in a simple
   dialog, never an actual rendered file — consistent with the rest of this
   prototype's upload handling (see `docs/BORROWER_SIGNUP_FLOW.md` and

@@ -2,32 +2,45 @@
 
 // ----------------------------------------------------------------------
 // Static content for the Requirement Checklist screen — the fixed document
-// list, grouped into 3 tabs (Credit Investigation / Appraisal / Financial
-// Evaluation), each document's required-ness, and the canned AI note it gets
-// the first time a file is uploaded for it. Kept separate from
-// admin-context.tsx's RequirementChecklist state (per-application,
-// persisted) the same way initial-credit-checking-risk.ts is kept separate
-// from CreditChecking state: this is fixed content, not per-application
-// data.
+// list, grouped into 3 cards (Credit Investigation / Appraisal / Financial
+// Evaluation, all rendered at once — not tabs), each document's
+// required-ness, and the canned AI note it gets the first time a file is
+// uploaded for it. Kept separate from admin-context.tsx's RequirementChecklist
+// state (per-application, persisted) the same way
+// initial-credit-checking-risk.ts is kept separate from CreditChecking state:
+// this is fixed content, not per-application data.
 //
 // The document set does NOT vary by employment status, loan type, or any
 // other application field — every application shows the same document list.
 //
 // A handful of documents (Working Visa, Statement of Account,
-// Additional/Other Documents) are required reading in more than one tab —
+// Additional/Other Documents) are required reading in more than one card —
 // e.g. Working Visa matters to both Credit Investigation and Financial
 // Evaluation. Rather than duplicate that document under two separate keys
-// (which would let it be "uploaded" in one tab but still show "missing" in
+// (which would let it be "uploaded" in one card but still show "missing" in
 // the other for what a reviewer would consider the same physical document),
-// each RequirementDocMeta lists every tab it appears in via `tabs` — one
+// each RequirementDocMeta lists every card it appears in via `tabs` (named
+// for the UI's earlier tab-based iteration; kept as `tabs` rather than
+// renamed to avoid a same-turn rename with no behavior change) — one
 // underlying RequirementDoc/upload, shown wherever it's relevant.
+//
+// Appraisal is NOT part of this shared-doc model — see
+// APPRAISAL_DOC_META below. A borrower can pledge more than one property as
+// collateral, each with its own TCT/CCT number and its own independent copy
+// of the appraisal document set (including its own Statement of Account /
+// Primary IDs of Mortgagor / Additional Documents, decoupled from Credit
+// Investigation's and Financial Evaluation's copies of those same-named
+// documents) — so appraisal documents are generated fresh per TCT group
+// (`AppraisalTctGroup` in admin-context.tsx) rather than living as fixed
+// entries in REQUIREMENT_DOC_META.
 // ----------------------------------------------------------------------
 
-export type RequirementDocTab = 'creditInvestigation' | 'appraisal' | 'financialEvaluation';
+export type RequirementDocTab = 'creditInvestigation' | 'financialEvaluation';
 
-// Credit Investigation is the only tab with a further nested grouping (two
-// named sub-sections). Every other tab renders its documents as one flat
-// list, so `subgroup` is only meaningful there — undefined elsewhere.
+// Credit Investigation is the only card with a further nested grouping (two
+// named sub-sections). Financial Evaluation renders its documents as one
+// flat list, so `subgroup` is only meaningful on Credit Investigation's
+// entries — undefined elsewhere.
 export type RequirementDocSubgroup = 'loanCreditChecking' | 'loanRequirements';
 
 export type RequirementDocStatus = 'verified' | 'needs-review' | 'missing';
@@ -47,13 +60,11 @@ export type RequirementDocMeta = {
 
 export const REQUIREMENT_TAB_LABELS: Record<RequirementDocTab, string> = {
   creditInvestigation: 'Credit Investigation',
-  appraisal: 'Appraisal',
   financialEvaluation: 'Financial Evaluation',
 };
 
 export const REQUIREMENT_TAB_ORDER: RequirementDocTab[] = [
   'creditInvestigation',
-  'appraisal',
   'financialEvaluation',
 ];
 
@@ -140,7 +151,7 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
   {
     key: 'statementOfAccount',
     label: 'Statement of Account',
-    tabs: ['creditInvestigation', 'appraisal', 'financialEvaluation'],
+    tabs: ['creditInvestigation', 'financialEvaluation'],
     subgroup: 'loanRequirements',
     required: false,
     freshStatus: 'verified',
@@ -149,7 +160,7 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
   {
     key: 'primaryIdsMortgagor',
     label: 'Primary IDs of Mortgagor with 3 specimen signature',
-    tabs: ['creditInvestigation', 'appraisal'],
+    tabs: ['creditInvestigation'],
     subgroup: 'loanRequirements',
     required: false,
     freshStatus: 'needs-review',
@@ -176,7 +187,7 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
   {
     key: 'additionalOtherDocuments',
     label: 'Additional/Other Documents',
-    tabs: ['creditInvestigation', 'appraisal', 'financialEvaluation'],
+    tabs: ['creditInvestigation', 'financialEvaluation'],
     subgroup: 'loanRequirements',
     required: false,
     freshStatus: 'verified',
@@ -190,47 +201,6 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
     required: true,
     freshStatus: 'verified',
     freshNote: '2 attachments · TIN format valid.',
-  },
-  // Appraisal
-  {
-    key: 'tctCctCopy',
-    label: 'Photocopy of TCT/CCT (all pages)',
-    tabs: ['appraisal'],
-    required: true,
-    freshStatus: 'verified',
-    freshNote: 'All pages present and legible.',
-  },
-  {
-    key: 'taxDeclarationCopy',
-    label: 'Photocopy of Tax Declaration',
-    tabs: ['appraisal'],
-    required: true,
-    freshStatus: 'verified',
-    freshNote: 'Declared value matches TCT/CCT.',
-  },
-  {
-    key: 'realtyTaxReceipt',
-    label: 'Photocopy of realty tax payment',
-    tabs: ['appraisal'],
-    required: true,
-    freshStatus: 'needs-review',
-    freshNote: 'Receipt is from prior year — confirm current.',
-  },
-  {
-    key: 'lotFloorPlan',
-    label: 'Lot Plan/Floor Plan',
-    tabs: ['appraisal'],
-    required: true,
-    freshStatus: 'verified',
-    freshNote: 'Plan matches declared lot area.',
-  },
-  {
-    key: 'taxMappingAuthorization',
-    label: 'Tax Mapping Authorization',
-    tabs: ['appraisal'],
-    required: true,
-    freshStatus: 'verified',
-    freshNote: 'Signed and dated correctly.',
   },
   // Financial Evaluation
   {
@@ -272,5 +242,82 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
     required: false,
     freshStatus: 'needs-review',
     freshNote: 'Only 2 of 3 specimen signatures detected.',
+  },
+];
+
+// ----------------------------------------------------------------------
+// Appraisal — generated fresh per TCT/property group (AppraisalTctGroup in
+// admin-context.tsx), not a fixed part of REQUIREMENT_DOC_META above. Every
+// group gets its own independent copy of this same 8-document set (5
+// required, 3 not) — including its own Statement of Account, Primary IDs of
+// Mortgagor, and Additional/Other Documents, deliberately decoupled from
+// Credit Investigation's/Financial Evaluation's same-named documents, since
+// each property's paperwork is its own thing.
+// ----------------------------------------------------------------------
+
+export type AppraisalDocMeta = {
+  key: string;
+  label: string;
+  required: boolean;
+  freshStatus: 'verified' | 'needs-review';
+  freshNote: string;
+};
+
+export const APPRAISAL_DOC_META: AppraisalDocMeta[] = [
+  {
+    key: 'tctCctCopy',
+    label: 'Photocopy of TCT/CCT (all pages)',
+    required: true,
+    freshStatus: 'verified',
+    freshNote: 'All pages present and legible.',
+  },
+  {
+    key: 'taxDeclarationCopy',
+    label: 'Photocopy of Tax Declaration',
+    required: true,
+    freshStatus: 'verified',
+    freshNote: 'Declared value matches TCT/CCT.',
+  },
+  {
+    key: 'realtyTaxReceipt',
+    label: 'Photocopy of realty tax payment',
+    required: true,
+    freshStatus: 'needs-review',
+    freshNote: 'Receipt is from prior year — confirm current.',
+  },
+  {
+    key: 'lotFloorPlan',
+    label: 'Lot Plan/Floor Plan',
+    required: true,
+    freshStatus: 'verified',
+    freshNote: 'Plan matches declared lot area.',
+  },
+  {
+    key: 'taxMappingAuthorization',
+    label: 'Tax Mapping Authorization',
+    required: true,
+    freshStatus: 'verified',
+    freshNote: 'Signed and dated correctly.',
+  },
+  {
+    key: 'appraisalStatementOfAccount',
+    label: 'Statement of Account',
+    required: false,
+    freshStatus: 'verified',
+    freshNote: 'On file, no discrepancies found.',
+  },
+  {
+    key: 'appraisalPrimaryIdsMortgagor',
+    label: 'Primary IDs of Mortgagor with 3 specimen signature',
+    required: false,
+    freshStatus: 'needs-review',
+    freshNote: 'Only 2 of 3 specimen signatures detected.',
+  },
+  {
+    key: 'appraisalAdditionalOtherDocuments',
+    label: 'Additional/Other Documents',
+    required: false,
+    freshStatus: 'verified',
+    freshNote: 'Reviewed, no issues found.',
   },
 ];

@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useContext, createContext } from 'react';
 
 import type { RequirementDocStatus } from 'src/sections/admin/requirement-checklist-docs';
-import { REQUIREMENT_DOC_META } from 'src/sections/admin/requirement-checklist-docs';
+import { REQUIREMENT_DOC_META, APPRAISAL_DOC_META } from 'src/sections/admin/requirement-checklist-docs';
 
 // ----------------------------------------------------------------------
 
@@ -333,10 +333,31 @@ export type RequirementDoc = {
   aiNote: string;
   fileName: string | null;
   uploadedAt: string | null;
+  uploadedBy: string | null;
+  // Separate from `status` (the AI-assigned Verified/Needs Review/Missing
+  // read) — this is the officer's own confirmation that they've looked at
+  // the document, toggled independently via "Mark as Reviewed" in
+  // RequirementDocRow. A document can be AI-verified but not yet
+  // officer-reviewed, or vice versa.
+  reviewed: boolean;
+};
+
+// One property/collateral pledged toward this application, identified by
+// its TCT/CCT number. Each carries its own full, independent copy of
+// APPRAISAL_DOC_META's 8 documents — a borrower with multiple pledged
+// properties has one group per property, each tracked separately (see
+// requirement-checklist-docs.ts's header comment for why these are NOT
+// shared the way Working Visa/Statement of Account etc. are across Credit
+// Investigation and Financial Evaluation).
+export type AppraisalTctGroup = {
+  id: string;
+  tctNumber: string;
+  documents: RequirementDoc[];
 };
 
 export type RequirementChecklist = {
   documents: RequirementDoc[];
+  appraisalGroups: AppraisalTctGroup[];
   collateralNotes: string;
   endorsed: boolean;
   returnedToApplicant: boolean;
@@ -404,6 +425,9 @@ type AdminContextValue = AdminState & {
   updateCollateralEntry: (id: string, data: Partial<CollateralEntry>) => void;
   removeCollateralEntry: (id: string) => void;
   setRequirementChecklist: (data: Partial<RequirementChecklist>) => void;
+  addAppraisalGroup: (tctNumber: string) => void;
+  removeAppraisalGroup: (groupId: string) => void;
+  updateAppraisalGroupDoc: (groupId: string, docKey: string, data: Partial<RequirementDoc>) => void;
   markStepEntered: (step: ReviewStep) => void;
   addToNegativeList: (entry: Omit<NegativeListEntry, 'recordedAt'>) => void;
   resetReview: () => void;
@@ -439,7 +463,15 @@ const DOCS_STARTING_MISSING = new Set(['incomeTaxReturn', 'taxMappingAuthorizati
 function createInitialRequirementDocuments(): RequirementDoc[] {
   return REQUIREMENT_DOC_META.map((meta) => {
     if (DOCS_STARTING_MISSING.has(meta.key)) {
-      return { key: meta.key, status: 'missing', aiNote: '', fileName: null, uploadedAt: null };
+      return {
+        key: meta.key,
+        status: 'missing',
+        aiNote: '',
+        fileName: null,
+        uploadedAt: null,
+        uploadedBy: null,
+        reviewed: false,
+      };
     }
     return {
       key: meta.key,
@@ -447,8 +479,51 @@ function createInitialRequirementDocuments(): RequirementDoc[] {
       aiNote: meta.freshNote,
       fileName: `${meta.key}-sample.pdf`,
       uploadedAt: new Date(0).toISOString(),
+      uploadedBy: 'Ramon Cruz',
+      reviewed: false,
     };
   });
+}
+
+// Documents a newly-added TCT/property group starts with — all missing by
+// default, since a group is something the officer explicitly adds for a
+// specific property they're now collecting paperwork for, not a pre-seeded
+// demo state. `seeded: true` (used once, for the one starting group in
+// initialState below) instead pre-populates every document as already
+// received, matching createInitialRequirementDocuments()'s demo-data
+// pattern, except `taxMappingAuthorization` which starts missing so there's
+// always at least one outstanding appraisal item on first load too.
+function createAppraisalGroupDocuments(seeded = false): RequirementDoc[] {
+  return APPRAISAL_DOC_META.map((meta) => {
+    if (!seeded || meta.key === 'taxMappingAuthorization') {
+      return {
+        key: meta.key,
+        status: 'missing',
+        aiNote: '',
+        fileName: null,
+        uploadedAt: null,
+        uploadedBy: null,
+        reviewed: false,
+      };
+    }
+    return {
+      key: meta.key,
+      status: meta.freshStatus,
+      aiNote: meta.freshNote,
+      fileName: `${meta.key}-sample.pdf`,
+      uploadedAt: new Date(0).toISOString(),
+      uploadedBy: 'Ramon Cruz',
+      reviewed: false,
+    };
+  });
+}
+
+function createAppraisalGroup(tctNumber: string, seeded = false): AppraisalTctGroup {
+  return {
+    id: crypto.randomUUID(),
+    tctNumber,
+    documents: createAppraisalGroupDocuments(seeded),
+  };
 }
 
 // Factory (not a shared constant) so `resetReview()` gets a fresh object each
@@ -567,6 +642,13 @@ function createInitialReview(): ApplicationReview {
     },
     requirementChecklist: {
       documents: createInitialRequirementDocuments(),
+      // Seeded with one starting property/TCT group (matching
+      // createInitialRequirementDocuments()'s pre-populated sample data
+      // pattern) rather than starting empty — an empty appraisalGroups
+      // array is a valid "no real estate collateral yet" state the officer
+      // can still reach via "Remove Property", but a fresh session
+      // shouldn't start there.
+      appraisalGroups: [createAppraisalGroup('TCT-2024-00981', true)],
       collateralNotes: '',
       endorsed: false,
       returnedToApplicant: false,
@@ -621,9 +703,17 @@ function readStoredState(): AdminState {
         requirementChecklist: {
           ...initialState.review.requirementChecklist,
           ...storedReview.requirementChecklist,
-          documents:
-            storedReview.requirementChecklist?.documents ??
-            initialState.review.requirementChecklist.documents,
+          // Merge stored documents onto the fresh default set by `key`,
+          // rather than trusting the stored array wholesale — a session
+          // saved before a doc-list change (new keys added, or new fields
+          // like uploadedBy/reviewed added to RequirementDoc) would
+          // otherwise carry forward a stale/incomplete array missing them.
+          documents: initialState.review.requirementChecklist.documents.map((defaultDoc) => {
+            const storedDoc = storedReview.requirementChecklist?.documents?.find(
+              (doc: RequirementDoc) => doc.key === defaultDoc.key
+            );
+            return storedDoc ? { ...defaultDoc, ...storedDoc } : defaultDoc;
+          }),
         },
       },
     };
@@ -795,6 +885,53 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           review: {
             ...prev.review,
             requirementChecklist: { ...prev.review.requirementChecklist, ...data },
+          },
+        })),
+      addAppraisalGroup: (tctNumber) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            requirementChecklist: {
+              ...prev.review.requirementChecklist,
+              appraisalGroups: [
+                ...prev.review.requirementChecklist.appraisalGroups,
+                createAppraisalGroup(tctNumber),
+              ],
+            },
+          },
+        })),
+      removeAppraisalGroup: (groupId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            requirementChecklist: {
+              ...prev.review.requirementChecklist,
+              appraisalGroups: prev.review.requirementChecklist.appraisalGroups.filter(
+                (group) => group.id !== groupId
+              ),
+            },
+          },
+        })),
+      updateAppraisalGroupDoc: (groupId, docKey, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            requirementChecklist: {
+              ...prev.review.requirementChecklist,
+              appraisalGroups: prev.review.requirementChecklist.appraisalGroups.map((group) =>
+                group.id !== groupId
+                  ? group
+                  : {
+                      ...group,
+                      documents: group.documents.map((doc) =>
+                        doc.key === docKey ? { ...doc, ...data } : doc
+                      ),
+                    }
+              ),
+            },
           },
         })),
       markStepEntered: (step) =>

@@ -8,36 +8,61 @@
 // ----------------------------------------------------------------------
 
 import type { RequirementDoc } from 'src/auth/admin-context';
-import type { RequirementDocMeta } from './requirement-checklist-docs';
+import type { RequirementDocMeta, AppraisalDocMeta } from './requirement-checklist-docs';
 
 export type RequirementChecklistRiskLevel = 'good' | 'watch' | 'high';
 
+// `appraisalDocs`/`appraisalDocMeta` cover every TCT/property group's
+// documents flattened together — the AI summary/recommendation treats them
+// exactly like the fixed Credit Investigation/Financial Evaluation documents
+// for counting purposes (a missing document in any group is still a missing
+// document), it just also needs `hasAppraisalGroups` to require at least one
+// group before calling the checklist "good"/ready — see
+// requirement-checklist-view.tsx's "at least one complete TCT group is
+// always required" gating.
 export function buildRequirementChecklistSummary(
   documents: RequirementDoc[],
   docMeta: RequirementDocMeta[],
   monthlyIncome: number,
-  desiredLoanAmount: number
+  desiredLoanAmount: number,
+  appraisalDocs: RequirementDoc[],
+  appraisalDocMeta: AppraisalDocMeta[],
+  hasAppraisalGroups: boolean
 ): { level: RequirementChecklistRiskLevel; summary: string; recommendation: string } {
   const metaByKey = new Map(docMeta.map((meta) => [meta.key, meta]));
-  const requiredDocs = documents.filter((doc) => metaByKey.get(doc.key)?.required);
+  const allDocs = [...documents, ...appraisalDocs];
+  const requiredDocs = [
+    ...documents.filter((doc) => metaByKey.get(doc.key)?.required),
+    ...(hasAppraisalGroups
+      ? appraisalDocs.filter((doc) => appraisalDocMeta.find((meta) => meta.key === doc.key)?.required)
+      : []),
+  ];
 
-  const verifiedCount = documents.filter((doc) => doc.status === 'verified').length;
-  const needsReviewCount = documents.filter((doc) => doc.status === 'needs-review').length;
-  const missingCount = documents.filter((doc) => doc.status === 'missing').length;
-  const missingRequiredCount = requiredDocs.filter((doc) => doc.status === 'missing').length;
+  const verifiedCount = allDocs.filter((doc) => doc.status === 'verified').length;
+  const needsReviewCount = allDocs.filter((doc) => doc.status === 'needs-review').length;
+  const missingCount = allDocs.filter((doc) => doc.status === 'missing').length;
+  const missingRequiredCount =
+    requiredDocs.filter((doc) => doc.status === 'missing').length + (hasAppraisalGroups ? 0 : 1);
 
-  const summary = `${documents.length - missingCount} of ${documents.length} documents are on file. AI verified ${verifiedCount} document(s), flagged ${needsReviewCount} for review, and found ${missingCount} still missing. Extracted monthly income (₱${monthlyIncome.toLocaleString()}) is consistent with the ₱${desiredLoanAmount.toLocaleString()} loan request.`;
+  const summary = `${allDocs.length - missingCount} of ${allDocs.length} documents are on file. AI verified ${verifiedCount} document(s), flagged ${needsReviewCount} for review, and found ${missingCount} still missing. Extracted monthly income (₱${monthlyIncome.toLocaleString()}) is consistent with the ₱${desiredLoanAmount.toLocaleString()} loan request.`;
 
-  const outstanding = documents
+  const outstandingFixedLabels = documents
     .filter((doc) => doc.status !== 'verified')
     .map((doc) => metaByKey.get(doc.key)?.label)
     .filter((label): label is string => !!label);
+  const outstandingAppraisalLabels = appraisalDocs
+    .filter((doc) => doc.status !== 'verified')
+    .map((doc) => appraisalDocMeta.find((meta) => meta.key === doc.key)?.label)
+    .filter((label): label is string => !!label);
+  const outstanding = [...outstandingFixedLabels, ...outstandingAppraisalLabels];
+  const noPropertyNote = hasAppraisalGroups ? [] : ['at least one property (TCT/CCT group)'];
+  const allOutstanding = [...outstanding, ...noPropertyNote];
 
   if (missingRequiredCount > 0 || needsReviewCount > 0) {
     const level: RequirementChecklistRiskLevel = missingRequiredCount > 0 ? 'high' : 'watch';
     const recommendation =
-      outstanding.length > 0
-        ? `Clear the ${outstanding.length} outstanding item(s) — ${outstanding.join(', ')} — before endorsing to the next step.`
+      allOutstanding.length > 0
+        ? `Clear the ${allOutstanding.length} outstanding item(s) — ${allOutstanding.join(', ')} — before endorsing to the next step.`
         : 'Resolve the outstanding items above before endorsing to the next step.';
     return { level, summary, recommendation };
   }
