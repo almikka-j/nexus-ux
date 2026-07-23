@@ -3,6 +3,8 @@
 import { useState } from 'react';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -18,20 +20,26 @@ import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { ApplicationReviewHeader } from './application-review-header';
+import { ApplicationDetailsCard } from './application-details-card';
 import { RequirementDocRow } from './requirement-doc-row';
 import { buildRequirementChecklistSummary } from './requirement-checklist-risk';
 import {
   REQUIREMENT_DOC_META,
-  REQUIREMENT_CATEGORY_LABELS,
+  REQUIREMENT_TAB_ORDER,
+  REQUIREMENT_TAB_LABELS,
+  REQUIREMENT_SUBGROUP_LABELS,
 } from './requirement-checklist-docs';
 
 import type { RequirementDoc } from 'src/auth/admin-context';
-import type { RequirementDocCategory } from './requirement-checklist-docs';
+import type { RequirementDocTab, RequirementDocSubgroup } from './requirement-checklist-docs';
 import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk';
 
 // ----------------------------------------------------------------------
 
-const CATEGORY_ORDER: RequirementDocCategory[] = ['loan', 'financial', 'appraisal'];
+// Credit Investigation is the only tab with a further nested grouping —
+// this fixed order matches the two sub-groups' presentation order in the
+// design reference (Loan Credit Checking Documents above Loan Requirements).
+const SUBGROUP_ORDER: RequirementDocSubgroup[] = ['loanCreditChecking', 'loanRequirements'];
 
 const RISK_STYLES: Record<
   RequirementChecklistRiskLevel,
@@ -69,7 +77,15 @@ function SuccessState({
 }) {
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
-      <ApplicationReviewHeader step={stepLabel} reviewStep="requirementChecklist" />
+      <ApplicationReviewHeader
+        step={stepLabel}
+        reviewStep="requirementChecklist"
+        hideApplicationCard
+      />
+
+      <Box sx={{ mb: 2.5 }}>
+        <ApplicationDetailsCard collapsible showCallReportAction />
+      </Box>
 
       <Stack
         alignItems="center"
@@ -103,6 +119,7 @@ export function RequirementChecklistView() {
   const [collateralNotes, setCollateralNotes] = useState(review.requirementChecklist.collateralNotes);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnReasonDraft, setReturnReasonDraft] = useState('');
+  const [activeTab, setActiveTab] = useState<RequirementDocTab>(REQUIREMENT_TAB_ORDER[0]);
 
   if (!signUpData) return null;
 
@@ -177,9 +194,15 @@ export function RequirementChecklistView() {
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
-      <ApplicationReviewHeader step="Step 3 · Requirement Checklist" reviewStep="requirementChecklist" />
+      <ApplicationReviewHeader
+        step="Step 3 · Requirement Checklist"
+        reviewStep="requirementChecklist"
+        hideApplicationCard
+      />
 
       <Stack spacing={2.5}>
+        <ApplicationDetailsCard collapsible showCallReportAction />
+
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
           <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ mb: 0.5 }}>
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
@@ -202,35 +225,72 @@ export function RequirementChecklistView() {
             <Box sx={{ width: `${progressFraction * 100}%`, height: '100%', bgcolor: '#1C2A6E', transition: 'width 0.2s ease' }} />
           </Box>
 
-          <Stack spacing={3}>
-            {CATEGORY_ORDER.map((category) => {
-              const categoryMeta = REQUIREMENT_DOC_META.filter((meta) => meta.category === category);
-              return (
-                <Stack key={category} spacing={1.25}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <SectionLabel>{REQUIREMENT_CATEGORY_LABELS[category]}</SectionLabel>
-                    <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
-                      {categoryMeta.length} documents
-                    </Typography>
+          <Tabs
+            value={activeTab}
+            onChange={(_event, value) => setActiveTab(value)}
+            sx={{
+              minHeight: 40,
+              mb: 2.5,
+              borderBottom: '1px solid #EBEDF3',
+              '& .MuiTab-root': {
+                minHeight: 40,
+                fontSize: 13.5,
+                fontWeight: 700,
+                textTransform: 'none',
+                color: '#8891A6',
+              },
+              '& .Mui-selected': { color: '#1C2A6E' },
+              '& .MuiTabs-indicator': { bgcolor: '#1C2A6E' },
+            }}
+          >
+            {REQUIREMENT_TAB_ORDER.map((tab) => (
+              <Tab key={tab} value={tab} label={REQUIREMENT_TAB_LABELS[tab]} />
+            ))}
+          </Tabs>
+
+          {activeTab === 'creditInvestigation' ? (
+            <Stack spacing={3}>
+              {SUBGROUP_ORDER.map((subgroup) => {
+                const subgroupMeta = REQUIREMENT_DOC_META.filter(
+                  (meta) => meta.tabs.includes('creditInvestigation') && meta.subgroup === subgroup
+                );
+                return (
+                  <Stack key={subgroup} spacing={1.25}>
+                    <SectionLabel>{REQUIREMENT_SUBGROUP_LABELS[subgroup]}</SectionLabel>
+                    <Stack spacing={1.25}>
+                      {subgroupMeta.map((meta) => {
+                        const doc = requiredDocsByKey.get(meta.key);
+                        if (!doc) return null;
+                        return (
+                          <RequirementDocRow
+                            key={meta.key}
+                            meta={meta}
+                            doc={doc}
+                            onUpload={handleUploadDoc(meta.key)}
+                          />
+                        );
+                      })}
+                    </Stack>
                   </Stack>
-                  <Stack spacing={1.25}>
-                    {categoryMeta.map((meta) => {
-                      const doc = requiredDocsByKey.get(meta.key);
-                      if (!doc) return null;
-                      return (
-                        <RequirementDocRow
-                          key={meta.key}
-                          meta={meta}
-                          doc={doc}
-                          onUpload={handleUploadDoc(meta.key)}
-                        />
-                      );
-                    })}
-                  </Stack>
-                </Stack>
-              );
-            })}
-          </Stack>
+                );
+              })}
+            </Stack>
+          ) : (
+            <Stack spacing={1.25}>
+              {REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes(activeTab)).map((meta) => {
+                const doc = requiredDocsByKey.get(meta.key);
+                if (!doc) return null;
+                return (
+                  <RequirementDocRow
+                    key={meta.key}
+                    meta={meta}
+                    doc={doc}
+                    onUpload={handleUploadDoc(meta.key)}
+                  />
+                );
+              })}
+            </Stack>
+          )}
         </Box>
 
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>

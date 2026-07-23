@@ -23,29 +23,97 @@ canned content keyed off the document itself (see `requirement-checklist-docs.ts
 not a call to any external service or document-parsing model. See "Fabricated
 claims" below for what that means for this screen's copy.
 
+## Page layout and first card
+
+The active checklist and both completion states pass `hideApplicationCard` to
+`ApplicationReviewHeader`. The header continues to handle
+back navigation, step-entry tracking, compact aging values, and the amber Step
+3 pill, but it does not render a separate borrower card. Large stale-step alerts
+have been removed globally from all process pages.
+
+The shared `ApplicationDetailsCard` is therefore always the first card on the
+Requirement Checklist page. It uses the compact/modal variant
+(`<ApplicationDetailsCard collapsible />`): borrower identity, application
+number, assigned officer, six loan-summary fields, **View full application**,
+**Initial credit checking result**, **View call report**, and **View all officer
+notes**. The shared action row never wraps. **View full application** stays
+visible at every width; Initial Credit Checking Result becomes visible when it
+fits, followed by View Call Report and View All Officer Notes at wider desktop
+widths. A bordered three-dot button contains only the actions hidden at the
+current breakpoint and disappears once every action fits. **Initial credit
+checking result** reuses
+`CreditCheckingResultModal` with `recommendationEditable={false}`, so the
+department's Recommendation & Remarks is read-only at this later process.
+**View call report** opens
+the shared read-only `CallReportResultModal`, showing call date/type/status,
+identity confirmation, representatives, stored or derived Call Summary,
+preliminary recommendation, and additional remarks. This remains first after
+Endorse or Return to Applicant as well; the relevant success-state card follows
+it and the Call Report action remains available.
+Both prior-process report actions remain available.
+
 ## The fixed document list (`requirement-checklist-docs.ts`)
 
-`REQUIREMENT_DOC_META` is a **static array of exactly 16 documents across 3
-categories** — the same list renders for every application, regardless of
-employment status, loan type, or any other application field:
+`REQUIREMENT_DOC_META` is a **static array of 24 documents across 3 tabs** —
+the same list renders for every application, regardless of employment
+status, loan type, or any other application field. The screen presents these
+via MUI `Tabs` (`Credit Investigation` / `Appraisal` / `Financial
+Evaluation` — deliberately using this earlier mockup's naming for the tabs
+specifically, superseding the "keep app wording" note in the History section
+below, which now only applies to the page's own title/step badge, not tab
+labels):
 
-- **Loan Requirements** (7 documents, 6 required): Bank Authorization Form
-  (signed), POEA Contract, Working Visa, Proof of Billing, Primary IDs w/ 3
-  specimen signatures, TIN — Primary ID, and Statement of Account (the one
-  **not** required — no asterisk in the UI).
-- **Financial Documents** (4 documents, all required): Certificate of
-  Employment, 6 months Bank Statement, Latest 2 months payslip, Income Tax
-  Return (2316).
-- **Appraisal Documents** (5 documents, all required): Photocopy of TCT / CCT
-  (all pages), Photocopy of Tax Declaration, Realty tax payment receipt, Lot
-  Plan / Floor Plan, Tax Mapping Authorization.
+- **Credit Investigation** (14 documents, split into two named sub-groups —
+  the only tab with this nesting):
+  - **Loan Credit Checking Documents**: CIC Check, CMAP Check, NFIS/BAP Check
+    (all 3 required).
+  - **Loan Requirements**: Bank Authorization Form (signed, required),
+    POEA Contract (not required — shared with Financial Evaluation), Working
+    Visa (required — shared with Financial Evaluation), Flight Details
+    (required), Proof of Billing (required — shared with Financial
+    Evaluation), Statement of Account (not required — shared with Appraisal
+    and Financial Evaluation), Primary IDs of Mortgagor w/ 3 specimen
+    signature (not required — shared with Appraisal), Primary IDs of Spouse
+    w/ 3 specimen signature (not required), Primary IDs Borrowers w/ 3
+    specimen signature (required), Additional/Other Documents (not required —
+    shared with Appraisal and Financial Evaluation), TIN – Primary
+    ID(Principal/consumer) (required).
+- **Appraisal** (8 documents, flat list — real-estate collateral document set
+  only; other collateral types aren't modeled): Photocopy of TCT/CCT (all
+  pages), Photocopy of Tax Declaration, Photocopy of realty tax payment, Lot
+  Plan/Floor Plan, Tax Mapping Authorization (all 5 required), plus the
+  shared Statement of Account, Primary IDs of Mortgagor, and Additional/Other
+  Documents from Credit Investigation's Loan Requirements sub-group.
+- **Financial Evaluation** (11 documents, flat list): 6 months Bank Statement
+  of Main Depository Bank (required), Certificate of Employment indicating
+  status, service tenure and compensation breakdown (required), Individual
+  Income Tax Return (2316) (not required), Latest two (2) months
+  payslip/Proof of Income (not required), Photocopy of two (2) government
+  issued IDs with three specimen signatures (not required), plus the shared
+  POEA Contract, Working Visa, Proof of Billing, Statement of Account, and
+  Additional/Other Documents.
 
-That's 15 required documents out of 16 total. Each `RequirementDocMeta` entry
-carries `{ key, label, category, required, freshStatus, freshNote }` —
-`freshStatus`/`freshNote` are the deterministic outcome assigned the moment an
-admin uploads a file for that document while it's `'missing'` (see
-`RequirementDocRow` below). These are fixed per document key, never
-randomized — the same document key always produces the same canned note.
+**Documents shared across tabs are one underlying document, not duplicates.**
+Working Visa, Proof of Billing, POEA Contract, Statement of Account, Primary
+IDs of Mortgagor, and Additional/Other Documents each appear in more than one
+tab's list — but each has exactly **one** `RequirementDocMeta` entry (one
+`key`, so one `RequirementDoc` in state). `RequirementDocMeta.tabs:
+RequirementDocTab[]` lists every tab a document belongs to; the view filters
+`REQUIREMENT_DOC_META` by `meta.tabs.includes(activeTab)` rather than by a
+single owning category. Uploading a shared document in one tab updates the
+same underlying `RequirementDoc`, so switching to another tab that also lists
+it immediately shows the new status — there is no way for the same real-world
+document to read "uploaded" in one tab and "missing" in another.
+
+16 of the 24 documents are `required: true`. Each `RequirementDocMeta` entry
+carries `{ key, label, tabs, subgroup?, required, freshStatus, freshNote }` —
+`subgroup` (`'loanCreditChecking' | 'loanRequirements'`) is only set on
+Credit Investigation's 14 documents; every other tab ignores it since it
+renders a flat list. `freshStatus`/`freshNote` are the deterministic outcome
+assigned the moment an admin uploads a file for that document while it's
+`'missing'` (see `RequirementDocRow` below). These are fixed per document
+key, never randomized — the same document key always produces the same
+canned note.
 
 ## `RequirementDoc` state shape (`src/auth/admin-context.tsx`)
 
@@ -58,13 +126,15 @@ RequirementChecklist  { documents: RequirementDoc[], collateralNotes, endorsed,
 
 `review.requirementChecklist.documents` is one `RequirementDoc` per entry in
 `REQUIREMENT_DOC_META` (matched by `key`), created fresh per session by
-`createInitialRequirementDocuments()`. The starting state pre-populates **14 of
-the 16 documents as already received** (a sample filename + that document's
-`freshStatus`/`freshNote` already applied, `uploadedAt` backdated to epoch),
-matching a "13/15 Required Received" starting screenshot. Exactly two
-documents — `incomeTaxReturn` and `taxMappingAuthorization` — start as
-`status: 'missing'` (`DOCS_STARTING_MISSING`), so there's always at least one
-outstanding item to upload and endorse past on first load.
+`createInitialRequirementDocuments()`. The starting state pre-populates every
+document as already received except two — `incomeTaxReturn` and
+`taxMappingAuthorization` — which start as `status: 'missing'`
+(`DOCS_STARTING_MISSING`), so there's always at least one outstanding item to
+upload and endorse past on first load. Received documents get a sample
+filename + that document's `freshStatus`/`freshNote` already applied,
+`uploadedAt` backdated to epoch. Only `taxMappingAuthorization` is
+`required: true` of the two starting-missing documents, so the header
+counter starts at 15/16 required received, not 16/16.
 
 ## `RequirementDocRow` (`src/sections/admin/requirement-doc-row.tsx`)
 
@@ -162,11 +232,17 @@ confirmation screen, not an actual message sent to anyone.
   dialog, never an actual rendered file — consistent with the rest of this
   prototype's upload handling (see `docs/BORROWER_SIGNUP_FLOW.md` and
   `docs/ADMIN_INITIAL_CREDIT_CHECKING.md` for the same pattern elsewhere).
-- **Step numbering and naming were deliberately kept, not "corrected" to match
-  an earlier mockup.** An earlier mockup for this screen used "Step 2" and
-  "Credit Investigation" wording; this rebuild explicitly keeps this app's
+- **Step numbering and page-level naming were deliberately kept, not
+  "corrected" to match an earlier mockup — tab labels are the one exception,
+  added later.** An earlier mockup for this screen used "Step 2" and "Credit
+  Investigation" wording; the original rebuild explicitly kept this app's
   existing "Step 3 · Requirement Checklist" and "Endorse" language instead of
-  adopting the mockup's.
+  adopting the mockup's. A later pass reintroduced the mockup's tab naming
+  (`Credit Investigation` / `Appraisal` / `Financial Evaluation`) specifically
+  for the three tabs — a deliberate, explicit reversal of that one naming
+  choice, requested directly rather than rediscovered from the mockup. The
+  page's own title and "Step 3 · Requirement Checklist" badge were
+  unaffected — only the tab labels changed.
 - This screen previously stored a flat `checkedItems` structure (a simple
   checked/unchecked list with no per-document status, category, AI note, or
   fixed metadata). It was fully replaced by the `RequirementDoc[]` model

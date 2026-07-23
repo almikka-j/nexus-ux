@@ -142,7 +142,7 @@ CallReport            { approved, ...~75 structured fields across 9 sections —
                         "Call Report" below }
 RequirementChecklist  { documents, collateralNotes, endorsed, returnedToApplicant,
                         returnReason } — documents is RequirementDoc[] (fixed
-                        16-document/3-category list, not a flat checklist of
+                        24-document list across 3 tabs, not a flat checklist of
                         checked/unchecked items). See
                         docs/ADMIN_REQUIREMENT_CHECKLIST.md.
 
@@ -1058,10 +1058,13 @@ The page's own intro card ("Call Report & Loan Package Proposal / Complete this 
 ### Requirement Checklist (`src/sections/admin/requirement-checklist-view.tsx`)
 
 Rendered at `/admin/applications/[id]/requirement-checklist`, "Step 3 ·
-Requirement Checklist". Reviews a fixed 16-document/3-category list against
-what's on file, shows a merged AI review/summary/recommendation card, and
-either endorses the application onward or returns it to the applicant with a
-recorded reason.
+Requirement Checklist". Reviews a fixed 24-document list — presented as 3
+tabs (Credit Investigation / Appraisal / Financial Evaluation; Credit
+Investigation further split into two named sub-groups) rather than one flat
+list, with several documents shared across tabs — against what's on file,
+shows a merged AI review/summary/recommendation card, and either endorses the
+application onward or returns it to the applicant with a recorded reason. See
+`docs/ADMIN_REQUIREMENT_CHECKLIST.md` for the full document breakdown by tab.
 
 `ApplicationDetailsCard` is always the first card on this page, including the
 Endorsed and Returned completion states. Requirement Checklist hides

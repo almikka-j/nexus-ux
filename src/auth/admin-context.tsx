@@ -430,10 +430,10 @@ function createInitialNegativeCreditReport(): NegativeCreditReport {
   };
 }
 
-// Pre-populates 14 of the 16 documents as already received (matching the
-// design spec's "13/15 Required Received" starting screenshot) — every doc
-// except incomeTaxReturn and taxMappingAuthorization starts with a sample
-// fileName and its metadata's freshStatus/freshNote already applied.
+// Pre-populates every document as already received except
+// incomeTaxReturn and taxMappingAuthorization, which start with a sample
+// fileName and its metadata's freshStatus/freshNote already applied — so
+// there's always at least one outstanding item to upload on first load.
 const DOCS_STARTING_MISSING = new Set(['incomeTaxReturn', 'taxMappingAuthorization']);
 
 function createInitialRequirementDocuments(): RequirementDoc[] {
