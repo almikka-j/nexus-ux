@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
+import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
@@ -23,6 +24,7 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
 import { RequirementDocRow } from './requirement-doc-row';
+import { RequestDocumentsDrawer } from './request-documents-drawer';
 import { buildRequirementChecklistSummary } from './requirement-checklist-risk';
 import {
   REQUIREMENT_DOC_META,
@@ -31,7 +33,7 @@ import {
   REQUIREMENT_SUBGROUP_LABELS,
 } from './requirement-checklist-docs';
 
-import type { RequirementDoc } from 'src/auth/admin-context';
+import type { RequirementDoc, OutreachChannel } from 'src/auth/admin-context';
 import type { RequirementDocSubgroup } from './requirement-checklist-docs';
 import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk';
 
@@ -128,15 +130,18 @@ export function RequirementChecklistView() {
     addAppraisalGroup,
     removeAppraisalGroup,
     updateAppraisalGroupDoc,
+    addOutreachMessage,
   } = useAdmin();
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnReasonDraft, setReturnReasonDraft] = useState('');
   const [newTctNumber, setNewTctNumber] = useState('');
+  const [requestDrawerOpen, setRequestDrawerOpen] = useState(false);
 
   const {
     documents,
     appraisalGroups,
     appraisalNotApplicable,
+    outreachMessages,
     endorsed,
     returnedToApplicant,
   } = review.requirementChecklist;
@@ -280,6 +285,32 @@ export function RequirementChecklistView() {
   const allRequiredReceived = receivedRequiredCount === totalRequiredCount;
   const progressFraction = totalRequiredCount > 0 ? receivedRequiredCount / totalRequiredCount : 0;
 
+  // Every currently-missing document's label, across the fixed list and
+  // every Appraisal group — not just required ones, since a missing
+  // supporting document is still worth asking the applicant for. Appraisal
+  // is skipped entirely when marked Not Applicable, matching that state's
+  // exclusion everywhere else on this screen.
+  const missingDocLabels = [
+    ...documents
+      .filter((doc) => doc.status === 'missing')
+      .map((doc) => REQUIREMENT_DOC_META.find((meta) => meta.key === doc.key)?.label)
+      .filter((label): label is string => !!label),
+    ...(appraisalNotApplicable
+      ? []
+      : appraisalGroups.flatMap((group) =>
+          group.documents
+            .filter((doc) => doc.status === 'missing')
+            .map((doc) => APPRAISAL_DOC_META.find((meta) => meta.key === doc.key)?.label)
+            .filter((label): label is string => !!label)
+        )),
+  ];
+
+  const handleSendOutreachMessage = (message: { channel: OutreachChannel; text: string }) => {
+    addOutreachMessage(message);
+  };
+
+  const lastOutreachMessage = outreachMessages[outreachMessages.length - 1] ?? null;
+
   useRegisterPageActions(
     useMemo(
       () => [
@@ -384,13 +415,62 @@ export function RequirementChecklistView() {
               </Typography>
             </Stack>
           </Stack>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Collect and verify all required documents before endorsing the application.
-          </Typography>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+            <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+              Collect and verify all required documents before endorsing the application.
+            </Typography>
+            <Button
+              onClick={() => setRequestDrawerOpen(true)}
+              variant="outlined"
+              size="small"
+              startIcon={<Iconify icon="solar:letter-bold-duotone" width={16} />}
+              sx={{
+                color: '#1C2A6E',
+                borderColor: '#C7CEEA',
+                borderRadius: '9px',
+                px: 1.75,
+                flexShrink: 0,
+                '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
+              }}
+            >
+              Request Documents
+            </Button>
+          </Stack>
 
           <Box sx={{ height: 6, borderRadius: 999, bgcolor: '#EEF0F5', overflow: 'hidden', mt: 2 }}>
             <Box sx={{ width: `${progressFraction * 100}%`, height: '100%', bgcolor: '#1C2A6E', transition: 'width 0.2s ease' }} />
           </Box>
+
+          {lastOutreachMessage && (
+            <Stack
+              component={ButtonBase}
+              onClick={() => setRequestDrawerOpen(true)}
+              direction="row"
+              alignItems="center"
+              spacing={1.25}
+              sx={{
+                mt: 2,
+                p: 1.5,
+                borderRadius: '10px',
+                bgcolor: '#F5F6FA',
+                width: '100%',
+                justifyContent: 'flex-start',
+                textAlign: 'left',
+                '&:hover': { bgcolor: '#EEF0F5' },
+              }}
+            >
+              <Iconify icon="solar:letter-bold-duotone" width={18} sx={{ color: '#8891A6', flexShrink: 0 }} />
+              <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
+                Last requested{' '}
+                {new Date(lastOutreachMessage.sentAt).toLocaleDateString('en-PH', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                })}{' '}
+                via {lastOutreachMessage.channel} · {outreachMessages.length} message(s) sent
+              </Typography>
+            </Stack>
+          )}
         </Box>
 
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
@@ -454,13 +534,22 @@ export function RequirementChecklistView() {
               onClick={handleToggleAppraisalNotApplicable}
               disabled={!appraisalNotApplicable && hasAppraisalGroups}
               size="small"
-              variant="text"
+              variant="outlined"
+              startIcon={
+                <Iconify
+                  icon={appraisalNotApplicable ? 'solar:restart-bold' : 'solar:minus-circle-bold'}
+                  width={16}
+                />
+              }
               sx={{
-                color: appraisalNotApplicable ? '#1C2A6E' : '#8891A6',
+                color: '#1C2A6E',
+                borderColor: '#C7CEEA',
+                borderRadius: '10px',
+                px: 1.75,
                 fontWeight: 700,
                 fontSize: 12.5,
                 flexShrink: 0,
-                '&:hover': { bgcolor: 'rgba(28,42,110,0.04)' },
+                '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
               }}
             >
               {appraisalNotApplicable ? 'Mark as Applicable' : 'Set as Not Applicable'}
@@ -706,6 +795,15 @@ export function RequirementChecklistView() {
             Confirm
           </Button>
         }
+      />
+
+      <RequestDocumentsDrawer
+        open={requestDrawerOpen}
+        onClose={() => setRequestDrawerOpen(false)}
+        applicantName={`${signUpData.firstName} ${signUpData.lastName}`}
+        missingDocLabels={missingDocLabels}
+        history={outreachMessages}
+        onSend={handleSendOutreachMessage}
       />
     </Container>
   );

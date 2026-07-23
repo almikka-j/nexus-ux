@@ -184,8 +184,9 @@ other collateral types (vehicle, equipment, etc.) aren't represented here.
 
 `RequirementChecklist.appraisalNotApplicable: boolean` (default `false`) —
 an explicit officer declaration that this application has no real-estate
-collateral to appraise at all. Toggled via a single button in the Appraisal
-card's header that relabels itself: **"Set as Not Applicable"** when
+collateral to appraise at all. Toggled via a system-styled outlined button in
+the Appraisal card's header (icon, indigo border, rounded corners, and hover
+state) that relabels itself: **"Set as Not Applicable"** when
 `false`, **"Mark as Applicable"** when `true` (re-clicking the same button
 flips it back — there's no separate undo control).
 
@@ -248,9 +249,10 @@ flips it back — there's no separate undo control).
 RequirementDoc        { key, status, aiNote, fileName, uploadedAt, uploadedBy, reviewed }
                        — status: 'verified' | 'needs-review' | 'missing'
 AppraisalTctGroup     { id, tctNumber, documents: RequirementDoc[] }
+OutreachMessage       { id, channel: 'email' | 'whatsapp' | 'viber', text, sentAt }
 RequirementChecklist  { documents: RequirementDoc[], appraisalGroups: AppraisalTctGroup[],
-                        appraisalNotApplicable: boolean, collateralNotes, endorsed,
-                        returnedToApplicant, returnReason }
+                        appraisalNotApplicable: boolean, outreachMessages: OutreachMessage[],
+                        collateralNotes, endorsed, returnedToApplicant, returnReason }
 ```
 
 `uploadedBy` and `reviewed` were added alongside the AI summary/date-display
@@ -385,6 +387,58 @@ guard only exists to gate rendering on the borrower's registration data,
 which `handleFillSampleData`/`handleClearSampleData` and
 `allRequiredReceived` don't need, but React's rules-of-hooks require the
 hook call to run unconditionally on every render regardless.
+
+## Request Documents drawer (`src/sections/admin/request-documents-drawer.tsx`)
+
+A **"Request Documents"** button in the progress card's header (next to the
+"Collect and verify..." copy) opens `RequestDocumentsDrawer` — a right-anchored
+`Drawer`, modeled directly on `src/layouts/admin/hai-chat-drawer.tsx`'s layout
+(header / scrollable message list / composer), simulating an outreach to the
+applicant requesting outstanding documents. This is the second messaging-style
+drawer in the admin app; unlike `HaiChatDrawer` (a single global instance
+mounted in `AdminHeader`, one AI conversation), this one is local to
+`RequirementChecklistView` and keyed to the current application's
+`review.requirementChecklist.outreachMessages`.
+
+- **Still-outstanding banner**: the drawer's top section always shows every
+  currently-missing document's label (same `missingDocLabels` computation the
+  button's disabled-state and the old confirm-dialog content used — see
+  "Request Documents" gating below), regardless of channel or draft state.
+  This does not require a message to have been sent; it's a live read of the
+  current checklist, refreshed every time the drawer re-renders.
+- **Channel selector**: three `Chip`s (Email / WhatsApp / Viber, via
+  `mdi:whatsapp` and `simple-icons:viber` Iconify icons — chosen for
+  brand-accurate logos over generic phone/mail icons), single-select, default
+  `'email'`. Selecting a channel only changes which channel the next sent
+  message is tagged with — it does not filter or change the message history
+  shown above.
+- **Auto-filled draft**: opening the drawer pre-fills the composer with
+  `Outreach sent. Requested: <label>, <label>, ....` built from the current
+  missing-document labels (`buildOutreachText`) — the officer can edit this
+  freely before sending, or send it as-is. Re-opening the drawer re-runs this
+  fill (via a `useEffect` keyed on `open`), so it always reflects whatever is
+  missing *right now*, not what was missing the last time the drawer was
+  opened.
+- **Message history**: every sent message becomes a right-aligned navy bubble
+  (channel icon + label, message text, formatted send time) appended to
+  `outreachMessages` via `addOutreachMessage({ channel, text })`
+  (`admin-context.tsx`) — this generates the `id`/`sentAt` itself, so the
+  caller only supplies `channel` and `text`. Enter sends (Shift+Enter for a
+  newline), same convention as `HaiChatDrawer`'s composer.
+- **No real message is ever sent on any channel** — consistent with every
+  other "outreach"/notification affordance in this prototype (see "Fabricated
+  claims" below). The composer's helper text says so explicitly ("Prototype
+  outreach only. No real message is sent.").
+- **The progress card's banner** (below the progress bar) shows only when
+  `outreachMessages.length > 0`, deriving from the array's last entry:
+  "Last requested `<date>` via `<channel>` · N message(s) sent." The whole
+  banner is a `ButtonBase` that reopens the drawer — a quick way back into the
+  full history without hunting for the header button again.
+- **The "Request Documents" button is never disabled** — even with zero
+  missing documents, the drawer still opens (showing an empty
+  still-outstanding section and no pre-filled draft) so the officer can send
+  an ad hoc message to the applicant at any time, not only when something is
+  missing.
 
 ## AI summary/recommendation derivation (`requirement-checklist-risk.ts`)
 

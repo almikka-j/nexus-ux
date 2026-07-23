@@ -355,6 +355,15 @@ export type AppraisalTctGroup = {
   documents: RequirementDoc[];
 };
 
+export type OutreachChannel = 'email' | 'whatsapp' | 'viber';
+
+export type OutreachMessage = {
+  id: string;
+  channel: OutreachChannel;
+  text: string;
+  sentAt: string;
+};
+
 export type RequirementChecklist = {
   documents: RequirementDoc[];
   appraisalGroups: AppraisalTctGroup[];
@@ -366,6 +375,12 @@ export type RequirementChecklist = {
   // blocked while any group exists) but not enforced at the type level.
   appraisalNotApplicable: boolean;
   collateralNotes: string;
+  // Full history of "Request Documents" sends, shown in
+  // RequestDocumentsDrawer's message list — a simulated outreach (no real
+  // email/WhatsApp/Viber message is ever sent anywhere in this prototype).
+  // The Requirement Checklist card's "Documents requested" banner derives
+  // from this array's last entry rather than a separate snapshot field.
+  outreachMessages: OutreachMessage[];
   endorsed: boolean;
   returnedToApplicant: boolean;
   returnReason: string;
@@ -435,6 +450,7 @@ type AdminContextValue = AdminState & {
   addAppraisalGroup: (tctNumber: string) => void;
   removeAppraisalGroup: (groupId: string) => void;
   updateAppraisalGroupDoc: (groupId: string, docKey: string, data: Partial<RequirementDoc>) => void;
+  addOutreachMessage: (message: { channel: OutreachChannel; text: string }) => void;
   markStepEntered: (step: ReviewStep) => void;
   addToNegativeList: (entry: Omit<NegativeListEntry, 'recordedAt'>) => void;
   resetReview: () => void;
@@ -658,6 +674,7 @@ function createInitialReview(): ApplicationReview {
       appraisalGroups: [createAppraisalGroup('TCT-2024-00981', true)],
       appraisalNotApplicable: false,
       collateralNotes: '',
+      outreachMessages: [],
       endorsed: false,
       returnedToApplicant: false,
       returnReason: '',
@@ -939,6 +956,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                       ),
                     }
               ),
+            },
+          },
+        })),
+      addOutreachMessage: (message) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            requirementChecklist: {
+              ...prev.review.requirementChecklist,
+              outreachMessages: [
+                ...prev.review.requirementChecklist.outreachMessages,
+                { id: crypto.randomUUID(), sentAt: new Date().toISOString(), ...message },
+              ],
             },
           },
         })),
