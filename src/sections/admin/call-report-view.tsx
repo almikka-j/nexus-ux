@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -16,6 +16,8 @@ import { useRegistration } from 'src/auth/registration-context';
 import type { CollateralEntry } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
+
+import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
@@ -39,8 +41,6 @@ export function CallReportView() {
   const { review, setCallReport } = useAdmin();
   const [resultModalOpen, setResultModalOpen] = useState(false);
 
-  if (!signUpData || !application.financialInfo || !application.personalInfo) return null;
-
   const { callReport } = review;
 
   const canProceed =
@@ -50,6 +50,7 @@ export function CallReportView() {
     (callReport.followUpRequired !== 'yes' || !!callReport.followUpDate);
 
   const handleProceed = (proceed: boolean) => {
+    if (!signUpData) return;
     setCallReport({ approved: true });
 
     if (proceed) {
@@ -64,6 +65,7 @@ export function CallReportView() {
   // relabels to "Remove Sample Data" and clears back to blank once the
   // report is filled (`canProceed` also gates the toggle direction there).
   const handleFillSampleData = () => {
+    if (!signUpData) return;
     const loanAmount = application.financialInfo?.desiredLoanAmount ?? 0;
     const loanTerm = application.financialInfo?.loanTermMonths ?? 0;
     const loanPurpose = application.financialInfo?.loanPurpose ?? '';
@@ -212,29 +214,37 @@ export function CallReportView() {
     });
   };
 
+  useRegisterPageActions(
+    useMemo(
+      () => [
+        {
+          key: 'sample-data',
+          label: canProceed ? 'Remove Sample Data' : 'Fill with Sample Data',
+          icon: 'solar:magic-stick-3-bold-duotone',
+          onClick: canProceed ? handleClearSampleData : handleFillSampleData,
+        },
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [canProceed]
+    )
+  );
+
+  if (!signUpData || !application.financialInfo || !application.personalInfo) return null;
+
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
-      <ApplicationReviewHeader step="Step 2 · Call Report" reviewStep="callReport" />
+      <ApplicationReviewHeader
+        step="Step 2 · Call Report"
+        reviewStep="callReport"
+        hideApplicationCard
+      />
 
       <Stack spacing={2.5}>
-        <ApplicationDetailsCard collapsible />
+        <ApplicationDetailsCard
+          collapsible
+          onViewCreditCheckingResult={() => setResultModalOpen(true)}
+        />
         <OfficerNotesCard />
-
-        <Button
-          onClick={() => setResultModalOpen(true)}
-          variant="outlined"
-          startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-          sx={{
-            alignSelf: 'flex-start',
-            color: '#1C2A6E',
-            borderColor: '#C7CEEA',
-            borderRadius: '10px',
-            px: 2,
-            '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
-          }}
-        >
-          View Initial Credit Checking Result
-        </Button>
 
         <CallDetailsCard />
         <BorrowerInterviewCard />
@@ -292,29 +302,10 @@ export function CallReportView() {
         </Box>
       </Stack>
 
-      <Button
-        onClick={canProceed ? handleClearSampleData : handleFillSampleData}
-        variant="contained"
-        startIcon={<Iconify icon="solar:magic-stick-3-bold-duotone" width={18} />}
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 1200,
-          bgcolor: '#1C2A6E',
-          borderRadius: '999px',
-          px: 2.5,
-          py: 1.25,
-          boxShadow: '0 8px 24px -8px rgba(20,23,42,0.4)',
-          '&:hover': { bgcolor: '#14205A' },
-        }}
-      >
-        {canProceed ? 'Remove Sample Data' : 'Fill with Sample Data'}
-      </Button>
-
       <CreditCheckingResultModal
         open={resultModalOpen}
         onClose={() => setResultModalOpen(false)}
+        recommendationEditable={false}
       />
     </Container>
   );

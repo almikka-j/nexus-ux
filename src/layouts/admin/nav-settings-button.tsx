@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Divider from '@mui/material/Divider';
 import Popover from '@mui/material/Popover';
 import Tooltip from '@mui/material/Tooltip';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -11,6 +12,7 @@ import Typography from '@mui/material/Typography';
 
 import { Iconify } from 'src/components/iconify';
 
+import { usePageActions } from './page-actions-context';
 import { useAdminNavMode, type AdminNavMode } from './nav-mode-context';
 
 // ----------------------------------------------------------------------
@@ -22,6 +24,7 @@ const NAV_MODE_OPTIONS: { value: AdminNavMode; label: string; icon: string }[] =
 
 export function AdminNavSettingsButton() {
   const { navMode, setNavMode } = useAdminNavMode();
+  const pageActions = usePageActions();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   return (
@@ -54,7 +57,7 @@ export function AdminNavSettingsButton() {
         onClose={() => setAnchorEl(null)}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { borderRadius: '14px', width: 250 } } }}
+        slotProps={{ paper: { sx: { borderRadius: '14px', width: 270 } } }}
       >
         <Box sx={{ p: 2 }}>
           <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
@@ -94,6 +97,42 @@ export function AdminNavSettingsButton() {
               );
             })}
           </Stack>
+
+          {pageActions.length > 0 && (
+            <>
+              <Divider sx={{ my: 1.5, borderColor: '#EEF0F5' }} />
+
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
+                Page actions
+              </Typography>
+
+              <Stack spacing={1}>
+                {pageActions.map((action) => (
+                  <ButtonBase
+                    key={action.key}
+                    onClick={() => {
+                      setAnchorEl(null);
+                      action.onClick();
+                    }}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      gap: 1.25,
+                      px: 1.5,
+                      py: 1,
+                      borderRadius: '10px',
+                      border: '1px solid #E7EAF1',
+                      color: action.color ?? '#5A6273',
+                    }}
+                  >
+                    <Iconify icon={action.icon} width={20} />
+                    <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>
+                      {action.label}
+                    </Typography>
+                  </ButtonBase>
+                ))}
+              </Stack>
+            </>
+          )}
         </Box>
       </Popover>
     </>

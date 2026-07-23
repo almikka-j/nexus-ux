@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -18,12 +18,14 @@ import { useRegistration } from 'src/auth/registration-context';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
+import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
+
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
+import { OfficerNotesDialog, buildOfficerNoteEntry } from './officer-notes-history';
 import { computeInstallment } from './cibi-form-card';
 import { BureauReportsCard } from './bureau-reports-card';
 import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
-import { NegativeCreditReportCard } from './negative-credit-report-card';
 import { simulateBureauFinding } from './simulate-bureau-finding';
 import { buildInitialAiRecommendation } from './initial-credit-checking-risk';
 import type { InitialRiskLevel } from './initial-credit-checking-risk';
@@ -79,6 +81,7 @@ export function InitialCreditCheckingView() {
   const { signUpData, application } = useRegistration();
   const {
     review,
+    adminUser,
     setCreditChecking,
     setCibiForm,
     setLoandexUpload,
@@ -87,19 +90,17 @@ export function InitialCreditCheckingView() {
     setNfisBapUpload,
     resetNegativeCreditReport,
   } = useAdmin();
-  // "No" and "For Reconsideration" both require the officer to type a reason
-  // in a confirmation dialog before proceeding — captured separately from the
-  // general Officer Notes field above, since this reason is specific to the
-  // decision being made right now. Distinct from each other: "No" records a
-  // hard rejection (`decision: 'rejected'`), "For Reconsideration" leaves the
-  // decision at 'pending' — both land on the same Reconsideration screen.
-  const [pendingAction, setPendingAction] = useState<'rejected' | 'reconsideration' | null>(null);
+  // Disapproval requires the officer to enter a reason before the application
+  // is routed to the Reconsideration screen.
+  const [disapproveDialogOpen, setDisapproveDialogOpen] = useState(false);
   const [reasonDraft, setReasonDraft] = useState('');
   // Pure display preference, not persisted — resets to the stacked layout on
   // navigation/refresh, since it's how this admin wants to view *this*
   // session, not application data that should carry forward.
   const [isSplitLayout, setIsSplitLayout] = useState(false);
   const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
 
   const { creditChecking, cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload } = review;
   const allBureauReportsUploaded =
@@ -112,10 +113,8 @@ export function InitialCreditCheckingView() {
   // Simulated AI review of the bureau uploads — see simulate-bureau-finding.ts
   // for why this is a deterministic hash rather than Math.random(). Runs
   // exactly once per upload session (guarded by bureauFindingStatus still
-  // being 'pending'); the result is then sticky, read directly by this page
-  // (to decide whether NegativeCreditReportCard should render) and by
-  // CreditCheckingResultModal (to decide which content to show) — neither
-  // ever re-derives it independently.
+  // being 'pending'); the result is then sticky and read by
+  // CreditCheckingResultModal to decide which bureau-result content to show.
   useEffect(() => {
     if (!signUpData) return;
     if (!allBureauReportsUploaded) return;
@@ -141,29 +140,9 @@ export function InitialCreditCheckingView() {
     nfisBapUpload.fileName,
   ]);
 
-  if (!signUpData || !application.personalInfo) return null;
-  const initialAiRecommendation = buildInitialAiRecommendation(
-    application.financialInfo?.desiredLoanAmount ?? 0,
-    application.financialInfo?.monthlyIncome ?? 0,
-    application.financialInfo?.employmentStatus ?? 'Unknown'
-  );
-  const initialRiskStyle = INITIAL_RISK_STYLES[initialAiRecommendation.level];
-  const showNegativeReportCard =
-    allBureauReportsUploaded && creditChecking.bureauFindingStatus === 'negative';
-
-  const aiSummary = buildAiSummary(
-    signUpData.firstName,
-    application.financialInfo?.desiredLoanAmount ?? 0,
-    application.financialInfo?.employmentStatus ?? 'Unknown',
-    allBureauReportsUploaded
-  );
-  const aiRecommendation = buildAiRecommendation(
-    application.financialInfo?.desiredLoanAmount ?? 0,
-    application.financialInfo?.monthlyIncome ?? 0,
-    allBureauReportsUploaded
-  );
-
   const handleFillSampleData = () => {
+    if (!signUpData) return;
+    const uploadedAt = new Date().toISOString();
     const loanAmount = application.financialInfo?.desiredLoanAmount ?? 0;
     const loanTermMonths = application.financialInfo?.loanTermMonths ?? 0;
     const amount = loanAmount ? String(loanAmount) : '';
@@ -200,12 +179,13 @@ export function InitialCreditCheckingView() {
       submitted: true,
       reportFile: null,
       reportFileName: 'cibi-report-sample.pdf',
+      reportUploadedAt: uploadedAt,
     });
 
-    setLoandexUpload({ fileName: 'loandex-report-sample.pdf' });
-    setCicUpload({ fileName: 'cic-report-sample.pdf' });
-    setCmapUpload({ fileName: 'cmap-report-sample.pdf' });
-    setNfisBapUpload({ fileName: 'nfis-bap-report-sample.pdf' });
+    setLoandexUpload({ fileName: 'loandex-report-sample.pdf', uploadedAt });
+    setCicUpload({ fileName: 'cic-report-sample.pdf', uploadedAt });
+    setCmapUpload({ fileName: 'cmap-report-sample.pdf', uploadedAt });
+    setNfisBapUpload({ fileName: 'nfis-bap-report-sample.pdf', uploadedAt });
   };
 
   // Undoes exactly what handleFillSampleData sets — scoped to only the
@@ -243,13 +223,73 @@ export function InitialCreditCheckingView() {
       submitted: false,
       reportFile: null,
       reportFileName: null,
+      reportUploadedAt: null,
     });
 
-    setLoandexUpload({ fileName: null });
-    setCicUpload({ fileName: null });
-    setCmapUpload({ fileName: null });
-    setNfisBapUpload({ fileName: null });
+    setLoandexUpload({ fileName: null, uploadedAt: null });
+    setCicUpload({ fileName: null, uploadedAt: null });
+    setCmapUpload({ fileName: null, uploadedAt: null });
+    setNfisBapUpload({ fileName: null, uploadedAt: null });
   };
+
+  useRegisterPageActions(
+    useMemo(
+      () => [
+        {
+          key: 'sample-data',
+          label: allBureauReportsUploaded ? 'Remove Sample Data' : 'Fill with Sample Data',
+          icon: 'solar:magic-stick-3-bold-duotone',
+          onClick: allBureauReportsUploaded ? handleClearSampleData : handleFillSampleData,
+        },
+        {
+          key: 'split-layout',
+          label: isSplitLayout ? 'Switch to 1-Column Layout' : 'Switch to 2-Column Layout',
+          icon: 'solar:widget-5-bold-duotone',
+          onClick: () => setIsSplitLayout((prev) => !prev),
+        },
+        ...(allBureauReportsUploaded
+          ? [
+              {
+                key: 'force-clean',
+                label: 'Force Clean Bureau Finding',
+                icon: 'solar:check-circle-bold',
+                color: '#0C8A4F',
+                onClick: () => setCreditChecking({ bureauFindingStatus: 'clean' }),
+              },
+              {
+                key: 'force-negative',
+                label: 'Force Negative Bureau Finding',
+                icon: 'solar:danger-triangle-bold',
+                color: '#B32C22',
+                onClick: () => setCreditChecking({ bureauFindingStatus: 'negative' }),
+              },
+            ]
+          : []),
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [allBureauReportsUploaded, isSplitLayout]
+    )
+  );
+
+  if (!signUpData || !application.personalInfo) return null;
+
+  const initialAiRecommendation = buildInitialAiRecommendation(
+    application.financialInfo?.desiredLoanAmount ?? 0,
+    application.financialInfo?.monthlyIncome ?? 0,
+    application.financialInfo?.employmentStatus ?? 'Unknown'
+  );
+  const initialRiskStyle = INITIAL_RISK_STYLES[initialAiRecommendation.level];
+  const aiSummary = buildAiSummary(
+    signUpData.firstName,
+    application.financialInfo?.desiredLoanAmount ?? 0,
+    application.financialInfo?.employmentStatus ?? 'Unknown',
+    allBureauReportsUploaded
+  );
+  const aiRecommendation = buildAiRecommendation(
+    application.financialInfo?.desiredLoanAmount ?? 0,
+    application.financialInfo?.monthlyIncome ?? 0,
+    allBureauReportsUploaded
+  );
 
   const handleApprove = () => {
     setCreditChecking({ decision: 'approved' });
@@ -257,18 +297,34 @@ export function InitialCreditCheckingView() {
   };
 
   const closeReasonDialog = () => {
-    setPendingAction(null);
+    setDisapproveDialogOpen(false);
     setReasonDraft('');
   };
 
   const confirmReasonDialog = () => {
-    if (!pendingAction || !reasonDraft.trim()) return;
+    if (!reasonDraft.trim()) return;
 
     setCreditChecking({
-      decision: pendingAction === 'rejected' ? 'rejected' : 'pending',
+      decision: 'rejected',
       decisionReason: reasonDraft.trim(),
     });
     router.push(paths.admin.reconsideration(encodeURIComponent(signUpData.email)));
+  };
+
+  const handleAddNote = () => {
+    const note = noteDraft.trim();
+    if (!note) return;
+
+    const author = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Credit Officer';
+    const entry = buildOfficerNoteEntry({
+      officer: author,
+      process: 'Initial Credit Checking',
+      note,
+    });
+    setCreditChecking({
+      notes: creditChecking.notes ? `${creditChecking.notes}\n\n---\n\n${entry}` : entry,
+    });
+    setNoteDraft('');
   };
 
   const rightColumnCards = (
@@ -284,24 +340,58 @@ export function InitialCreditCheckingView() {
             boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
           }}
         >
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-            Officer notes
-          </Typography>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 0.5 }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Iconify icon="solar:notes-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
+              <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+                Officer notes
+              </Typography>
+            </Stack>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => setNotesModalOpen(true)}
+              startIcon={<Iconify icon="solar:notes-bold-duotone" width={16} />}
+              sx={{
+                color: '#1C2A6E',
+                borderColor: '#C7CEEA',
+                borderRadius: '10px',
+                px: 1.75,
+                fontWeight: 700,
+                flexShrink: 0,
+                '&:hover': {
+                  borderColor: '#1C2A6E',
+                  bgcolor: 'rgba(28,42,110,0.04)',
+                },
+              }}
+            >
+              View all officer notes
+            </Button>
+          </Stack>
           <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-            Add any observations about this application — carries forward, read-only, to Call
-            Report and Reconsideration.
+            Add observations about this application. These notes carry forward to Call Report
+            and Reconsideration as read-only context.
           </Typography>
           <TextField
             fullWidth
             multiline
             minRows={3}
             placeholder="e.g. Borrower's stated employer could not be verified by phone…"
-            value={creditChecking.notes}
-            onChange={(event) => setCreditChecking({ notes: event.target.value })}
-            sx={{
-              '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 },
-            }}
+            value={noteDraft}
+            onChange={(event) => setNoteDraft(event.target.value)}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
           />
+          <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1.5 }}>
+            <Button
+              variant="contained"
+              startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
+              disabled={!noteDraft.trim()}
+              onClick={handleAddNote}
+              sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.25, '&:hover': { bgcolor: '#14205A' } }}
+            >
+              Add note
+            </Button>
+          </Stack>
         </Box>
 
         <Box
@@ -368,8 +458,6 @@ export function InitialCreditCheckingView() {
           </Stack>
         </Box>
 
-        {showNegativeReportCard && <NegativeCreditReportCard />}
-
         <Box
           sx={{
             p: { xs: 3, md: 4 },
@@ -399,10 +487,10 @@ export function InitialCreditCheckingView() {
                 '&:hover': { bgcolor: '#0C8A4F' },
               }}
             >
-              Approve
+              Proceed to Call Report
             </Button>
             <Button
-              onClick={() => setPendingAction('rejected')}
+              onClick={() => setDisapproveDialogOpen(true)}
               variant="outlined"
               startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
               sx={{
@@ -413,21 +501,7 @@ export function InitialCreditCheckingView() {
                 '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(240,68,56,0.04)' },
               }}
             >
-              No
-            </Button>
-            <Button
-              onClick={() => setPendingAction('reconsideration')}
-              variant="outlined"
-              startIcon={<Iconify icon="solar:refresh-circle-bold" width={18} />}
-              sx={{
-                color: '#B36A05',
-                borderColor: '#B36A05',
-                borderRadius: '10px',
-                px: 2.5,
-                '&:hover': { borderColor: '#8A5204', bgcolor: 'rgba(179,106,5,0.04)' },
-              }}
-            >
-              For Reconsideration
+              Disapprove
             </Button>
           </Stack>
         </Box>
@@ -436,7 +510,11 @@ export function InitialCreditCheckingView() {
 
   return (
     <Container maxWidth={isSplitLayout ? 'xl' : 'md'} sx={{ py: { xs: 4, md: 6 } }}>
-      <ApplicationReviewHeader step="Step 1 · Initial Credit Checking" reviewStep="creditChecking" />
+      <ApplicationReviewHeader
+        step="Step 1 · Initial Credit Checking"
+        reviewStep="creditChecking"
+        applicationSummaryStyle
+      />
 
       {isSplitLayout ? (
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
@@ -453,9 +531,9 @@ export function InitialCreditCheckingView() {
       )}
 
       <ConfirmDialog
-        open={!!pendingAction}
+        open={disapproveDialogOpen}
         onClose={closeReasonDialog}
-        title={pendingAction === 'rejected' ? 'Reason for declining' : 'Reason for reconsideration'}
+        title="Reason for disapproval"
         content={
           <TextField
             autoFocus
@@ -474,8 +552,8 @@ export function InitialCreditCheckingView() {
             disabled={!reasonDraft.trim()}
             onClick={confirmReasonDialog}
             sx={{
-              bgcolor: pendingAction === 'rejected' ? '#F04438' : '#B36A05',
-              '&:hover': { bgcolor: pendingAction === 'rejected' ? '#B32C22' : '#8A5204' },
+              bgcolor: '#F04438',
+              '&:hover': { bgcolor: '#B32C22' },
             }}
           >
             Confirm
@@ -483,88 +561,16 @@ export function InitialCreditCheckingView() {
         }
       />
 
+      <OfficerNotesDialog
+        open={notesModalOpen}
+        onClose={() => setNotesModalOpen(false)}
+        notes={creditChecking.notes}
+      />
+
       <CreditCheckingResultModal
         open={resultModalOpen}
         onClose={() => setResultModalOpen(false)}
       />
-
-      <Button
-        onClick={allBureauReportsUploaded ? handleClearSampleData : handleFillSampleData}
-        variant="contained"
-        startIcon={<Iconify icon="solar:magic-stick-3-bold-duotone" width={18} />}
-        sx={{
-          position: 'fixed',
-          bottom: 84,
-          right: 24,
-          zIndex: 1200,
-          bgcolor: '#1C2A6E',
-          borderRadius: '999px',
-          px: 2.5,
-          py: 1.25,
-          boxShadow: '0 8px 24px -8px rgba(20,23,42,0.4)',
-          '&:hover': { bgcolor: '#14205A' },
-        }}
-      >
-        {allBureauReportsUploaded ? 'Remove Sample Data' : 'Fill with Sample Data'}
-      </Button>
-
-      <Button
-        onClick={() => setIsSplitLayout((prev) => !prev)}
-        variant="contained"
-        startIcon={<Iconify icon="solar:widget-5-bold-duotone" width={18} />}
-        sx={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 1200,
-          display: { xs: 'none', md: 'inline-flex' },
-          bgcolor: '#5A6273',
-          borderRadius: '999px',
-          px: 2.5,
-          py: 1.25,
-          boxShadow: '0 8px 24px -8px rgba(20,23,42,0.4)',
-          '&:hover': { bgcolor: '#40465A' },
-        }}
-      >
-        {isSplitLayout ? 'Switch to 1-Column Layout' : 'Switch to 2-Column Layout'}
-      </Button>
-
-      {allBureauReportsUploaded && (
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{ position: 'fixed', bottom: 144, right: 24, zIndex: 1200 }}
-        >
-          <Button
-            onClick={() => setCreditChecking({ bureauFindingStatus: 'clean' })}
-            variant="contained"
-            size="small"
-            sx={{
-              bgcolor: '#0C8A4F',
-              borderRadius: '999px',
-              px: 2,
-              boxShadow: '0 8px 24px -8px rgba(20,23,42,0.4)',
-              '&:hover': { bgcolor: '#0A6E40' },
-            }}
-          >
-            Force Clean
-          </Button>
-          <Button
-            onClick={() => setCreditChecking({ bureauFindingStatus: 'negative' })}
-            variant="contained"
-            size="small"
-            sx={{
-              bgcolor: '#B32C22',
-              borderRadius: '999px',
-              px: 2,
-              boxShadow: '0 8px 24px -8px rgba(20,23,42,0.4)',
-              '&:hover': { bgcolor: '#8F231A' },
-            }}
-          >
-            Force Negative
-          </Button>
-        </Stack>
-      )}
     </Container>
   );
 }

@@ -231,7 +231,7 @@ since these steps can already be pre-filled from a prior session); onboarding's
 Personal Info step (still used by the primary flow, retitled "Upload ID" —
 its sample-fill populates a Married example instantly (no OCR delay to skip
 anymore) so the conditional Spouse Information section is exercised too); and
-Initial Credit Checking's floating button, which toggles based on
+Initial Credit Checking's page action, which toggles based on
 `allBureauReportsUploaded` and calls a new `handleClearSampleData()` — a
 scoped undo of exactly what `handleFillSampleData()` sets (`creditChecking`'s
 document/AI fields, the CIBI form, and the four bureau uploads) — deliberately
@@ -622,10 +622,12 @@ content in `CreditCheckingResultModal`.
   re-calls `simulateBureauFinding` itself — so they can't disagree.
 - **QA override**: since the hash is stable for a given email + the fixed
   sample-upload filenames, "Fill with Sample Data" alone can't exercise both
-  outcomes reliably. Two dev-only floating buttons, "Force Clean" / "Force
-  Negative" (visible once `allBureauReportsUploaded`, same fixed-bottom-right
-  floating-button convention as "Fill with Sample Data"), directly set
-  `bureauFindingStatus`, bypassing the hash for testing.
+  outcomes reliably. Two dev-only actions, "Force Clean Bureau Finding" /
+  "Force Negative Bureau Finding" (visible once `allBureauReportsUploaded`),
+  directly set `bureauFindingStatus`, bypassing the hash for testing —
+  registered into the shared settings popover's "Page actions" section (see
+  "Page actions: per-view dev/test controls in the settings popover" below)
+  rather than rendered as their own floating buttons.
 - **`NegativeCreditReportCard`** (`src/sections/admin/negative-credit-report-card.tsx`,
   plain inline-`sx` card convention, not `call-report/call-report-types.ts`'s
   `cardSx`/`fieldSx` since this isn't a Call Report concept): renders only
@@ -814,6 +816,19 @@ The admin shell renders one of two nav components depending on the current
   `AdminHeader` row (unchanged, still two rows in this mode). Two independent
   collapsible sections (`src/layouts/admin/config-nav-admin.tsx`):
 
+**Top-nav mode also runs pages full width.** Every admin view wraps its
+content in its own `<Container maxWidth="md"|"lg"|"xl">` — fine for the
+sidebar layout, but narrow-and-centered read as wasted space once the nav
+moved to a single top bar. Rather than edit each of the 11 view files
+individually, `AdminLayout`'s top-nav branch wraps `children` in a `Box` with
+a scoped CSS override (`FULL_WIDTH_CONTAINER_SX`, targeting `& >
+.MuiContainer-root`) that sets `maxWidth: none !important` and overrides the
+Container's own responsive `px` to match `AdminNavHorizontal`'s `px: { xs: 2,
+md: 5 }` exactly — so page content's left/right edges line up with the nav
+bar's logo/actions above it instead of sitting flush with the viewport edge
+or drifting out of alignment with a different padding value. Side-nav mode is
+untouched — those `Container maxWidth` caps still apply there.
+
 - **"Application List"** — the forward-moving process only: Initial Credit
   Checking, Call Report, Requirement Checklist. Reconsideration
   is deliberately **not** here — being sent to Reconsideration means the
@@ -842,10 +857,37 @@ highlight only, kept deliberately simple.
 
 A **floating settings button** (`nav-settings-button.tsx`, bottom-right,
 `position: fixed`, rendered in both layout branches of `AdminLayout`) opens a
-popover ("Menu navigation") with two options, "Top navigation" and "Side
-navigation" — the only UI for changing `navMode`. Both nav components read the
+popover with a "Menu navigation" section ("Top navigation" / "Side
+navigation" — the only UI for changing `navMode`) and, conditionally, a
+"Page actions" section (see below). Both nav components read the
 same `adminNavData` config and active-state logic described above, so
 switching layouts changes only presentation, not what's navigable.
+
+**Page actions: per-view dev/test controls in the settings popover**
+(`page-actions-context.tsx`) — this is the single floating button on every
+admin page; individual views used to render their own extra floating
+buttons (Initial Credit Checking had four stacked at different `bottom`
+offsets: sample-data toggle, layout-column toggle, Force Clean/Force
+Negative; Call Report had one), which is consolidated here instead.
+`AdminPageActionsProvider` wraps the whole admin layout (in `AdminLayout`,
+alongside `AdminNavModeProvider`) holding one `actions: AdminPageAction[]`
+array in state. A view calls `useRegisterPageActions(actions)` — a thin
+`useEffect` wrapper that sets the shared array on mount/whenever `actions`
+changes, and clears it (`setActions([])`) on unmount — so actions never leak
+onto a page that didn't register them, and switching between pages swaps the
+popover's "Page actions" section contents automatically. `AdminNavSettingsButton`
+reads the array via `usePageActions()` and renders it as a second section
+below "Menu navigation" (divider between), only when non-empty; clicking an
+action closes the popover and calls its `onClick`. Both `initial-credit-checking-view.tsx`
+and `call-report-view.tsx` compute their action list with `useMemo` (deps:
+whatever drives that view's conditional/relabeled actions —
+`allBureauReportsUploaded`/`isSplitLayout` for the former, `canProceed` for
+the latter) and pass it to `useRegisterPageActions`. Because these views also
+have an early `if (!signUpData...) return null;` guard for missing
+registration data, the hook call (and the handler functions it references)
+had to move *above* that guard to satisfy `react-hooks/rules-of-hooks` — the
+handlers themselves gained an inline `if (!signUpData) return;` bail instead
+of relying on the component-level narrowing they used to sit below.
 
 The account/notification cluster (bell, "ASK HAI" button + `HaiChatDrawer`,
 avatar with account `Menu` and logout `ConfirmDialog`) lives in
@@ -1024,7 +1066,7 @@ The page's own intro card ("Call Report & Loan Package Proposal / Complete this 
 
 **Proceed gate**: the existing "Proceed application?" card's Proceed button is disabled until `callStatus`, `identityConfirmed`, and `preliminaryRecommendation` are all set, and — only when `followUpRequired === 'yes'` — `followUpDate` is also filled in. "Do Not Proceed" stays ungated, consistent with how declining never requires as much as approving elsewhere in this app.
 
-**Floating "Fill with Sample Data" / "Remove Sample Data" toggle** — same pattern as Initial Credit Checking's floating button (fixed bottom-right, always visible, no `NODE_ENV` gate). Label and behavior are driven by `canProceed` (the same boolean gating the Proceed button): while incomplete, one click fills every section with representative sample values in one shot (including a synthesized one-item collateral entry, built inline with `crypto.randomUUID()` rather than via `addCollateralEntry()`+`updateCollateralEntry()`, since those are two separate async state updates and the sample-fill needs the entry's data present in the same synchronous `setCallReport` call); once complete, the button relabels to "Remove Sample Data" and clicking it resets every field in the report back to its blank default (leaving `AdminContext`'s other steps, and the read-only Application Details data pulled from `RegistrationContext`, untouched). `clientType` still exists on `CallReport` (kept for potential future use) but currently has no rendered UI anywhere, since the card that used to show it was removed.
+**"Fill with Sample Data" / "Remove Sample Data" toggle** — registered as a page action into the shared settings popover (see "Page actions" above), same pattern as Initial Credit Checking's sample-data action, no `NODE_ENV` gate. Label and behavior are driven by `canProceed` (the same boolean gating the Proceed button): while incomplete, one click fills every section with representative sample values in one shot (including a synthesized one-item collateral entry, built inline with `crypto.randomUUID()` rather than via `addCollateralEntry()`+`updateCollateralEntry()`, since those are two separate async state updates and the sample-fill needs the entry's data present in the same synchronous `setCallReport` call); once complete, the button relabels to "Remove Sample Data" and clicking it resets every field in the report back to its blank default (leaving `AdminContext`'s other steps, and the read-only Application Details data pulled from `RegistrationContext`, untouched). `clientType` still exists on `CallReport` (kept for potential future use) but currently has no rendered UI anywhere, since the card that used to show it was removed.
 
 ### Requirement Checklist (`src/sections/admin/requirement-checklist-view.tsx`)
 
@@ -1176,12 +1218,13 @@ no search/remove yet since there's only ever one applicant in this prototype.
   page of the process not shown in the diagram provided)
 - Real CIBI/CIC/CMAP/NFIS/LOANDEX integrations (only CIBI has an API per the diagram)
 
-**Floating "Fill with Sample Data" / "Remove Sample Data" toggle (Initial Credit
-Checking only)**: a floating action button fixed to the bottom-right of
-`InitialCreditCheckingView`, always visible (no longer additionally gated on
+**"Fill with Sample Data" / "Remove Sample Data" toggle (Initial Credit
+Checking only)**: registered as a page action into the shared settings
+popover (see "Page actions" above) rather than its own floating button,
+always available (no longer additionally gated on
 `NODE_ENV` — see the "Known issues" entry on the `NODE_ENV` gate removal below),
 with its label and behavior driven by `allBureauReportsUploaded`. Note this
-button no longer gates the decision buttons themselves (Approve/No/For
+action no longer gates the decision buttons themselves (Approve/No/For
 Reconsideration are always clickable — see
 `docs/ADMIN_INITIAL_CREDIT_CHECKING.md`'s "Decision gate" section) — it only
 controls whether the bureau reports/CIBI form are pre-filled for demo
@@ -1189,32 +1232,33 @@ purposes. While not yet uploaded, one click (`handleFillSampleData`) fills the
 entire screen in one step: uploads the document, fills and submits the CIBI
 form (including a sample report), and uploads all four bureau reports
 (LOANDEX/CIC/CMAP/NFIS-BAP) — letting a tester skip the manual click-through.
-Once all 5 are uploaded, the button relabels to "Remove Sample Data" and
+Once all 5 are uploaded, the action relabels to "Remove Sample Data" and
 clicking it calls `handleClearSampleData()` instead — a scoped undo of exactly
 the fields `handleFillSampleData` set (document/AI fields on `creditChecking`,
 the CIBI form, and the four bureau uploads), deliberately not `resetReview()`,
 which would also wipe unrelated steps (Reconsideration, Call Report,
-Requirement Checklist) this button has no business touching. The Officer
+Requirement Checklist) this action has no business touching. The Officer
 Notes textarea is untouched by either direction, since it's a separate field.
 `computeInstallment` was exported from `cibi-form-card.tsx` so
 `handleFillSampleData` can reuse the same installment math instead of
 duplicating it.
 
-**1-Column / 2-Column layout toggle (Initial Credit Checking only)**: a second
-floating pill button, fixed bottom-right directly below the "Fill with Sample
-Data" / "Remove Sample Data" button (`bottom: 24` vs. that button's
-`bottom: 84`, both `right: 24` so they stack rather than overlap), `md`+ screens
-only — hidden below that breakpoint since a rigid two-column layout doesn't
-work on narrow viewports. Labeled "Switch to 2-Column Layout" / "Switch to
-1-Column Layout", backed by local `isSplitLayout` state in
+**1-Column / 2-Column layout toggle (Initial Credit Checking only)**: another
+page action in the same settings popover ("Switch to 2-Column Layout" /
+"Switch to 1-Column Layout"), backed by local `isSplitLayout` state in
 `InitialCreditCheckingView` — a pure display preference, not persisted to
 `AdminContext`/localStorage, so it resets to the 1-column default on
-navigation or refresh. This button was originally placed inline next to
+navigation or refresh. (Originally a second floating pill button stacked
+below "Fill with Sample Data"/"Remove Sample Data"; both were consolidated
+into the settings popover's "Page actions" section — see above — along with
+Force Clean/Force Negative, so the page no longer has any of its own floating
+buttons.) This toggle was originally placed inline next to
 `ApplicationReviewHeader`, but that broke the header's own internal row layout
 (`ApplicationReviewHeader` is a self-contained full-width block with its own
 "‹ Application List" row, loan-info card, and aging alert — squeezing another
 button into a `Stack direction="row"` alongside it competed for horizontal
-space and visually broke it) — moved to a floating button instead, and
+space and visually broke it) — moved out of the header row (first to its own
+floating button, now into the settings popover), and
 `ApplicationReviewHeader` is rendered on its own again, full width, unchanged
 from before this feature. All the page's cards
 (everything after `ApplicationDetailsCard`) were factored into a
