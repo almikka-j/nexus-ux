@@ -816,19 +816,6 @@ The admin shell renders one of two nav components depending on the current
   `AdminHeader` row (unchanged, still two rows in this mode). Two independent
   collapsible sections (`src/layouts/admin/config-nav-admin.tsx`):
 
-**Top-nav mode also runs pages full width.** Every admin view wraps its
-content in its own `<Container maxWidth="md"|"lg"|"xl">` — fine for the
-sidebar layout, but narrow-and-centered read as wasted space once the nav
-moved to a single top bar. Rather than edit each of the 11 view files
-individually, `AdminLayout`'s top-nav branch wraps `children` in a `Box` with
-a scoped CSS override (`FULL_WIDTH_CONTAINER_SX`, targeting `& >
-.MuiContainer-root`) that sets `maxWidth: none !important` and overrides the
-Container's own responsive `px` to match `AdminNavHorizontal`'s `px: { xs: 2,
-md: 5 }` exactly — so page content's left/right edges line up with the nav
-bar's logo/actions above it instead of sitting flush with the viewport edge
-or drifting out of alignment with a different padding value. Side-nav mode is
-untouched — those `Container maxWidth` caps still apply there.
-
 - **"Application List"** — the forward-moving process only: Initial Credit
   Checking, Call Report, Requirement Checklist. Reconsideration
   is deliberately **not** here — being sent to Reconsideration means the

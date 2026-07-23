@@ -13,20 +13,6 @@ import { AdminPageActionsProvider } from './page-actions-context';
 
 // ----------------------------------------------------------------------
 
-// Top-nav mode drops every view's own `<Container maxWidth="...">` cap so
-// pages run edge-to-edge instead of narrow-and-centered — done here with one
-// CSS override instead of editing every admin view file individually. Left
-// and right padding is set to match AdminNavHorizontal's own `px` so page
-// content lines up with the nav bar above it instead of sitting flush with
-// the viewport edge.
-const FULL_WIDTH_CONTAINER_SX = {
-  '& > .MuiContainer-root': {
-    maxWidth: 'none !important',
-    paddingLeft: { xs: '16px !important', md: '40px !important' },
-    paddingRight: { xs: '16px !important', md: '40px !important' },
-  },
-};
-
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { adminUser } = useAdmin();
   const { navMode } = useAdminNavMode();
@@ -55,7 +41,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'grey.50' }}>
       <AdminNavHorizontal displayName={displayName} />
 
-      <Box component="main" sx={{ flex: 1, ...FULL_WIDTH_CONTAINER_SX }}>
+      <Box component="main" sx={{ flex: 1 }}>
         {children}
       </Box>
 
