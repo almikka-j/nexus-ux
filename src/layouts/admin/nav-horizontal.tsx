@@ -57,18 +57,21 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
     <Box
       component="nav"
       sx={{
-        height: 64,
+        height: 68,
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
         gap: 4,
         px: { xs: 2, md: 5 },
-        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
         bgcolor: 'common.white',
+        boxShadow: '0 1px 0 #EBEDF3, 0 2px 12px rgba(20,23,42,0.03)',
+        position: 'sticky',
+        top: 0,
+        zIndex: (theme) => theme.zIndex.appBar,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <LogoFull width={132} height={32} />
+      <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, mr: 1 }}>
+        <LogoFull width={130} height={32} />
       </Box>
 
       <Stack direction="row" spacing={0.75} sx={{ flex: 1, overflowX: 'auto' }}>
@@ -92,10 +95,11 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
               bgcolor: '#F5F6FA',
             },
             ...(active && {
-              bgcolor: '#EEF1FE',
-              color: '#1C2A6E',
+              bgcolor: '#1C2A6E',
+              color: 'common.white',
               fontWeight: 700,
-              '&:hover': { bgcolor: '#EEF1FE' },
+              boxShadow: '0 2px 8px rgba(28,42,110,0.28)',
+              '&:hover': { bgcolor: '#1C2A6E' },
             }),
             ...(isSectionActive && {
               color: '#1C2A6E',
