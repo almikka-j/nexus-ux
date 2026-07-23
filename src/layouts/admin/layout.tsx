@@ -38,8 +38,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'grey.50' }}>
-      <AdminNavHorizontal />
-      <AdminHeader displayName={displayName} />
+      <AdminNavHorizontal displayName={displayName} />
 
       <Box component="main" sx={{ flex: 1 }}>
         {children}

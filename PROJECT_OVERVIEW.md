@@ -802,12 +802,17 @@ The admin shell renders one of two nav components depending on the current
 `navMode` (`'top' | 'side'`, default `'top'`), persisted to `localStorage`
 (`admin-nav-mode`) via `AdminNavModeProvider`/`useAdminNavMode`:
 
-- **`AdminNavHorizontal`** (`nav-horizontal.tsx`) — default. A single top bar:
-  logo, flattened nav items inline, each item with children (`hasChildren`)
-  opening its own MUI `Menu` dropdown on click instead of expanding in place.
+- **`AdminNavHorizontal`** (`nav-horizontal.tsx`) — default. A single merged
+  top bar: logo, flattened nav items inline (each item with children opening
+  its own MUI `Menu` dropdown on click instead of expanding in place), and the
+  account/notification controls (`AdminHeaderActions`, see below) on the right
+  — all in one 64px row. In this mode `AdminLayout` does not render a separate
+  `AdminHeader` row underneath; `AdminNavHorizontal` takes a `displayName`
+  prop and renders `AdminHeaderActions` inline itself.
 - **`AdminNav`** (`nav-vertical.tsx`) — the original fixed left sidebar,
-  selectable from the settings panel below. Two independent collapsible
-  sections (`src/layouts/admin/config-nav-admin.tsx`):
+  selectable from the settings panel below, paired with its own separate
+  `AdminHeader` row (unchanged, still two rows in this mode). Two independent
+  collapsible sections (`src/layouts/admin/config-nav-admin.tsx`):
 
 - **"Application List"** — the forward-moving process only: Initial Credit
   Checking, Call Report, Requirement Checklist. Reconsideration
@@ -841,6 +846,13 @@ popover ("Menu navigation") with two options, "Top navigation" and "Side
 navigation" — the only UI for changing `navMode`. Both nav components read the
 same `adminNavData` config and active-state logic described above, so
 switching layouts changes only presentation, not what's navigable.
+
+The account/notification cluster (bell, "ASK HAI" button + `HaiChatDrawer`,
+avatar with account `Menu` and logout `ConfirmDialog`) lives in
+`AdminHeaderActions` (`header.tsx`) — extracted from the original `AdminHeader`
+so both `AdminHeader` (side-nav mode's separate row) and `AdminNavHorizontal`
+(top-nav mode's single merged row) can render the identical controls without
+duplicating the logout/HAI-drawer state.
 
 The "Application List" section's sub-links point at
 `paths.admin.applicationsByStep(<step>)` (`/admin/credit-checking?step=<reviewStep>`,

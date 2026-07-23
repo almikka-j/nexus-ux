@@ -23,6 +23,8 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
+import { HaiChatDrawer } from './hai-chat-drawer';
+
 // ----------------------------------------------------------------------
 
 type AdminHeaderProps = {
@@ -30,10 +32,16 @@ type AdminHeaderProps = {
   role?: string;
 };
 
-export function AdminHeader({ displayName, role = 'Credit Officer' }: AdminHeaderProps) {
+// Shared account/notification controls — the right-hand cluster of the admin
+// header. Extracted so AdminNavHorizontal can render it inline in its own
+// single-row top bar instead of stacking a whole separate <AdminHeader> row
+// underneath, while AdminHeader (used in side-nav mode) keeps rendering it
+// inside its own bordered row.
+export function AdminHeaderActions({ displayName, role = 'Credit Officer' }: AdminHeaderProps) {
   const router = useRouter();
   const { logout } = useAdmin();
   const logoutConfirm = useBoolean();
+  const haiChat = useBoolean();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   const handleLogout = () => {
@@ -44,36 +52,34 @@ export function AdminHeader({ displayName, role = 'Credit Officer' }: AdminHeade
   };
 
   return (
-    <Box
-      component="header"
-      sx={{
-        height: 64,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        gap: 2,
-        px: { xs: 2, md: 5 },
-        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-        bgcolor: 'common.white',
-      }}
-    >
+    <Stack direction="row" alignItems="center" gap={2}>
       <Badge color="error" badgeContent={0} overlap="circular">
         <IconButton>
           <Iconify icon="solar:bell-bold-duotone" width={24} />
         </IconButton>
       </Badge>
 
+      <Button
+        variant="outlined"
+        startIcon={<Iconify icon="solar:magic-stick-3-bold-duotone" width={18} />}
+        onClick={haiChat.onTrue}
+        sx={{
+          minHeight: 38,
+          borderRadius: '10px',
+          borderColor: '#D9DDEA',
+          color: '#1C2A6E',
+          fontWeight: 700,
+          '&:hover': { borderColor: '#1C2A6E', bgcolor: '#F5F7FF' },
+        }}
+      >
+        ASK HAI
+      </Button>
+
       <ButtonBase
         onClick={(event) => setAnchorEl(event.currentTarget)}
-        sx={{ borderRadius: 1, p: 0.5, gap: 1.5 }}
+        aria-label="Open account menu"
+        sx={{ borderRadius: '50%', p: 0.5 }}
       >
-        <Stack alignItems="flex-end" spacing={0}>
-          <Typography variant="subtitle2">{displayName}</Typography>
-          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-            {role}
-          </Typography>
-        </Stack>
-
         <Avatar sx={{ bgcolor: '#1C2A6E', color: 'common.white', fontWeight: 700 }}>
           {displayName.charAt(0).toUpperCase()}
         </Avatar>
@@ -103,6 +109,8 @@ export function AdminHeader({ displayName, role = 'Credit Officer' }: AdminHeade
         </MenuItem>
       </Menu>
 
+      <HaiChatDrawer open={haiChat.value} onClose={haiChat.onFalse} />
+
       <ConfirmDialog
         open={logoutConfirm.value}
         onClose={logoutConfirm.onFalse}
@@ -114,6 +122,26 @@ export function AdminHeader({ displayName, role = 'Credit Officer' }: AdminHeade
           </Button>
         }
       />
+    </Stack>
+  );
+}
+
+export function AdminHeader({ displayName, role = 'Credit Officer' }: AdminHeaderProps) {
+  return (
+    <Box
+      component="header"
+      sx={{
+        height: 64,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 2,
+        px: { xs: 2, md: 5 },
+        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+        bgcolor: 'common.white',
+      }}
+    >
+      <AdminHeaderActions displayName={displayName} role={role} />
     </Box>
   );
 }

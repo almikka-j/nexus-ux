@@ -15,6 +15,7 @@ import { Iconify } from 'src/components/iconify';
 import { LogoFull } from 'src/components/logo/logo-full';
 
 import { adminNavData } from './config-nav-admin';
+import { AdminHeaderActions } from './header';
 
 // ----------------------------------------------------------------------
 
@@ -22,7 +23,11 @@ function isInsideSection(item: (typeof adminNavData)[number], pathname: string) 
   return !!item.children?.some((child) => pathname === child.path.split('?')[0]);
 }
 
-export function AdminNavHorizontal() {
+type AdminNavHorizontalProps = {
+  displayName: string;
+};
+
+export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const searchStep = searchParams.get('step');
@@ -116,6 +121,8 @@ export function AdminNavHorizontal() {
           );
         })}
       </Stack>
+
+      <AdminHeaderActions displayName={displayName} />
 
       {adminNavData.map((item) => {
         if (!item.children?.length) return null;
