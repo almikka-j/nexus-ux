@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, cloneElement, isValidElement } from 'react';
+import { useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -22,13 +22,6 @@ import { AdminHeaderActions } from './header';
 
 function isInsideSection(item: (typeof adminNavData)[number], pathname: string) {
   return !!item.children?.some((child) => pathname === child.path.split('?')[0]);
-}
-
-// Nav icons are sized 24px for the sidebar's own row — too large next to
-// 14px text in this compact top-bar pill, so shrink them just for this view.
-function NavIcon({ icon }: { icon: React.ReactNode }) {
-  if (!isValidElement<{ width?: number }>(icon)) return icon;
-  return cloneElement(icon, { width: 19 });
 }
 
 type AdminNavHorizontalProps = {
@@ -115,7 +108,6 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
                 onClick={(event) => handleOpenMenu(event, item.title)}
                 sx={commonSx}
               >
-                <NavIcon icon={item.icon} />
                 <Box component="span">{item.title}</Box>
                 <Iconify
                   icon="eva:chevron-down-fill"
@@ -133,7 +125,6 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
 
           return (
             <ButtonBase key={item.title} component={RouterLink} href={item.path!} sx={commonSx}>
-              <NavIcon icon={item.icon} />
               <Box component="span">{item.title}</Box>
             </ButtonBase>
           );
