@@ -172,6 +172,7 @@ export function RequirementChecklistView() {
   // Appraisal from Not Applicable back to Applicable left the card stuck
   // collapsed with no visible way back in except the header itself.
   const [creditInvestigationCollapsed, setCreditInvestigationCollapsed] = useState(false);
+  const [financialEvaluationCollapsed, setFinancialEvaluationCollapsed] = useState(false);
   const [appraisalCollapsed, setAppraisalCollapsed] = useState(false);
 
   // Scroll targets for "Jump to next outstanding item" in the sticky summary
@@ -211,12 +212,17 @@ export function RequirementChecklistView() {
       fileName: null,
       uploadedAt: null,
       uploadedBy: null,
+      remarks: '',
       reviewed: false,
     });
   };
 
   const handleToggleReviewed = (key: string) => (reviewed: boolean) => {
     patchDoc(key, { reviewed });
+  };
+
+  const handleRemarksChange = (key: string) => (remarks: string) => {
+    patchDoc(key, { remarks, ...(remarks.trim() ? {} : { reviewed: false }) });
   };
 
   const handleAddTctGroup = () => {
@@ -245,12 +251,20 @@ export function RequirementChecklistView() {
       fileName: null,
       uploadedAt: null,
       uploadedBy: null,
+      remarks: '',
       reviewed: false,
     });
   };
 
   const handleToggleAppraisalDocReviewed = (groupId: string, key: string) => (reviewed: boolean) => {
     updateAppraisalGroupDoc(groupId, key, { reviewed });
+  };
+
+  const handleAppraisalDocRemarksChange = (groupId: string, key: string) => (remarks: string) => {
+    updateAppraisalGroupDoc(groupId, key, {
+      remarks,
+      ...(remarks.trim() ? {} : { reviewed: false }),
+    });
   };
 
   // Fills every fixed document plus a single fresh Appraisal group with
@@ -272,6 +286,7 @@ export function RequirementChecklistView() {
           fileName: `${meta.key}-sample.pdf`,
           uploadedAt,
           uploadedBy: officerName,
+          remarks: 'Reviewed against the submitted application details.',
           reviewed: false,
         };
       }),
@@ -286,6 +301,49 @@ export function RequirementChecklistView() {
             fileName: `${meta.key}-sample.pdf`,
             uploadedAt,
             uploadedBy: officerName,
+            remarks: 'Reviewed against the submitted application details.',
+            reviewed: false,
+          })),
+        },
+      ],
+      appraisalNotApplicable: false,
+    });
+  };
+
+  // Same shape as handleFillSampleData, but every document (fixed list and
+  // the one fresh Appraisal group) is forced to 'verified' regardless of its
+  // meta.freshStatus — unlike the realistic-mix "Fill with Sample Data"
+  // above, this leaves nothing at 'needs-review' or 'missing', so a single
+  // click reaches an immediately-endorsable state.
+  const handleFillSampleDataAllCorrect = () => {
+    const uploadedAt = new Date().toISOString();
+    setRequirementChecklist({
+      documents: documents.map((doc) => {
+        const meta = REQUIREMENT_DOC_META.find((entry) => entry.key === doc.key);
+        if (!meta) return doc;
+        return {
+          ...doc,
+          status: 'verified',
+          aiNote: meta.freshNote,
+          fileName: `${meta.key}-sample.pdf`,
+          uploadedAt,
+          uploadedBy: officerName,
+          remarks: 'Reviewed against the submitted application details.',
+          reviewed: false,
+        };
+      }),
+      appraisalGroups: [
+        {
+          id: crypto.randomUUID(),
+          tctNumber: 'TCT-2024-00981',
+          documents: APPRAISAL_DOC_META.map((meta) => ({
+            key: meta.key,
+            status: 'verified',
+            aiNote: meta.freshNote,
+            fileName: `${meta.key}-sample.pdf`,
+            uploadedAt,
+            uploadedBy: officerName,
+            remarks: 'Reviewed against the submitted application details.',
             reviewed: false,
           })),
         },
@@ -389,16 +447,13 @@ export function RequirementChecklistView() {
 
   const lastOutreachMessage = outreachMessages[outreachMessages.length - 1] ?? null;
 
-  // Row ids in on-page visual order (Credit Investigation and Financial
-  // Evaluation in the combined card, then every Appraisal group) — drives both
+  // Row ids in on-page visual order (Credit Investigation, every Appraisal
+  // group, then Financial Evaluation) — drives both
   // "Jump to next outstanding item" cycling and the ref map rows register
   // themselves under. Appraisal rows are namespaced by group id since the
   // same document key (e.g. 'tctCctCopy') repeats across groups.
   const outstandingRowIds = [
     ...REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('creditInvestigation'))
-      .filter((meta) => needsAttention(requiredDocsByKey.get(meta.key)!))
-      .map((meta) => meta.key),
-    ...REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
       .filter((meta) => needsAttention(requiredDocsByKey.get(meta.key)!))
       .map((meta) => meta.key),
     ...(appraisalNotApplicable
@@ -409,6 +464,9 @@ export function RequirementChecklistView() {
             (meta) => `${group.id}:${meta.key}`
           );
         })),
+    ...REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
+      .filter((meta) => needsAttention(requiredDocsByKey.get(meta.key)!))
+      .map((meta) => meta.key),
   ];
 
   const [jumpCursor, setJumpCursor] = useState(0);
@@ -423,7 +481,7 @@ export function RequirementChecklistView() {
     if (REQUIREMENT_DOC_META.some((meta) => meta.tabs.includes('creditInvestigation') && meta.key === rowId)) {
       setCreditInvestigationCollapsed(false);
     } else if (REQUIREMENT_DOC_META.some((meta) => meta.tabs.includes('financialEvaluation') && meta.key === rowId)) {
-      setCreditInvestigationCollapsed(false);
+      setFinancialEvaluationCollapsed(false);
     } else {
       setAppraisalCollapsed(false);
     }
@@ -441,6 +499,13 @@ export function RequirementChecklistView() {
           label: allRequiredReceived ? 'Remove Sample Data' : 'Fill with Sample Data',
           icon: 'solar:magic-stick-3-bold-duotone',
           onClick: allRequiredReceived ? handleClearSampleData : handleFillSampleData,
+        },
+        {
+          key: 'sample-data-all-correct',
+          label: 'Fill Sample Data (All Correct)',
+          icon: 'solar:check-circle-bold',
+          color: '#0C8A4F',
+          onClick: handleFillSampleDataAllCorrect,
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -616,6 +681,22 @@ export function RequirementChecklistView() {
             <Box sx={{ width: `${progressFraction * 100}%`, height: '100%', bgcolor: '#1C2A6E', transition: 'width 0.2s ease' }} />
           </Box>
 
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ mt: 2, p: 1.5, borderRadius: '10px', bgcolor: '#F5F7FF' }}
+          >
+            <Iconify
+              icon="solar:check-square-bold-duotone"
+              width={18}
+              sx={{ color: '#1C2A6E', flexShrink: 0 }}
+            />
+            <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
+              Check the checkbox once a document has been reviewed and accepted.
+            </Typography>
+          </Stack>
+
           {lastOutreachMessage && (
             <Stack
               component={ButtonBase}
@@ -651,9 +732,7 @@ export function RequirementChecklistView() {
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
           <Stack
             component={ButtonBase}
-            onClick={() => {
-              setCreditInvestigationCollapsed((prev) => !prev);
-            }}
+            onClick={() => setCreditInvestigationCollapsed((prev) => !prev)}
             direction="row"
             alignItems="center"
             justifyContent="space-between"
@@ -661,9 +740,9 @@ export function RequirementChecklistView() {
           >
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-                Credit Investigation &amp; Financial Evaluation
+                {REQUIREMENT_TAB_LABELS.creditInvestigation}
               </Typography>
-              {creditInvestigationFullyVerified && financialEvaluationFullyVerified && (
+              {creditInvestigationFullyVerified && (
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
               )}
             </Stack>
@@ -705,6 +784,7 @@ export function RequirementChecklistView() {
                             onUpload={handleUploadDoc(meta.key)}
                             onRemove={handleRemoveDoc(meta.key)}
                             onToggleReviewed={handleToggleReviewed(meta.key)}
+                            onRemarksChange={handleRemarksChange(meta.key)}
                           />
                         </Box>
                       ))}
@@ -715,34 +795,6 @@ export function RequirementChecklistView() {
             </Stack>
           )}
 
-          {!creditInvestigationCollapsed && (
-            <>
-              <Divider sx={{ my: 3, borderColor: '#EEF0F5' }} />
-              <SectionLabel>{REQUIREMENT_TAB_LABELS.financialEvaluation}</SectionLabel>
-              <Stack spacing={1.25} sx={{ mt: 1.25 }}>
-              {sortByAttentionFirst(
-                REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
-                  .map((meta) => ({ meta, doc: requiredDocsByKey.get(meta.key) }))
-                  .filter((entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc)
-              ).map(({ meta, doc }) => (
-                <Box
-                  key={meta.key}
-                  ref={(el: HTMLDivElement | null) => {
-                    rowRefs.current.set(meta.key, el);
-                  }}
-                >
-                  <RequirementDocRow
-                    meta={meta}
-                    doc={doc}
-                    onUpload={handleUploadDoc(meta.key)}
-                    onRemove={handleRemoveDoc(meta.key)}
-                    onToggleReviewed={handleToggleReviewed(meta.key)}
-                  />
-                </Box>
-              ))}
-              </Stack>
-            </>
-          )}
         </Box>
 
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
@@ -831,23 +883,50 @@ export function RequirementChecklistView() {
                 {hasAppraisalGroups && ' Remove every property below to mark this application as not applicable.'}
               </Typography>
 
-              <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                alignItems={{ xs: 'stretch', sm: 'flex-end' }}
+                spacing={1.25}
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  maxWidth: 560,
+                  borderRadius: '12px',
+                  bgcolor: '#F9FAFC',
+                  border: '1px solid #EEF0F5',
+                }}
+              >
                 <TextField
+                  fullWidth
                   size="small"
+                  label="TCT/CCT number"
                   placeholder="e.g. TCT-2024-00981"
                   value={newTctNumber}
                   onChange={(event) => setNewTctNumber(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') handleAddTctGroup();
                   }}
-                  sx={{ flex: 1, maxWidth: 320, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+                  sx={{
+                    flex: 1,
+                    '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'common.white', fontSize: 14 },
+                  }}
                 />
                 <Button
                   onClick={handleAddTctGroup}
                   disabled={!newTctNumber.trim()}
-                  variant="outlined"
+                  variant="contained"
                   startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
-                  sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: 2, flexShrink: 0, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
+                  sx={{
+                    minHeight: 40,
+                    minWidth: { sm: 150 },
+                    borderRadius: '10px',
+                    px: 2.25,
+                    flexShrink: 0,
+                    bgcolor: '#1C2A6E',
+                    boxShadow: 'none',
+                    fontWeight: 700,
+                    '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+                  }}
                 >
                   Add Property
                 </Button>
@@ -878,7 +957,16 @@ export function RequirementChecklistView() {
                     ).length;
                     const groupComplete = groupRequiredReceived === appraisalRequiredMeta.length;
                     return (
-                      <Box key={group.id} sx={{ p: 2.5, borderRadius: '13px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+                      <Box
+                        key={group.id}
+                        sx={{
+                          p: 2.5,
+                          borderRadius: '13px',
+                          bgcolor: 'common.white',
+                          border: '1px solid #DDE2EE',
+                          boxShadow: '0 2px 8px rgba(20,23,42,0.05)',
+                        }}
+                      >
                         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 1.5 }}>
                           <Stack direction="row" alignItems="center" spacing={1}>
                             <Iconify icon="solar:home-2-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
@@ -928,6 +1016,7 @@ export function RequirementChecklistView() {
                                 onUpload={handleUploadAppraisalDoc(group.id, meta.key)}
                                 onRemove={handleRemoveAppraisalDoc(group.id, meta.key)}
                                 onToggleReviewed={handleToggleAppraisalDocReviewed(group.id, meta.key)}
+                                onRemarksChange={handleAppraisalDocRemarksChange(group.id, meta.key)}
                               />
                             </Box>
                           ))}
@@ -938,6 +1027,63 @@ export function RequirementChecklistView() {
                 </Stack>
               )}
             </>
+          )}
+        </Box>
+
+        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+          <Stack
+            component={ButtonBase}
+            onClick={() => setFinancialEvaluationCollapsed((prev) => !prev)}
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ width: '100%', mb: financialEvaluationCollapsed ? 0 : 2 }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+                {REQUIREMENT_TAB_LABELS.financialEvaluation}
+              </Typography>
+              {financialEvaluationFullyVerified && (
+                <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
+              )}
+            </Stack>
+            <Iconify
+              icon="eva:chevron-down-fill"
+              width={20}
+              sx={{
+                color: '#8891A6',
+                transition: 'transform 0.15s ease',
+                transform: financialEvaluationCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+              }}
+            />
+          </Stack>
+
+          {!financialEvaluationCollapsed && (
+            <Stack spacing={1.25}>
+              {sortByAttentionFirst(
+                REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
+                  .map((meta) => ({ meta, doc: requiredDocsByKey.get(meta.key) }))
+                  .filter(
+                    (entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc
+                  )
+              ).map(({ meta, doc }) => (
+                <Box
+                  key={meta.key}
+                  ref={(el: HTMLDivElement | null) => {
+                    rowRefs.current.set(meta.key, el);
+                  }}
+                >
+                  <RequirementDocRow
+                    meta={meta}
+                    doc={doc}
+                    onUpload={handleUploadDoc(meta.key)}
+                    onRemove={handleRemoveDoc(meta.key)}
+                    onToggleReviewed={handleToggleReviewed(meta.key)}
+                    onRemarksChange={handleRemarksChange(meta.key)}
+                  />
+                </Box>
+              ))}
+            </Stack>
           )}
         </Box>
 
@@ -1002,7 +1148,13 @@ export function RequirementChecklistView() {
               onClick={() => setReturnDialogOpen(true)}
               variant="outlined"
               startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
-              sx={{ color: '#F04438', borderColor: '#F04438', borderRadius: '10px', px: 2.5, '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(240,68,56,0.04)' } }}
+              sx={{
+                color: '#5A6273',
+                borderColor: '#C7CCDA',
+                borderRadius: '10px',
+                px: 2.5,
+                '&:hover': { color: '#1C2A6E', borderColor: '#1C2A6E', bgcolor: '#F5F7FF' },
+              }}
             >
               Return to Applicant
             </Button>

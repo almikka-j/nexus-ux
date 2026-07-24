@@ -61,18 +61,19 @@ bottom, same Enter-to-send convention as the Request Documents drawer. The new
 history entry automatically displays the officer name, date/time, note, and
 Process = Requirement Checklist.
 
-## Layout: combined investigation/evaluation card plus Appraisal
+## Layout: three document cards
 
-The screen combines **Credit Investigation** and **Financial Evaluation** in
-one white card under the single heading **"Credit Investigation & Financial
-Evaluation"** and one shared collapse control. A divider and subsection label
-separate the Financial Evaluation rows; document grouping and row actions stay
-unchanged. The combined verified icon appears only when both sections are fully
-verified. **Appraisal** remains a separate card below it. The page does not use tabs (an
-earlier iteration used MUI `Tabs`). Card labels deliberately use the design mockup's
+The screen presents **Credit Investigation**, **Appraisal**, and **Financial
+Evaluation** as three separate white cards. Each card has its own heading,
+verified indicator, collapse control, and document content. The page does not
+use tabs (an earlier iteration used MUI `Tabs`). Card labels deliberately use the design mockup's
 naming (`Credit Investigation` / `Appraisal` / `Financial Evaluation`),
 superseding the "keep app wording" note in the History section below, which
 now only applies to the page's own title/step badge, not these card labels.
+Document labels do not display required-field asterisks; required status is
+still retained in metadata and continues to control progress and endorsement.
+The checklist summary includes a persistent instruction telling officers to
+check a document's checkbox only after it has been reviewed and accepted.
 
 ## Page-wide UX: sticky summary bar, collapsible cards, status-first sorting, jump-to-outstanding
 
@@ -219,7 +220,10 @@ other collateral types (vehicle, equipment, etc.) aren't represented here.
   session isn't permanently blocked from endorsing.
 - **Officer-managed, not fixed.** The Appraisal card has a "TCT/CCT number"
   text field + **Add Property** button (`addAppraisalGroup(tctNumber)`) that
-  appends a new group with all 8 documents starting `missing`, and each
+  render in a compact bordered action panel. The input uses the available
+  width, the primary button keeps a consistent action size, and the controls
+  stack vertically on small screens. Adding a property appends a new group
+  with all 8 documents starting `missing`, and each
   group has its own trash-icon **Remove Property** button
   (`removeAppraisalGroup(groupId)`) that deletes the whole group and its
   documents. `updateAppraisalGroupDoc(groupId, docKey, data)` patches a
@@ -305,7 +309,7 @@ flips it back — there's no separate undo control).
 ## `RequirementDoc` state shape (`src/auth/admin-context.tsx`)
 
 ```ts
-RequirementDoc        { key, status, aiNote, fileName, uploadedAt, uploadedBy, reviewed }
+RequirementDoc        { key, status, aiNote, fileName, uploadedAt, uploadedBy, remarks, reviewed }
                        — status: 'verified' | 'needs-review' | 'missing'
 AppraisalTctGroup     { id, tctNumber, documents: RequirementDoc[] }
 OutreachMessage       { id, channel: 'email' | 'whatsapp' | 'viber', text, sentAt }
@@ -314,17 +318,19 @@ RequirementChecklist  { documents: RequirementDoc[], appraisalGroups: AppraisalT
                         collateralNotes, endorsed, returnedToApplicant, returnReason }
 ```
 
-`uploadedBy` and `reviewed` were added alongside the AI summary/date-display
-work below — `uploadedBy` records the officer's name (from `AdminUser`,
-falling back to `'Credit Officer'`) at the moment of upload; `reviewed` is
-the officer's own "I looked at this" confirmation, independent of `status`
+`uploadedBy`, `remarks`, and `reviewed` support the officer review workflow.
+`uploadedBy` records the officer's name (from `AdminUser`, falling back to
+`'Credit Officer'`) at upload; `remarks` stores findings against that
+specific document; `reviewed` is the officer's reviewed-and-accepted
+confirmation, independent of `status`
 (see `RequirementDocRow` below for how the two differ). Every document
-mutation — `handleUploadDoc`, `handleRemoveDoc`, `handleToggleReviewed`, and
+mutation — upload, remove, remarks, and reviewed handlers and
 their Appraisal-group equivalents — sets both fields explicitly: upload sets
-`uploadedBy` to the current officer and resets `reviewed: false` (a
+`uploadedBy` to the current officer and resets `remarks: ''` and
+`reviewed: false` (a
 newly-uploaded file hasn't been reviewed yet, even if it replaces a
-previously-reviewed one); remove clears `uploadedBy`/`reviewed` back to
-`null`/`false` along with the other fields.
+previously-reviewed one); remove clears all three fields along with the
+other upload metadata.
 
 `review.requirementChecklist.documents` is one `RequirementDoc` per entry in
 `REQUIREMENT_DOC_META` (matched by `key`), created fresh per session by
@@ -348,16 +354,18 @@ per-property" above for its own pre-populated pattern (mostly received,
 stored `documents`/`appraisalGroups` onto the fresh default set **by `key`/
 `id`**, rather than trusting a stored array wholesale — a session saved
 before a doc-list or field-shape change (new keys, new fields like
-`uploadedBy`/`reviewed`) would otherwise carry forward a stale/incomplete
+`uploadedBy`/`remarks`/`reviewed`) would otherwise carry forward a stale/incomplete
 array missing them.
 
 ## `RequirementDocRow` (`src/sections/admin/requirement-doc-row.tsx`)
 
 One row per document, rendering: a checkbox (missing docs show a status icon
-instead, since there's nothing to review yet) · the document label (prefixed
-with a red `*` when `meta.required`) · the AI note, if any · "Uploaded
+instead, since there's nothing to review yet) · the document label · the AI note, if any · "Uploaded
 {date} by {uploadedBy}" (missing docs omit this line) · a status chip ·
-a "Reviewed" chip when `doc.reviewed` · and one or two action buttons.
+a "Reviewed" chip when `doc.reviewed` · and one or two action buttons. There
+is no permanently-visible Remarks field on the row — remarks are entered
+through the checkbox's popover (below), not an always-open `TextField`, to
+keep each row a single compact line.
 `meta` accepts either `RequirementDocMeta` (Credit Investigation/Financial
 Evaluation) or the leaner `AppraisalDocMeta` (Appraisal groups) — the
 component only reads `required`/`label`/`freshStatus`/`freshNote`, fields
@@ -365,15 +373,24 @@ both types share, so the same row renders either kind without a type
 discriminator:
 
 - **Verified / Needs review** → the **checkbox toggles `reviewed`**
-  independently of `status` — this is the officer's own "Mark as Reviewed"
-  confirmation, separate from the AI's Verified/Needs Review read (a
-  document can be AI-verified but not yet officer-reviewed, or reviewed but
-  still flagged needs-review). **View** opens a lightweight `Dialog` showing
-  the filename, status chip, Reviewed chip (if set), upload date/uploader,
-  and AI note. There is no real document viewer anywhere in this app — this
-  is filename + note only, not a rendered file. A trash-icon **Remove**
-  button resets the document straight back to `missing` (clearing
-  `fileName`/`uploadedAt`/`uploadedBy`/`aiNote`/`reviewed`) with no
+  independently of `status`. Checking it (unchecked → checked) opens a
+  `Popover` anchored to the checkbox with a small remarks `TextField`
+  (pre-filled with any existing `doc.remarks`) and Cancel/Confirm buttons —
+  Confirm requires a non-blank remark (shows an inline validation message
+  otherwise) and, on success, calls `onRemarksChange` then
+  `onToggleReviewed(true)` together in one step; Cancel closes the popover
+  without changing anything. Unchecking (checked → unchecked) needs no
+  popover — it calls `onToggleReviewed(false)` directly. This is the
+  officer's own "reviewed and accepted" confirmation, separate from the AI's
+  Verified/Needs Review read (a document can be AI-verified but not yet
+  officer-reviewed, or reviewed but still flagged needs-review). **View**
+  opens a lightweight `Dialog` showing the filename, status chip, Reviewed
+  chip (if set), upload date/uploader, AI note, and Officer Remarks — this
+  dialog is the only place remarks are displayed once saved. There is no real
+  document viewer anywhere in this app — this is filename + note only, not a
+  rendered file. A trash-icon **Remove** button resets the document straight
+  back to `missing` (clearing
+  `fileName`/`uploadedAt`/`uploadedBy`/`aiNote`/`remarks`/`reviewed`) with no
   confirmation dialog — re-uploading is one click away if removed by
   mistake.
 - **Missing** → **Upload** button opens a real hidden `<input type="file"
@@ -446,6 +463,21 @@ guard only exists to gate rendering on the borrower's registration data,
 which `handleFillSampleData`/`handleClearSampleData` and
 `allRequiredReceived` don't need, but React's rules-of-hooks require the
 hook call to run unconditionally on every render regardless.
+
+## "Fill Sample Data (All Correct)" page action
+
+A second, always-visible page action alongside "Fill with Sample Data" /
+"Remove Sample Data" above (same popover, key `sample-data-all-correct`).
+Where "Fill with Sample Data" seeds a realistic mix of Verified/Needs Review
+per each document's `meta.freshStatus`, this one forces **every** document —
+every fixed Credit Investigation/Financial Evaluation entry and every
+document in the single fresh Appraisal group it creates — to `'verified'`
+unconditionally, with a populated `remarks` string and `reviewed: false`.
+One click reaches an immediately-endorsable, fully-verified state with no
+`needs-review` or `missing` documents anywhere, without needing to also
+review/toggle each row by hand. It does not toggle labels or clear back to
+blank the way "Fill with Sample Data"/"Remove Sample Data" do — it always
+fills; clearing back to blank is still "Remove Sample Data"'s job.
 
 ## Request Documents drawer (`src/sections/admin/request-documents-drawer.tsx`)
 
@@ -551,7 +583,9 @@ proceed.
 
 **Return to Applicant** is always clickable (not gated on document status —
 an officer can return an application at any point, complete or not). Clicking
-it opens a `ConfirmDialog` with a required free-text reason field; **Confirm**
+it uses the neutral secondary button treatment rather than a red destructive
+style; **Endorse** remains the visually primary action. Clicking it opens a
+`ConfirmDialog` with a required free-text reason field; **Confirm**
 stays disabled until the reason is non-empty (after `.trim()`). Confirming
 calls `setRequirementChecklist({ returnedToApplicant: true,
 returnReason: reason })` and the view switches to a "Returned to applicant"
@@ -565,6 +599,25 @@ confirmation screen, not an actual message sent to anyone.
 
 ## Non-goals / History
 
+- **`RequirementDocRow`'s remarks handling is defensive against `undefined`
+  `remarks`, not just empty strings.** The checkbox's pre-fill
+  (`doc.remarks ?? ''`) and the View dialog's Officer Remarks line
+  (`doc.remarks || 'No remarks added'`) both guard against a non-string
+  value. This was a real crash (`Cannot read properties of undefined
+  (reading 'trim')`), not a hypothetical: both "Fill with Sample Data" and
+  "Fill Sample Data (All Correct)"'s fixed-document branches build each
+  document via `{ ...doc, status, aiNote, fileName, uploadedAt, uploadedBy,
+  reviewed }` without explicitly setting `remarks`, unlike their
+  Appraisal-group branches (which do set it) — relying on the `...doc`
+  spread to carry `remarks` forward is fragile against any upstream doc
+  shape that doesn't already guarantee the field. Both fill handlers now
+  also explicitly set `remarks: 'Reviewed against the submitted application
+  details.'` on the fixed-document branches to match the Appraisal branches,
+  but the row component's own null-safety was kept regardless as
+  defense-in-depth. (The always-open Remarks `TextField` this bug originally
+  lived in was itself later replaced by the checkbox popover — see
+  `RequirementDocRow` above — but the same defensive guards carried over to
+  the popover's code paths.)
 - **Auto-collapse-on-completion was tried and removed as a bug fix.** An
   earlier version had each card's `useEffect` auto-collapse it the moment its
   `fullyVerified` boolean turned `true`. Bug: `appraisalFullyVerified` is
