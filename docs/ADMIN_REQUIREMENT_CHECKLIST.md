@@ -64,9 +64,11 @@ Process = Requirement Checklist.
 ## Layout: combined investigation/evaluation card plus Appraisal
 
 The screen combines **Credit Investigation** and **Financial Evaluation** in
-one white card, separated by a divider; each section keeps its own independent
-collapse control, verification indicator, document grouping, and row actions.
-**Appraisal** remains a separate card below it. The page does not use tabs (an
+one white card under the single heading **"Credit Investigation & Financial
+Evaluation"** and one shared collapse control. A divider and subsection label
+separate the Financial Evaluation rows; document grouping and row actions stay
+unchanged. The combined verified icon appears only when both sections are fully
+verified. **Appraisal** remains a separate card below it. The page does not use tabs (an
 earlier iteration used MUI `Tabs`). Card labels deliberately use the design mockup's
 naming (`Credit Investigation` / `Appraisal` / `Financial Evaluation`),
 superseding the "keep app wording" note in the History section below, which
@@ -86,27 +88,21 @@ navigate once documents start piling up (all in `requirement-checklist-view.tsx`
   officer never has to scroll back up to check overall progress or open the
   Request Documents drawer. The full, non-sticky progress card below it is
   unchanged and still the first thing shown on load.
-- **Each document card collapses independently** — `creditInvestigationCollapsed`
-  / `appraisalCollapsed` / `financialEvaluationCollapsed`, one `useState` per
-  card, toggled by clicking anywhere in that card's header (wrapped in a
-  `ButtonBase`-backed `Stack`) or its chevron icon specifically. Collapsing
-  hides that card's rows but keeps its header (including status badges)
-  visible, so a collapsed card still communicates its state at a glance.
-- **Cards auto-collapse the moment they become fully verified** — stricter
-  than the required-received gate used elsewhere on this page:
+- **Each document card collapses independently, manually only** —
+  `creditInvestigationCollapsed` / `appraisalCollapsed` /
+  `financialEvaluationCollapsed`, one `useState` per card, toggled by
+  clicking anywhere in that card's header (wrapped in a `ButtonBase`-backed
+  `Stack`) or its chevron icon specifically. Collapsing hides that card's
+  rows but keeps its header (including status badges) visible, so a
+  collapsed card still communicates its state at a glance. All three start
+  expanded and there is no auto-collapse-on-completion behavior — that was
+  tried and removed as a bug fix (see "Known issues / History" below):
   `creditInvestigationFullyVerified` / `financialEvaluationFullyVerified` /
-  `appraisalFullyVerified` all require **every** document in that card to be
-  `status === 'verified'` (not merely "not missing" — a lingering
-  `'needs-review'` item keeps the card open and un-collapsed). Each is driven
-  by its own `useEffect` that only ever sets the collapse state to `true`
-  when the completeness boolean flips to `true` — it never force-expands a
-  card, so a manual collapse the officer chose earlier is left alone, and
-  collapsing never happens on first load just because a card already
-  happened to be complete when the page opened. `appraisalFullyVerified` is
-  also `true` whenever `appraisalNotApplicable` is set, consistent with that
-  state's exclusion everywhere else on this screen. A small green check
-  icon appears next to the card title whenever its fully-verified boolean is
-  true, regardless of collapse state.
+  `appraisalFullyVerified` still exist and drive a small green check icon
+  next to each card's title (requiring **every** document in that card to be
+  `status === 'verified'`, stricter than the required-received gate used
+  elsewhere on this page — a lingering `'needs-review'` item keeps the badge
+  off), but none of them collapse anything anymore.
 - **Rows sort outstanding-first within every card/sub-group/property group**
   — `sortByAttentionFirst()` (a small generic stable sort) reorders each
   list so every `needsAttention(doc)` row (`status !== 'verified'` — this
@@ -569,6 +565,28 @@ confirmation screen, not an actual message sent to anyone.
 
 ## Non-goals / History
 
+- **Auto-collapse-on-completion was tried and removed as a bug fix.** An
+  earlier version had each card's `useEffect` auto-collapse it the moment its
+  `fullyVerified` boolean turned `true`. Bug: `appraisalFullyVerified` is
+  `true` whenever `appraisalNotApplicable` is set (by design — see "Not
+  Applicable" above), and the effect only ever called `setAppraisalCollapsed(true)`,
+  never `false`. Toggling Appraisal from Not Applicable back to Applicable
+  left the whole card — Add Property form, property list, everything —
+  stuck collapsed behind its header, with no way back in except manually
+  clicking the header itself. The same effect shape existed (dormant, never
+  actually triggered by real data) on Credit Investigation and Financial
+  Evaluation too. Fixed by removing all three `useEffect`s outright — cards
+  now only ever collapse via the manual header click, never automatically.
+  The `fullyVerified` booleans themselves were kept (they still drive each
+  card's green check-icon badge), just disconnected from collapse state.
+- **`rowRefs` is explicitly pruned when an Appraisal property group is
+  removed** (`handleRemoveAppraisalGroup`, wrapping `removeAppraisalGroup`) —
+  without this, the ref `Map` used for "jump to next outstanding item" keeps
+  a reference to every row element from every property ever added and
+  removed in the session, growing unbounded over a long session of
+  add/remove cycles. Every other row-ref registration (Credit Investigation,
+  Financial Evaluation) never needs pruning since those rows are permanent
+  for the life of the page.
 - **No conditional document sets — Credit Investigation/Financial Evaluation
   only; Appraisal is a deliberate, later exception.** The 19-document fixed
   list still does **not** vary by application — every borrower sees the same

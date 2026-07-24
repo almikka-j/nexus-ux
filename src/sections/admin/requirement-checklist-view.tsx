@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useMemo, useState, useEffect } from 'react';
+import { useRef, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import TextField from '@mui/material/TextField';
 import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
@@ -162,14 +163,16 @@ export function RequirementChecklistView() {
   const [newTctNumber, setNewTctNumber] = useState('');
   const [requestDrawerOpen, setRequestDrawerOpen] = useState(false);
 
-  // Each document card can be collapsed independently — manually via its own
-  // chevron, or automatically the moment it first becomes fully verified
-  // (see the completeness-driven useEffect below). Starts expanded; a card
-  // is never force-collapsed on first load even if it happens to already be
-  // complete, so nothing hides content the officer hasn't seen yet.
+  // Each document card can be collapsed independently, manually via its own
+  // chevron — always starts expanded. Auto-collapsing on completion was
+  // tried and removed: a card's "fully verified" boolean can flip back and
+  // forth (e.g. appraisalFullyVerified toggles with appraisalNotApplicable),
+  // and an effect that only ever sets collapsed=true had no way to
+  // re-expand the card when that boolean went false again — toggling
+  // Appraisal from Not Applicable back to Applicable left the card stuck
+  // collapsed with no visible way back in except the header itself.
   const [creditInvestigationCollapsed, setCreditInvestigationCollapsed] = useState(false);
   const [appraisalCollapsed, setAppraisalCollapsed] = useState(false);
-  const [financialEvaluationCollapsed, setFinancialEvaluationCollapsed] = useState(false);
 
   // Scroll targets for "Jump to next outstanding item" in the sticky summary
   // bar — one ref per document row, keyed by a unique row id (fixed doc key,
@@ -221,6 +224,14 @@ export function RequirementChecklistView() {
     if (!trimmed) return;
     addAppraisalGroup(trimmed);
     setNewTctNumber('');
+  };
+
+  // Prunes that group's entries out of rowRefs before removing it — without
+  // this, the Map keeps a reference to every detached row element from every
+  // property ever added and removed in the session, growing unbounded.
+  const handleRemoveAppraisalGroup = (groupId: string) => {
+    APPRAISAL_DOC_META.forEach((meta) => rowRefs.current.delete(`${groupId}:${meta.key}`));
+    removeAppraisalGroup(groupId);
   };
 
   const handleUploadAppraisalDoc = (groupId: string, key: string) => (data: Partial<RequirementDoc>) => {
@@ -352,21 +363,6 @@ export function RequirementChecklistView() {
     (hasAppraisalGroups &&
       appraisalGroups.every((group) => group.documents.every((doc) => doc.status === 'verified')));
 
-  useEffect(() => {
-    if (creditInvestigationFullyVerified) setCreditInvestigationCollapsed(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [creditInvestigationFullyVerified]);
-
-  useEffect(() => {
-    if (financialEvaluationFullyVerified) setFinancialEvaluationCollapsed(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [financialEvaluationFullyVerified]);
-
-  useEffect(() => {
-    if (appraisalFullyVerified) setAppraisalCollapsed(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appraisalFullyVerified]);
-
   // Every currently-missing document's label, across the fixed list and
   // every Appraisal group — not just required ones, since a missing
   // supporting document is still worth asking the applicant for. Appraisal
@@ -393,13 +389,16 @@ export function RequirementChecklistView() {
 
   const lastOutreachMessage = outreachMessages[outreachMessages.length - 1] ?? null;
 
-  // Row ids in on-page visual order (Credit Investigation sub-groups, then
-  // every Appraisal group, then Financial Evaluation) — drives both
+  // Row ids in on-page visual order (Credit Investigation and Financial
+  // Evaluation in the combined card, then every Appraisal group) — drives both
   // "Jump to next outstanding item" cycling and the ref map rows register
   // themselves under. Appraisal rows are namespaced by group id since the
   // same document key (e.g. 'tctCctCopy') repeats across groups.
   const outstandingRowIds = [
     ...REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('creditInvestigation'))
+      .filter((meta) => needsAttention(requiredDocsByKey.get(meta.key)!))
+      .map((meta) => meta.key),
+    ...REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
       .filter((meta) => needsAttention(requiredDocsByKey.get(meta.key)!))
       .map((meta) => meta.key),
     ...(appraisalNotApplicable
@@ -410,9 +409,6 @@ export function RequirementChecklistView() {
             (meta) => `${group.id}:${meta.key}`
           );
         })),
-    ...REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
-      .filter((meta) => needsAttention(requiredDocsByKey.get(meta.key)!))
-      .map((meta) => meta.key),
   ];
 
   const [jumpCursor, setJumpCursor] = useState(0);
@@ -427,7 +423,7 @@ export function RequirementChecklistView() {
     if (REQUIREMENT_DOC_META.some((meta) => meta.tabs.includes('creditInvestigation') && meta.key === rowId)) {
       setCreditInvestigationCollapsed(false);
     } else if (REQUIREMENT_DOC_META.some((meta) => meta.tabs.includes('financialEvaluation') && meta.key === rowId)) {
-      setFinancialEvaluationCollapsed(false);
+      setCreditInvestigationCollapsed(false);
     } else {
       setAppraisalCollapsed(false);
     }
@@ -655,7 +651,9 @@ export function RequirementChecklistView() {
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
           <Stack
             component={ButtonBase}
-            onClick={() => setCreditInvestigationCollapsed((prev) => !prev)}
+            onClick={() => {
+              setCreditInvestigationCollapsed((prev) => !prev);
+            }}
             direction="row"
             alignItems="center"
             justifyContent="space-between"
@@ -663,9 +661,9 @@ export function RequirementChecklistView() {
           >
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-                {REQUIREMENT_TAB_LABELS.creditInvestigation}
+                Credit Investigation &amp; Financial Evaluation
               </Typography>
-              {creditInvestigationFullyVerified && (
+              {creditInvestigationFullyVerified && financialEvaluationFullyVerified && (
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
               )}
             </Stack>
@@ -715,6 +713,35 @@ export function RequirementChecklistView() {
                 );
               })}
             </Stack>
+          )}
+
+          {!creditInvestigationCollapsed && (
+            <>
+              <Divider sx={{ my: 3, borderColor: '#EEF0F5' }} />
+              <SectionLabel>{REQUIREMENT_TAB_LABELS.financialEvaluation}</SectionLabel>
+              <Stack spacing={1.25} sx={{ mt: 1.25 }}>
+              {sortByAttentionFirst(
+                REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
+                  .map((meta) => ({ meta, doc: requiredDocsByKey.get(meta.key) }))
+                  .filter((entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc)
+              ).map(({ meta, doc }) => (
+                <Box
+                  key={meta.key}
+                  ref={(el: HTMLDivElement | null) => {
+                    rowRefs.current.set(meta.key, el);
+                  }}
+                >
+                  <RequirementDocRow
+                    meta={meta}
+                    doc={doc}
+                    onUpload={handleUploadDoc(meta.key)}
+                    onRemove={handleRemoveDoc(meta.key)}
+                    onToggleReviewed={handleToggleReviewed(meta.key)}
+                  />
+                </Box>
+              ))}
+              </Stack>
+            </>
           )}
         </Box>
 
@@ -873,7 +900,7 @@ export function RequirementChecklistView() {
                             </Box>
                           </Stack>
                           <IconButton
-                            onClick={() => removeAppraisalGroup(group.id)}
+                            onClick={() => handleRemoveAppraisalGroup(group.id)}
                             aria-label={`Remove property ${group.tctNumber}`}
                             size="small"
                             sx={{ color: '#B0B6C3', '&:hover': { color: '#F04438', bgcolor: 'rgba(240,68,56,0.06)' } }}
@@ -911,60 +938,6 @@ export function RequirementChecklistView() {
                 </Stack>
               )}
             </>
-          )}
-        </Box>
-
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
-          <Stack
-            component={ButtonBase}
-            onClick={() => setFinancialEvaluationCollapsed((prev) => !prev)}
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ width: '100%', mb: financialEvaluationCollapsed ? 0 : 2 }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-                {REQUIREMENT_TAB_LABELS.financialEvaluation}
-              </Typography>
-              {financialEvaluationFullyVerified && (
-                <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
-              )}
-            </Stack>
-            <Iconify
-              icon="eva:chevron-down-fill"
-              width={20}
-              sx={{
-                color: '#8891A6',
-                transition: 'transform 0.15s ease',
-                transform: financialEvaluationCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-              }}
-            />
-          </Stack>
-
-          {!financialEvaluationCollapsed && (
-            <Stack spacing={1.25}>
-              {sortByAttentionFirst(
-                REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
-                  .map((meta) => ({ meta, doc: requiredDocsByKey.get(meta.key) }))
-                  .filter((entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc)
-              ).map(({ meta, doc }) => (
-                <Box
-                  key={meta.key}
-                  ref={(el: HTMLDivElement | null) => {
-                    rowRefs.current.set(meta.key, el);
-                  }}
-                >
-                  <RequirementDocRow
-                    meta={meta}
-                    doc={doc}
-                    onUpload={handleUploadDoc(meta.key)}
-                    onRemove={handleRemoveDoc(meta.key)}
-                    onToggleReviewed={handleToggleReviewed(meta.key)}
-                  />
-                </Box>
-              ))}
-            </Stack>
           )}
         </Box>
 
