@@ -364,8 +364,8 @@ instead, since there's nothing to review yet) · the document label · the AI no
 {date} by {uploadedBy}" (missing docs omit this line) · a status chip ·
 a "Reviewed" chip when `doc.reviewed` · and one or two action buttons. There
 is no permanently-visible Remarks field on the row — remarks are entered
-through the checkbox's popover (below), not an always-open `TextField`, to
-keep each row a single compact line.
+through a shared `Popover` (below), not an always-open `TextField`, to keep
+each row a single compact line.
 `meta` accepts either `RequirementDocMeta` (Credit Investigation/Financial
 Evaluation) or the leaner `AppraisalDocMeta` (Appraisal groups) — the
 component only reads `required`/`label`/`freshStatus`/`freshNote`, fields
@@ -373,23 +373,31 @@ both types share, so the same row renders either kind without a type
 discriminator:
 
 - **Verified / Needs review** → the **checkbox toggles `reviewed`**
-  independently of `status`. Checking it (unchecked → checked) opens a
-  `Popover` anchored to the checkbox with a small remarks `TextField`
-  (pre-filled with any existing `doc.remarks`) and Cancel/Confirm buttons —
-  Confirm requires a non-blank remark (shows an inline validation message
-  otherwise) and, on success, calls `onRemarksChange` then
+  independently of `status`. Checking it (unchecked → checked) opens the
+  remarks `Popover` in **"review" mode**, anchored to the checkbox, titled
+  "Add remarks to mark as reviewed" — Confirm requires a non-blank remark
+  (inline validation otherwise) and, on success, calls `onRemarksChange` then
   `onToggleReviewed(true)` together in one step; Cancel closes the popover
   without changing anything. Unchecking (checked → unchecked) needs no
-  popover — it calls `onToggleReviewed(false)` directly. This is the
-  officer's own "reviewed and accepted" confirmation, separate from the AI's
-  Verified/Needs Review read (a document can be AI-verified but not yet
-  officer-reviewed, or reviewed but still flagged needs-review). **View**
-  opens a lightweight `Dialog` showing the filename, status chip, Reviewed
-  chip (if set), upload date/uploader, AI note, and Officer Remarks — this
-  dialog is the only place remarks are displayed once saved. There is no real
-  document viewer anywhere in this app — this is filename + note only, not a
-  rendered file. A trash-icon **Remove** button resets the document straight
-  back to `missing` (clearing
+  popover — it calls `onToggleReviewed(false)` directly. A separate
+  **Remarks** button (next to View/Remove, always present regardless of
+  reviewed state) opens the same popover in **"edit" mode** instead, anchored
+  to that button, titled "Edit remarks" with a "Save" button — this mode only
+  calls `onRemarksChange`, leaving `reviewed` untouched, so an officer can
+  revise an already-reviewed document's remarks (or write one down before
+  deciding to review at all) without unchecking/rechecking the box. Both
+  modes pre-fill the draft with any existing `doc.remarks` and share the same
+  `remarksDraft`/`remarksError` state and `handleConfirmRemarks` handler,
+  branching only on `remarksMode`. This is the officer's own "reviewed and
+  accepted" confirmation, separate from the AI's Verified/Needs Review read
+  (a document can be AI-verified but not yet officer-reviewed, or reviewed
+  but still flagged needs-review). **View** opens a lightweight `Dialog`
+  showing the filename, status chip, Reviewed chip (if set), upload
+  date/uploader, AI note, and Officer Remarks — this dialog is read-only;
+  editing remarks is always done via the **Remarks** button, not from inside
+  View. There is no real document viewer anywhere in this app — this is
+  filename + note only, not a rendered file. A trash-icon **Remove** button
+  resets the document straight back to `missing` (clearing
   `fileName`/`uploadedAt`/`uploadedBy`/`aiNote`/`remarks`/`reviewed`) with no
   confirmation dialog — re-uploading is one click away if removed by
   mistake.

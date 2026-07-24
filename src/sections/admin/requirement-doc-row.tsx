@@ -96,11 +96,23 @@ export function RequirementDocRow({
   const [remarksAnchor, setRemarksAnchor] = useState<HTMLElement | null>(null);
   const [remarksDraft, setRemarksDraft] = useState('');
   const [remarksError, setRemarksError] = useState(false);
+  // Reviewing (unchecked -> checked) requires a remark and marks the doc
+  // reviewed on confirm; editing an already-reviewed doc's remarks via the
+  // "Remarks" button just saves the text without touching `reviewed`.
+  const [remarksMode, setRemarksMode] = useState<'review' | 'edit'>('review');
   const inputRef = useRef<HTMLInputElement>(null);
   const checkboxRef = useRef<HTMLInputElement>(null);
+  const remarksButtonRef = useRef<HTMLButtonElement>(null);
   const style = STATUS_STYLES[doc.status];
   const uploadedDateLabel = formatUploadedAt(doc.uploadedAt);
   const isMissing = doc.status === 'missing';
+
+  const openRemarksPopover = (anchor: HTMLElement | null, mode: 'review' | 'edit') => {
+    setRemarksDraft(doc.remarks ?? '');
+    setRemarksError(false);
+    setRemarksMode(mode);
+    setRemarksAnchor(anchor);
+  };
 
   const handleConfirmRemarks = () => {
     if (!remarksDraft.trim()) {
@@ -108,7 +120,9 @@ export function RequirementDocRow({
       return;
     }
     onRemarksChange(remarksDraft);
-    onToggleReviewed(true);
+    if (remarksMode === 'review') {
+      onToggleReviewed(true);
+    }
     setRemarksError(false);
     setRemarksAnchor(null);
   };
@@ -139,9 +153,7 @@ export function RequirementDocRow({
             onChange={(event) => {
               const shouldReview = event.target.checked;
               if (shouldReview) {
-                setRemarksDraft(doc.remarks ?? '');
-                setRemarksError(false);
-                setRemarksAnchor(checkboxRef.current);
+                openRemarksPopover(checkboxRef.current, 'review');
                 return;
               }
               onToggleReviewed(false);
@@ -201,6 +213,15 @@ export function RequirementDocRow({
             >
               View
             </Button>
+            <Button
+              ref={remarksButtonRef}
+              onClick={() => openRemarksPopover(remarksButtonRef.current, 'edit')}
+              variant="outlined"
+              size="small"
+              sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', px: 2, flexShrink: 0, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
+            >
+              Remarks
+            </Button>
             <IconButton
               onClick={onRemove}
               aria-label={`Remove ${meta.label}`}
@@ -222,7 +243,7 @@ export function RequirementDocRow({
       >
         <Box sx={{ p: 2, width: 320 }}>
           <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1 }}>
-            Add remarks to mark as reviewed
+            {remarksMode === 'review' ? 'Add remarks to mark as reviewed' : 'Edit remarks'}
           </Typography>
           <TextField
             autoFocus
@@ -237,7 +258,13 @@ export function RequirementDocRow({
               setRemarksError(false);
             }}
             error={remarksError}
-            helperText={remarksError ? 'Remarks are required before marking as reviewed.' : ' '}
+            helperText={
+              remarksError
+                ? remarksMode === 'review'
+                  ? 'Remarks are required before marking as reviewed.'
+                  : 'Remarks cannot be blank.'
+                : ' '
+            }
             sx={{
               '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: '#F9FAFC', fontSize: 13.5 },
               '& .MuiFormHelperText-root': { mx: 0, fontSize: 11.5 },
@@ -253,7 +280,7 @@ export function RequirementDocRow({
               onClick={handleConfirmRemarks}
               sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', '&:hover': { bgcolor: '#14205A' } }}
             >
-              Confirm
+              {remarksMode === 'review' ? 'Confirm' : 'Save'}
             </Button>
           </Stack>
         </Box>
