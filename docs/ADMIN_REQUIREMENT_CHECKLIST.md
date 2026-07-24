@@ -45,32 +45,36 @@ checking result** reuses
 `CreditCheckingResultModal` with `recommendationEditable={false}`, so the
 department's Recommendation & Remarks is read-only at this later process.
 **View call report** opens
-the shared read-only `CallReportResultModal`, showing call date/type/status,
-identity confirmation, representatives, stored or derived Call Summary,
-preliminary recommendation, and additional remarks. This remains first after
+the shared read-only `CallReportResultModal`, mirroring the active Call Report
+page: actual date/place, representatives, Agenda, Call Summary, facility,
+amount, sub-product, Plan of Action, proposal computations, collateral,
+collateral details, and remarks. This remains first after
 Endorse or Return to Applicant as well; the relevant success-state card follows
 it and the Call Report action remains available.
 Both prior-process report actions remain available.
 
 Opening **View all officer notes** passes `Requirement Checklist` to the shared
-`OfficerNotesDialog`. Officers can add a note directly inside the modal; the new
+`OfficerNotesDialog` — a right-anchored chat-style drawer (`src/sections/admin/officer-notes-history.tsx`,
+matching `RequestDocumentsDrawer`'s layout), not a centered dialog. Past notes
+render as chat bubbles; officers add a new one via the composer pinned to the
+bottom, same Enter-to-send convention as the Request Documents drawer. The new
 history entry automatically displays the officer name, date/time, note, and
 Process = Requirement Checklist.
 
-## Layout: three stacked cards, not tabs
+## Layout: combined investigation/evaluation card plus Appraisal
 
-The screen renders **Credit Investigation**, **Appraisal**, and **Financial
-Evaluation** as three separate cards, one after another, all visible at
-once — not as tabs behind a single switcher (an earlier iteration of this
-screen used MUI `Tabs`; that was replaced with plain stacked cards per
-direct request). Card labels deliberately use this earlier design mockup's
+The screen combines **Credit Investigation** and **Financial Evaluation** in
+one white card, separated by a divider; each section keeps its own independent
+collapse control, verification indicator, document grouping, and row actions.
+**Appraisal** remains a separate card below it. The page does not use tabs (an
+earlier iteration used MUI `Tabs`). Card labels deliberately use the design mockup's
 naming (`Credit Investigation` / `Appraisal` / `Financial Evaluation`),
 superseding the "keep app wording" note in the History section below, which
 now only applies to the page's own title/step badge, not these card labels.
 
 ## Page-wide UX: sticky summary bar, collapsible cards, status-first sorting, jump-to-outstanding
 
-Four related additions aimed at making the long, multi-card page easier to
+Four related additions aimed at making the long page easier to
 navigate once documents start piling up (all in `requirement-checklist-view.tsx`):
 
 - **Sticky mini summary bar** — a condensed bar (`position: sticky, top: 68`,

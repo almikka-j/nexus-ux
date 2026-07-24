@@ -3,7 +3,7 @@
 > **Maintenance rule:** update this file whenever `initial-credit-checking-view.tsx`
 > or its supporting cards (`application-details-card.tsx`, `bureau-reports-card.tsx`,
 > `negative-credit-report-card.tsx`, `initial-credit-checking-risk.ts`,
-> `simulate-bureau-finding.ts`) change — new fields, new cards, changed gating,
+> `simulate-bureau-finding.ts`, `officer-notes-history.tsx`) change — new fields, new cards, changed gating,
 > changed decision behavior. Companion to `PROJECT_OVERVIEW.md` (system-wide) and
 > `docs/BORROWER_SIGNUP_FLOW.md` (where the data this screen reads comes from).
 
@@ -31,34 +31,88 @@ state, a pure display preference — not persisted, resets on navigation):
 - **Split (`maxWidth="xl"`)**: `ApplicationDetailsCard` sticky in a fixed-width
   left column (440px), right-column cards scroll independently.
 
+Above either layout, `ApplicationReviewHeader` uses its
+`applicationSummaryStyle` variant for this page. The first card follows the
+application-summary treatment: a rounded clipboard/list icon, the borrower's
+complete name (including prefix/middle/extension when present), email and mobile
+on one contact line, assigned officer, and an **App No.** pill. It intentionally
+replaces the default header card's loan-number/loan-type line and step pill;
+the compact aging values and Step 1 pill remain in the row above. Large
+"This application has been on…" alerts are not rendered on any process page.
+
 The right-column cards, in order:
 
 1. **`BureauReportsCard`** — the CIBI form + 4 bureau-report upload slots
    (LOANDEX, CIC, CMAP, NFIS/BAP). See "Bureau reports" below.
-2. **Officer notes** — free-text, carries forward read-only to Call Report and
-   Reconsideration.
+2. **"Officer notes"** — add a structured, attributed note or open the complete
+   note history. See "Officer notes" below.
 3. **"AI review, summary & recommendation"** — see "AI review card" below.
-4. **`NegativeCreditReportCard`** — only rendered when the simulated bureau
-   finding comes back negative (see "Simulated bureau finding" below).
-5. **"Approved?"** — the decision card (Approve / No / For Reconsideration).
+4. **"Approved?"** — the decision card (Proceed to Call Report / Disapprove).
+
+The former inline `NegativeCreditReportCard` is no longer rendered on this
+page. Negative findings are summarized inside `CreditCheckingResultModal`,
+which remains available from the "View Initial Credit Checking Result" button.
 
 ## Application details card
 
 `ApplicationDetailsCard` (`src/sections/admin/application-details-card.tsx`)
 shows everything `useRegistration()` has on file, in four sections: Applicant,
 Loan request, Personal & ID information, Uploaded documents. Read-only —
-this card never writes to `RegistrationContext`, only `useAdmin()`'s
-`review.creditChecking.notes` is shown here (in a fifth section, non-collapsible
-variant only) once the officer has typed something.
+this card never writes to `RegistrationContext`. The Initial Credit Checking
+page renders its editable Officer Notes workflow as a separate card immediately
+after `BureauReportsCard`; the read-only application data itself remains separate.
+Application Details does not repeat a "Notes from initial credit checking"
+section—the dedicated Officer Notes card and shared history modal are the only
+note surfaces on this page.
 
-**Personal & ID information** includes a conditional **Spouse information**
-block — shown only when `personalInfo.civilStatus === 'Married'` — covering
+**Personal & ID information** includes a separately labeled, conditional
+**Spouse information** block — shown only when
+`personalInfo.civilStatus === 'Married'` — covering
 Spouse's name (First/Middle/Last/Extension, composed into one display string),
 Spouse's birthday, and Spouse's address (Address/Barangay/City/Province/Zip
 code — mirrors the borrower's own address field structure). This was added to
 surface fields that existed in `PersonalInfo` but weren't shown anywhere
 admin-side; still no admin action reads these values (display-only, same as
 `businessType`/`businessDocument`).
+
+## Officer notes
+
+The standalone **Officer notes** card appears directly after `BureauReportsCard`.
+It uses a draft `TextField` plus an explicit **Add note** button; typing alone
+does not mutate persisted review state. Adding a note appends a human-readable
+entry to `creditChecking.notes` with four pieces of metadata: officer name from
+`adminUser` (or "Credit Officer" as fallback), localized date/time, process
+(`Initial Credit Checking`), and note content.
+
+The outlined **View all officer notes** button sits in the card's upper-right
+corner and opens `OfficerNotesDialog` — a right-anchored chat-style `Drawer`
+(`src/sections/admin/officer-notes-history.tsx`, matching
+`RequestDocumentsDrawer`'s layout: header / scrollable message area / composer
+pinned to the bottom), not a centered modal. Each past note renders as a
+left-aligned chat bubble (officer + process badge, note text, timestamp) via
+a bubble-list renderer private to this file — distinct from the separately-exported
+`OfficerNotesHistory` component (a boxed-card renderer used standalone, read-only,
+by Reconsideration only; it is not used inside this drawer). The drawer's
+subtitle is deliberately process-neutral ("Notes recorded throughout the
+application process.") because the same drawer is reused on later workflow
+pages. The parser remains backward-compatible with legacy unstructured notes
+and the earlier `Officer · timestamp` format.
+
+The same drawer is used by Call Report's and Requirement Checklist's **View
+all officer notes** actions too. All three mount the shared
+`OfficerNotesDialog`, ensuring the action wording, "All officer notes" title,
+generic subtitle, bubble layout, close behavior, and empty state remain
+identical. The composer (auto-growing `TextField` + send `IconButton`,
+Enter-to-send/Shift+Enter for newline) accepts a `process` prop and is hidden
+entirely when the caller omits it; notes added there are attributed to the
+logged-in officer, timestamped, and tagged with the caller's process. Any
+change to note serialization or presentation must therefore be checked in all
+three processes.
+
+Call Report does not render a standalone Officer Notes card. Its Application
+Details action opens the same shared modal, where officers can view and add
+notes using `buildOfficerNoteEntry()` with Process = `Call Report`. The combined
+history therefore identifies which workflow stage created each note.
 
 ## Bureau reports
 
@@ -77,14 +131,13 @@ uploads with no form behind them.
 `loandexUpload.fileName`, `cicUpload.fileName`, `cmapUpload.fileName`,
 `nfisBapUpload.fileName` are set. This drives:
 - Whether the simulated bureau-finding effect runs (see below).
-- Whether `NegativeCreditReportCard` can render.
 - Which wording AI Summary/AI Recommendation use — both always render, this
   only switches between the application-details-only fallback and the
   bureau-reports-confirmed version (see "AI review card" below).
 - The Fill/Remove Sample Data floating button's label and action.
 
 **It no longer gates whether AI Summary/AI Recommendation render at all, the
-Approve/No/For Reconsideration decision, or the "View Initial Credit Checking
+Proceed to Call Report/Disapprove decision, or the "View Initial Credit Checking
 Result" button** — see "Decision gate" and "AI review card" below.
 
 ## Simulated bureau finding
@@ -94,9 +147,8 @@ A `useEffect` (lines ~96–119) runs once bureau uploads are complete and
 `simulateBureauFinding()` — a deterministic hash of the applicant's email plus
 every uploaded filename, **not** `Math.random()`, so the same applicant with
 the same filenames always gets the same simulated result on every reload.
-Result is `'clean' | 'negative'`, written once and never re-derived. Read by:
-this view (to decide whether to show `NegativeCreditReportCard`) and by
-`CreditCheckingResultModal` (to decide which report content to show).
+Result is `'clean' | 'negative'`, written once and never re-derived. It is read
+by `CreditCheckingResultModal` to decide which report content to show.
 
 Two floating dev-only buttons ("Force Clean"/"Force Negative", visible only
 when `allBureauReportsUploaded`) let an admin override this result manually
@@ -109,11 +161,21 @@ for testing either branch without re-uploading different filenames.
 1. **"View Initial Credit Checking Result"** button — opens
    `CreditCheckingResultModal`, always visible regardless of bureau-upload
    status. The modal itself already degrades gracefully without bureau
-   reports: `isCleared` requires `allBureauReportsUploaded`, so without them
-   it shows a "Pending — awaiting full review" banner ("Complete the bureau
-   report uploads and decision before this can be marked cleared.") instead
-   of the "Cleared" state — honest about what hasn't happened yet, not a
-   fabricated all-clear result.
+   reports: `isCleared` requires `allBureauReportsUploaded`, so the green
+   "Cleared" banner is hidden until the review is complete.
+   Its **Bureau Reports Result** section shows one narrative summary row for each
+   uploaded source (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP), including its filename,
+   upload date, status, and extracted finding. Missing reports show only the
+   "Not uploaded" status label and no summary text;
+   simulated negative results flag CMAP/NFIS-BAP for officer review. The copy
+   explicitly tells officers to validate these simulated findings against the
+   source documents before deciding. A separate **Recommendation & Remarks**
+   field stores the department's written finding for forwarding to the Credit
+   Committee. Its inline status changes from "Saving…" to "Saved locally" so
+   officers can confirm that the local-storage update completed. This field is
+   editable only when the modal is opened from Initial Credit Checking; the
+   Call Report passes `recommendationEditable={false}` and renders the stored
+   value as read-only text (with an empty-state message when none was recorded).
 2. **AI Summary** — `buildAiSummary()`, always rendered, never gated. Without
    bureau reports it summarizes application details only ("Bureau reports
    ... haven't been uploaded yet, so this summary is based on application
@@ -150,25 +212,20 @@ wording.
 
 ## Decision gate
 
-**Approve / No / For Reconsideration are always clickable — not gated on
+**Proceed to Call Report / Disapprove are always clickable — not gated on
 bureau reports being uploaded.** Bureau reports are supporting evidence for the
 officer's judgment, not a hard prerequisite to decide. This replaced an earlier
 `canDecide = allBureauReportsUploaded` gate that disabled all three buttons
 (and dimmed the whole card to 50% opacity) until every bureau report was
 uploaded.
 
-- **Approve** → `setCreditChecking({ decision: 'approved' })`, routes to Call
+- **Proceed to Call Report** → `setCreditChecking({ decision: 'approved' })`, routes to Call
   Report.
-- **No** → opens a reason dialog (`ConfirmDialog`), on confirm sets
+- **Disapprove** → opens a reason dialog (`ConfirmDialog`), on confirm sets
   `decision: 'rejected'` + the typed reason, routes to Reconsideration.
-- **For Reconsideration** → same reason dialog, on confirm sets
-  `decision: 'pending'` (not `'rejected'`) + the typed reason, routes to
-  Reconsideration. Both "No" and "For Reconsideration" land on the same
-  Reconsideration screen; the distinction is in the stored `decision` value.
 
 `allBureauReportsUploaded` still independently gates the Fill/Remove Sample
-Data button and `NegativeCreditReportCard` — both still require real (or
-sample) bureau data to make sense. The decision buttons, the "View Initial
+Data button. The decision buttons, the "View Initial
 Credit Checking Result" button, and AI Summary/Recommendation's *visibility*
 (only their wording, not whether they render) have all since been unblocked —
 see "AI review card" above.
@@ -180,8 +237,9 @@ real backend" note and `docs/BORROWER_SIGNUP_FLOW.md`'s "Fabricated 'we did
 real work' claims" section), nothing on this screen calls a real bureau API or
 a real AI model:
 
-- Bureau report uploads are just filename storage — no file content is ever
-  parsed or verified against anything.
+- Bureau report uploads store the filename and upload timestamp only — no file
+  content is ever parsed or verified against anything (except the existing CIBI
+  preview data URL used by the prototype UI).
 - The "Auto-filled" CIBI fields are copied straight from the borrower's own
   submitted data, not independently verified against a bureau record.
 - The simulated bureau finding is a hash function, not a real bureau response.

@@ -739,19 +739,30 @@ added entry stores Officer, localized Date & time, Process (`Initial Credit
 Checking`), and Note in the existing `creditChecking.notes` string. The shared
 `OfficerNotesHistory` component (`src/sections/admin/officer-notes-history.tsx`)
 parses that history into one visual card per entry and supports both the current
-format and legacy plain-text/`Officer · timestamp` notes. It is used by Initial
-Credit Checking's and Call Report's **View all officer notes** actions, plus
-Reconsideration's read-only note block, so connected pages cannot drift. The
-first two mount the same `OfficerNotesDialog`, standardizing the "All officer
-notes" title, generic subtitle ("Notes recorded throughout the application
-process."), close behavior, compact content layout, and empty state. The modal
-also contains its own Add Officer Note form. Each caller passes the current
-process label, so notes created inside the modal automatically record where they
+format and legacy plain-text/`Officer · timestamp` notes. It is used standalone,
+as boxed cards, by Reconsideration's read-only note block.
+
+**`OfficerNotesDialog` is a right-anchored chat-style `Drawer`, not a centered
+`Dialog`** — rebuilt to match `RequestDocumentsDrawer`'s layout (header with
+icon/title/subtitle, a scrollable message area, a composer pinned to the
+bottom) rather than reusing `OfficerNotesHistory`'s boxed-card look; each past
+note renders as a left-aligned bubble (officer name + process badge on one
+line, the note text, then the timestamp) via a bubble-list renderer private to
+this file, distinct from `OfficerNotesHistory` (which keeps its original boxed
+style for Reconsideration). It is used by Initial Credit Checking's, Call
+Report's, and Requirement Checklist's (via `ApplicationDetailsCard`) **View
+all officer notes** actions, so connected pages cannot drift on layout. All
+three mount the same component with an identical `{ open, onClose, notes,
+process }` prop shape — standardizing the "All officer notes" title, generic
+subtitle, close behavior, and empty state. The composer at the bottom (an
+auto-growing `TextField` + send `IconButton`, Enter-to-send/Shift+Enter for a
+newline — the same convention as `RequestDocumentsDrawer`'s and
+`HaiChatDrawer`'s composers) replaces the old boxed "Add Officer Note" form;
+it's hidden entirely when the caller doesn't pass a `process` prop, since
+there's nowhere to attribute a new note to. Each caller passes the current
+process label, so notes added from the drawer automatically record where they
 were added (Initial Credit Checking, Call Report, or Requirement Checklist),
-along with officer and date/time. To conserve
-vertical space, each history card keeps officer, date/time, and process on one
-wrapping metadata row, followed directly by the note with reduced padding and
-spacing. This mechanism remains distinct from
+along with officer and date/time. This mechanism remains distinct from
 `Reconsideration.notes`, which records the reconsideration officer's own work.
 Both Initial Credit Checking and Call Report also provide an editable Officer
 Notes card with a draft field and explicit **Add note** button. They share
@@ -930,12 +941,10 @@ pre-hydration default for the bare `/admin/credit-checking` URL.
 
 ### Call Report (`src/sections/admin/call-report-view.tsx` + `src/sections/admin/call-report/`)
 
-A structured interview form the officer fills out **live, while on the phone/
-in-person/video call with the borrower**. Every field is a structured
-selection (radio, chip-multiselect, date, number) rather than free text, to
-minimize typing during an active conversation — the only free-text fields in
-the whole form are `observationNotes`, `loanPackageNotes`, `nextStepsInstructions`,
-`additionalRemarks`, and the editable `callSummary` itself.
+A UAT-reference-aligned call record and loan package form the officer fills out
+after or during the borrower discussion. The active form is intentionally
+compact: Application Details, Officer Notes, one Call Details card, one Loan
+Package Proposal card, then the Proceed decision.
 
 State lives entirely in `AdminContext.review.callReport` (the `CallReport`
 type, `src/auth/admin-context.tsx`), one large object following the same
@@ -943,19 +952,24 @@ type, `src/auth/admin-context.tsx`), one large object following the same
 array-mutation setters for collateral (`addCollateralEntry`,
 `updateCollateralEntry(id, data)`, `removeCollateralEntry(id)`).
 
-**File split** — one component per section, all under `src/sections/admin/call-report/`:
+**Active form file split**:
+- `reference-call-report-form.tsx` — the currently mounted UAT-aligned Call
+  Details and Loan Package Proposal cards described below.
 - `call-report-types.ts` — every enum's `{value,label}` option list, plus shared `fieldSx`/`cardSx` and a `labelFor()` lookup helper. `call-details-card.tsx` additionally exports two shared UI primitives used by every other card: `RadioRow` (a labeled `RadioGroup` wrapper with an optional `disabled` prop) and `ChipToggleGroup` (a multiselect chip row backing every checklist field).
 - `call-report-computations.ts` — pure functions (`toNumber`, `computeTotalMonthlyIncome`, `computeTotalMonthlyObligations`, `computeDisposableIncome`, `computeDti`, `compareAmount`, `compareTerm`). Financial ratios are **never stored** — always recomputed at render time from the raw input fields, so they can't drift out of sync.
 - `call-report-summary.ts` — `buildCallSummary(callReport, signUpData)`, a pure function that composes the auto-generated Call Summary text, skipping any section whose fields are still empty.
 - `officer-notes-history.tsx` (shared one directory above `call-report/`) —
-  `OfficerNotesHistory`, the reusable structured history renderer used by
-  Initial Credit Checking, Call Report, and Reconsideration, plus
-  `OfficerNotesDialog` and the shared `buildOfficerNoteEntry()` serializer.
-- `officer-notes-card.tsx` — the editable Call Report Officer Notes card,
-  matching Initial Credit Checking's View all / draft / Add note workflow and
-  tagging new entries with the `Call Report` process.
+  `OfficerNotesHistory` (boxed-card renderer, used standalone by
+  Reconsideration only), `OfficerNotesDialog` (the chat-drawer used by
+  Initial Credit Checking, Call Report, and Requirement Checklist — see
+  "View all officer notes" above), and the shared `buildOfficerNoteEntry()`
+  serializer both use.
+- `officer-notes-card.tsx` remains as an unmounted legacy component. Call
+  Report note history and note creation now live entirely in Application
+  Details' shared `OfficerNotesDialog`, tagged with Process = `Call Report`.
 - `credit-checking-result-modal.tsx` — `CreditCheckingResultModal`, a centered MUI `Dialog`, opened from both this page and Initial Credit Checking (see "View Initial Credit Checking Result" below).
-- One card component per section (see below), each reading/writing `AdminContext` directly via `useAdmin()` — no props, no react-hook-form (deliberately: every other admin review screen in this codebase manages state the same way, and this page was kept consistent rather than introducing a form library for just one screen).
+- The earlier per-section components remain in `call-report/` for compatibility
+  and historical reference but are no longer mounted by `CallReportView`.
 
 **No section numbering** — headings were originally numbered ("1. Call Details", "2. Borrower Interview", etc.) but the numbers were removed on request; section order in the page is still fixed, just not labeled with digits.
 
@@ -985,10 +999,9 @@ card.
   using the structured
   `OfficerNotesHistory` cards.
 
-The previous standalone *read-only* note display and standalone Initial Credit
-Checking Result button beneath Application Details are no longer rendered.
-An editable `OfficerNotesCard` now follows Application Details, while the result
-button remains consolidated in Application Details' action row. Initial Credit
+The standalone Officer Notes card and standalone Initial Credit Checking Result
+button beneath Application Details are not rendered. Both actions are
+consolidated in Application Details' action row/modal workflow. Initial Credit
 Checking continues to call `<ApplicationDetailsCard />`, so its full read-only
 submission remains inline rather than modal-only.
 
@@ -1042,7 +1055,22 @@ PDF button with a "PDF export coming soon" tooltip — visible as an affordance
 matching the reference design, but not wired to real PDF generation (no PDF
 library exists in this project); and a working X close button.
 
-**Sections, in order** (no numbers on any of these headings):
+**Active UAT-aligned fields** (`reference-call-report-form.tsx`):
+
+- **Call details** — Actual Date of Call, free-text Place of Call, Client
+  Representative, PGFC Representative/s, multiline Agenda, multiline Call
+  Summary, Loan Facility, Loan Amount, Sub-product, and multiline Plan of
+  Action. These reuse compatible `CallReport` fields (for example Agenda uses
+  `observationNotes`, Sub-product uses `finalUseOfProceeds`, and Plan of Action
+  uses `nextStepsInstructions`) so downstream state remains compatible.
+- **Loan package proposal** — Principal, Term/Tenor, Interest Rate, Computation
+  Type, derived read-only Maturity Value and Monthly Amortization, repeatable
+  Collateral + Quantity entries, Collateral Details, and Remarks. Maturity is
+  displayed as principal plus the entered percentage; monthly amortization is
+  principal divided by term. Collateral additions continue using
+  `callReport.collateralEntries`.
+
+**Legacy section components (not mounted by the current page):**
 - **Call Details** (`call-details-card.tsx`) — date/time, Call Type, Place of Call (+ conditional "Specify Place of Call" when Other), representatives, Call Status (Completed / Follow-up Needed / Unable to Reach — no "In Progress", since this report is filled out after or during a completed contact attempt), Identity Confirmed.
 - **Borrower Interview** (`borrower-interview-card.tsx`) — one card with four subgroups, separated by plain uppercase subheadings (`Divider` + small label, not a heading hierarchy — the section is still one card, one heading, one subtitle):
   - *(ungrouped, top)* — Loan Purpose Confirmation, Final Loan Purpose (defaults once from `application.financialInfo.loanPurpose` via a guarded `useEffect`), Specific Use of Proceeds, Primary Source of Repayment (+ conditional Other), Target Release Date.
@@ -1058,19 +1086,22 @@ library exists in this project); and a working X close button.
 
 The page's own intro card ("Call Report & Loan Package Proposal / Complete this structured interview live while on the call with the borrower.") was removed on request, so the page now opens directly with the compact Application Details summary card.
 
-**Proceed gate**: the existing "Proceed application?" card's Proceed button is disabled until `callStatus`, `identityConfirmed`, and `preliminaryRecommendation` are all set, and — only when `followUpRequired === 'yes'` — `followUpDate` is also filled in. "Do Not Proceed" stays ungated, consistent with how declining never requires as much as approving elsewhere in this app.
+**Proceed gate**: Proceed is disabled until the visible required fields are
+complete: Actual Date, Place of Call, both representatives, Loan Facility, Loan
+Amount, Sub-product, Term/Tenor, Interest Rate, and Computation Type. "Do Not
+Proceed" stays ungated.
 
 **"Fill with Sample Data" / "Remove Sample Data" toggle** — registered as a page action into the shared settings popover (see "Page actions" above), same pattern as Initial Credit Checking's sample-data action, no `NODE_ENV` gate. Label and behavior are driven by `canProceed` (the same boolean gating the Proceed button): while incomplete, one click fills every section with representative sample values in one shot (including a synthesized one-item collateral entry, built inline with `crypto.randomUUID()` rather than via `addCollateralEntry()`+`updateCollateralEntry()`, since those are two separate async state updates and the sample-fill needs the entry's data present in the same synchronous `setCallReport` call); once complete, the button relabels to "Remove Sample Data" and clicking it resets every field in the report back to its blank default (leaving `AdminContext`'s other steps, and the read-only Application Details data pulled from `RegistrationContext`, untouched). `clientType` still exists on `CallReport` (kept for potential future use) but currently has no rendered UI anywhere, since the card that used to show it was removed.
 
 ### Requirement Checklist (`src/sections/admin/requirement-checklist-view.tsx`)
 
 Rendered at `/admin/applications/[id]/requirement-checklist`, "Step 3 ·
-Requirement Checklist". Presents three stacked cards, not tabs — Credit
-Investigation (19-document fixed list split with Financial Evaluation, plus
-two named sub-groups), Appraisal (an officer-managed set of per-property TCT/
-CCT groups, each with its own independent 8-document checklist — a borrower
-can pledge more than one property), and Financial Evaluation — against what's
-on file, shows a merged AI review/summary/recommendation card, and either
+Requirement Checklist". Credit Investigation and Financial Evaluation share
+one card (separated by a divider, with independent collapse controls);
+Appraisal remains a separate card with officer-managed per-property TCT/CCT
+groups, each carrying its own independent 8-document checklist. The page
+reviews these documents against what's on file, shows a merged AI
+review/summary/recommendation card, and either
 endorses the application onward or returns it to the applicant with a
 recorded reason. See `docs/ADMIN_REQUIREMENT_CHECKLIST.md` for the full
 document breakdown and the Appraisal group model.
@@ -1084,8 +1115,9 @@ loan context plus the Full application and All officer notes modal actions
 before any checklist or completion-state content. Requirement Checklist also
 passes `showCallReportAction`, adding **View call report** to the action row.
 That button opens `call-report/call-report-result-modal.tsx`, a read-only dialog
-containing key call metadata, the stored or derived Call Summary, preliminary
-recommendation, and additional remarks. The action remains available in the
+that mirrors the active UAT-aligned Call Report fields: call details, Agenda,
+Call Summary, facility/amount/sub-product, Plan of Action, proposal terms and
+derived values, collateral, collateral details, and remarks. The action remains available in the
 Endorsed and Returned completion states.
 It also passes `showCreditCheckingResultAction`, adding **Initial credit
 checking result** via the existing `CreditCheckingResultModal`. Requirement
