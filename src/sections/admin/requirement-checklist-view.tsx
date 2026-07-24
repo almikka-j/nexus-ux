@@ -212,17 +212,12 @@ export function RequirementChecklistView() {
       fileName: null,
       uploadedAt: null,
       uploadedBy: null,
-      remarks: '',
       reviewed: false,
     });
   };
 
   const handleToggleReviewed = (key: string) => (reviewed: boolean) => {
     patchDoc(key, { reviewed });
-  };
-
-  const handleRemarksChange = (key: string) => (remarks: string) => {
-    patchDoc(key, { remarks, ...(remarks.trim() ? {} : { reviewed: false }) });
   };
 
   const handleAddTctGroup = () => {
@@ -251,20 +246,12 @@ export function RequirementChecklistView() {
       fileName: null,
       uploadedAt: null,
       uploadedBy: null,
-      remarks: '',
       reviewed: false,
     });
   };
 
   const handleToggleAppraisalDocReviewed = (groupId: string, key: string) => (reviewed: boolean) => {
     updateAppraisalGroupDoc(groupId, key, { reviewed });
-  };
-
-  const handleAppraisalDocRemarksChange = (groupId: string, key: string) => (remarks: string) => {
-    updateAppraisalGroupDoc(groupId, key, {
-      remarks,
-      ...(remarks.trim() ? {} : { reviewed: false }),
-    });
   };
 
   // Fills every fixed document plus a single fresh Appraisal group with
@@ -286,7 +273,6 @@ export function RequirementChecklistView() {
           fileName: `${meta.key}-sample.pdf`,
           uploadedAt,
           uploadedBy: officerName,
-          remarks: 'Reviewed against the submitted application details.',
           reviewed: false,
         };
       }),
@@ -301,7 +287,6 @@ export function RequirementChecklistView() {
             fileName: `${meta.key}-sample.pdf`,
             uploadedAt,
             uploadedBy: officerName,
-            remarks: 'Reviewed against the submitted application details.',
             reviewed: false,
           })),
         },
@@ -328,7 +313,6 @@ export function RequirementChecklistView() {
           fileName: `${meta.key}-sample.pdf`,
           uploadedAt,
           uploadedBy: officerName,
-          remarks: 'Reviewed against the submitted application details.',
           reviewed: false,
         };
       }),
@@ -343,7 +327,6 @@ export function RequirementChecklistView() {
             fileName: `${meta.key}-sample.pdf`,
             uploadedAt,
             uploadedBy: officerName,
-            remarks: 'Reviewed against the submitted application details.',
             reviewed: false,
           })),
         },
@@ -784,7 +767,6 @@ export function RequirementChecklistView() {
                             onUpload={handleUploadDoc(meta.key)}
                             onRemove={handleRemoveDoc(meta.key)}
                             onToggleReviewed={handleToggleReviewed(meta.key)}
-                            onRemarksChange={handleRemarksChange(meta.key)}
                           />
                         </Box>
                       ))}
@@ -1016,7 +998,6 @@ export function RequirementChecklistView() {
                                 onUpload={handleUploadAppraisalDoc(group.id, meta.key)}
                                 onRemove={handleRemoveAppraisalDoc(group.id, meta.key)}
                                 onToggleReviewed={handleToggleAppraisalDocReviewed(group.id, meta.key)}
-                                onRemarksChange={handleAppraisalDocRemarksChange(group.id, meta.key)}
                               />
                             </Box>
                           ))}
@@ -1079,7 +1060,6 @@ export function RequirementChecklistView() {
                     onUpload={handleUploadDoc(meta.key)}
                     onRemove={handleRemoveDoc(meta.key)}
                     onToggleReviewed={handleToggleReviewed(meta.key)}
-                    onRemarksChange={handleRemarksChange(meta.key)}
                   />
                 </Box>
               ))}

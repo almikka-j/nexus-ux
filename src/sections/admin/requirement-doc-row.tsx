@@ -7,9 +7,7 @@ import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import Popover from '@mui/material/Popover';
 import Checkbox from '@mui/material/Checkbox';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -81,7 +79,6 @@ type RequirementDocRowProps = {
   onUpload: (data: Partial<RequirementDoc>) => void;
   onRemove: () => void;
   onToggleReviewed: (reviewed: boolean) => void;
-  onRemarksChange: (remarks: string) => void;
 };
 
 export function RequirementDocRow({
@@ -90,42 +87,12 @@ export function RequirementDocRow({
   onUpload,
   onRemove,
   onToggleReviewed,
-  onRemarksChange,
 }: RequirementDocRowProps) {
   const [viewOpen, setViewOpen] = useState(false);
-  const [remarksAnchor, setRemarksAnchor] = useState<HTMLElement | null>(null);
-  const [remarksDraft, setRemarksDraft] = useState('');
-  const [remarksError, setRemarksError] = useState(false);
-  // Reviewing (unchecked -> checked) requires a remark and marks the doc
-  // reviewed on confirm; editing an already-reviewed doc's remarks via the
-  // "Remarks" button just saves the text without touching `reviewed`.
-  const [remarksMode, setRemarksMode] = useState<'review' | 'edit'>('review');
   const inputRef = useRef<HTMLInputElement>(null);
-  const checkboxRef = useRef<HTMLInputElement>(null);
-  const remarksButtonRef = useRef<HTMLButtonElement>(null);
   const style = STATUS_STYLES[doc.status];
   const uploadedDateLabel = formatUploadedAt(doc.uploadedAt);
   const isMissing = doc.status === 'missing';
-
-  const openRemarksPopover = (anchor: HTMLElement | null, mode: 'review' | 'edit') => {
-    setRemarksDraft(doc.remarks ?? '');
-    setRemarksError(false);
-    setRemarksMode(mode);
-    setRemarksAnchor(anchor);
-  };
-
-  const handleConfirmRemarks = () => {
-    if (!remarksDraft.trim()) {
-      setRemarksError(true);
-      return;
-    }
-    onRemarksChange(remarksDraft);
-    if (remarksMode === 'review') {
-      onToggleReviewed(true);
-    }
-    setRemarksError(false);
-    setRemarksAnchor(null);
-  };
 
   const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -135,7 +102,6 @@ export function RequirementDocRow({
       aiNote: meta.freshNote,
       fileName: file.name,
       uploadedAt: new Date().toISOString(),
-      remarks: '',
       reviewed: false,
     });
     event.target.value = '';
@@ -148,16 +114,8 @@ export function RequirementDocRow({
           <Iconify icon={style.icon} width={20} sx={{ color: style.iconColor, flexShrink: 0 }} />
         ) : (
           <Checkbox
-            inputRef={checkboxRef}
             checked={doc.reviewed}
-            onChange={(event) => {
-              const shouldReview = event.target.checked;
-              if (shouldReview) {
-                openRemarksPopover(checkboxRef.current, 'review');
-                return;
-              }
-              onToggleReviewed(false);
-            }}
+            onChange={(event) => onToggleReviewed(event.target.checked)}
             inputProps={{
               'aria-label': `Mark ${meta.label} as reviewed and accepted`,
             }}
@@ -213,15 +171,6 @@ export function RequirementDocRow({
             >
               View
             </Button>
-            <Button
-              ref={remarksButtonRef}
-              onClick={() => openRemarksPopover(remarksButtonRef.current, 'edit')}
-              variant="outlined"
-              size="small"
-              sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', px: 2, flexShrink: 0, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
-            >
-              Remarks
-            </Button>
             <IconButton
               onClick={onRemove}
               aria-label={`Remove ${meta.label}`}
@@ -233,58 +182,6 @@ export function RequirementDocRow({
           </>
         )}
       </Stack>
-
-      <Popover
-        open={Boolean(remarksAnchor)}
-        anchorEl={remarksAnchor}
-        onClose={() => setRemarksAnchor(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-      >
-        <Box sx={{ p: 2, width: 320 }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1 }}>
-            {remarksMode === 'review' ? 'Add remarks to mark as reviewed' : 'Edit remarks'}
-          </Typography>
-          <TextField
-            autoFocus
-            fullWidth
-            size="small"
-            multiline
-            minRows={2}
-            placeholder="Add review findings or acceptance remarks"
-            value={remarksDraft}
-            onChange={(event) => {
-              setRemarksDraft(event.target.value);
-              setRemarksError(false);
-            }}
-            error={remarksError}
-            helperText={
-              remarksError
-                ? remarksMode === 'review'
-                  ? 'Remarks are required before marking as reviewed.'
-                  : 'Remarks cannot be blank.'
-                : ' '
-            }
-            sx={{
-              '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: '#F9FAFC', fontSize: 13.5 },
-              '& .MuiFormHelperText-root': { mx: 0, fontSize: 11.5 },
-            }}
-          />
-          <Stack direction="row" justifyContent="flex-end" spacing={1} sx={{ mt: 1 }}>
-            <Button size="small" onClick={() => setRemarksAnchor(null)}>
-              Cancel
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={handleConfirmRemarks}
-              sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', '&:hover': { bgcolor: '#14205A' } }}
-            >
-              {remarksMode === 'review' ? 'Confirm' : 'Save'}
-            </Button>
-          </Stack>
-        </Box>
-      </Popover>
 
       <Dialog open={viewOpen} onClose={() => setViewOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>{meta.label}</DialogTitle>
@@ -315,12 +212,6 @@ export function RequirementDocRow({
             )}
             <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>AI Summary</Typography>
             <Typography sx={{ fontSize: 14, color: '#3B4256', lineHeight: 1.6 }}>{doc.aiNote}</Typography>
-            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>
-              Officer Remarks
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: '#3B4256', lineHeight: 1.6 }}>
-              {doc.remarks || 'No remarks added'}
-            </Typography>
           </Stack>
         </DialogContent>
         <DialogActions>
