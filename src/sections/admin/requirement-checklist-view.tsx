@@ -116,6 +116,8 @@ function SuccessState({
   heading,
   body,
   stepLabel,
+  forwardHref,
+  forwardLabel,
 }: {
   icon: string;
   iconBg: string;
@@ -123,6 +125,8 @@ function SuccessState({
   heading: string;
   body: string;
   stepLabel: string;
+  forwardHref?: string;
+  forwardLabel?: string;
 }) {
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
@@ -154,11 +158,25 @@ function SuccessState({
         </Box>
         <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>{heading}</Typography>
         <Typography sx={{ fontSize: 14, color: '#8891A6', maxWidth: 420 }}>{body}</Typography>
+        {forwardHref && (
+          <Button
+            component="a"
+            href={forwardHref}
+            variant="contained"
+            sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', mt: 1, '&:hover': { bgcolor: '#14205A' } }}
+          >
+            {forwardLabel}
+          </Button>
+        )}
         <Button
           component="a"
           href={paths.admin.applications}
-          variant="contained"
-          sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', mt: 1, '&:hover': { bgcolor: '#14205A' } }}
+          variant={forwardHref ? 'outlined' : 'contained'}
+          sx={
+            forwardHref
+              ? { color: '#5A6273', borderColor: '#C7CCDA', borderRadius: '10px', mt: forwardHref ? 0.5 : 1 }
+              : { bgcolor: '#1C2A6E', borderRadius: '10px', mt: 1, '&:hover': { bgcolor: '#14205A' } }
+          }
         >
           Back to Application List
         </Button>
@@ -602,6 +620,8 @@ export function RequirementChecklistView() {
         heading="Endorsed for comprehensive process"
         body="This application has been endorsed with its requirement checklist and collateral details for the next stage of processing."
         stepLabel="Requirement Checklist · Endorsed"
+        forwardHref={signUpData ? paths.admin.creditInvestigation(encodeURIComponent(signUpData.email)) : undefined}
+        forwardLabel="Continue to Credit Investigation"
       />
     );
   }

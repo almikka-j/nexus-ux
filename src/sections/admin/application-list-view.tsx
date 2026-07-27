@@ -128,7 +128,10 @@ export function ApplicationListView() {
         statusColor: liveDecision.color,
         // The queue is introduced before its detailed application workspace.
         // Keep its rows informational until that workspace is implemented.
-        isActionable: !['creditInvestigation', 'appraisal', 'financialEvaluation'].includes(step),
+        isActionable:
+          step === 'creditInvestigation'
+            ? review.requirementChecklist.endorsed
+            : !['appraisal', 'financialEvaluation'].includes(step),
       }))
     : [];
 
@@ -172,6 +175,7 @@ export function ApplicationListView() {
     reconsideration: paths.admin.reconsideration,
     callReport: paths.admin.callReport,
     requirementChecklist: paths.admin.requirementChecklist,
+    creditInvestigation: paths.admin.creditInvestigation,
   };
 
   const handleRowClick = (row: ListRow) => {
