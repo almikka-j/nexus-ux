@@ -11,18 +11,20 @@ import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
-import type { ConditionItem } from 'src/auth/admin-context';
+import type { RequiredDocItem, ConditionItem } from 'src/auth/admin-context';
 
 import { RadioRow, ChipToggleGroup } from './call-details-card';
-import { compareAmount, compareTerm, toNumber } from './call-report-computations';
+import { compareAmount, compareTerm, computeDisposableIncome, toNumber } from './call-report-computations';
 import {
   cardSx,
   fieldSx,
   REPAYMENT_SOURCE_OPTIONS,
   INTEREST_RATE_BASIS_OPTIONS,
   COMPUTATION_TYPE_OPTIONS,
+  PAYMENT_FREQUENCY_OPTIONS,
   ADJUSTMENT_REASON_OPTIONS,
   COLLATERAL_ASSESSMENT_OPTIONS,
+  REQUIRED_DOC_OPTIONS,
   CONDITION_OPTIONS,
   PRELIMINARY_RECOMMENDATION_OPTIONS,
 } from './call-report-types';
@@ -78,9 +80,8 @@ export function LoanPackageProposalCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestedAmount, requestedTerm]);
 
-  // Default Final Use of Proceeds / proposal repayment source from the
-  // Borrower Interview answers, once, so the officer doesn't retype what
-  // they already said there.
+  // Default Final Use of Proceeds / proposal repayment source from section 2,
+  // once, so the officer doesn't retype what they already said in Loan Discussion.
   useEffect(() => {
     if (!callReport.finalUseOfProceeds && callReport.specificUseOfProceeds) {
       setCallReport({ finalUseOfProceeds: callReport.specificUseOfProceeds });
@@ -96,6 +97,21 @@ export function LoanPackageProposalCard() {
   const amountComparison = compareAmount(requestedAmount, proposedAmount);
   const termComparison = compareTerm(requestedTerm, proposedTerm);
   const amountOrTermChanged = amountComparison !== 'same' || termComparison !== 'same';
+
+  const disposableBefore = computeDisposableIncome(callReport);
+  const disposableAfter = Math.max(
+    0,
+    disposableBefore - toNumber(callReport.estimatedAmortization)
+  );
+
+  const toggleRequiredDoc = (value: RequiredDocItem) => {
+    const has = callReport.requiredDocuments.includes(value);
+    setCallReport({
+      requiredDocuments: has
+        ? callReport.requiredDocuments.filter((item) => item !== value)
+        : [...callReport.requiredDocuments, value],
+    });
+  };
 
   const toggleCondition = (value: ConditionItem) => {
     const has = callReport.conditionsBeforeProceeding.includes(value);
@@ -113,7 +129,7 @@ export function LoanPackageProposalCard() {
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        Loan Package Proposal
+        11. Loan Package Proposal
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
         This is only a preliminary recommendation and must not be treated as the final Credit
@@ -123,13 +139,14 @@ export function LoanPackageProposalCard() {
       <Stack spacing={3}>
         <Box>
           <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6', mb: 1.5 }}>
-            Original Request
+            Original Loan Request
           </Typography>
           <Stack direction="row" flexWrap="wrap" spacing={3} rowGap={2}>
             <ReadOnlyField label="Requested Loan Amount" value={requestedAmount ? `₱${requestedAmount.toLocaleString()}` : ''} />
             <ReadOnlyField label="Requested Loan Term" value={requestedTerm ? `${requestedTerm} months` : ''} />
             <ReadOnlyField label="Original Loan Purpose" value={application.financialInfo?.loanPurpose ?? ''} />
-            <ReadOnlyField label="Original Loan Facility" value={callReport.proposedLoanFacility} />
+            <ReadOnlyField label="Primary Source of Repayment" value={callReport.primaryRepaymentSource} />
+            <ReadOnlyField label="Collateral Offered" value={callReport.collateralOffered} />
           </Stack>
         </Box>
 
@@ -137,7 +154,7 @@ export function LoanPackageProposalCard() {
 
         <Box>
           <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6', mb: 1.5 }}>
-            Proposed Terms
+            Proposed Loan Terms
           </Typography>
           <Stack spacing={2}>
             <Stack direction="row" spacing={2}>
@@ -197,38 +214,55 @@ export function LoanPackageProposalCard() {
               />
             )}
 
-            <TextField
+            <RadioRow
               label="Payment Frequency"
               value={callReport.paymentFrequency}
-              onChange={(event) => setCallReport({ paymentFrequency: event.target.value })}
-              sx={fieldSx}
+              options={PAYMENT_FREQUENCY_OPTIONS}
+              onChange={(value) => setCallReport({ paymentFrequency: value })}
             />
+            {callReport.paymentFrequency === 'other' && (
+              <TextField
+                label="Specify Payment Frequency"
+                value={callReport.paymentFrequencyOther}
+                onChange={(event) => setCallReport({ paymentFrequencyOther: event.target.value })}
+                sx={fieldSx}
+              />
+            )}
 
             <Stack direction="row" spacing={2}>
               <TextField
-                label="Estimated Amortization"
+                label="Number of Payments"
                 type="number"
-                value={callReport.estimatedAmortization}
-                onChange={(event) => setCallReport({ estimatedAmortization: event.target.value })}
+                value={callReport.numberOfPayments}
+                onChange={(event) => setCallReport({ numberOfPayments: event.target.value })}
                 sx={{ ...fieldSx, flex: 1 }}
               />
               <TextField
-                label="Estimated Maturity Value"
-                type="number"
-                value={callReport.estimatedMaturityValue}
-                onChange={(event) => setCallReport({ estimatedMaturityValue: event.target.value })}
+                label="First Payment Date"
+                type="date"
+                value={callReport.firstPaymentDate}
+                onChange={(event) => setCallReport({ firstPaymentDate: event.target.value })}
+                InputLabelProps={{ shrink: true }}
                 sx={{ ...fieldSx, flex: 1 }}
               />
             </Stack>
 
-            <TextField
-              label="Proposed Release Date"
-              type="date"
-              value={callReport.proposedReleaseDate}
-              onChange={(event) => setCallReport({ proposedReleaseDate: event.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={fieldSx}
-            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="Proposed Release Date"
+                type="date"
+                value={callReport.proposedReleaseDate}
+                onChange={(event) => setCallReport({ proposedReleaseDate: event.target.value })}
+                InputLabelProps={{ shrink: true }}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                label="Grace Period"
+                value={callReport.gracePeriod}
+                onChange={(event) => setCallReport({ gracePeriod: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+            </Stack>
 
             <TextField
               label="Final Use of Proceeds"
@@ -243,6 +277,76 @@ export function LoanPackageProposalCard() {
               options={REPAYMENT_SOURCE_OPTIONS}
               onChange={(value) => setCallReport({ proposalPrimaryRepaymentSource: value })}
             />
+
+            <TextField
+              label="Secondary Source of Repayment"
+              value={callReport.secondaryRepaymentSource}
+              onChange={(event) => setCallReport({ secondaryRepaymentSource: event.target.value })}
+              sx={fieldSx}
+            />
+          </Stack>
+        </Box>
+
+        <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+        <Box>
+          <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6', mb: 1.5 }}>
+            Loan Computation
+          </Typography>
+          <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 1.5 }}>
+            Manual entry — no formula is applied automatically.
+          </Typography>
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="Estimated Amortization"
+                type="number"
+                value={callReport.estimatedAmortization}
+                onChange={(event) => setCallReport({ estimatedAmortization: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                label="Estimated Total Interest"
+                type="number"
+                value={callReport.estimatedTotalInterest}
+                onChange={(event) => setCallReport({ estimatedTotalInterest: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+            </Stack>
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="Estimated Total Repayment"
+                type="number"
+                value={callReport.estimatedTotalRepayment}
+                onChange={(event) => setCallReport({ estimatedTotalRepayment: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                label="Estimated Maturity Value"
+                type="number"
+                value={callReport.estimatedMaturityValue}
+                onChange={(event) => setCallReport({ estimatedMaturityValue: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+            </Stack>
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="Preliminary Debt-to-Income Ratio (%)"
+                type="number"
+                value={callReport.preliminaryDti}
+                onChange={(event) => setCallReport({ preliminaryDti: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                label="Disposable Income After Proposed Amortization"
+                type="number"
+                value={callReport.disposableIncomeAfterAmortization}
+                onChange={(event) =>
+                  setCallReport({ disposableIncomeAfterAmortization: event.target.value })
+                }
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+            </Stack>
           </Stack>
         </Box>
 
@@ -260,6 +364,16 @@ export function LoanPackageProposalCard() {
             <Stack direction="row" spacing={1} alignItems="center">
               <Typography sx={{ fontSize: 13, color: '#667085', minWidth: 160 }}>Term</Typography>
               <ComparisonChip label={COMPARE_TERM_LABEL[termComparison]} />
+            </Stack>
+            <Stack direction="row" flexWrap="wrap" spacing={3} rowGap={1}>
+              <ReadOnlyField
+                label="Disposable Income Before Amortization"
+                value={`₱${disposableBefore.toLocaleString()}`}
+              />
+              <ReadOnlyField
+                label="Disposable Income After Amortization"
+                value={`₱${disposableAfter.toLocaleString()}`}
+              />
             </Stack>
           </Stack>
 
@@ -295,7 +409,7 @@ export function LoanPackageProposalCard() {
         {callReport.collateralEntries.length > 0 && (
           <Box>
             <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
-              Collateral entries (from section 7, read-only here)
+              Collateral entries (from section 9, read-only here)
             </Typography>
             <Stack spacing={2}>
               {callReport.collateralEntries.map((entry, index) => (
@@ -312,6 +426,17 @@ export function LoanPackageProposalCard() {
             </Stack>
           </Box>
         )}
+
+        <Box>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1 }}>
+            Required Documents
+          </Typography>
+          <ChipToggleGroup
+            options={REQUIRED_DOC_OPTIONS}
+            selected={callReport.requiredDocuments}
+            onToggle={toggleRequiredDoc}
+          />
+        </Box>
 
         <Box>
           <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1 }}>
@@ -365,8 +490,10 @@ function CollateralEntryFieldsReadOnly({ entry }: { entry: import('src/auth/admi
     <Stack direction="row" flexWrap="wrap" spacing={3} rowGap={1}>
       <ReadOnlyField label="Type" value={entry.type} />
       <ReadOnlyField label="Description" value={entry.description} />
-      <ReadOnlyField label="Estimated Value" value={entry.estimatedValue ? `₱${Number(entry.estimatedValue).toLocaleString()}` : ''} />
+      <ReadOnlyField label="Quantity" value={entry.quantity} />
       <ReadOnlyField label="Registered Owner" value={entry.registeredOwner} />
+      <ReadOnlyField label="Location" value={entry.location} />
+      <ReadOnlyField label="Estimated Value" value={entry.estimatedValue ? `₱${Number(entry.estimatedValue).toLocaleString()}` : ''} />
     </Stack>
   );
 }

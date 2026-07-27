@@ -87,6 +87,7 @@ export type CibiForm = {
 // integration, so these are all just document dropzones, no data-entry form.
 export type BureauUpload = {
   fileName: string | null;
+  fileData: string | null;
   uploadedAt: string | null;
 };
 
@@ -133,19 +134,90 @@ export type NegativeCreditReport = {
 
 export type CallType = 'in-person' | 'phone' | 'video';
 export type PlaceOfCall = 'branch' | 'residence' | 'business' | 'online' | 'other';
-export type CallStatus = 'completed' | 'follow-up-needed' | 'unable-to-reach';
+export type CallStatus = 'in-progress' | 'completed' | 'follow-up-needed' | 'unable-to-reach';
 export type IdentityConfirmed = 'yes' | 'no' | 'for-verification';
 
 export type LoanPurposeConfirmation = 'confirmed' | 'changed' | 'needs-clarification';
 export type RepaymentSource = 'salary' | 'business-income' | 'rental-income' | 'pension' | 'other';
 
+export type ClientUnderstandingItem =
+  | 'interest-rate'
+  | 'monthly-amortization'
+  | 'loan-term'
+  | 'processing-fees'
+  | 'collateral-requirements'
+  | 'required-documents';
+
+export type ClientConcernItem =
+  | 'interest-rate'
+  | 'loan-amount'
+  | 'loan-term'
+  | 'monthly-amortization'
+  | 'processing-fees'
+  | 'collateral'
+  | 'required-documents'
+  | 'processing-time'
+  | 'other';
+
 export type ResidenceYears = 'lt-1' | '1-2' | '3-5' | 'gt-5';
+export type ResidenceStatus =
+  | 'owned'
+  | 'mortgaged'
+  | 'rented'
+  | 'living-with-relatives'
+  | 'company-provided'
+  | 'other';
+export type YesNoPreferNot = 'yes' | 'no' | 'prefer-not-to-answer';
 
 export type MainIncomeSource = 'employment' | 'business' | 'both' | 'other';
 export type TenureRange = 'lt-1' | '1-3' | '3-5' | 'gt-5';
+export type IncomeStability = 'stable' | 'seasonal' | 'irregular' | 'undetermined';
 export type IncomeTrend = 'increasing' | 'stable' | 'decreasing' | 'undetermined';
+export type IncomeChange = 'increased' | 'no-change' | 'decreased' | 'not-verified';
 
+export type MembershipType =
+  | 'civic-social'
+  | 'professional'
+  | 'business'
+  | 'cooperative'
+  | 'community'
+  | 'other';
 export type MembershipStanding = 'good-standing' | 'with-concern' | 'not-verified';
+
+export type SupportingDocItem =
+  | 'payslip'
+  | 'itr'
+  | 'bir-2316'
+  | 'coe'
+  | 'bank-statement'
+  | 'business-records'
+  | 'utility-bills'
+  | 'credit-card-statements'
+  | 'none-yet';
+
+export type ElectricityPayment =
+  | 'fully-paid-on-time'
+  | 'occasionally-delayed'
+  | 'frequently-delayed'
+  | 'with-unpaid-balance'
+  | 'not-borrowers-name'
+  | 'not-applicable'
+  | 'for-verification';
+export type CreditCardPayment =
+  | 'fully-paid-on-time'
+  | 'pays-more-than-minimum'
+  | 'minimum-only'
+  | 'occasionally-delayed'
+  | 'frequently-delayed'
+  | 'no-credit-card'
+  | 'for-verification';
+export type OtherLoanRepayment =
+  | 'on-time'
+  | 'minor-delays'
+  | 'major-delays'
+  | 'no-existing-loan'
+  | 'for-verification';
+export type YesNoVerify = 'yes' | 'no' | 'for-verification';
 
 export type OfficerObservationItem =
   | 'cooperative'
@@ -172,28 +244,45 @@ export type CollateralType =
   | 'personal-guarantee'
   | 'corporate-guarantee'
   | 'other';
+export type DocsAvailable = 'yes' | 'no' | 'pending';
+export type ExistingLien = 'yes' | 'no' | 'unknown';
 export type RequiresAppraisal = 'yes' | 'no' | 'tbd';
 
 export type CollateralEntry = {
   id: string;
   type: CollateralType | '';
   description: string;
+  quantity: string;
   registeredOwner: string;
+  ownerRelationship: string;
+  location: string;
   estimatedValue: string;
+  ownershipDocsAvailable: DocsAvailable | '';
+  existingLien: ExistingLien | '';
   requiresAppraisal: RequiresAppraisal | '';
 };
 
-export type NextAction =
-  | 'proceed-to-next-process'
-  | 'request-additional-requirements'
-  | 'verify-information'
+export type NextStepItem =
+  | 'submit-proof-of-income'
+  | 'submit-bank-statements'
+  | 'submit-business-documents'
+  | 'submit-utility-bills'
+  | 'submit-credit-card-statements'
+  | 'verify-employment'
+  | 'verify-business'
+  | 'verify-residence'
   | 'conduct-site-visit'
+  | 'submit-collateral-documents'
   | 'request-appraisal'
-  | 'schedule-another-call'
+  | 'schedule-follow-up-call'
+  | 'proceed-to-next-process'
   | 'other';
+
+export type ResponsibleParty = 'borrower' | 'account-officer' | 'credit-officer' | 'other';
 
 export type InterestRateBasis = 'monthly' | 'annual';
 export type ComputationType = 'diminishing-balance' | 'add-on-rate' | 'other';
+export type PaymentFrequency = 'monthly' | 'quarterly' | 'semi-annual' | 'other';
 
 export type AdjustmentReason =
   | 'income-capacity'
@@ -205,15 +294,36 @@ export type AdjustmentReason =
   | 'officer-recommendation'
   | 'other';
 
+export type RequiredDocItem =
+  | 'latest-payslip'
+  | 'itr'
+  | 'bir-2316'
+  | 'coe'
+  | 'bank-statements'
+  | 'business-registration'
+  | 'financial-statements'
+  | 'utility-bills'
+  | 'credit-card-statements'
+  | 'collateral-ownership-docs'
+  | 'tax-declaration'
+  | 'transfer-certificate-title'
+  | 'vehicle-registration'
+  | 'appraisal-report'
+  | 'co-maker-documents'
+  | 'guarantor-documents'
+  | 'other';
+
 export type ConditionItem =
   | 'income-verification'
-  | 'employment-business-verification'
+  | 'employment-verification'
+  | 'business-verification'
   | 'residence-verification'
-  | 'satisfactory-credit-checking'
+  | 'satisfactory-bureau-checking'
   | 'collateral-appraisal'
+  | 'complete-documents'
   | 'additional-collateral'
   | 'co-maker-or-guarantor'
-  | 'adjustment-of-amount'
+  | 'reduction-of-amount'
   | 'adjustment-of-term'
   | 'other';
 
@@ -223,6 +333,7 @@ export type PreliminaryRecommendation =
   | 'proceed-with-conditions'
   | 'needs-additional-verification'
   | 'schedule-follow-up'
+  | 'hold'
   | 'do-not-proceed';
 
 export type ClientType = 'new' | 'existing';
@@ -236,7 +347,7 @@ export type CallReport = {
   // future screen surfaces it again.
   clientType: ClientType | '';
 
-  // 2. Call Details
+  // 1. Call Details
   callDate: string;
   callTime: string;
   callType: CallType | '';
@@ -247,46 +358,79 @@ export type CallReport = {
   callStatus: CallStatus | '';
   identityConfirmed: IdentityConfirmed | '';
 
-  // 3. Borrower Interview
+  // 2. Loan Discussion
   loanPurposeConfirmation: LoanPurposeConfirmation | '';
   finalLoanPurpose: string;
   specificUseOfProceeds: string;
+  targetReleaseDate: string;
   primaryRepaymentSource: RepaymentSource | '';
   otherRepaymentSource: string;
-  targetReleaseDate: string;
-  // Residence and family
+  clientUnderstanding: ClientUnderstandingItem[];
+  clientConcerns: ClientConcernItem[];
+  concernNotes: string;
+
+  // 3. Residence and Household Information
   yearsAtResidence: ResidenceYears | '';
+  residenceStatus: ResidenceStatus | '';
+  residenceStatusOther: string;
   numberOfDependents: string;
-  supportingMultipleFamilies: 'yes' | 'no' | '';
-  // Employment or business
+  numberOfIncomeEarners: string;
+  supportingMultipleFamilies: YesNoPreferNot | '';
+
+  // 4. Employment or Business Information
   mainIncomeSource: MainIncomeSource | '';
   otherIncomeSource: string;
   employmentTenure: TenureRange | '';
+  incomeStability: IncomeStability | '';
   incomeTrend: IncomeTrend | '';
-  // Organization membership
+  isRenewal: 'yes' | 'no' | '';
+  incomeChangeSincePrevious: IncomeChange | '';
+  previousMonthlyIncome: string;
+  currentMonthlyIncome: string;
+  incomeChangeEffectiveDate: string;
+
+  // 5. Organization Membership
   isOrgMember: 'yes' | 'no' | '';
-  membershipType: string;
+  membershipType: MembershipType | '';
   organizationName: string;
   membershipYears: string;
   membershipStanding: MembershipStanding | '';
 
-  // 4. Declared Financial Information
+  // 6. Quick Financial Information
+  declaredGrossMonthlyIncome: string;
   declaredNetMonthlyIncome: string;
-  otherMonthlyIncome: string;
+  otherRecurringMonthlyIncome: string;
   estimatedMonthlyHouseholdExpenses: string;
   existingMonthlyLoanPayments: string;
   monthlyCreditCardPayments: string;
-  otherMonthlyObligations: string;
+  otherRecurringMonthlyObligations: string;
+  supportingDocsAvailable: SupportingDocItem[];
 
-  // 5. Officer Observation
+  // 7. Payment Behavior
+  electricityPayment: ElectricityPayment | '';
+  creditCardPayment: CreditCardPayment | '';
+  otherLoanRepayment: OtherLoanRepayment | '';
+  hasReturnedChecks: YesNoVerify | '';
+  hasPastDueObligations: YesNoVerify | '';
+  hasPendingCases: YesNoVerify | '';
+  paymentBehaviorExplanation: string;
+
+  // 8. Officer Observation
   officerObservations: OfficerObservationItem[];
   observationNotes: string;
 
-  // 6. Collateral Information
+  // 9. Collateral Information
   collateralOffered: CollateralOffered | '';
   collateralEntries: CollateralEntry[];
 
-  // 7. Loan Package Proposal
+  // 10. Agreed Next Steps
+  nextSteps: NextStepItem[];
+  responsibleParty: ResponsibleParty | '';
+  nextStepsDueDate: string;
+  followUpDate: string;
+  nextStepsInstructions: string;
+
+  // 11. Loan Package Proposal
   proposedLoanAmount: string;
   proposedLoanTerm: string;
   proposedLoanFacility: string;
@@ -294,12 +438,21 @@ export type CallReport = {
   interestRateBasis: InterestRateBasis | '';
   computationType: ComputationType | '';
   computationTypeOther: string;
-  paymentFrequency: string;
-  estimatedAmortization: string;
-  estimatedMaturityValue: string;
+  paymentFrequency: PaymentFrequency | '';
+  paymentFrequencyOther: string;
+  numberOfPayments: string;
+  firstPaymentDate: string;
   proposedReleaseDate: string;
+  gracePeriod: string;
   finalUseOfProceeds: string;
   proposalPrimaryRepaymentSource: RepaymentSource | '';
+  secondaryRepaymentSource: string;
+  estimatedAmortization: string;
+  estimatedTotalInterest: string;
+  estimatedTotalRepayment: string;
+  estimatedMaturityValue: string;
+  preliminaryDti: string;
+  disposableIncomeAfterAmortization: string;
   adjustmentReason: AdjustmentReason | '';
   adjustmentReasonOther: string;
   collateralAssessment:
@@ -309,21 +462,17 @@ export type CallReport = {
     | 'tbd'
     | 'may-proceed-without'
     | '';
+  requiredDocuments: RequiredDocItem[];
   conditionsBeforeProceeding: ConditionItem[];
   preliminaryRecommendation: PreliminaryRecommendation | '';
   recommendationReason: string;
   loanPackageNotes: string;
 
-  // 8. Follow-up and Next Step
-  followUpRequired: 'yes' | 'no' | '';
-  followUpDate: string;
-  nextAction: NextAction | '';
-  nextActionOther: string;
-  nextStepsInstructions: string;
-
-  // 9. Call Summary
+  // 12. Call Summary
   callSummary: string;
   callSummaryEdited: boolean;
+
+  // 13. Additional Remarks
   additionalRemarks: string;
 };
 
@@ -332,8 +481,10 @@ export type RequirementDoc = {
   status: RequirementDocStatus;
   aiNote: string;
   fileName: string | null;
+  fileUrl: string | null;
   uploadedAt: string | null;
   uploadedBy: string | null;
+  remarks: string;
   // Separate from `status` (the AI-assigned Verified/Needs Review/Missing
   // read) — this is the officer's own confirmation that they've looked at
   // the document, toggled independently via "Mark as Reviewed" in
@@ -390,7 +541,10 @@ export type ReviewStep =
   | 'creditChecking'
   | 'reconsideration'
   | 'callReport'
-  | 'requirementChecklist';
+  | 'requirementChecklist'
+  | 'creditInvestigation'
+  | 'appraisal'
+  | 'financialEvaluation';
 
 export type StepTimestamps = Partial<Record<ReviewStep, string>>;
 
@@ -491,8 +645,10 @@ function createInitialRequirementDocuments(): RequirementDoc[] {
         status: 'missing',
         aiNote: '',
         fileName: null,
+        fileUrl: null,
         uploadedAt: null,
         uploadedBy: null,
+        remarks: '',
         reviewed: false,
       };
     }
@@ -500,9 +656,11 @@ function createInitialRequirementDocuments(): RequirementDoc[] {
       key: meta.key,
       status: meta.freshStatus,
       aiNote: meta.freshNote,
-      fileName: `${meta.key}-sample.pdf`,
+      fileName: 'sample-local-pdf.pdf',
+      fileUrl: '/assets/documents/sample-local-pdf.pdf',
       uploadedAt: new Date(0).toISOString(),
       uploadedBy: 'Ramon Cruz',
+      remarks: '',
       reviewed: false,
     };
   });
@@ -524,8 +682,10 @@ function createAppraisalGroupDocuments(seeded = false): RequirementDoc[] {
         status: 'missing',
         aiNote: '',
         fileName: null,
+        fileUrl: null,
         uploadedAt: null,
         uploadedBy: null,
+        remarks: '',
         reviewed: false,
       };
     }
@@ -533,9 +693,11 @@ function createAppraisalGroupDocuments(seeded = false): RequirementDoc[] {
       key: meta.key,
       status: meta.freshStatus,
       aiNote: meta.freshNote,
-      fileName: `${meta.key}-sample.pdf`,
+      fileName: 'sample-local-pdf.pdf',
+      fileUrl: '/assets/documents/sample-local-pdf.pdf',
       uploadedAt: new Date(0).toISOString(),
       uploadedBy: 'Ramon Cruz',
+      remarks: '',
       reviewed: false,
     };
   });
@@ -588,10 +750,10 @@ function createInitialReview(): ApplicationReview {
       reportFileName: null,
       reportUploadedAt: null,
     },
-    loandexUpload: { fileName: null, uploadedAt: null },
-    cicUpload: { fileName: null, uploadedAt: null },
-    cmapUpload: { fileName: null, uploadedAt: null },
-    nfisBapUpload: { fileName: null, uploadedAt: null },
+    loandexUpload: { fileName: null, fileData: null, uploadedAt: null },
+    cicUpload: { fileName: null, fileData: null, uploadedAt: null },
+    cmapUpload: { fileName: null, fileData: null, uploadedAt: null },
+    nfisBapUpload: { fileName: null, fileData: null, uploadedAt: null },
     reconsideration: { notes: '', decision: 'pending' },
     negativeCreditReport: createInitialNegativeCreditReport(),
     callReport: {
@@ -609,31 +771,57 @@ function createInitialReview(): ApplicationReview {
       loanPurposeConfirmation: '',
       finalLoanPurpose: '',
       specificUseOfProceeds: '',
+      targetReleaseDate: '',
       primaryRepaymentSource: '',
       otherRepaymentSource: '',
-      targetReleaseDate: '',
+      clientUnderstanding: [],
+      clientConcerns: [],
+      concernNotes: '',
       yearsAtResidence: '',
+      residenceStatus: '',
+      residenceStatusOther: '',
       numberOfDependents: '',
+      numberOfIncomeEarners: '',
       supportingMultipleFamilies: '',
       mainIncomeSource: '',
       otherIncomeSource: '',
       employmentTenure: '',
+      incomeStability: '',
       incomeTrend: '',
+      isRenewal: '',
+      incomeChangeSincePrevious: '',
+      previousMonthlyIncome: '',
+      currentMonthlyIncome: '',
+      incomeChangeEffectiveDate: '',
       isOrgMember: '',
       membershipType: '',
       organizationName: '',
       membershipYears: '',
       membershipStanding: '',
+      declaredGrossMonthlyIncome: '',
       declaredNetMonthlyIncome: '',
-      otherMonthlyIncome: '',
+      otherRecurringMonthlyIncome: '',
       estimatedMonthlyHouseholdExpenses: '',
       existingMonthlyLoanPayments: '',
       monthlyCreditCardPayments: '',
-      otherMonthlyObligations: '',
+      otherRecurringMonthlyObligations: '',
+      supportingDocsAvailable: [],
+      electricityPayment: '',
+      creditCardPayment: '',
+      otherLoanRepayment: '',
+      hasReturnedChecks: '',
+      hasPastDueObligations: '',
+      hasPendingCases: '',
+      paymentBehaviorExplanation: '',
       officerObservations: [],
       observationNotes: '',
       collateralOffered: '',
       collateralEntries: [],
+      nextSteps: [],
+      responsibleParty: '',
+      nextStepsDueDate: '',
+      followUpDate: '',
+      nextStepsInstructions: '',
       proposedLoanAmount: '',
       proposedLoanTerm: '',
       proposedLoanFacility: '',
@@ -642,23 +830,28 @@ function createInitialReview(): ApplicationReview {
       computationType: '',
       computationTypeOther: '',
       paymentFrequency: '',
-      estimatedAmortization: '',
-      estimatedMaturityValue: '',
+      paymentFrequencyOther: '',
+      numberOfPayments: '',
+      firstPaymentDate: '',
       proposedReleaseDate: '',
+      gracePeriod: '',
       finalUseOfProceeds: '',
       proposalPrimaryRepaymentSource: '',
+      secondaryRepaymentSource: '',
+      estimatedAmortization: '',
+      estimatedTotalInterest: '',
+      estimatedTotalRepayment: '',
+      estimatedMaturityValue: '',
+      preliminaryDti: '',
+      disposableIncomeAfterAmortization: '',
       adjustmentReason: '',
       adjustmentReasonOther: '',
       collateralAssessment: '',
+      requiredDocuments: [],
       conditionsBeforeProceeding: [],
       preliminaryRecommendation: '',
       recommendationReason: '',
       loanPackageNotes: '',
-      followUpRequired: '',
-      followUpDate: '',
-      nextAction: '',
-      nextActionOther: '',
-      nextStepsInstructions: '',
       callSummary: '',
       callSummaryEdited: false,
       additionalRemarks: '',
@@ -737,8 +930,36 @@ function readStoredState(): AdminState {
             const storedDoc = storedReview.requirementChecklist?.documents?.find(
               (doc: RequirementDoc) => doc.key === defaultDoc.key
             );
-            return storedDoc ? { ...defaultDoc, ...storedDoc } : defaultDoc;
+            if (!storedDoc) return defaultDoc;
+            const mergedDoc = { ...defaultDoc, ...storedDoc };
+            const isSeededSample =
+              mergedDoc.fileName === 'sample-local-pdf.pdf' ||
+              mergedDoc.fileName?.endsWith('-sample.pdf');
+            return isSeededSample
+              ? {
+                  ...mergedDoc,
+                  fileName: 'sample-local-pdf.pdf',
+                  fileUrl: '/assets/documents/sample-local-pdf.pdf',
+                }
+              : mergedDoc;
           }),
+          appraisalGroups: (
+            storedReview.requirementChecklist?.appraisalGroups ??
+            initialState.review.requirementChecklist.appraisalGroups
+          ).map((group: AppraisalTctGroup) => ({
+            ...group,
+            documents: group.documents.map((doc) => {
+              const isSeededSample =
+                doc.fileName === 'sample-local-pdf.pdf' || doc.fileName?.endsWith('-sample.pdf');
+              return isSeededSample
+                ? {
+                    ...doc,
+                    fileName: 'sample-local-pdf.pdf',
+                    fileUrl: '/assets/documents/sample-local-pdf.pdf',
+                  }
+                : doc;
+            }),
+          })),
         },
       },
     };
@@ -863,8 +1084,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             id: crypto.randomUUID(),
             type: '',
             description: '',
+            quantity: '',
             registeredOwner: '',
+            ownerRelationship: '',
+            location: '',
             estimatedValue: '',
+            ownershipDocsAvailable: '',
+            existingLien: '',
             requiresAppraisal: '',
           };
           return {

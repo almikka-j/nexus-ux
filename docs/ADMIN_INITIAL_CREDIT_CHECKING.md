@@ -48,10 +48,27 @@ The right-column cards, in order:
    note history. See "Officer notes" below.
 3. **"AI review, summary & recommendation"** — see "AI review card" below.
 4. **"Approved?"** — the decision card (Proceed to Call Report / Disapprove).
+   Proceed is the primary green action; Disapprove uses the neutral secondary
+   outline treatment instead of a red button.
 
 The former inline `NegativeCreditReportCard` is no longer rendered on this
 page. Negative findings are summarized inside `CreditCheckingResultModal`,
 which remains available from the "View Initial Credit Checking Result" button.
+
+Each Bureau Report row shows a concise, applicant-personalized report summary
+directly below its title after a document is uploaded. LOANDEX, CIC, CMAP, and
+NFIS/BAP use report-specific summary copy; CIBI shows its summary after the
+returned report document is uploaded. Rows without an uploaded report retain
+their existing upload/API guidance instead.
+
+Uploaded Bureau Report rows follow the Requirement Checklist document-card
+interaction pattern without its acceptance checkbox or Remarks workflow:
+personalized summary, outlined **View** action, and a bordered
+three-dot menu containing **Replace file** and **Delete file**. Files are
+stored as data URLs so View opens the actual uploaded report in a new tab.
+The filename is not repeated beside the action buttons; instead, filename and
+localized upload date appear as muted metadata beneath the personalized
+summary, matching Requirement Checklist document rows.
 
 ## Application details card
 

@@ -27,6 +27,9 @@ const STEP_LABELS: Record<ReviewStep, string> = {
   reconsideration: 'Reconsideration',
   callReport: 'Call Report',
   requirementChecklist: 'Requirement Checklist',
+  creditInvestigation: 'Credit Investigation',
+  appraisal: 'Appraisal',
+  financialEvaluation: 'Financial Evaluation',
 };
 
 function DocumentPreview({

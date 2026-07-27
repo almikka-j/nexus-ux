@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
+import MenuItem from '@mui/material/MenuItem';
 import Container from '@mui/material/Container';
+import Popover from '@mui/material/Popover';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 
@@ -39,6 +42,9 @@ const STEP_ORDER: ReviewStep[] = [
   'reconsideration',
   'callReport',
   'requirementChecklist',
+  'creditInvestigation',
+  'appraisal',
+  'financialEvaluation',
 ];
 
 const STEP_LABELS: Record<ReviewStep, string> = {
@@ -46,7 +52,13 @@ const STEP_LABELS: Record<ReviewStep, string> = {
   reconsideration: 'Reconsideration',
   callReport: 'Call Report',
   requirementChecklist: 'Requirement Checklist',
+  creditInvestigation: 'Credit Investigation',
+  appraisal: 'Appraisal',
+  financialEvaluation: 'Financial Evaluation',
 };
+
+const OFFICER_ROSTER = ['Ramon Cruz', 'Bea Lopez', 'Ivan Tan', 'Grace Uy'];
+const SAMPLE_ASSIGNMENTS_STORAGE_KEY = 'hhc-lms-sample-officer-assignments';
 
 type ListRow = {
   key: string;
@@ -64,6 +76,21 @@ export function ApplicationListView() {
   const searchParams = useSearchParams();
   const { signUpData, application, hydrated, loadSample, reset } = useRegistration();
   const { review, resetReview } = useAdmin();
+  const [sampleOfficerAssignments, setSampleOfficerAssignments] = useState<Record<string, string>>(
+    () => {
+      if (typeof window === 'undefined') return {};
+      try {
+        return JSON.parse(window.localStorage.getItem(SAMPLE_ASSIGNMENTS_STORAGE_KEY) ?? '{}');
+      } catch {
+        return {};
+      }
+    }
+  );
+  const [assignmentMenu, setAssignmentMenu] = useState<{
+    anchorEl: HTMLElement;
+    applicationKey: string;
+  } | null>(null);
+  const [officerSearch, setOfficerSearch] = useState('');
 
   const hasApplication = !!signUpData && !!application.personalInfo;
 
@@ -99,7 +126,9 @@ export function ApplicationListView() {
         step,
         statusLabel: liveDecision.label,
         statusColor: liveDecision.color,
-        isActionable: true,
+        // The queue is introduced before its detailed application workspace.
+        // Keep its rows informational until that workspace is implemented.
+        isActionable: !['creditInvestigation', 'appraisal', 'financialEvaluation'].includes(step),
       }))
     : [];
 
@@ -138,7 +167,7 @@ export function ApplicationListView() {
     document.title = `${STEP_LABELS[stepFilter]} | HHC LMS Admin`;
   }, [stepFilter]);
 
-  const STEP_TO_PATH: Record<ReviewStep, (id: string) => string> = {
+  const STEP_TO_PATH: Partial<Record<ReviewStep, (id: string) => string>> = {
     creditChecking: paths.admin.creditChecking,
     reconsideration: paths.admin.reconsideration,
     callReport: paths.admin.callReport,
@@ -146,16 +175,35 @@ export function ApplicationListView() {
   };
 
   const handleRowClick = (row: ListRow) => {
+    if (!row.isActionable) return;
+
     if (row.isLive) {
       // Route to whichever step the live application is actually at — not
       // always Initial Credit Checking — so clicking its row from a Call
       // Report/Reconsideration/etc. filtered list opens the right screen.
       const id = encodeURIComponent(row.registration.signUpData!.email);
-      router.push(STEP_TO_PATH[row.step](id));
+      const stepPath = STEP_TO_PATH[row.step];
+      if (stepPath) router.push(stepPath(id));
     } else {
       router.push(paths.admin.sampleApplication(encodeURIComponent(row.registration.signUpData!.email)));
     }
   };
+
+  const handleAssignSampleOfficer = (officer: string) => {
+    if (!assignmentMenu) return;
+    const nextAssignments = {
+      ...sampleOfficerAssignments,
+      [assignmentMenu.applicationKey]: officer,
+    };
+    setSampleOfficerAssignments(nextAssignments);
+    window.localStorage.setItem(SAMPLE_ASSIGNMENTS_STORAGE_KEY, JSON.stringify(nextAssignments));
+    setAssignmentMenu(null);
+    setOfficerSearch('');
+  };
+
+  const filteredOfficerRoster = OFFICER_ROSTER.filter((officer) =>
+    officer.toLocaleLowerCase().includes(officerSearch.trim().toLocaleLowerCase())
+  );
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
@@ -202,6 +250,8 @@ export function ApplicationListView() {
               const agingLevel = getAgingLevel(rowApplication.submittedAt);
               const agingColors = AGING_LEVEL_COLORS[agingLevel];
               const isActionable = row.isActionable;
+              const assignedOfficer =
+                sampleOfficerAssignments[row.key] ?? rowApplication.assignedOfficer;
 
               const rowContent = (
                 <>
@@ -221,7 +271,7 @@ export function ApplicationListView() {
                       <Iconify icon="solar:document-text-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
                     </Box>
                     <Stack spacing={0.25}>
-                      <Stack direction="row" spacing={1} alignItems="center">
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" rowGap={0.75}>
                         <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#14172A' }}>
                           {rowSignUp!.firstName} {rowSignUp!.lastName}
                         </Typography>
@@ -243,18 +293,61 @@ export function ApplicationListView() {
                       <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
                         Loan No. {getLoanNumber(rowSignUp!.email)} ·{' '}
                         {rowApplication.loanType === 'business' ? 'Business Loan' : 'Personal Loan'}
-                        {rowApplication.assignedOfficer && ` · Officer: ${rowApplication.assignedOfficer}`}
+                        {assignedOfficer &&
+                          !(stepFilter === 'creditChecking' && !row.isLive) &&
+                          ` · Officer: ${assignedOfficer}`}
                       </Typography>
                     </Stack>
                   </Stack>
 
-                  <Stack direction="row" alignItems="center" spacing={2}>
-                    <Chip
-                      size="small"
-                      variant="soft"
-                      label={STEP_LABELS[row.step]}
-                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
-                    />
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="flex-end"
+                    spacing={1.5}
+                    flexWrap="wrap"
+                    rowGap={1}
+                  >
+                    {stepFilter === 'creditChecking' && !row.isLive && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={
+                          <Iconify
+                            icon={
+                              assignedOfficer
+                                ? 'solar:user-check-rounded-bold-duotone'
+                                : 'solar:user-plus-rounded-bold-duotone'
+                            }
+                            width={16}
+                          />
+                        }
+                        onClick={(event) => {
+                          setOfficerSearch('');
+                          setAssignmentMenu({
+                            anchorEl: event.currentTarget,
+                            applicationKey: row.key,
+                          });
+                        }}
+                        sx={{
+                          minHeight: 34,
+                          px: 1.5,
+                          color: '#1C2A6E',
+                          borderColor: '#C7CEEA',
+                          borderRadius: '9px',
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                          '&:hover': {
+                            borderColor: '#1C2A6E',
+                            bgcolor: '#F5F7FF',
+                          },
+                        }}
+                      >
+                        {assignedOfficer ? 'Change Officer' : 'Assign Officer'}
+                      </Button>
+                    )}
+                    <Chip size="small" color={row.statusColor} variant="soft" label={row.statusLabel} />
                     {rowApplication.submittedAt && (
                       <Stack direction="row" spacing={0.5} alignItems="center">
                         <Iconify
@@ -277,7 +370,6 @@ export function ApplicationListView() {
                         </Typography>
                       </Stack>
                     )}
-                    <Chip size="small" color={row.statusColor} variant="soft" label={row.statusLabel} />
                     {isActionable && (
                       <Iconify icon="eva:arrow-ios-forward-fill" width={20} sx={{ color: '#8891A6' }} />
                     )}
@@ -352,6 +444,65 @@ export function ApplicationListView() {
             </Typography>
           </Box>
         )}
+
+        <Popover
+          anchorEl={assignmentMenu?.anchorEl ?? null}
+          open={Boolean(assignmentMenu)}
+          onClose={() => {
+            setAssignmentMenu(null);
+            setOfficerSearch('');
+          }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          slotProps={{ paper: { sx: { mt: 0.75, width: 280, borderRadius: '12px', overflow: 'hidden' } } }}
+        >
+          <Box sx={{ p: 1.5, borderBottom: '1px solid #EEF0F5' }}>
+            <TextField
+              autoFocus
+              fullWidth
+              size="small"
+              value={officerSearch}
+              onChange={(event) => setOfficerSearch(event.target.value)}
+              placeholder="Search officer"
+              inputProps={{ 'aria-label': 'Search officers' }}
+              InputProps={{
+                startAdornment: (
+                  <Iconify
+                    icon="solar:magnifer-linear"
+                    width={17}
+                    sx={{ color: '#8891A6', mr: 1 }}
+                  />
+                ),
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '9px', fontSize: 13.5 } }}
+            />
+          </Box>
+          <Box sx={{ py: 0.75, maxHeight: 240, overflowY: 'auto' }}>
+            {filteredOfficerRoster.length > 0 ? (
+              filteredOfficerRoster.map((officer) => (
+                <MenuItem
+                  key={officer}
+                  onClick={() => handleAssignSampleOfficer(officer)}
+                  sx={{ mx: 0.75, px: 1.25, borderRadius: '8px', fontSize: 13.5 }}
+                >
+                  <Iconify
+                    icon="solar:user-rounded-bold-duotone"
+                    width={17}
+                    sx={{ color: '#8891A6', mr: 1.25 }}
+                  />
+                  {officer}
+                </MenuItem>
+              ))
+            ) : (
+              <Stack alignItems="center" spacing={0.75} sx={{ px: 2, py: 3 }}>
+                <Iconify icon="solar:user-cross-rounded-linear" width={22} sx={{ color: '#B0B6C3' }} />
+                <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+                  No officers found
+                </Typography>
+              </Stack>
+            )}
+          </Box>
+        </Popover>
       </Stack>
     </Container>
   );

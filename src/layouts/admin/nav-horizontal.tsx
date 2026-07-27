@@ -15,14 +15,13 @@ import { RouterLink } from 'src/routes/components';
 import { Iconify } from 'src/components/iconify';
 import { LogoFull } from 'src/components/logo/logo-full';
 
-import { adminNavData } from './config-nav-admin';
+import {
+  adminNavData,
+  isAdminNavChildActive,
+} from './config-nav-admin';
 import { AdminHeaderActions } from './header';
 
 // ----------------------------------------------------------------------
-
-function isInsideSection(item: (typeof adminNavData)[number], pathname: string) {
-  return !!item.children?.some((child) => pathname === child.path.split('?')[0]);
-}
 
 type AdminNavHorizontalProps = {
   displayName: string;
@@ -70,8 +69,10 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
       <Stack direction="row" spacing={0.75} sx={{ flex: 1, overflowX: 'auto' }}>
         {adminNavData.map((item) => {
           const hasChildren = !!item.children?.length;
-          const active = !hasChildren && (pathname === item.path || pathname.startsWith(`${item.path}/`));
-          const isSectionActive = hasChildren && isInsideSection(item, pathname);
+          const active =
+            item.title !== 'Dashboard' &&
+            !hasChildren &&
+            (pathname === item.path || pathname.startsWith(`${item.path}/`));
           const isMenuOpen = openMenuTitle === item.title;
 
           const commonSx = {
@@ -94,11 +95,7 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
               boxShadow: '0 2px 8px rgba(28,42,110,0.28)',
               '&:hover': { bgcolor: '#1C2A6E' },
             }),
-            ...(isSectionActive && {
-              color: '#1C2A6E',
-              fontWeight: 700,
-              ...(isMenuOpen && { bgcolor: '#EEF1FE' }),
-            }),
+            ...(isMenuOpen && { bgcolor: '#EEF1FE' }),
           };
 
           if (hasChildren) {
@@ -147,12 +144,7 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
             anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
           >
             {item.children.map((child) => {
-              const childPathWithoutQuery = child.path.split('?')[0];
-              const childActive =
-                child.step === null
-                  ? pathname === childPathWithoutQuery
-                  : pathname === childPathWithoutQuery &&
-                    (child.step === 'creditChecking' ? !searchStep : searchStep === child.step);
+              const childActive = isAdminNavChildActive(child, pathname, searchStep);
 
               return (
                 <MenuItem

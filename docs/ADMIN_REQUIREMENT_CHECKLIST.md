@@ -31,64 +31,47 @@ back navigation, step-entry tracking, compact aging values, and the amber Step
 3 pill, but it does not render a separate borrower card. Large stale-step alerts
 have been removed globally from all process pages.
 
-The shared `ApplicationDetailsCard` is therefore always the first card on the
-Requirement Checklist page. It uses the compact/modal variant
-(`<ApplicationDetailsCard collapsible />`): borrower identity, application
-number, assigned officer, six loan-summary fields, **View full application**,
-**Initial credit checking result**, **View call report**, and **View all officer
-notes**. The shared action row never wraps. **View full application** stays
-visible at every width; Initial Credit Checking Result becomes visible when it
-fits, followed by View Call Report and View All Officer Notes at wider desktop
-widths. A bordered three-dot button contains only the actions hidden at the
-current breakpoint and disappears once every action fits. **Initial credit
-checking result** reuses
-`CreditCheckingResultModal` with `recommendationEditable={false}`, so the
-department's Recommendation & Remarks is read-only at this later process.
-**View call report** opens
-the shared read-only `CallReportResultModal`, mirroring the active Call Report
-page: actual date/place, representatives, Agenda, Call Summary, facility,
-amount, sub-product, Plan of Action, proposal computations, collateral,
-collateral details, and remarks. This remains first after
-Endorse or Return to Applicant as well; the relevant success-state card follows
-it and the Call Report action remains available.
-Both prior-process report actions remain available.
-
-Opening **View all officer notes** passes `Requirement Checklist` to the shared
-`OfficerNotesDialog` — a right-anchored chat-style drawer (`src/sections/admin/officer-notes-history.tsx`,
-matching `RequestDocumentsDrawer`'s layout), not a centered dialog. Past notes
-render as chat bubbles; officers add a new one via the composer pinned to the
-bottom, same Enter-to-send convention as the Request Documents drawer. The new
-history entry automatically displays the officer name, date/time, note, and
-Process = Requirement Checklist.
+The shared collapsible `ApplicationDetailsCard` is the first card in the active
+checklist and both completion states. It provides application context plus
+Full Application, Initial Credit Checking Result, View Call Report, and View
+All Officer Notes actions. The Requirement Checklist summary follows it in
+normal page flow; there is no duplicate sticky mini-summary.
 
 ## Layout: three document cards
 
 The screen presents **Credit Investigation**, **Appraisal**, and **Financial
 Evaluation** as three separate white cards. Each card has its own heading,
-verified indicator, collapse control, and document content. The page does not
+neutral document-count badge, verified indicator, collapse control, and
+document content. Credit Investigation and Financial Evaluation use their
+fixed metadata-filtered totals; each badge uses `received/total documents`,
+where received means the document status is not `missing`. Appraisal
+dynamically calculates both values across its current property groups (or
+`0/0 documents` when not applicable). The page does not
 use tabs (an earlier iteration used MUI `Tabs`). Card labels deliberately use the design mockup's
 naming (`Credit Investigation` / `Appraisal` / `Financial Evaluation`),
 superseding the "keep app wording" note in the History section below, which
 now only applies to the page's own title/step badge, not these card labels.
+Appraisal keeps its collapse chevron at the far-right edge of the header,
+after the applicability action, matching the other card headers' scan pattern.
 Document labels do not display required-field asterisks; required status is
 still retained in metadata and continues to control progress and endorsement.
-The checklist summary includes a persistent instruction telling officers to
-check a document's checkbox only after it has been reviewed and accepted.
+The checklist summary directs officers to check documents after review and
+acceptance, with optional remarks available from the three-dot menu. Completed
+rows do not show a redundant Verified chip; Needs review and Missing remain
+visible.
 
-## Page-wide UX: sticky summary bar, collapsible cards, status-first sorting, jump-to-outstanding
+## Page-wide UX: regular summary card, collapsible cards, status-first sorting
 
-Four related additions aimed at making the long page easier to
+The page uses the following patterns to make the long checklist easier to
 navigate once documents start piling up (all in `requirement-checklist-view.tsx`):
 
-- **Sticky mini summary bar** — a condensed bar (`position: sticky, top: 68`,
-  `zIndex: 2`, sitting just below `AdminNavHorizontal`'s own sticky top bar)
-  rendered above the full progress card, containing the same
-  `{receivedRequiredCount}/{totalRequiredCount}` counter, the same progress
-  fill, an "N outstanding" button, and the "Request Documents" button. It
-  stays visible while scrolling through the three document cards so the
-  officer never has to scroll back up to check overall progress or open the
-  Request Documents drawer. The full, non-sticky progress card below it is
-  unchanged and still the first thing shown on load.
+- **One regular summary card** — the duplicate sticky mini-summary was
+  removed. The full Requirement Checklist summary follows Application Details
+  in normal page flow. Its header pairs a checklist icon/title and concise
+  purpose copy with a navy outlined Request Documents action. A separate progress
+  panel emphasizes received-versus-total, completion percentage, and a thicker
+  state-aware progress bar without a redundant outstanding-count pill. The review instruction and
+  latest request history remain below with lighter visual weight.
 - **Each document card collapses independently, manually only** —
   `creditInvestigationCollapsed` / `appraisalCollapsed` /
   `financialEvaluationCollapsed`, one `useState` per card, toggled by
@@ -114,24 +97,11 @@ navigate once documents start piling up (all in `requirement-checklist-view.tsx`
   the Financial Evaluation list — so an officer chasing outstanding items
   never has to scan past a long run of already-verified rows to find what's
   left.
-- **"Jump to outstanding" cycles through every pending row on the page** —
-  `outstandingRowIds` is a flat list, in on-page visual order (Credit
-  Investigation → every Appraisal group → Financial Evaluation), of every
-  row currently needing attention; Appraisal row ids are namespaced
-  `${group.id}:${meta.key}` since the same document key repeats across
-  groups. Clicking the sticky bar's "N outstanding" button
-  (`handleJumpToOutstanding`) expands whichever card owns the next id in the
-  cycle (if collapsed), then smooth-scrolls that specific row into view via
-  a `rowRefs` map of `HTMLDivElement` refs keyed by the same row id — one ref
-  per row, registered by every `RequirementDocRow`'s wrapping `Box`. Each
-  click advances `jumpCursor` and wraps back to the first item once past the
-  end, so repeated clicks tour every outstanding row in order rather than
-  re-scrolling to the same one.
 
 ## The fixed document list (`requirement-checklist-docs.ts`)
 
 `REQUIREMENT_DOC_META` covers **Credit Investigation and Financial
-Evaluation only** — 19 documents across those two cards, the same list for
+Evaluation only** — 24 independently stored rows across those two cards, the same list for
 every application regardless of employment status, loan type, or any other
 application field:
 
@@ -140,40 +110,29 @@ application field:
   - **Loan Credit Checking Documents**: CIC Check, CMAP Check, NFIS/BAP Check
     (all 3 required).
   - **Loan Requirements**: Bank Authorization Form (signed, required),
-    POEA Contract (not required — shared with Financial Evaluation), Working
-    Visa (required — shared with Financial Evaluation), Flight Details
-    (required), Proof of Billing (required — shared with Financial
-    Evaluation), Statement of Account (not required — shared with Financial
-    Evaluation), Primary IDs of Mortgagor w/ 3 specimen signature (not
+    POEA Contract (not required), Working Visa (required), Flight Details
+    (required), Proof of Billing (required), Statement of Account (not
+    required), Primary IDs of Mortgagor w/ 3 specimen signature (not
     required), Primary IDs of Spouse w/ 3 specimen signature (not required),
     Primary IDs Borrowers w/ 3 specimen signature (required),
-    Additional/Other Documents (not required — shared with Financial
-    Evaluation), TIN – Primary ID(Principal/consumer) (required).
-- **Financial Evaluation** (11 documents, flat list): 6 months Bank Statement
+    Additional/Other Documents (not required), TIN – Primary
+    ID(Principal/consumer) (required).
+- **Financial Evaluation** (10 documents, flat list): 6 months Bank Statement
   of Main Depository Bank (required), Certificate of Employment indicating
   status, service tenure and compensation breakdown (required), Individual
   Income Tax Return (2316) (not required), Latest two (2) months
   payslip/Proof of Income (not required), Photocopy of two (2) government
-  issued IDs with three specimen signatures (not required), plus the shared
+  issued IDs with three specimen signatures (not required), plus independent
   POEA Contract, Working Visa, Proof of Billing, Statement of Account, and
   Additional/Other Documents.
 
-**Documents shared between these two cards are one underlying document, not
-duplicates.** Working Visa, Proof of Billing, POEA Contract, Statement of
-Account, and Additional/Other Documents each appear on both cards — but each
-has exactly **one** `RequirementDocMeta` entry (one `key`, so one
-`RequirementDoc` in state). `RequirementDocMeta.tabs: RequirementDocTab[]`
-(named `tabs` from this screen's earlier tab-based iteration; kept as-is
-rather than renamed for a naming-only change) lists every card a document
-belongs to — `RequirementDocTab` is now just `'creditInvestigation' |
-'financialEvaluation'`. The view filters `REQUIREMENT_DOC_META` by
-`meta.tabs.includes('financialEvaluation')` etc. rather than by a single
-owning category. Uploading a shared document on one card updates the same
-underlying `RequirementDoc`, so the other card that also lists it
-immediately shows the new status — there is no way for the same real-world
-document to read "uploaded" on one card and "missing" on the other.
+**Same-named documents are independent between cards.** Working Visa, Proof
+of Billing, POEA Contract, Statement of Account, and Additional/Other
+Documents appear in both cards but use distinct Financial Evaluation keys
+(for example, `workingVisaFinancial`). Uploading or removing one row changes
+only that exact row and never the similarly named row in another card.
 
-12 of the 19 documents are `required: true`. Each `RequirementDocMeta` entry
+Each `RequirementDocMeta` entry
 carries `{ key, label, tabs, subgroup?, required, freshStatus, freshNote }` —
 `subgroup` (`'loanCreditChecking' | 'loanRequirements'`) is only set on
 Credit Investigation's 14 documents; Financial Evaluation ignores it since it
@@ -199,7 +158,7 @@ other collateral types (vehicle, equipment, etc.) aren't represented here.
   (not required). This is a **leaner `AppraisalDocMeta` type** (`{ key,
   label, required, freshStatus, freshNote }`, no `tabs`/`subgroup`) since
   appraisal documents don't belong to Credit Investigation/Financial
-  Evaluation's shared-tab model at all.
+  Evaluation's fixed-card metadata model.
 - **Deliberately NOT shared with Credit Investigation's same-named
   documents.** Even though "Statement of Account," "Primary IDs of
   Mortgagor," and "Additional/Other Documents" have the same labels as
@@ -220,16 +179,26 @@ other collateral types (vehicle, equipment, etc.) aren't represented here.
   session isn't permanently blocked from endorsing.
 - **Officer-managed, not fixed.** The Appraisal card has a "TCT/CCT number"
   text field + **Add Property** button (`addAppraisalGroup(tctNumber)`) that
-  render in a compact bordered action panel. The input uses the available
-  width, the primary button keeps a consistent action size, and the controls
-  stack vertically on small screens. Adding a property appends a new group
-  with all 8 documents starting `missing`, and each
+  render in a dedicated **Add collateral property** panel with an icon,
+  purpose copy, exact-number helper text, document-field icon, and responsive
+  primary action. The controls stack vertically on small screens. Input is
+  normalized case-insensitively for duplicate detection; an existing TCT/CCT
+  shows inline validation and disables Add Property. The panel uses compact
+  16px internal padding, a consistent gap below the Appraisal header, aligned
+  42px controls, and a reduced gap before the property-group list. Adding a
+  property appends a new group with all 8 documents starting `missing`, and each
   group has its own trash-icon **Remove Property** button
   (`removeAppraisalGroup(groupId)`) that deletes the whole group and its
   documents. `updateAppraisalGroupDoc(groupId, docKey, data)` patches a
   single document within one specific group (used by that group's Upload /
   Remove / Mark as Reviewed actions) — every mutation targets one group by
   `id`, never all groups at once.
+- **Each property group collapses independently.** Clicking its TCT/CCT header
+  or right-side chevron hides only that property's document rows while keeping
+  the title number, uploaded/total document-count badge (for example,
+  `6/8 documents`), chevron, and remove action visible.
+  New groups start expanded; removed group ids are pruned from the local
+  collapse-state map.
 - **Gating: at least one *complete* group is required to endorse, unless
   marked Not Applicable.** `appraisalGroupsComplete`
   (`requirement-checklist-view.tsx`) is true only when
@@ -253,14 +222,12 @@ state) that relabels itself: **"Set as Not Applicable"** when
 `false`, **"Mark as Applicable"** when `true` (re-clicking the same button
 flips it back — there's no separate undo control).
 
-- **The toggle button is disabled while any Appraisal group exists**
-  (`disabled={!appraisalNotApplicable && hasAppraisalGroups}`) — the officer
-  must remove every property first via each group's trash icon before they
-  can mark the application Not Applicable. This is a deliberate guard against
-  accidentally discarding in-progress property data: there is no
-  confirmation dialog, and marking Not Applicable while groups exist would
-  otherwise silently orphan real uploaded documents that no longer show
-  anywhere in the UI.
+- **Existing property groups do not block the toggle and are never deleted.**
+  If groups exist, Set as Not Applicable opens a confirmation explaining that
+  all property records/uploads will be preserved. Confirming only changes the
+  applicability flag and hides the groups. Mark as Applicable restores the
+  same records immediately, making the state reversible without destructive
+  cleanup.
 - **When `true`, Appraisal is fully excluded from every count** — not just
   hidden from view. `totalRequiredCount`/`receivedRequiredCount`
   (`requirement-checklist-view.tsx`) drop `appraisalRequiredMeta.length`
@@ -274,10 +241,9 @@ flips it back — there's no separate undo control).
   "at least one property (TCT/CCT group)" note from the AI Recommendation's
   outstanding-items list.
 - **UI when `true`**: the Add Property form and the property list are both
-  hidden, replaced by a single banner row ("Marked as not applicable — this
-  application has no real-estate collateral to appraise.") with a check
-  icon. No property-count chip is shown in the card header in this state
-  either.
+  hidden, replaced by a banner explaining that existing records are preserved
+  and will return when Appraisal is marked applicable again. No
+  property-count chip is shown in the card header in this state either.
 - **"Fill with Sample Data" always sets `appraisalNotApplicable: false`**
   (it adds a fresh property group, which is the opposite state) and **"Remove
   Sample Data" also resets it to `false`** (clearing back to the same blank
@@ -291,25 +257,20 @@ flips it back — there's no separate undo control).
   properties," colored green when `appraisalGroupsComplete`, amber
   otherwise — a way to see at a glance whether *any* property still needs
   attention without scanning every row.
-- **Per-group required-count chip** ("N/5 required," same green/amber
+- **Per-group document-count chip** ("N/8 documents," same green/amber
   coloring) next to each group's TCT number, computed from that group's own
-  documents only — lets an officer spot which specific property is holding
-  up the overall Appraisal completeness when there are several.
+  documents only.
 - **Empty state** (no groups, not Not Applicable) is a dashed-border box
   with a house icon and copy that explicitly surfaces the Not Applicable
   option ("...or mark this application as not applicable if there is no
   real-estate collateral"), so the option is discoverable from the very
   first empty-state view, not just from the header button.
-- **Helper text changes when groups exist**: the intro line under the card
-  title appends "Remove every property below to mark this application as not
-  applicable." only when `hasAppraisalGroups` is true — explaining *why* the
-  header toggle is currently disabled, right where the officer would
-  otherwise be confused by a greyed-out button.
 
 ## `RequirementDoc` state shape (`src/auth/admin-context.tsx`)
 
 ```ts
-RequirementDoc        { key, status, aiNote, fileName, uploadedAt, uploadedBy, reviewed }
+RequirementDoc        { key, status, aiNote, fileName, fileUrl, uploadedAt,
+                        uploadedBy, remarks, reviewed }
                        — status: 'verified' | 'needs-review' | 'missing'
 AppraisalTctGroup     { id, tctNumber, documents: RequirementDoc[] }
 OutreachMessage       { id, channel: 'email' | 'whatsapp' | 'viber', text, sentAt }
@@ -356,36 +317,39 @@ array missing them.
 
 ## `RequirementDocRow` (`src/sections/admin/requirement-doc-row.tsx`)
 
-One row per document, rendering: a checkbox (missing docs show a status icon
-instead, since there's nothing to review yet) · the document label · the AI note, if any · "Uploaded
-{date} by {uploadedBy}" (missing docs omit this line) · a status chip ·
-a "Reviewed" chip when `doc.reviewed` · and one or two action buttons.
+One row per document renders a compact file-review workflow: checkbox (missing
+docs show a status icon) · document label · that uploaded document's short AI
+summary directly below the title, personalized with the applicant's full name
+(`The {document label} for {applicant} was reviewed. {aiNote}`) · filename/upload attribution · optional
+one-line remarks preview · explained status chip · Accepted chip · View file ·
+three-dot actions. There is no separate AI panel, and missing rows remain clean
+until a file is uploaded.
 `meta` accepts either `RequirementDocMeta` (Credit Investigation/Financial
 Evaluation) or the leaner `AppraisalDocMeta` (Appraisal groups) — the
 component only reads `required`/`label`/`freshStatus`/`freshNote`, fields
 both types share, so the same row renders either kind without a type
 discriminator:
 
-- **Verified / Needs review** → the **checkbox toggles `reviewed`**
-  directly and independently of `status` — no confirmation step, no required
-  field, just `onToggleReviewed(event.target.checked)`. This is the officer's
-  own "reviewed and accepted" confirmation, separate from the AI's
-  Verified/Needs Review read (a document can be AI-verified but not yet
-  officer-reviewed, or reviewed but still flagged needs-review). **View**
-  opens a lightweight `Dialog` showing the filename, status chip, Reviewed
-  chip (if set), upload date/uploader, and AI note. There is no real document
-  viewer anywhere in this app — this is filename + note only, not a rendered
-  file. A trash-icon **Remove** button resets the document straight back to
-  `missing` (clearing `fileName`/`uploadedAt`/`uploadedBy`/`aiNote`/`reviewed`)
-  with no confirmation dialog — re-uploading is one click away if removed by
-  mistake.
+- **Verified / Needs review** → completed documents do not show a Verified
+  chip. **Needs review** remains visible when the deterministic automated check
+  found an item requiring attention, with a tooltip explaining the state.
+  Checking the checkbox records reviewed-and-accepted immediately; remarks
+  remain optional in the three-dot menu. **View** opens the document file URL in a
+  new tab. Seeded and sample-fill records use
+  `public/assets/documents/sample-local-pdf.pdf`, copied from the supplied
+  `sample-local-pdf.pdf`, so their View actions open a real sample PDF.
+  The checkbox toggles reviewed-and-accepted immediately and does not open the
+  remarks workflow. The three-dot menu contains the optional **Add/Edit
+  remarks** action and **Delete document**.
+  Delete resets the record to missing and releases its temporary object URL.
 - **Missing** → **Upload** button opens a real hidden `<input type="file"
   accept="image/*,.pdf">` file picker. Picking a file does **not** read or
   parse the file's contents — it deterministically assigns that document's
   `meta.freshStatus`/`meta.freshNote` (from `requirement-checklist-docs.ts`),
   records the picked file's own `name` as `fileName`, stamps `uploadedAt: new
-  Date().toISOString()`, sets `uploadedBy` to the current officer, and resets
-  `reviewed: false`. A document that starts "needs review" stays "needs
+  Date().toISOString()`, creates a temporary browser `fileUrl`, sets
+  `uploadedBy` to the current officer, and resets `remarks`/`reviewed`. A
+  document that starts "needs review" stays "needs
   review" after upload if that's its `freshStatus` — uploading a file for a
   missing document does not automatically mean "verified."
 
@@ -585,18 +549,6 @@ confirmation screen, not an actual message sent to anyone.
 
 ## Non-goals / History
 
-- **A per-document Remarks field/workflow existed and was removed
-  entirely.** `RequirementDoc` briefly carried a `remarks: string` field,
-  and `RequirementDocRow` briefly required a non-blank remark before a
-  document could be checked "Reviewed" — first via an always-open Remarks
-  `TextField` under every row, then (after that crashed on an
-  `undefined`-remarks edge case) via a `Popover` opened from the checkbox,
-  then with an added dedicated "Remarks" button for editing after the fact.
-  All of it was reverted: the checkbox now toggles `reviewed` directly with
-  no confirmation step, `RequirementDoc` has no `remarks` field, and the View
-  dialog no longer has an Officer Remarks section. If a remarks-style
-  workflow is wanted again, treat it as new scope rather than resurrecting
-  this history.
 - **Auto-collapse-on-completion was tried and removed as a bug fix.** An
   earlier version had each card's `useEffect` auto-collapse it the moment its
   `fullyVerified` boolean turned `true`. Bug: `appraisalFullyVerified` is
@@ -631,10 +583,11 @@ confirmation screen, not an actual message sent to anyone.
   a quiet erosion of it — the officer adding/removing TCT groups is a real,
   intentional per-application variation, scoped narrowly to real-estate
   collateral only.
-- **No real document viewer.** "View" shows filename + AI note in a simple
-  dialog, never an actual rendered file — consistent with the rest of this
-  prototype's upload handling (see `docs/BORROWER_SIGNUP_FLOW.md` and
-  `docs/ADMIN_INITIAL_CREDIT_CHECKING.md` for the same pattern elsewhere).
+- **Uploaded file viewing:** newly selected files use a browser object URL and
+  View opens that actual file in a new tab. Object URLs do not survive a
+  browser reload. Seeded records use the bundled sample PDF instead, including
+  a localStorage migration from older `*-sample.pdf` metadata to the bundled
+  asset URL.
 - **Step numbering and page-level naming were deliberately kept, not
   "corrected" to match an earlier mockup — tab labels are the one exception,
   added later.** An earlier mockup for this screen used "Step 2" and "Credit

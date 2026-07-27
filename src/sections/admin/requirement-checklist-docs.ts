@@ -13,16 +13,10 @@
 // The document set does NOT vary by employment status, loan type, or any
 // other application field — every application shows the same document list.
 //
-// A handful of documents (Working Visa, Statement of Account,
-// Additional/Other Documents) are required reading in more than one card —
-// e.g. Working Visa matters to both Credit Investigation and Financial
-// Evaluation. Rather than duplicate that document under two separate keys
-// (which would let it be "uploaded" in one card but still show "missing" in
-// the other for what a reviewer would consider the same physical document),
-// each RequirementDocMeta lists every card it appears in via `tabs` (named
-// for the UI's earlier tab-based iteration; kept as `tabs` rather than
-// renamed to avoid a same-turn rename with no behavior change) — one
-// underlying RequirementDoc/upload, shown wherever it's relevant.
+// Documents with the same label in Credit Investigation and Financial
+// Evaluation intentionally use separate keys. Each visible upload row owns
+// independent state, so uploading/removing a file in one process card never
+// changes the similarly named row in another card.
 //
 // Appraisal is NOT part of this shared-doc model — see
 // APPRAISAL_DOC_META below. A borrower can pledge more than one property as
@@ -115,7 +109,7 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
   {
     key: 'poeaContract',
     label: 'POEA Contract',
-    tabs: ['creditInvestigation', 'financialEvaluation'],
+    tabs: ['creditInvestigation'],
     subgroup: 'loanRequirements',
     required: false,
     freshStatus: 'verified',
@@ -124,7 +118,7 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
   {
     key: 'workingVisa',
     label: 'Working Visa',
-    tabs: ['creditInvestigation', 'financialEvaluation'],
+    tabs: ['creditInvestigation'],
     subgroup: 'loanRequirements',
     required: true,
     freshStatus: 'needs-review',
@@ -142,7 +136,7 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
   {
     key: 'proofOfBilling',
     label: 'Proof of Billing',
-    tabs: ['creditInvestigation', 'financialEvaluation'],
+    tabs: ['creditInvestigation'],
     subgroup: 'loanRequirements',
     required: true,
     freshStatus: 'verified',
@@ -151,7 +145,7 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
   {
     key: 'statementOfAccount',
     label: 'Statement of Account',
-    tabs: ['creditInvestigation', 'financialEvaluation'],
+    tabs: ['creditInvestigation'],
     subgroup: 'loanRequirements',
     required: false,
     freshStatus: 'verified',
@@ -187,7 +181,7 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
   {
     key: 'additionalOtherDocuments',
     label: 'Additional/Other Documents',
-    tabs: ['creditInvestigation', 'financialEvaluation'],
+    tabs: ['creditInvestigation'],
     subgroup: 'loanRequirements',
     required: false,
     freshStatus: 'verified',
@@ -203,6 +197,46 @@ export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
     freshNote: '2 attachments · TIN format valid.',
   },
   // Financial Evaluation
+  {
+    key: 'poeaContractFinancial',
+    label: 'POEA Contract',
+    tabs: ['financialEvaluation'],
+    required: false,
+    freshStatus: 'verified',
+    freshNote: 'Employer & contract period extracted.',
+  },
+  {
+    key: 'workingVisaFinancial',
+    label: 'Working Visa',
+    tabs: ['financialEvaluation'],
+    required: true,
+    freshStatus: 'needs-review',
+    freshNote: 'Visa expires within 6 months — verify validity.',
+  },
+  {
+    key: 'proofOfBillingFinancial',
+    label: 'Proof of Billing',
+    tabs: ['financialEvaluation'],
+    required: true,
+    freshStatus: 'verified',
+    freshNote: 'Address matches application.',
+  },
+  {
+    key: 'statementOfAccountFinancial',
+    label: 'Statement of Account',
+    tabs: ['financialEvaluation'],
+    required: false,
+    freshStatus: 'verified',
+    freshNote: 'On file, no discrepancies found.',
+  },
+  {
+    key: 'additionalOtherDocumentsFinancial',
+    label: 'Additional/Other Documents',
+    tabs: ['financialEvaluation'],
+    required: false,
+    freshStatus: 'verified',
+    freshNote: 'Reviewed, no issues found.',
+  },
   {
     key: 'sixMonthsBankStatement',
     label: '6 months Bank Statement of Main Depository Bank',

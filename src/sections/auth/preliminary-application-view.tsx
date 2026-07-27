@@ -135,6 +135,12 @@ const BLANK_VALUES: PreliminarySchemaType = {
   dataConsent: false,
 };
 
+// incomeSource is 'Business Owner' (not 'Employed') so "Fill with Sample
+// Data" exercises the conditional Business information section end to end —
+// businessDocument is seeded as a placeholder string (CompactDropzone
+// renders string values same as a real File, see fileName derivation above)
+// rather than left null, since a real Business Owner submission always has
+// one (superRefine requires it).
 const SAMPLE_VALUES: PreliminarySchemaType = {
   prefix: 'Mr.',
   lastName: 'Dela Cruz',
@@ -142,9 +148,9 @@ const SAMPLE_VALUES: PreliminarySchemaType = {
   mobile: '9171234567',
   desiredLoanAmount: 200000,
   loanTermMonths: 12,
-  incomeSource: 'Employed',
-  businessType: '',
-  businessDocument: null,
+  incomeSource: 'Business Owner',
+  businessType: 'Sole Proprietorship',
+  businessDocument: '/assets/placeholder.svg',
   monthlyIncome: 30000,
   loanPurpose: ['Working Capital'],
   dataConsent: true,

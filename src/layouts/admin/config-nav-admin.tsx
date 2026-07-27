@@ -23,6 +23,27 @@ export const applicationReviewSteps = [
   { title: 'Requirement Checklist', step: 'requirementChecklist', path: paths.admin.applicationsByStep('requirementChecklist') },
 ];
 
+// Comprehensive Credit Checking is a parallel-work stage. Each discipline has
+// its own queue so Credit Investigation, Appraisal, and Financial Evaluation
+// can later be assigned to and completed by different officers.
+export const comprehensiveCreditCheckingItems = [
+  {
+    title: 'Credit Investigation',
+    step: 'creditInvestigation',
+    path: paths.admin.applicationsByStep('creditInvestigation'),
+  },
+  {
+    title: 'Appraisal',
+    step: 'appraisal',
+    path: paths.admin.applicationsByStep('appraisal'),
+  },
+  {
+    title: 'Financial Evaluation',
+    step: 'financialEvaluation',
+    path: paths.admin.applicationsByStep('financialEvaluation'),
+  },
+];
+
 // Rejected-track items: applications sent to Reconsideration after being
 // turned down at Initial Credit Checking, and the Negative List that
 // Reconsideration's "No — Notify Client" outcome feeds into. Grouped
@@ -47,6 +68,12 @@ export const adminNavData = [
     children: applicationReviewSteps,
   },
   {
+    title: 'Comprehensive Credit Checking',
+    path: null,
+    icon: <Iconify width={24} icon="solar:shield-check-bold-duotone" />,
+    children: comprehensiveCreditCheckingItems,
+  },
+  {
     title: 'For Reconsideration',
     // Also a non-clickable section label, same pattern as "Application List".
     path: null,
@@ -54,3 +81,45 @@ export const adminNavData = [
     children: reconsiderationTrackItems,
   },
 ];
+
+// Resolve both list filters and per-application review routes to the same
+// canonical step key. This keeps navigation state stable while moving between
+// a filtered queue and an applicant's actual process page.
+export function getAdminReviewStep(pathname: string, searchStep: string | null) {
+  if (pathname === paths.admin.applications) {
+    return searchStep ?? 'creditChecking';
+  }
+
+  const routeStep = pathname.match(
+    /^\/admin\/applications\/[^/]+\/(credit-checking|reconsideration|call-report|requirement-checklist)$/
+  )?.[1];
+
+  return {
+    'credit-checking': 'creditChecking',
+    reconsideration: 'reconsideration',
+    'call-report': 'callReport',
+    'requirement-checklist': 'requirementChecklist',
+  }[routeStep ?? ''] ?? null;
+}
+
+export function isAdminNavChildActive(
+  child:
+    | (typeof applicationReviewSteps)[number]
+    | (typeof comprehensiveCreditCheckingItems)[number]
+    | (typeof reconsiderationTrackItems)[number],
+  pathname: string,
+  searchStep: string | null
+) {
+  if (child.step === null) return pathname === child.path.split('?')[0];
+  return getAdminReviewStep(pathname, searchStep) === child.step;
+}
+
+export function isAdminNavSectionActive(
+  item: (typeof adminNavData)[number],
+  pathname: string,
+  searchStep: string | null
+) {
+  return !!item.children?.some((child) =>
+    isAdminNavChildActive(child, pathname, searchStep)
+  );
+}

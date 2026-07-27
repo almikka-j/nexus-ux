@@ -21,16 +21,20 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
-import { OfficerNotesCard } from './call-report/officer-notes-card';
 import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
 import { CallDetailsCard } from './call-report/call-details-card';
-import { BorrowerInterviewCard } from './call-report/borrower-interview-card';
-import { FinancialDeclarationCard } from './call-report/financial-declaration-card';
+import { LoanDiscussionCard } from './call-report/loan-discussion-card';
+import { ResidenceHouseholdCard } from './call-report/residence-household-card';
+import { EmploymentBusinessCard } from './call-report/employment-business-card';
+import { OrganizationMembershipCard } from './call-report/organization-membership-card';
+import { QuickFinancialInfoCard } from './call-report/quick-financial-info-card';
+import { PaymentBehaviorCard } from './call-report/payment-behavior-card';
 import { OfficerObservationCard } from './call-report/officer-observation-card';
 import { CollateralInformationCard } from './call-report/collateral-information-card';
-import { LoanPackageProposalCard } from './call-report/loan-package-proposal-card';
 import { AgreedNextStepsCard } from './call-report/agreed-next-steps-card';
+import { LoanPackageProposalCard } from './call-report/loan-package-proposal-card';
 import { CallSummaryCard } from './call-report/call-summary-card';
+import { AdditionalRemarksCard } from './call-report/additional-remarks-card';
 import { cardSx } from './call-report/call-report-types';
 
 // ----------------------------------------------------------------------
@@ -43,11 +47,15 @@ export function CallReportView() {
 
   const { callReport } = review;
 
+  const followUpRequired =
+    callReport.callStatus === 'follow-up-needed' ||
+    callReport.nextSteps.includes('schedule-follow-up-call');
+
   const canProceed =
     !!callReport.callStatus &&
     !!callReport.identityConfirmed &&
     !!callReport.preliminaryRecommendation &&
-    (callReport.followUpRequired !== 'yes' || !!callReport.followUpDate);
+    (!followUpRequired || !!callReport.followUpDate);
 
   const handleProceed = (proceed: boolean) => {
     if (!signUpData) return;
@@ -74,8 +82,13 @@ export function CallReportView() {
       id: crypto.randomUUID(),
       type: 'real-estate',
       description: 'Residential lot with bungalow',
+      quantity: '1',
       registeredOwner: `${signUpData.firstName} ${signUpData.lastName}`,
+      ownerRelationship: 'Self',
+      location: 'Quezon City, Metro Manila',
       estimatedValue: String(loanAmount * 2),
+      ownershipDocsAvailable: 'yes',
+      existingLien: 'no',
       requiresAppraisal: 'yes',
     };
 
@@ -84,8 +97,8 @@ export function CallReportView() {
       callDate: new Date().toISOString().slice(0, 10),
       callTime: '14:30',
       callType: 'phone',
-      placeOfCall: 'branch',
-      placeOfCallOther: '',
+      placeOfCall: 'other',
+      placeOfCallOther: 'PG Finance office – conference room',
       clientRepresentative: signUpData.firstName,
       pgRepresentative: application.assignedOfficer ?? 'Ramon Cruz',
       callStatus: 'completed',
@@ -93,54 +106,87 @@ export function CallReportView() {
       loanPurposeConfirmation: 'confirmed',
       finalLoanPurpose: loanPurpose,
       specificUseOfProceeds: 'Home repairs and minor renovation',
+      targetReleaseDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
       primaryRepaymentSource: 'salary',
       otherRepaymentSource: '',
-      targetReleaseDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+      clientUnderstanding: ['interest-rate', 'monthly-amortization', 'loan-term'],
+      clientConcerns: ['processing-time'],
+      concernNotes: 'Client asked about how quickly the loan can be released.',
       yearsAtResidence: '3-5',
+      residenceStatus: 'owned',
+      residenceStatusOther: '',
       numberOfDependents: '2',
+      numberOfIncomeEarners: '2',
       supportingMultipleFamilies: 'no',
       mainIncomeSource: 'employment',
       otherIncomeSource: '',
       employmentTenure: '3-5',
+      incomeStability: 'stable',
       incomeTrend: 'stable',
+      isRenewal: 'no',
+      incomeChangeSincePrevious: 'not-verified',
+      previousMonthlyIncome: '',
+      currentMonthlyIncome: '',
+      incomeChangeEffectiveDate: '',
       isOrgMember: 'no',
       membershipType: '',
       organizationName: '',
       membershipYears: '',
       membershipStanding: '',
+      declaredGrossMonthlyIncome: '52000',
       declaredNetMonthlyIncome: '45000',
-      otherMonthlyIncome: '0',
+      otherRecurringMonthlyIncome: '0',
       estimatedMonthlyHouseholdExpenses: '15000',
       existingMonthlyLoanPayments: '3000',
       monthlyCreditCardPayments: '2000',
-      otherMonthlyObligations: '0',
+      otherRecurringMonthlyObligations: '0',
+      supportingDocsAvailable: ['payslip', 'coe', 'bank-statement'],
+      electricityPayment: 'fully-paid-on-time',
+      creditCardPayment: 'pays-more-than-minimum',
+      otherLoanRepayment: 'on-time',
+      hasReturnedChecks: 'no',
+      hasPastDueObligations: 'no',
+      hasPendingCases: 'no',
+      paymentBehaviorExplanation: '',
       officerObservations: ['cooperative', 'transparent', 'answers-consistent'],
       observationNotes: '',
       collateralOffered: 'yes',
       collateralEntries: [sampleCollateral],
+      nextSteps: ['submit-proof-of-income', 'proceed-to-next-process'],
+      responsibleParty: 'borrower',
+      nextStepsDueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+      followUpDate: '',
+      nextStepsInstructions: 'Client to submit latest payslip within the week.',
       proposedLoanAmount: String(loanAmount),
       proposedLoanTerm: String(loanTerm),
-      proposedLoanFacility: '',
+      proposedLoanFacility: 'Personal Loan',
       proposedInterestRate: '1.5',
       interestRateBasis: 'monthly',
       computationType: 'diminishing-balance',
       computationTypeOther: '',
-      paymentFrequency: 'Monthly',
-      estimatedAmortization: loanTerm ? String(Math.round(loanAmount / loanTerm)) : '',
-      estimatedMaturityValue: String(loanAmount),
+      paymentFrequency: 'monthly',
+      paymentFrequencyOther: '',
+      numberOfPayments: String(loanTerm),
+      firstPaymentDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       proposedReleaseDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-      finalUseOfProceeds: 'Home repairs and minor renovation',
+      gracePeriod: '0',
+      finalUseOfProceeds: 'Regular',
       proposalPrimaryRepaymentSource: 'salary',
+      secondaryRepaymentSource: '',
+      estimatedAmortization: loanTerm ? String(Math.round(loanAmount / loanTerm)) : '',
+      estimatedTotalInterest: loanAmount ? String(Math.round(loanAmount * 0.15)) : '',
+      estimatedTotalRepayment: loanAmount ? String(Math.round(loanAmount * 1.15)) : '',
+      estimatedMaturityValue: String(loanAmount),
+      preliminaryDti: '35',
+      disposableIncomeAfterAmortization: '10000',
+      adjustmentReason: '',
+      adjustmentReasonOther: '',
       collateralAssessment: 'sufficient',
+      requiredDocuments: ['latest-payslip', 'coe', 'bank-statements'],
       conditionsBeforeProceeding: ['income-verification', 'residence-verification'],
       preliminaryRecommendation: 'proceed-as-requested',
       recommendationReason: '',
       loanPackageNotes: '',
-      followUpRequired: 'yes',
-      followUpDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
-      nextAction: 'verify-information',
-      nextActionOther: '',
-      nextStepsInstructions: 'Client to submit latest payslip within the week.',
       additionalRemarks: '',
     });
   };
@@ -160,31 +206,57 @@ export function CallReportView() {
       loanPurposeConfirmation: '',
       finalLoanPurpose: '',
       specificUseOfProceeds: '',
+      targetReleaseDate: '',
       primaryRepaymentSource: '',
       otherRepaymentSource: '',
-      targetReleaseDate: '',
+      clientUnderstanding: [],
+      clientConcerns: [],
+      concernNotes: '',
       yearsAtResidence: '',
+      residenceStatus: '',
+      residenceStatusOther: '',
       numberOfDependents: '',
+      numberOfIncomeEarners: '',
       supportingMultipleFamilies: '',
       mainIncomeSource: '',
       otherIncomeSource: '',
       employmentTenure: '',
+      incomeStability: '',
       incomeTrend: '',
+      isRenewal: '',
+      incomeChangeSincePrevious: '',
+      previousMonthlyIncome: '',
+      currentMonthlyIncome: '',
+      incomeChangeEffectiveDate: '',
       isOrgMember: '',
       membershipType: '',
       organizationName: '',
       membershipYears: '',
       membershipStanding: '',
+      declaredGrossMonthlyIncome: '',
       declaredNetMonthlyIncome: '',
-      otherMonthlyIncome: '',
+      otherRecurringMonthlyIncome: '',
       estimatedMonthlyHouseholdExpenses: '',
       existingMonthlyLoanPayments: '',
       monthlyCreditCardPayments: '',
-      otherMonthlyObligations: '',
+      otherRecurringMonthlyObligations: '',
+      supportingDocsAvailable: [],
+      electricityPayment: '',
+      creditCardPayment: '',
+      otherLoanRepayment: '',
+      hasReturnedChecks: '',
+      hasPastDueObligations: '',
+      hasPendingCases: '',
+      paymentBehaviorExplanation: '',
       officerObservations: [],
       observationNotes: '',
       collateralOffered: '',
       collateralEntries: [],
+      nextSteps: [],
+      responsibleParty: '',
+      nextStepsDueDate: '',
+      followUpDate: '',
+      nextStepsInstructions: '',
       proposedLoanAmount: '',
       proposedLoanTerm: '',
       proposedLoanFacility: '',
@@ -193,21 +265,28 @@ export function CallReportView() {
       computationType: '',
       computationTypeOther: '',
       paymentFrequency: '',
-      estimatedAmortization: '',
-      estimatedMaturityValue: '',
+      paymentFrequencyOther: '',
+      numberOfPayments: '',
+      firstPaymentDate: '',
       proposedReleaseDate: '',
+      gracePeriod: '',
       finalUseOfProceeds: '',
       proposalPrimaryRepaymentSource: '',
+      secondaryRepaymentSource: '',
+      estimatedAmortization: '',
+      estimatedTotalInterest: '',
+      estimatedTotalRepayment: '',
+      estimatedMaturityValue: '',
+      preliminaryDti: '',
+      disposableIncomeAfterAmortization: '',
+      adjustmentReason: '',
+      adjustmentReasonOther: '',
       collateralAssessment: '',
+      requiredDocuments: [],
       conditionsBeforeProceeding: [],
       preliminaryRecommendation: '',
       recommendationReason: '',
       loanPackageNotes: '',
-      followUpRequired: '',
-      followUpDate: '',
-      nextAction: '',
-      nextActionOther: '',
-      nextStepsInstructions: '',
       callSummary: '',
       callSummaryEdited: false,
       additionalRemarks: '',
@@ -243,17 +322,22 @@ export function CallReportView() {
         <ApplicationDetailsCard
           collapsible
           onViewCreditCheckingResult={() => setResultModalOpen(true)}
+          officerNotesProcess="Call Report"
         />
-        <OfficerNotesCard />
 
         <CallDetailsCard />
-        <BorrowerInterviewCard />
-        <FinancialDeclarationCard />
+        <LoanDiscussionCard />
+        <ResidenceHouseholdCard />
+        <EmploymentBusinessCard />
+        <OrganizationMembershipCard />
+        <QuickFinancialInfoCard />
+        <PaymentBehaviorCard />
         <OfficerObservationCard />
         <CollateralInformationCard />
-        <LoanPackageProposalCard />
         <AgreedNextStepsCard />
+        <LoanPackageProposalCard />
         <CallSummaryCard />
+        <AdditionalRemarksCard />
 
         <Box sx={cardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
@@ -265,17 +349,17 @@ export function CallReportView() {
               : 'Complete Call Status, Identity Confirmed, Preliminary Recommendation (and Follow-up Date if applicable) before proceeding.'}
           </Typography>
 
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
             <Button
               onClick={() => handleProceed(true)}
               disabled={!canProceed}
               variant="contained"
               startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
               sx={{
-                bgcolor: '#1C2A6E',
+                bgcolor: '#12B76A',
                 borderRadius: '10px',
                 px: 2.5,
-                '&:hover': { bgcolor: '#14205A' },
+                '&:hover': { bgcolor: '#0C8A4F' },
               }}
             >
               Proceed
@@ -283,11 +367,17 @@ export function CallReportView() {
             <Button
               onClick={() => handleProceed(false)}
               variant="outlined"
+              startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
               sx={{
-                color: '#667085',
-                borderColor: '#E1E4ED',
+                color: '#5A6273',
+                borderColor: '#C7CCDA',
                 borderRadius: '10px',
                 px: 2.5,
+                '&:hover': {
+                  color: '#1C2A6E',
+                  borderColor: '#1C2A6E',
+                  bgcolor: '#F5F7FF',
+                },
               }}
             >
               Do Not Proceed

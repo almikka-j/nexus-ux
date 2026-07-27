@@ -7,14 +7,16 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
+import type { SupportingDocItem } from 'src/auth/admin-context';
 
+import { ChipToggleGroup } from './call-details-card';
 import {
   computeTotalMonthlyIncome,
   computeTotalMonthlyObligations,
   computeDisposableIncome,
   computeDti,
 } from './call-report-computations';
-import { cardSx, fieldSx } from './call-report-types';
+import { cardSx, fieldSx, SUPPORTING_DOC_OPTIONS } from './call-report-types';
 
 // ----------------------------------------------------------------------
 
@@ -31,7 +33,7 @@ function ComputedRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function FinancialDeclarationCard() {
+export function QuickFinancialInfoCard() {
   const { review, setCallReport } = useAdmin();
   const { callReport } = review;
 
@@ -40,10 +42,19 @@ export function FinancialDeclarationCard() {
   const disposableIncome = computeDisposableIncome(callReport);
   const dti = computeDti(callReport);
 
+  const toggleDoc = (value: SupportingDocItem) => {
+    const has = callReport.supportingDocsAvailable.includes(value);
+    setCallReport({
+      supportingDocsAvailable: has
+        ? callReport.supportingDocsAvailable.filter((item) => item !== value)
+        : [...callReport.supportingDocsAvailable, value],
+    });
+  };
+
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        Declared Financial Information
+        6. Quick Financial Information
       </Typography>
       <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: '#FEF0D6', mb: 2.5 }}>
         <Typography sx={{ fontSize: 12.5, color: '#B36A05' }}>
@@ -52,19 +63,28 @@ export function FinancialDeclarationCard() {
       </Box>
 
       <Stack spacing={2.5}>
-        <TextField
-          label="Declared Net Monthly Income"
-          type="number"
-          value={callReport.declaredNetMonthlyIncome}
-          onChange={(event) => setCallReport({ declaredNetMonthlyIncome: event.target.value })}
-          sx={fieldSx}
-        />
+        <Stack direction="row" spacing={2}>
+          <TextField
+            label="Declared Gross Monthly Income"
+            type="number"
+            value={callReport.declaredGrossMonthlyIncome}
+            onChange={(event) => setCallReport({ declaredGrossMonthlyIncome: event.target.value })}
+            sx={{ ...fieldSx, flex: 1 }}
+          />
+          <TextField
+            label="Declared Net Monthly Income"
+            type="number"
+            value={callReport.declaredNetMonthlyIncome}
+            onChange={(event) => setCallReport({ declaredNetMonthlyIncome: event.target.value })}
+            sx={{ ...fieldSx, flex: 1 }}
+          />
+        </Stack>
 
         <TextField
-          label="Other Monthly Income"
+          label="Other Recurring Monthly Income"
           type="number"
-          value={callReport.otherMonthlyIncome}
-          onChange={(event) => setCallReport({ otherMonthlyIncome: event.target.value })}
+          value={callReport.otherRecurringMonthlyIncome}
+          onChange={(event) => setCallReport({ otherRecurringMonthlyIncome: event.target.value })}
           sx={fieldSx}
         />
 
@@ -96,10 +116,12 @@ export function FinancialDeclarationCard() {
         </Stack>
 
         <TextField
-          label="Other Monthly Obligations"
+          label="Other Recurring Monthly Obligations"
           type="number"
-          value={callReport.otherMonthlyObligations}
-          onChange={(event) => setCallReport({ otherMonthlyObligations: event.target.value })}
+          value={callReport.otherRecurringMonthlyObligations}
+          onChange={(event) =>
+            setCallReport({ otherRecurringMonthlyObligations: event.target.value })
+          }
           sx={fieldSx}
         />
 
@@ -114,6 +136,17 @@ export function FinancialDeclarationCard() {
           />
           <ComputedRow label="Estimated Debt-to-Income Ratio" value={`${dti.toFixed(1)}%`} />
         </Stack>
+
+        <Box>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1 }}>
+            Supporting Documents Available
+          </Typography>
+          <ChipToggleGroup
+            options={SUPPORTING_DOC_OPTIONS}
+            selected={callReport.supportingDocsAvailable}
+            onToggle={toggleDoc}
+          />
+        </Box>
       </Stack>
     </Box>
   );

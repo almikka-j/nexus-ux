@@ -5,11 +5,13 @@ import { useRef, useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
+import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
@@ -34,6 +36,25 @@ import type { CibiForm, BureauUpload } from 'src/auth/admin-context';
 
 const GENDERS = ['Male', 'Female'];
 const CONTACT_TYPES = ['Mobile', 'Landline'];
+const BUREAU_SUMMARIES: Record<string, (applicantName: string) => string> = {
+  LOANDEX: (applicantName) =>
+    `The LOANDEX report for ${applicantName} shows one active loan account with regular payment activity and no past-due exposure reported.`,
+  CIC: (applicantName) =>
+    `The CIC report for ${applicantName} shows active credit facilities with no material delinquency reported.`,
+  CMAP: (applicantName) =>
+    `The CMAP report for ${applicantName} shows no confirmed adverse or watch-list match requiring escalation.`,
+  'NFIS / BAP': (applicantName) =>
+    `The NFIS / BAP report for ${applicantName} shows no negative-file indicator in the uploaded result.`,
+};
+
+function formatUploadedAt(uploadedAt: string | null) {
+  if (!uploadedAt) return null;
+  return new Date(uploadedAt).toLocaleDateString('en-PH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
 
 const fieldSx = {
   '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14, height: 46 },
@@ -78,9 +99,13 @@ function Field({
 
 function BureauRow({
   title,
+  summary,
+  uploadDetails,
   children,
 }: {
   title: string;
+  summary?: string;
+  uploadDetails?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -113,34 +138,20 @@ function BureauRow({
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: 14.5, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
+          {summary && (
+            <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
+              {summary}
+            </Typography>
+          )}
+          {uploadDetails && (
+            <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
+              {uploadDetails}
+            </Typography>
+          )}
         </Box>
         {children}
       </Stack>
     </Box>
-  );
-}
-
-function UploadedPill({ fileName, onReplace }: { fileName: string; onReplace: () => void }) {
-  return (
-    <Stack direction="row" alignItems="center" spacing={1}>
-      <Iconify icon="solar:check-circle-bold" width={18} sx={{ color: '#12B76A' }} />
-      <Typography
-        sx={{
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: '#14172A',
-          maxWidth: 140,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {fileName}
-      </Typography>
-      <Button size="small" onClick={onReplace} sx={{ minWidth: 0, px: 1 }}>
-        Replace
-      </Button>
-    </Stack>
   );
 }
 
@@ -154,23 +165,78 @@ function SimpleBureauRow({
   onUpload: (data: Partial<BureauUpload>) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const { signUpData } = useRegistration();
+  const applicantName = signUpData
+    ? [signUpData.firstName, signUpData.middleName, signUpData.lastName].filter(Boolean).join(' ')
+    : 'the applicant';
 
-  const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    onUpload({ fileName: file.name });
+    const fileData = await fileToDataUrl(file);
+    onUpload({ fileName: file.name, fileData, uploadedAt: new Date().toISOString() });
     event.target.value = '';
   };
 
   return (
-    <BureauRow title={title}>
+    <BureauRow
+      title={title}
+      summary={upload.fileName ? BUREAU_SUMMARIES[title]?.(applicantName) : undefined}
+      uploadDetails={
+        upload.fileName
+          ? `${upload.fileName} · Uploaded ${formatUploadedAt(upload.uploadedAt) ?? 'date unavailable'}`
+          : undefined
+      }
+    >
       <input ref={inputRef} type="file" accept="image/*,.pdf" hidden onChange={handleUpload} />
       {upload.fileName ? (
         <>
-          <Typography sx={{ fontSize: 12, color: '#8891A6', display: { xs: 'none', sm: 'block' } }}>
-            Manual report upload
-          </Typography>
-          <UploadedPill fileName={upload.fileName} onReplace={() => inputRef.current?.click()} />
+          <Button
+            onClick={() => upload.fileData && window.open(upload.fileData, '_blank', 'noopener,noreferrer')}
+            disabled={!upload.fileData}
+            variant="outlined"
+            size="small"
+            startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
+            sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', px: 1.5 }}
+          >
+            View
+          </Button>
+          <IconButton
+            onClick={(event) => setMenuAnchor(event.currentTarget)}
+            aria-label={`More actions for ${title}`}
+            size="small"
+            sx={{ color: '#5A6273', border: '1px solid #E1E4ED', borderRadius: '9px' }}
+          >
+            <Iconify icon="eva:more-vertical-fill" width={18} />
+          </IconButton>
+          <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={() => setMenuAnchor(null)}
+            slotProps={{ paper: { sx: { mt: 0.5, minWidth: 175, borderRadius: '10px' } } }}
+          >
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null);
+                inputRef.current?.click();
+              }}
+              sx={{ fontSize: 13.5 }}
+            >
+              <Iconify icon="solar:refresh-bold-duotone" width={17} sx={{ mr: 1.25 }} />
+              Replace file
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null);
+                onUpload({ fileName: null, fileData: null, uploadedAt: null });
+              }}
+              sx={{ fontSize: 13.5, color: '#B32C22' }}
+            >
+              <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
+              Delete file
+            </MenuItem>
+          </Menu>
         </>
       ) : (
         <>
@@ -196,6 +262,7 @@ function CibiRow() {
   const { review, setCibiForm } = useAdmin();
   const { cibiForm } = review;
   const [formOpen, setFormOpen] = useState(false);
+  const [reportMenuAnchor, setReportMenuAnchor] = useState<HTMLElement | null>(null);
   const reportInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-populate from real applicant data the first time the form is opened
@@ -258,7 +325,11 @@ function CibiRow() {
     if (!file) return;
 
     const dataUrl = await fileToDataUrl(file);
-    setCibiForm({ reportFile: dataUrl, reportFileName: file.name });
+    setCibiForm({
+      reportFile: dataUrl,
+      reportFileName: file.name,
+      reportUploadedAt: new Date().toISOString(),
+    });
     event.target.value = '';
   };
 
@@ -287,7 +358,23 @@ function CibiRow() {
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: 14.5, fontWeight: 700, color: '#14172A' }}>CIBI</Typography>
-          <Typography sx={{ fontSize: 12, color: '#8891A6' }}>API integration available</Typography>
+          {cibiForm.reportFileName ? (
+            <>
+              <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
+                The CIBI report for{' '}
+                {[signUpData?.firstName, signUpData?.middleName, signUpData?.lastName]
+                  .filter(Boolean)
+                  .join(' ') || 'the applicant'}{' '}
+                shows the submitted credit inquiry result and is ready for officer review.
+              </Typography>
+              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
+                {cibiForm.reportFileName} · Uploaded{' '}
+                {formatUploadedAt(cibiForm.reportUploadedAt) ?? 'date unavailable'}
+              </Typography>
+            </>
+          ) : (
+            <Typography sx={{ fontSize: 12, color: '#8891A6' }}>API integration available</Typography>
+          )}
         </Box>
 
         {!cibiForm.submitted && (
@@ -325,10 +412,60 @@ function CibiRow() {
               onChange={handleReportUpload}
             />
             {cibiForm.reportFileName ? (
-              <UploadedPill
-                fileName={cibiForm.reportFileName}
-                onReplace={() => reportInputRef.current?.click()}
-              />
+              <>
+                <Button
+                  onClick={() =>
+                    cibiForm.reportFile &&
+                    window.open(cibiForm.reportFile, '_blank', 'noopener,noreferrer')
+                  }
+                  disabled={!cibiForm.reportFile}
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
+                  sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', px: 1.5 }}
+                >
+                  View
+                </Button>
+                <IconButton
+                  onClick={(event) => setReportMenuAnchor(event.currentTarget)}
+                  aria-label="More actions for CIBI report"
+                  size="small"
+                  sx={{ color: '#5A6273', border: '1px solid #E1E4ED', borderRadius: '9px' }}
+                >
+                  <Iconify icon="eva:more-vertical-fill" width={18} />
+                </IconButton>
+                <Menu
+                  anchorEl={reportMenuAnchor}
+                  open={Boolean(reportMenuAnchor)}
+                  onClose={() => setReportMenuAnchor(null)}
+                  slotProps={{ paper: { sx: { mt: 0.5, minWidth: 175, borderRadius: '10px' } } }}
+                >
+                  <MenuItem
+                    onClick={() => {
+                      setReportMenuAnchor(null);
+                      reportInputRef.current?.click();
+                    }}
+                    sx={{ fontSize: 13.5 }}
+                  >
+                    <Iconify icon="solar:refresh-bold-duotone" width={17} sx={{ mr: 1.25 }} />
+                    Replace file
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      setReportMenuAnchor(null);
+                      setCibiForm({
+                        reportFile: null,
+                        reportFileName: null,
+                        reportUploadedAt: null,
+                      });
+                    }}
+                    sx={{ fontSize: 13.5, color: '#B32C22' }}
+                  >
+                    <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
+                    Delete file
+                  </MenuItem>
+                </Menu>
+              </>
             ) : (
               <Button
                 onClick={() => reportInputRef.current?.click()}

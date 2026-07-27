@@ -18,6 +18,7 @@ import { useRegistration } from 'src/auth/registration-context';
 import { Iconify } from 'src/components/iconify';
 
 import { ApplicationReviewHeader } from './application-review-header';
+import { OfficerNotesHistory } from './officer-notes-history';
 
 // ----------------------------------------------------------------------
 
@@ -138,9 +139,9 @@ export function ReconsiderationView() {
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
               Notes from initial credit checking
             </Typography>
-            <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-              {review.creditChecking.notes}
-            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <OfficerNotesHistory notes={review.creditChecking.notes} />
+            </Box>
           </Box>
         )}
 
@@ -188,7 +189,7 @@ export function ReconsiderationView() {
             Decide whether this application is approved on reconsideration.
           </Typography>
 
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
             <Button
               onClick={() => handleDecision('approved')}
               variant="contained"
@@ -207,11 +208,15 @@ export function ReconsiderationView() {
               variant="outlined"
               startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
               sx={{
-                color: '#F04438',
-                borderColor: '#F04438',
+                color: '#5A6273',
+                borderColor: '#C7CCDA',
                 borderRadius: '10px',
                 px: 2.5,
-                '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(240,68,56,0.04)' },
+                '&:hover': {
+                  color: '#1C2A6E',
+                  borderColor: '#1C2A6E',
+                  bgcolor: '#F5F7FF',
+                },
               }}
             >
               No — Notify Client

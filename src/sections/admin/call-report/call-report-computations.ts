@@ -13,7 +13,7 @@ export function toNumber(value: string): number {
 }
 
 export function computeTotalMonthlyIncome(cr: CallReport): number {
-  return toNumber(cr.declaredNetMonthlyIncome) + toNumber(cr.otherMonthlyIncome);
+  return toNumber(cr.declaredNetMonthlyIncome) + toNumber(cr.otherRecurringMonthlyIncome);
 }
 
 export function computeTotalMonthlyObligations(cr: CallReport): number {
@@ -21,7 +21,7 @@ export function computeTotalMonthlyObligations(cr: CallReport): number {
     toNumber(cr.estimatedMonthlyHouseholdExpenses) +
     toNumber(cr.existingMonthlyLoanPayments) +
     toNumber(cr.monthlyCreditCardPayments) +
-    toNumber(cr.otherMonthlyObligations)
+    toNumber(cr.otherRecurringMonthlyObligations)
   );
 }
 

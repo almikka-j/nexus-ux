@@ -14,18 +14,15 @@ import { RouterLink } from 'src/routes/components';
 import { Iconify } from 'src/components/iconify';
 import { LogoFull } from 'src/components/logo/logo-full';
 
-import { adminNavData } from './config-nav-admin';
+import {
+  adminNavData,
+  isAdminNavChildActive,
+  isAdminNavSectionActive,
+} from './config-nav-admin';
 
 // ----------------------------------------------------------------------
 
 const NAV_WIDTH = 280;
-
-// Which of an item's children (if any) matches the current URL — used to
-// decide whether a given expandable section should be treated as "active"
-// (auto-expanded, label highlighted).
-function isInsideSection(item: (typeof adminNavData)[number], pathname: string) {
-  return !!item.children?.some((child) => pathname === child.path.split('?')[0]);
-}
 
 export function AdminNav() {
   const pathname = usePathname();
@@ -38,7 +35,7 @@ export function AdminNav() {
     Object.fromEntries(
       adminNavData
         .filter((item) => item.children?.length)
-        .map((item) => [item.title, isInsideSection(item, pathname)])
+        .map((item) => [item.title, isAdminNavSectionActive(item, pathname, searchStep)])
     )
   );
 
@@ -47,12 +44,12 @@ export function AdminNav() {
   // when browsing other sections.
   useEffect(() => {
     adminNavData.forEach((item) => {
-      if (item.children?.length && isInsideSection(item, pathname)) {
+      if (item.children?.length && isAdminNavSectionActive(item, pathname, searchStep)) {
         setExpandedSections((prev) => (prev[item.title] ? prev : { ...prev, [item.title]: true }));
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, searchStep]);
 
   return (
     <Box
@@ -81,7 +78,8 @@ export function AdminNav() {
           const active = !hasChildren && (pathname === item.path || pathname.startsWith(`${item.path}/`));
           const isNonClickableLabel = hasChildren && !item.path;
           const isExpanded = !!expandedSections[item.title];
-          const isSectionActive = hasChildren && isInsideSection(item, pathname);
+          const isSectionActive =
+            hasChildren && isAdminNavSectionActive(item, pathname, searchStep);
 
           return (
             <Box key={item.title}>
@@ -129,12 +127,7 @@ export function AdminNav() {
                 <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                   <Stack spacing={0.25} sx={{ mt: 0.5, pl: 1 }}>
                     {item.children!.map((child) => {
-                      const childPathWithoutQuery = child.path.split('?')[0];
-                      const childActive =
-                        child.step === null
-                          ? pathname === childPathWithoutQuery
-                          : pathname === childPathWithoutQuery &&
-                            (child.step === 'creditChecking' ? !searchStep : searchStep === child.step);
+                      const childActive = isAdminNavChildActive(child, pathname, searchStep);
 
                       return (
                         <ListItemButton

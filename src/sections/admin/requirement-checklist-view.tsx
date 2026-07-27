@@ -11,6 +11,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
@@ -89,6 +90,25 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function DocumentCountBadge({ received, total }: { received: number; total: number }) {
+  return (
+    <Box
+      sx={{
+        px: 1,
+        py: 0.25,
+        borderRadius: '999px',
+        bgcolor: '#F5F6FA',
+        color: '#667085',
+        fontSize: 11.5,
+        fontWeight: 700,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {received}/{total} documents
+    </Box>
+  );
+}
+
 function SuccessState({
   icon,
   iconBg,
@@ -160,6 +180,7 @@ export function RequirementChecklistView() {
   } = useAdmin();
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
   const [returnReasonDraft, setReturnReasonDraft] = useState('');
+  const [appraisalNotApplicableConfirmOpen, setAppraisalNotApplicableConfirmOpen] = useState(false);
   const [newTctNumber, setNewTctNumber] = useState('');
   const [requestDrawerOpen, setRequestDrawerOpen] = useState(false);
 
@@ -174,6 +195,7 @@ export function RequirementChecklistView() {
   const [creditInvestigationCollapsed, setCreditInvestigationCollapsed] = useState(false);
   const [financialEvaluationCollapsed, setFinancialEvaluationCollapsed] = useState(false);
   const [appraisalCollapsed, setAppraisalCollapsed] = useState(false);
+  const [collapsedAppraisalGroups, setCollapsedAppraisalGroups] = useState<Record<string, boolean>>({});
 
   // Scroll targets for "Jump to next outstanding item" in the sticky summary
   // bar — one ref per document row, keyed by a unique row id (fixed doc key,
@@ -190,9 +212,26 @@ export function RequirementChecklistView() {
     returnedToApplicant,
   } = review.requirementChecklist;
   const officerName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Credit Officer';
+  const applicantName = [signUpData?.firstName, signUpData?.middleName, signUpData?.lastName]
+    .filter(Boolean)
+    .join(' ');
+  const normalizedNewTctNumber = newTctNumber.trim().toLocaleLowerCase();
+  const isDuplicateTctNumber =
+    normalizedNewTctNumber.length > 0 &&
+    appraisalGroups.some(
+      (group) => group.tctNumber.trim().toLocaleLowerCase() === normalizedNewTctNumber
+    );
 
   const handleToggleAppraisalNotApplicable = () => {
-    setRequirementChecklist({ appraisalNotApplicable: !appraisalNotApplicable });
+    if (appraisalNotApplicable) {
+      setRequirementChecklist({ appraisalNotApplicable: false });
+      return;
+    }
+    if (hasAppraisalGroups) {
+      setAppraisalNotApplicableConfirmOpen(true);
+      return;
+    }
+    setRequirementChecklist({ appraisalNotApplicable: true });
   };
 
   const patchDoc = (key: string, data: Partial<RequirementDoc>) => {
@@ -210,8 +249,10 @@ export function RequirementChecklistView() {
       status: 'missing',
       aiNote: '',
       fileName: null,
+      fileUrl: null,
       uploadedAt: null,
       uploadedBy: null,
+      remarks: '',
       reviewed: false,
     });
   };
@@ -220,9 +261,13 @@ export function RequirementChecklistView() {
     patchDoc(key, { reviewed });
   };
 
+  const handleRemarksChange = (key: string) => (remarks: string) => {
+    patchDoc(key, { remarks });
+  };
+
   const handleAddTctGroup = () => {
     const trimmed = newTctNumber.trim();
-    if (!trimmed) return;
+    if (!trimmed || isDuplicateTctNumber) return;
     addAppraisalGroup(trimmed);
     setNewTctNumber('');
   };
@@ -232,6 +277,11 @@ export function RequirementChecklistView() {
   // property ever added and removed in the session, growing unbounded.
   const handleRemoveAppraisalGroup = (groupId: string) => {
     APPRAISAL_DOC_META.forEach((meta) => rowRefs.current.delete(`${groupId}:${meta.key}`));
+    setCollapsedAppraisalGroups((current) => {
+      const next = { ...current };
+      delete next[groupId];
+      return next;
+    });
     removeAppraisalGroup(groupId);
   };
 
@@ -244,14 +294,20 @@ export function RequirementChecklistView() {
       status: 'missing',
       aiNote: '',
       fileName: null,
+      fileUrl: null,
       uploadedAt: null,
       uploadedBy: null,
+      remarks: '',
       reviewed: false,
     });
   };
 
   const handleToggleAppraisalDocReviewed = (groupId: string, key: string) => (reviewed: boolean) => {
     updateAppraisalGroupDoc(groupId, key, { reviewed });
+  };
+
+  const handleAppraisalDocRemarksChange = (groupId: string, key: string) => (remarks: string) => {
+    updateAppraisalGroupDoc(groupId, key, { remarks });
   };
 
   // Fills every fixed document plus a single fresh Appraisal group with
@@ -270,7 +326,8 @@ export function RequirementChecklistView() {
           ...doc,
           status: meta.freshStatus,
           aiNote: meta.freshNote,
-          fileName: `${meta.key}-sample.pdf`,
+          fileName: 'sample-local-pdf.pdf',
+          fileUrl: '/assets/documents/sample-local-pdf.pdf',
           uploadedAt,
           uploadedBy: officerName,
           reviewed: false,
@@ -284,9 +341,11 @@ export function RequirementChecklistView() {
             key: meta.key,
             status: meta.freshStatus,
             aiNote: meta.freshNote,
-            fileName: `${meta.key}-sample.pdf`,
+            fileName: 'sample-local-pdf.pdf',
+            fileUrl: '/assets/documents/sample-local-pdf.pdf',
             uploadedAt,
             uploadedBy: officerName,
+            remarks: '',
             reviewed: false,
           })),
         },
@@ -310,7 +369,8 @@ export function RequirementChecklistView() {
           ...doc,
           status: 'verified',
           aiNote: meta.freshNote,
-          fileName: `${meta.key}-sample.pdf`,
+          fileName: 'sample-local-pdf.pdf',
+          fileUrl: '/assets/documents/sample-local-pdf.pdf',
           uploadedAt,
           uploadedBy: officerName,
           reviewed: false,
@@ -324,9 +384,11 @@ export function RequirementChecklistView() {
             key: meta.key,
             status: 'verified',
             aiNote: meta.freshNote,
-            fileName: `${meta.key}-sample.pdf`,
+            fileName: 'sample-local-pdf.pdf',
+            fileUrl: '/assets/documents/sample-local-pdf.pdf',
             uploadedAt,
             uploadedBy: officerName,
+            remarks: '',
             reviewed: false,
           })),
         },
@@ -342,8 +404,10 @@ export function RequirementChecklistView() {
         status: 'missing',
         aiNote: '',
         fileName: null,
+        fileUrl: null,
         uploadedAt: null,
         uploadedBy: null,
+        remarks: '',
         reviewed: false,
       })),
       appraisalNotApplicable: false,
@@ -563,59 +627,6 @@ export function RequirementChecklistView() {
         hideApplicationCard
       />
 
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={2}
-        sx={{
-          position: 'sticky',
-          top: 68,
-          zIndex: 2,
-          mb: 2.5,
-          px: 2,
-          py: 1.25,
-          borderRadius: '12px',
-          bgcolor: 'common.white',
-          border: '1px solid #EBEDF3',
-          boxShadow: '0 4px 16px rgba(20,23,42,0.06)',
-        }}
-      >
-        <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#14172A', flexShrink: 0 }}>
-          {receivedRequiredCount}/{totalRequiredCount}
-        </Typography>
-        <Box sx={{ flex: 1, height: 6, borderRadius: 999, bgcolor: '#EEF0F5', overflow: 'hidden' }}>
-          <Box sx={{ width: `${progressFraction * 100}%`, height: '100%', bgcolor: '#1C2A6E', transition: 'width 0.2s ease' }} />
-        </Box>
-        {outstandingRowIds.length > 0 && (
-          <Button
-            onClick={handleJumpToOutstanding}
-            size="small"
-            variant="text"
-            endIcon={<Iconify icon="solar:alt-arrow-down-bold" width={14} />}
-            sx={{ color: '#B36A05', fontWeight: 700, fontSize: 12.5, flexShrink: 0, whiteSpace: 'nowrap' }}
-          >
-            {outstandingRowIds.length} outstanding
-          </Button>
-        )}
-        <Button
-          onClick={() => setRequestDrawerOpen(true)}
-          variant="outlined"
-          size="small"
-          startIcon={<Iconify icon="solar:letter-bold-duotone" width={16} />}
-          sx={{
-            color: '#1C2A6E',
-            borderColor: '#C7CEEA',
-            borderRadius: '9px',
-            px: 1.75,
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-            '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
-          }}
-        >
-          Request Documents
-        </Button>
-      </Stack>
-
       <Stack spacing={2.5}>
         <ApplicationDetailsCard
           collapsible
@@ -624,59 +635,105 @@ export function RequirementChecklistView() {
           officerNotesProcess="Requirement Checklist"
         />
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
-          <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ mb: 0.5 }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              Requirement Checklist
-            </Typography>
-            <Stack alignItems="flex-end" spacing={0.25}>
-              <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#14172A' }}>
-                {receivedRequiredCount}/{totalRequiredCount}
-              </Typography>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#8891A6' }}>
-                Required received
-              </Typography>
+        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #E3E7F0', boxShadow: '0 3px 12px rgba(20,23,42,0.05)' }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            justifyContent="space-between"
+            spacing={2}
+          >
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box
+                sx={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: '#EEF1FE',
+                  flexShrink: 0,
+                }}
+              >
+                <Iconify icon="solar:checklist-minimalistic-bold-duotone" width={21} sx={{ color: '#1C2A6E' }} />
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#14172A' }}>
+                  Requirement Checklist
+                </Typography>
+                <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
+                  Track required documents and officer acceptance.
+                </Typography>
+              </Box>
             </Stack>
-          </Stack>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-            <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-              Collect and verify all required documents before endorsing the application.
-            </Typography>
             <Button
               onClick={() => setRequestDrawerOpen(true)}
               variant="outlined"
               size="small"
               startIcon={<Iconify icon="solar:letter-bold-duotone" width={16} />}
               sx={{
+                minHeight: 38,
                 color: '#1C2A6E',
                 borderColor: '#C7CEEA',
                 borderRadius: '9px',
-                px: 1.75,
+                px: 2,
+                boxShadow: 'none',
                 flexShrink: 0,
-                '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
+                '&:hover': {
+                  borderColor: '#1C2A6E',
+                  bgcolor: 'rgba(28,42,110,0.04)',
+                  boxShadow: 'none',
+                },
               }}
             >
               Request Documents
             </Button>
           </Stack>
 
-          <Box sx={{ height: 6, borderRadius: 999, bgcolor: '#EEF0F5', overflow: 'hidden', mt: 2 }}>
-            <Box sx={{ width: `${progressFraction * 100}%`, height: '100%', bgcolor: '#1C2A6E', transition: 'width 0.2s ease' }} />
+          <Box sx={{ mt: 3, p: 2.25, borderRadius: '13px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+            <Stack direction="row" alignItems="flex-end" justifyContent="space-between" spacing={2}>
+              <Box>
+                <Stack direction="row" alignItems="baseline" spacing={0.75}>
+                  <Typography sx={{ fontSize: 28, lineHeight: 1, fontWeight: 800, color: '#14172A' }}>
+                    {receivedRequiredCount}
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#8891A6' }}>
+                    of {totalRequiredCount}
+                  </Typography>
+                </Stack>
+                <Typography sx={{ fontSize: 12, color: '#667085', mt: 0.75 }}>
+                  Required documents received
+                </Typography>
+              </Box>
+              <Stack alignItems="flex-end">
+                <Typography sx={{ fontSize: 20, fontWeight: 800, color: '#1C2A6E' }}>
+                  {Math.round(progressFraction * 100)}%
+                </Typography>
+              </Stack>
+            </Stack>
+            <Box sx={{ height: 8, borderRadius: 999, bgcolor: '#E3E7EF', overflow: 'hidden', mt: 2 }}>
+              <Box
+                sx={{
+                  width: `${progressFraction * 100}%`,
+                  height: '100%',
+                  borderRadius: 999,
+                  bgcolor: allRequiredReceived ? '#12B76A' : '#1C2A6E',
+                  transition: 'width 0.2s ease',
+                }}
+              />
+            </Box>
           </Box>
 
           <Stack
             direction="row"
-            alignItems="center"
-            spacing={1}
+            alignItems="flex-start"
+            spacing={1.25}
             sx={{ mt: 2, p: 1.5, borderRadius: '10px', bgcolor: '#F5F7FF' }}
           >
-            <Iconify
-              icon="solar:check-square-bold-duotone"
-              width={18}
-              sx={{ color: '#1C2A6E', flexShrink: 0 }}
-            />
-            <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
-              Check the checkbox once a document has been reviewed and accepted.
+            <Iconify icon="solar:info-circle-bold-duotone" width={18} sx={{ color: '#1C2A6E', flexShrink: 0, mt: 0.1 }} />
+            <Typography sx={{ fontSize: 12.5, color: '#5A6273', lineHeight: 1.55 }}>
+              Check a document after review and acceptance. Add optional remarks from its
+              three-dot menu when supporting notes are needed.
             </Typography>
           </Stack>
 
@@ -686,27 +743,26 @@ export function RequirementChecklistView() {
               onClick={() => setRequestDrawerOpen(true)}
               direction="row"
               alignItems="center"
-              spacing={1.25}
+              spacing={1}
               sx={{
-                mt: 2,
-                p: 1.5,
-                borderRadius: '10px',
-                bgcolor: '#F5F6FA',
+                mt: 1.5,
+                px: 0.5,
                 width: '100%',
                 justifyContent: 'flex-start',
                 textAlign: 'left',
-                '&:hover': { bgcolor: '#EEF0F5' },
+                color: '#667085',
+                '&:hover': { color: '#1C2A6E' },
               }}
             >
-              <Iconify icon="solar:letter-bold-duotone" width={18} sx={{ color: '#8891A6', flexShrink: 0 }} />
-              <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
-                Last requested{' '}
+              <Iconify icon="solar:history-bold-duotone" width={16} sx={{ flexShrink: 0 }} />
+              <Typography sx={{ fontSize: 11.5 }}>
+                Last request:{' '}
                 {new Date(lastOutreachMessage.sentAt).toLocaleDateString('en-PH', {
                   year: 'numeric',
                   month: 'short',
                   day: 'numeric',
                 })}{' '}
-                via {lastOutreachMessage.channel} · {outreachMessages.length} message(s) sent
+                via {lastOutreachMessage.channel} · {outreachMessages.length} sent
               </Typography>
             </Stack>
           )}
@@ -725,6 +781,10 @@ export function RequirementChecklistView() {
               <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
                 {REQUIREMENT_TAB_LABELS.creditInvestigation}
               </Typography>
+              <DocumentCountBadge
+                received={creditInvestigationDocs.filter((doc) => doc.status !== 'missing').length}
+                total={creditInvestigationDocs.length}
+              />
               {creditInvestigationFullyVerified && (
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
               )}
@@ -764,9 +824,11 @@ export function RequirementChecklistView() {
                           <RequirementDocRow
                             meta={meta}
                             doc={doc}
+                            applicantName={applicantName}
                             onUpload={handleUploadDoc(meta.key)}
                             onRemove={handleRemoveDoc(meta.key)}
                             onToggleReviewed={handleToggleReviewed(meta.key)}
+                            onRemarksChange={handleRemarksChange(meta.key)}
                           />
                         </Box>
                       ))}
@@ -780,7 +842,13 @@ export function RequirementChecklistView() {
         </Box>
 
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 0.5 }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={2}
+            sx={{ mb: appraisalCollapsed ? 0 : 2.5 }}
+          >
             <Stack
               component={ButtonBase}
               onClick={() => setAppraisalCollapsed((prev) => !prev)}
@@ -792,6 +860,20 @@ export function RequirementChecklistView() {
               <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
                 Appraisal
               </Typography>
+              <DocumentCountBadge
+                received={
+                  appraisalNotApplicable
+                    ? 0
+                    : appraisalGroups
+                        .flatMap((group) => group.documents)
+                        .filter((doc) => doc.status !== 'missing').length
+                }
+                total={
+                  appraisalNotApplicable
+                    ? 0
+                    : appraisalGroups.reduce((total, group) => total + group.documents.length, 0)
+                }
+              />
               {appraisalFullyVerified && (
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
               )}
@@ -810,40 +892,47 @@ export function RequirementChecklistView() {
                   {appraisalGroups.length} {appraisalGroups.length === 1 ? 'property' : 'properties'}
                 </Box>
               )}
-              <Iconify
-                icon="eva:chevron-down-fill"
-                width={20}
-                sx={{
-                  color: '#8891A6',
-                  transition: 'transform 0.15s ease',
-                  transform: appraisalCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                }}
-              />
             </Stack>
-            <Button
-              onClick={handleToggleAppraisalNotApplicable}
-              disabled={!appraisalNotApplicable && hasAppraisalGroups}
-              size="small"
-              variant="outlined"
-              startIcon={
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Button
+                onClick={handleToggleAppraisalNotApplicable}
+                size="small"
+                variant="outlined"
+                startIcon={
+                  <Iconify
+                    icon={appraisalNotApplicable ? 'solar:restart-bold' : 'solar:minus-circle-bold'}
+                    width={16}
+                  />
+                }
+                sx={{
+                  color: '#1C2A6E',
+                  borderColor: '#C7CEEA',
+                  borderRadius: '10px',
+                  px: 1.75,
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  flexShrink: 0,
+                  '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
+                }}
+              >
+                {appraisalNotApplicable ? 'Mark as Applicable' : 'Set as Not Applicable'}
+              </Button>
+              <IconButton
+                onClick={() => setAppraisalCollapsed((prev) => !prev)}
+                aria-label={appraisalCollapsed ? 'Expand Appraisal' : 'Collapse Appraisal'}
+                size="small"
+                sx={{ color: '#8891A6', flexShrink: 0 }}
+              >
                 <Iconify
-                  icon={appraisalNotApplicable ? 'solar:restart-bold' : 'solar:minus-circle-bold'}
-                  width={16}
+                  icon="eva:chevron-down-fill"
+                  width={20}
+                  sx={{
+                    transition: 'transform 0.15s ease',
+                    transform: appraisalCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                  }}
                 />
-              }
-              sx={{
-                color: '#1C2A6E',
-                borderColor: '#C7CEEA',
-                borderRadius: '10px',
-                px: 1.75,
-                fontWeight: 700,
-                fontSize: 12.5,
-                flexShrink: 0,
-                '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
-              }}
-            >
-              {appraisalNotApplicable ? 'Mark as Applicable' : 'Set as Not Applicable'}
-            </Button>
+              </IconButton>
+            </Stack>
           </Stack>
 
           {appraisalCollapsed ? null : appraisalNotApplicable ? (
@@ -855,64 +944,108 @@ export function RequirementChecklistView() {
             >
               <Iconify icon="solar:check-circle-bold" width={20} sx={{ color: '#8891A6', flexShrink: 0 }} />
               <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
-                Marked as not applicable — this application has no real-estate collateral to appraise.
+                Marked as not applicable. Existing property records are preserved and will return
+                when Appraisal is marked applicable again.
               </Typography>
             </Stack>
           ) : (
             <>
-              <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-                Add a property by its TCT/CCT number — each one gets its own document checklist.
-                {hasAppraisalGroups && ' Remove every property below to mark this application as not applicable.'}
-              </Typography>
-
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'stretch', sm: 'flex-end' }}
-                spacing={1.25}
+              <Box
                 sx={{
-                  mb: 3,
+                  mb: 2.5,
                   p: 2,
-                  maxWidth: 560,
-                  borderRadius: '12px',
-                  bgcolor: '#F9FAFC',
-                  border: '1px solid #EEF0F5',
+                  borderRadius: '13px',
+                  bgcolor: '#F8F9FC',
+                  border: '1px solid #E3E7F0',
                 }}
               >
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="TCT/CCT number"
-                  placeholder="e.g. TCT-2024-00981"
-                  value={newTctNumber}
-                  onChange={(event) => setNewTctNumber(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') handleAddTctGroup();
-                  }}
-                  sx={{
-                    flex: 1,
-                    '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'common.white', fontSize: 14 },
-                  }}
-                />
-                <Button
-                  onClick={handleAddTctGroup}
-                  disabled={!newTctNumber.trim()}
-                  variant="contained"
-                  startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
-                  sx={{
-                    minHeight: 40,
-                    minWidth: { sm: 150 },
-                    borderRadius: '10px',
-                    px: 2.25,
-                    flexShrink: 0,
-                    bgcolor: '#1C2A6E',
-                    boxShadow: 'none',
-                    fontWeight: 700,
-                    '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
-                  }}
+                <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 1.75 }}>
+                  <Box
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: '#EEF1FE',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Iconify icon="solar:home-add-bold-duotone" width={19} sx={{ color: '#1C2A6E' }} />
+                  </Box>
+                  <Box>
+                    <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
+                      Add collateral property
+                    </Typography>
+                    <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
+                      Enter the title number to create a separate appraisal checklist.
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  alignItems={{ xs: 'stretch', sm: 'flex-start' }}
+                  spacing={{ xs: 1, sm: 1.25 }}
                 >
-                  Add Property
-                </Button>
-              </Stack>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="TCT/CCT number"
+                    placeholder="e.g. TCT-2024-00981"
+                    value={newTctNumber}
+                    onChange={(event) => setNewTctNumber(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') handleAddTctGroup();
+                    }}
+                    error={isDuplicateTctNumber}
+                    helperText={
+                      isDuplicateTctNumber
+                        ? 'This property is already included.'
+                        : 'Use the exact number shown on the property title.'
+                    }
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Iconify icon="solar:document-text-bold-duotone" width={17} sx={{ color: '#8891A6' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      flex: 1,
+                      maxWidth: { sm: 460 },
+                      '& .MuiOutlinedInput-root': {
+                        minHeight: 42,
+                        borderRadius: '10px',
+                        bgcolor: 'common.white',
+                        fontSize: 14,
+                      },
+                      '& .MuiFormHelperText-root': { mx: 0, fontSize: 11.5 },
+                    }}
+                  />
+                  <Button
+                    onClick={handleAddTctGroup}
+                    disabled={!newTctNumber.trim() || isDuplicateTctNumber}
+                    variant="contained"
+                    startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
+                    sx={{
+                      minHeight: 42,
+                      minWidth: { sm: 148 },
+                      borderRadius: '10px',
+                      px: 2.25,
+                      flexShrink: 0,
+                      bgcolor: '#1C2A6E',
+                      boxShadow: 'none',
+                      fontWeight: 700,
+                      '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+                    }}
+                  >
+                    Add Property
+                  </Button>
+                </Stack>
+
+              </Box>
 
               {appraisalGroups.length === 0 ? (
                 <Stack
@@ -934,10 +1067,11 @@ export function RequirementChecklistView() {
                 <Stack spacing={3}>
                   {appraisalGroups.map((group) => {
                     const groupDocsByKey = new Map(group.documents.map((doc) => [doc.key, doc]));
-                    const groupRequiredReceived = appraisalRequiredMeta.filter(
-                      (meta) => groupDocsByKey.get(meta.key)?.status !== 'missing'
+                    const groupCollapsed = collapsedAppraisalGroups[group.id] ?? false;
+                    const groupReceivedDocuments = group.documents.filter(
+                      (doc) => doc.status !== 'missing'
                     ).length;
-                    const groupComplete = groupRequiredReceived === appraisalRequiredMeta.length;
+                    const groupComplete = groupReceivedDocuments === group.documents.length;
                     return (
                       <Box
                         key={group.id}
@@ -949,8 +1083,31 @@ export function RequirementChecklistView() {
                           boxShadow: '0 2px 8px rgba(20,23,42,0.05)',
                         }}
                       >
-                        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 1.5 }}>
-                          <Stack direction="row" alignItems="center" spacing={1}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          justifyContent="space-between"
+                          spacing={2}
+                          sx={{ mb: groupCollapsed ? 0 : 1.5 }}
+                        >
+                          <Stack
+                            component={ButtonBase}
+                            onClick={() =>
+                              setCollapsedAppraisalGroups((current) => ({
+                                ...current,
+                                [group.id]: !groupCollapsed,
+                              }))
+                            }
+                            direction="row"
+                            alignItems="center"
+                            spacing={1}
+                            sx={{
+                              flex: 1,
+                              justifyContent: 'flex-start',
+                              borderRadius: '8px',
+                              textAlign: 'left',
+                            }}
+                          >
                             <Iconify icon="solar:home-2-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
                             <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
                               {group.tctNumber}
@@ -966,19 +1123,41 @@ export function RequirementChecklistView() {
                                 fontWeight: 700,
                               }}
                             >
-                              {groupRequiredReceived}/{appraisalRequiredMeta.length} required
+                              {groupReceivedDocuments}/{group.documents.length} documents
                             </Box>
                           </Stack>
-                          <IconButton
-                            onClick={() => handleRemoveAppraisalGroup(group.id)}
-                            aria-label={`Remove property ${group.tctNumber}`}
-                            size="small"
-                            sx={{ color: '#B0B6C3', '&:hover': { color: '#F04438', bgcolor: 'rgba(240,68,56,0.06)' } }}
-                          >
-                            <Iconify icon="solar:trash-bin-trash-bold" width={18} />
-                          </IconButton>
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <IconButton
+                              onClick={() =>
+                                setCollapsedAppraisalGroups((current) => ({
+                                  ...current,
+                                  [group.id]: !groupCollapsed,
+                                }))
+                              }
+                              aria-label={groupCollapsed ? `Expand ${group.tctNumber}` : `Collapse ${group.tctNumber}`}
+                              size="small"
+                              sx={{ color: '#8891A6' }}
+                            >
+                              <Iconify
+                                icon="eva:chevron-down-fill"
+                                width={19}
+                                sx={{
+                                  transition: 'transform 0.15s ease',
+                                  transform: groupCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                                }}
+                              />
+                            </IconButton>
+                            <IconButton
+                              onClick={() => handleRemoveAppraisalGroup(group.id)}
+                              aria-label={`Remove property ${group.tctNumber}`}
+                              size="small"
+                              sx={{ color: '#B0B6C3', '&:hover': { color: '#F04438', bgcolor: 'rgba(240,68,56,0.06)' } }}
+                            >
+                              <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                            </IconButton>
+                          </Stack>
                         </Stack>
-                        <Stack spacing={1.25}>
+                        {!groupCollapsed && <Stack spacing={1.25}>
                           {sortByAttentionFirst(
                             APPRAISAL_DOC_META
                               .map((meta) => ({ meta, doc: groupDocsByKey.get(meta.key) }))
@@ -995,13 +1174,15 @@ export function RequirementChecklistView() {
                               <RequirementDocRow
                                 meta={meta}
                                 doc={doc}
+                                applicantName={applicantName}
                                 onUpload={handleUploadAppraisalDoc(group.id, meta.key)}
                                 onRemove={handleRemoveAppraisalDoc(group.id, meta.key)}
                                 onToggleReviewed={handleToggleAppraisalDocReviewed(group.id, meta.key)}
+                                onRemarksChange={handleAppraisalDocRemarksChange(group.id, meta.key)}
                               />
                             </Box>
                           ))}
-                        </Stack>
+                        </Stack>}
                       </Box>
                     );
                   })}
@@ -1024,6 +1205,10 @@ export function RequirementChecklistView() {
               <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
                 {REQUIREMENT_TAB_LABELS.financialEvaluation}
               </Typography>
+              <DocumentCountBadge
+                received={financialEvaluationDocs.filter((doc) => doc.status !== 'missing').length}
+                total={financialEvaluationDocs.length}
+              />
               {financialEvaluationFullyVerified && (
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
               )}
@@ -1057,9 +1242,11 @@ export function RequirementChecklistView() {
                   <RequirementDocRow
                     meta={meta}
                     doc={doc}
+                    applicantName={applicantName}
                     onUpload={handleUploadDoc(meta.key)}
                     onRemove={handleRemoveDoc(meta.key)}
                     onToggleReviewed={handleToggleReviewed(meta.key)}
+                    onRemarksChange={handleRemarksChange(meta.key)}
                   />
                 </Box>
               ))}
@@ -1141,6 +1328,30 @@ export function RequirementChecklistView() {
           </Stack>
         </Box>
       </Stack>
+
+      <ConfirmDialog
+        open={appraisalNotApplicableConfirmOpen}
+        onClose={() => setAppraisalNotApplicableConfirmOpen(false)}
+        title="Mark Appraisal as not applicable?"
+        content={
+          <Typography sx={{ fontSize: 13.5, color: '#667085', lineHeight: 1.6 }}>
+            The current property records and uploaded documents will be preserved. They will appear
+            again if Appraisal is marked applicable later.
+          </Typography>
+        }
+        action={
+          <Button
+            variant="contained"
+            onClick={() => {
+              setRequirementChecklist({ appraisalNotApplicable: true });
+              setAppraisalNotApplicableConfirmOpen(false);
+            }}
+            sx={{ bgcolor: '#1C2A6E', '&:hover': { bgcolor: '#14205A' } }}
+          >
+            Mark as Not Applicable
+          </Button>
+        }
+      />
 
       <ConfirmDialog
         open={returnDialogOpen}

@@ -138,8 +138,8 @@ NegativeCreditReport  { thru, negativeRecordText, accountFindings, cancelledCred
                         submitted } — see "Negative Credit Report" below. The four list
                         fields are NegativeReportEntry[] ({ id, label, findings }).
 Reconsideration       { notes, decision }
-CallReport            { approved, ...~75 structured fields across 9 sections — see
-                        "Call Report" below }
+CallReport            { approved, clientType, ...~100 structured fields across 13
+                        sections — see "Call Report" below }
 RequirementChecklist  { documents, appraisalGroups, collateralNotes, endorsed,
                         returnedToApplicant, returnReason } — documents is
                         RequirementDoc[] (fixed 19-document list across Credit
@@ -175,8 +175,7 @@ array is `[hydrated, hasApplication]`, not just `[hydrated]`, specifically so it
 re-fires and reloads a fresh sample immediately after "Clear Sample Data" clears
 the applicant, rather than only firing once on initial mount. This is the **only**
 application that's fully interactive (Approve/No, CIBI form, uploads, etc.) — see
-"Multi-application list & read-only samples" further down for the other five (one
-read-only sample per review step).
+"Multi-application list & read-only samples" further down for the other six.
 
 **"Clear Sample Data" resets BOTH contexts, not just who the applicant is.**
 The button (`src/sections/admin/application-list-view.tsx`) calls
@@ -829,13 +828,19 @@ The admin shell renders one of two nav components depending on the current
   — all in one 64px row. In this mode `AdminLayout` does not render a separate
   `AdminHeader` row underneath; `AdminNavHorizontal` takes a `displayName`
   prop and renders `AdminHeaderActions` inline itself.
+  Expandable parent items remain visually neutral even when the current route
+  belongs to their section; only the matching child inside the open dropdown is
+  highlighted. The temporary open-menu background is interaction state, not a
+  route-active state. Dashboard also remains visually neutral in the top bar
+  while `/admin/dashboard` is open; it does not receive the filled active
+  highlight. This exception applies only to horizontal navigation.
 - **`AdminNav`** (`nav-vertical.tsx`) — the original fixed left sidebar,
   selectable from the settings panel below, paired with its own separate
   `AdminHeader` row (unchanged, still two rows in this mode). Two independent
   collapsible sections (`src/layouts/admin/config-nav-admin.tsx`):
 
-- **"Application List"** — the forward-moving process only: Initial Credit
-  Checking, Call Report, Requirement Checklist. Reconsideration
+- **"Application List"** — the first forward-moving stages: Initial Credit
+  Checking, Call Report, and Requirement Checklist. Reconsideration
   is deliberately **not** here — being sent to Reconsideration means the
   application was already rejected at Initial Credit Checking, so it isn't a
   forward step in "the process," it's an exception branch.
@@ -844,19 +849,27 @@ The admin shell renders one of two nav components depending on the current
   Reconsideration's "No — Notify Client" outcome — see below). Negative List used
   to be its own top-level sidebar item; it's nested here now that there's a
   natural parent for it.
+- **"Comprehensive Credit Checking"** — a separate process group immediately
+  after Application List. It contains Credit Investigation, Appraisal, and
+  Financial Evaluation as independent queues so different officers can own the
+  three disciplines and work in parallel.
 
 Both section headers are **non-clickable labels** (`path: null` in
 `adminNavData` — no `href`, clicking anywhere on the row just toggles that
 section's expand/collapse). Each section's expand/collapse state is tracked
 independently (`expandedSections: Record<string, boolean>`, keyed by title) —
 expanding one doesn't affect the other, and each auto-expands on its own whenever
-the current route matches one of its own children (via a `useEffect`, using the
-`isInsideSection()` helper). Sub-link active-state comparison differs by child
-type: step-filtered children (`step` is a `ReviewStep`) compare both pathname and
-the URL's `step` query param (`useSearchParams()`) — Initial Credit Checking is
-"active" specifically when there's *no* `step` param, since that's the unfiltered
-landing state; Negative List (`step: null`, a real standalone page, not a filtered
-view) compares pathname only. Sub-items render as a plain flat list — no number
+the current route resolves to one of its own children. Active-state resolution is
+centralized in `config-nav-admin.tsx` via `getAdminReviewStep()`,
+`isAdminNavChildActive()`, and `isAdminNavSectionActive()` and shared by both top
+and side navigation. The resolver handles both the filtered queue
+(`/admin/credit-checking?step=...`) and per-application routes
+(`/admin/applications/[id]/call-report`, `/requirement-checklist`, etc.), so the
+same process remains highlighted while entering an applicant. This also prevents
+both expandable parents from appearing active merely because their filtered
+children share `/admin/credit-checking`. Initial Credit Checking is the default
+when that list has no `step` query; Negative List (`step: null`) compares its
+standalone pathname only. Sub-items render as a plain flat list — no number
 badges, no left-border accents — with the active one shown via a background-color
 highlight only, kept deliberately simple.
 
@@ -911,6 +924,12 @@ sub-link works the same way (`?step=reconsideration`); Negative List points at i
 own standalone route (`paths.admin.negativeList`) instead, since it isn't a
 step-filtered view of the applications list at all.
 
+The three Comprehensive Credit Checking disciplines are currently registered as
+navigation and queue steps only. Each queue has the standard heading and
+application cards, while those cards remain informational until their shared
+per-application workspace is introduced in the next implementation stage; this
+avoids linking users to unfinished routes.
+
 **Each step only lists applications genuinely at that step, always — including the
 default view**: `ApplicationListView`'s `stepFilter` defaults to `'creditChecking'`
 when there's no `?step=` param (i.e. the plain `/admin/credit-checking` landing
@@ -941,23 +960,42 @@ pre-hydration default for the bare `/admin/credit-checking` URL.
 
 ### Call Report (`src/sections/admin/call-report-view.tsx` + `src/sections/admin/call-report/`)
 
-A UAT-reference-aligned call record and loan package form the officer fills out
-after or during the borrower discussion. The active form is intentionally
-compact: Application Details, Officer Notes, one Call Details card, one Loan
-Package Proposal card, then the Proceed decision.
+A detailed, numbered 13-section structured interview the officer fills out
+live while on the call with the borrower, followed by a preliminary loan
+package proposal. This is the original, more detailed field model — restored
+after a period where the page briefly rendered a shorter, consolidated
+`ReferenceCallReportForm` instead; that consolidated form and its two
+merged cards (`borrower-interview-card.tsx`, `financial-declaration-card.tsx`)
+have been deleted.
+
+**Call Report has its own dedicated maintenance doc:
+`docs/ADMIN_CALL_REPORT.md`.** It is the authoritative guide for the current
+13-card page order, every section's fields and option lists, the Proceed
+gate, sample-data behavior, and the read-only result-modal mirror.
 
 State lives entirely in `AdminContext.review.callReport` (the `CallReport`
-type, `src/auth/admin-context.tsx`), one large object following the same
+type, `src/auth/admin-context.tsx`), one large object (~100 fields across the
+13 sections plus `approved` and `clientType`) following the same
 `setCallReport(partial)` pattern as every other review step, plus three
 array-mutation setters for collateral (`addCollateralEntry`,
 `updateCollateralEntry(id, data)`, `removeCollateralEntry(id)`).
 
-**Active form file split**:
-- `reference-call-report-form.tsx` — the currently mounted UAT-aligned Call
-  Details and Loan Package Proposal cards described below.
-- `call-report-types.ts` — every enum's `{value,label}` option list, plus shared `fieldSx`/`cardSx` and a `labelFor()` lookup helper. `call-details-card.tsx` additionally exports two shared UI primitives used by every other card: `RadioRow` (a labeled `RadioGroup` wrapper with an optional `disabled` prop) and `ChipToggleGroup` (a multiselect chip row backing every checklist field).
+**File split**:
+- `call-details-card.tsx` … `additional-remarks-card.tsx` — the 13 section
+  cards, one file each; see `docs/ADMIN_CALL_REPORT.md` for the full list,
+  order, and per-card field notes. `call-details-card.tsx` additionally
+  exports two shared UI primitives used by every other card: `RadioRow` (a
+  labeled `RadioGroup` wrapper with an optional `disabled` prop) and
+  `ChipToggleGroup` (a multiselect chip row backing every checklist field).
+- `collateral-entry-fields.tsx` — the repeatable `CollateralEntry` form
+  (type, description, quantity, registered owner, owner relationship,
+  location, estimated value, ownership docs available, existing lien,
+  requires appraisal), used editable in Collateral Information (section 9)
+  and read-only in Loan Package Proposal (section 11).
+- `call-report-types.ts` — every enum's `{value,label}` option list, plus shared `fieldSx`/`cardSx` and a `labelFor()` lookup helper.
 - `call-report-computations.ts` — pure functions (`toNumber`, `computeTotalMonthlyIncome`, `computeTotalMonthlyObligations`, `computeDisposableIncome`, `computeDti`, `compareAmount`, `compareTerm`). Financial ratios are **never stored** — always recomputed at render time from the raw input fields, so they can't drift out of sync.
 - `call-report-summary.ts` — `buildCallSummary(callReport, signUpData)`, a pure function that composes the auto-generated Call Summary text, skipping any section whose fields are still empty.
+- `call-report-result-modal.tsx` — `CallReportResultModal`, a read-only, section-by-section mirror of all 13 cards, opened from `ApplicationDetailsCard`'s **View Call Report** action on other review steps (e.g. Requirement Checklist).
 - `officer-notes-history.tsx` (shared one directory above `call-report/`) —
   `OfficerNotesHistory` (boxed-card renderer, used standalone by
   Reconsideration only), `OfficerNotesDialog` (the chat-drawer used by
@@ -967,11 +1005,12 @@ array-mutation setters for collateral (`addCollateralEntry`,
 - `officer-notes-card.tsx` remains as an unmounted legacy component. Call
   Report note history and note creation now live entirely in Application
   Details' shared `OfficerNotesDialog`, tagged with Process = `Call Report`.
-- `credit-checking-result-modal.tsx` — `CreditCheckingResultModal`, a centered MUI `Dialog`, opened from both this page and Initial Credit Checking (see "View Initial Credit Checking Result" below).
-- The earlier per-section components remain in `call-report/` for compatibility
-  and historical reference but are no longer mounted by `CallReportView`.
+- `credit-checking-result-modal.tsx` — `CreditCheckingResultModal`, a centered MUI `Dialog`, opened from both this page and Initial Credit Checking (see "View Initial Credit Checking Result" below). It reads Initial Credit Checking state only, not `CallReport`, so it's unaffected by Call Report field changes.
 
-**No section numbering** — headings were originally numbered ("1. Call Details", "2. Borrower Interview", etc.) but the numbers were removed on request; section order in the page is still fixed, just not labeled with digits.
+**Section numbering is back** — each card's heading is numbered ("1. Call
+Details", "2. Loan Discussion", … "13. Additional Remarks"), matching the
+original structured-interview design; this had briefly been removed while the
+page used the shorter consolidated form.
 
 **Application Details is a compact summary with modal actions on Call Report.**
 `ApplicationDetailsCard` (`src/sections/admin/application-details-card.tsx`,
@@ -987,6 +1026,9 @@ Call Report passes `hideApplicationCard` to `ApplicationReviewHeader`, so the
 header still owns step-entry tracking, back navigation, total/step aging, and
 the step pill but does not render its separate borrower/loan card.
 `ApplicationDetailsCard` is therefore always the first card on Call Report.
+Its **View full application** action uses the same navy outlined treatment as
+the other report/note actions rather than a filled blue button, keeping the
+shared action row visually uniform.
 Those previously duplicated first and second cards are merged into this single
 Application Details summary. Other review screens retain the standard header
 card.
@@ -1055,50 +1097,36 @@ PDF button with a "PDF export coming soon" tooltip — visible as an affordance
 matching the reference design, but not wired to real PDF generation (no PDF
 library exists in this project); and a working X close button.
 
-**Active UAT-aligned fields** (`reference-call-report-form.tsx`):
+**The 13 section cards, in order** (see `docs/ADMIN_CALL_REPORT.md` for full
+field lists and option-list names):
 
-- **Call details** — Actual Date of Call, free-text Place of Call, Client
-  Representative, PGFC Representative/s, multiline Agenda, multiline Call
-  Summary, Loan Facility, Loan Amount, Sub-product, and multiline Plan of
-  Action. These reuse compatible `CallReport` fields (for example Agenda uses
-  `observationNotes`, Sub-product uses `finalUseOfProceeds`, and Plan of Action
-  uses `nextStepsInstructions`) so downstream state remains compatible.
-- **Loan package proposal** — Principal, Term/Tenor, Interest Rate, Computation
-  Type, derived read-only Maturity Value and Monthly Amortization, repeatable
-  Collateral + Quantity entries, Collateral Details, and Remarks. Maturity is
-  displayed as principal plus the entered percentage; monthly amortization is
-  principal divided by term. Collateral additions continue using
-  `callReport.collateralEntries`.
+1. **Call Details** (`call-details-card.tsx`) — date/time, Call Type, Place of Call (+ conditional "Specify Place of Call" when Other), representatives, Call Status (In Progress / Completed / Follow-up Needed / Unable to Reach), Identity Confirmed.
+2. **Loan Discussion** (`loan-discussion-card.tsx`) — Loan Purpose Confirmation, Final Loan Purpose (defaults once from `application.financialInfo.loanPurpose` via a guarded `useEffect`), Specific Use of Proceeds, Target Release Date, Primary Source of Repayment (+ conditional Other), Client Understanding and Client Concerns `ChipToggleGroup`s, and Concern Notes (shown once any concern is selected).
+3. **Residence and Household Information** (`residence-household-card.tsx`) — Years at Current Residence, Residence Status (+ conditional Other), Number of Dependents, Number of Household Income Earners, Supporting More Than One Family.
+4. **Employment or Business Information** (`employment-business-card.tsx`) — Main Source of Income (+ conditional Other), Employment/Business Tenure, Income Stability, Income Trend, loan-renewal gate revealing Income Change Since Previous Loan, Previous/Current Monthly Income, and Effective Date of Income Change.
+5. **Organization Membership** (`organization-membership-card.tsx`) — Member of an Organization (Yes/No gate); when Yes: Membership Type, Organization Name, Years of Membership, Membership Standing.
+6. **Quick Financial Information** (`quick-financial-info-card.tsx`) — verification-disclaimer banner, Declared Gross/Net Monthly Income, Other Recurring Monthly Income, Household Expenses, Existing Loan Payments, Credit-card Payments, Other Recurring Obligations, then the 4 live-computed read-only rows (Total Monthly Income, Total Monthly Obligations, Preliminary Disposable Income, Estimated Debt-to-Income Ratio) via the computation functions below, plus a Supporting Documents Available `ChipToggleGroup`.
+7. **Payment Behavior** (`payment-behavior-card.tsx`) — verification-disclaimer banner, Electricity Bill Payment, Credit-card Payment, Other Loan Repayment, Returned Checks, Past-due Obligations, Pending Financial/Court Cases, and an Explanation field shown when any of the last three is Yes.
+8. **Officer Observation** (`officer-observation-card.tsx`) — one `officerObservations: OfficerObservationItem[]` array, rendered as two visually-separated `ChipToggleGroup`s ("Positive or neutral" in green, "Needs attention" in red) that both read/write the same underlying array, plus Observation Notes.
+9. **Collateral Information** (`collateral-information-card.tsx` + `collateral-entry-fields.tsx`) — Collateral Offered (Yes/No/TBD) gates a repeatable entry list. Each entry (`CollateralEntry`: `id`, `type`, `description`, `quantity`, `registeredOwner`, `ownerRelationship`, `location`, `estimatedValue`, `ownershipDocsAvailable`, `existingLien`, `requiresAppraisal`) is edited via `CollateralEntryFields`, a shared component used **twice**: editable here, and read-only (via a separate small `CollateralEntryFieldsReadOnly` renderer, plain text rather than disabled form controls) inside Loan Package Proposal below — collateral is entered once, never re-typed.
+10. **Agreed Next Steps** (`agreed-next-steps-card.tsx`) — `nextSteps: NextStepItem[]` multiselect `ChipToggleGroup`, Responsible Party, Due Date, a Follow-up Date that becomes required whenever Call Status is Follow-up Needed or `nextSteps` includes "Schedule Follow-up Call", and Short Instructions.
+11. **Loan Package Proposal** (`loan-package-proposal-card.tsx`) — the largest card. A read-only "Original Loan Request" block, editable Proposed Terms (defaults Proposed Amount/Term from the original request and Final Use of Proceeds/Repayment Source from the Loan Discussion answers, each via a guarded one-time `useEffect`) including Payment Frequency, Number of Payments, First Payment Date, and Grace Period, a manual-entry Loan Computation block (Estimated Amortization/Total Interest/Total Repayment/Maturity Value, Preliminary DTI, Disposable Income After Amortization — explicitly **no formula**, since no approved interest/amortization formula exists anywhere in this codebase), a Requested-vs-Proposed comparison (`compareAmount`/`compareTerm` render as chips) that reveals an Adjustment Reason field only when the amount or term actually differs, Collateral Assessment, the reused read-only collateral entries, Required Documents and Conditions Before Proceeding checklists, Preliminary Recommendation (reveals Recommendation Reason when set to anything other than "Proceed as Requested"), and Loan Package Notes.
+12. **Call Summary** (`call-summary-card.tsx`) — `buildCallSummary()` composes a plain-text summary from whichever fields are filled; the officer can edit it directly (`callSummaryEdited` flips to `true` on any manual edit). A "Generate Summary"/"Regenerate Summary" button regenerates on click — if `callSummaryEdited` is `true`, a `ConfirmDialog` ("Replace edited summary?") asks first so a manual edit is never silently overwritten.
+13. **Additional Remarks** (`additional-remarks-card.tsx`) — one free-text catch-all field, its own dedicated card rather than folded into Call Summary.
 
-**Legacy section components (not mounted by the current page):**
-- **Call Details** (`call-details-card.tsx`) — date/time, Call Type, Place of Call (+ conditional "Specify Place of Call" when Other), representatives, Call Status (Completed / Follow-up Needed / Unable to Reach — no "In Progress", since this report is filled out after or during a completed contact attempt), Identity Confirmed.
-- **Borrower Interview** (`borrower-interview-card.tsx`) — one card with four subgroups, separated by plain uppercase subheadings (`Divider` + small label, not a heading hierarchy — the section is still one card, one heading, one subtitle):
-  - *(ungrouped, top)* — Loan Purpose Confirmation, Final Loan Purpose (defaults once from `application.financialInfo.loanPurpose` via a guarded `useEffect`), Specific Use of Proceeds, Primary Source of Repayment (+ conditional Other), Target Release Date.
-  - **Residence and family** — Years at Current Residence, Number of Dependents, Supporting More Than One Family.
-  - **Employment or business** — Main Source of Income (+ conditional Other), Employment/Business Tenure, Income Trend.
-  - **Organization membership** — Member of an Organization (Yes/No gate); when Yes: Membership Type (plain text field, not an enum — organizations are too varied to enumerate), Organization Name, Years of Membership, Membership Standing. This used to be its own top-level card (`organization-membership-card.tsx`, since deleted) — merged into Borrower Interview on request, since the field spec nests it there rather than numbering it separately.
-- **Declared Financial Information** (`financial-declaration-card.tsx`, renamed from "Financial Declaration") — verification-disclaimer banner ("Declared during the call — subject to document and financial verification."), 6 number inputs (Declared Net Monthly Income, Other Monthly Income, Household Expenses, Existing Loan Payments, Credit-card Payments, Other Obligations), then 4 live-computed read-only rows (Total Monthly Income, Total Monthly Obligations, Preliminary Disposable Income, Estimated Debt-to-Income Ratio) via the computation functions above.
-- **Officer Observation** (`officer-observation-card.tsx`) — one `officerObservations: OfficerObservationItem[]` array, rendered as two visually-separated `ChipToggleGroup`s ("Positive or neutral" in green, "Needs attention" in red) that both read/write the same underlying array — the visual split is presentational only, not two separate state slices. Plus one optional Observation Notes field.
-- **Collateral Information** (`collateral-information-card.tsx` + `collateral-entry-fields.tsx`) — Collateral Offered (Yes/No/TBD) gates a repeatable entry list. Each entry (`CollateralEntry`: `id`, `type`, `description`, `registeredOwner`, `estimatedValue`, `requiresAppraisal`) is edited via `CollateralEntryFields`, a shared component used **twice**: editable here, and read-only (via a separate small `CollateralEntryFieldsReadOnly` renderer, plain text rather than disabled form controls, so it visually reads as a summary) inside Loan Package Proposal below — collateral is entered once, never re-typed.
-- **Loan Package Proposal** (`loan-package-proposal-card.tsx`) — the largest card. A read-only "Original Request" block (Requested Amount/Term/Purpose from `application.financialInfo`, plus Original Loan Facility if the officer has already filled in a facility name), then editable Proposed Terms (defaults Proposed Amount/Term from the original request and Final Use of Proceeds/Repayment Source from the Borrower Interview answers, each via a guarded one-time `useEffect`), a Requested-vs-Proposed comparison (`compareAmount`/`compareTerm` render "Same as Requested"/"Lower Amount"/etc. as chips) that reveals an Adjustment Reason field only when the amount or term actually differs, Collateral Assessment, the reused read-only collateral entries, Conditions Before Proceeding checklist, Preliminary Recommendation (reveals Recommendation Reason when set to anything other than "Proceed as Requested"), and Loan Package Notes. Explicitly **no loan-computation formula** — Estimated Amortization and Estimated Maturity Value are plain manual-entry number fields, since no approved interest/amortization formula exists anywhere in this codebase; inventing one was out of scope.
-- **Follow-up and Next Step** (`agreed-next-steps-card.tsx`, renamed from "Next Steps") — Follow-up Required (`followUpRequired: 'yes' | 'no' | ''`, explicit radio, replacing the old implicit rule that derived required-ness from Call Status/checklist selections); Follow-up Date only renders (and is required) when Follow-up Required is Yes — switching back to No clears `followUpDate`. Next Action (`nextAction: NextAction | ''`) is a **single-select** `RadioRow` (`Proceed to Next Process` / `Request Additional Requirements` / `Verify Information` / `Conduct Site Visit` / `Request Appraisal` / `Schedule Another Call` / `Other`), replacing the old `nextSteps: NextStepItem[]` multiselect checklist — only one next action applies at a time now. `Other` reveals a companion free-text field, `nextActionOther`, matching every other "Other" option's pattern elsewhere in this form. Short Instructions closes out the card.
-- **Call Summary** (`call-summary-card.tsx`) — `buildCallSummary()` composes a plain-text summary from whichever fields are filled; the officer can edit it directly (`callSummaryEdited` flips to `true` on any manual edit). A "Generate Summary"/"Regenerate Summary" button (label depends on whether `callSummary` is already non-empty) regenerates on click — if `callSummaryEdited` is `true`, a `ConfirmDialog` ("Replace edited summary?") asks first so a manual edit is never silently overwritten; if `false`, it regenerates immediately since there's nothing to lose. Additional Remarks (the one general free-text field) is a second `TextField` folded into this same card rather than its own section.
+**Proceed gate**: Proceed is disabled until Call Status, Identity Confirmed,
+and Preliminary Recommendation are set, and — only when Call Status is
+Follow-up Needed or a follow-up call was scheduled in Agreed Next Steps — a
+Follow-up Date is also set. "Do Not Proceed" stays ungated.
 
-The page's own intro card ("Call Report & Loan Package Proposal / Complete this structured interview live while on the call with the borrower.") was removed on request, so the page now opens directly with the compact Application Details summary card.
-
-**Proceed gate**: Proceed is disabled until the visible required fields are
-complete: Actual Date, Place of Call, both representatives, Loan Facility, Loan
-Amount, Sub-product, Term/Tenor, Interest Rate, and Computation Type. "Do Not
-Proceed" stays ungated.
-
-**"Fill with Sample Data" / "Remove Sample Data" toggle** — registered as a page action into the shared settings popover (see "Page actions" above), same pattern as Initial Credit Checking's sample-data action, no `NODE_ENV` gate. Label and behavior are driven by `canProceed` (the same boolean gating the Proceed button): while incomplete, one click fills every section with representative sample values in one shot (including a synthesized one-item collateral entry, built inline with `crypto.randomUUID()` rather than via `addCollateralEntry()`+`updateCollateralEntry()`, since those are two separate async state updates and the sample-fill needs the entry's data present in the same synchronous `setCallReport` call); once complete, the button relabels to "Remove Sample Data" and clicking it resets every field in the report back to its blank default (leaving `AdminContext`'s other steps, and the read-only Application Details data pulled from `RegistrationContext`, untouched). `clientType` still exists on `CallReport` (kept for potential future use) but currently has no rendered UI anywhere, since the card that used to show it was removed.
+**"Fill with Sample Data" / "Remove Sample Data" toggle** — registered as a page action into the shared settings popover (see "Page actions" above), same pattern as Initial Credit Checking's sample-data action, no `NODE_ENV` gate. Label and behavior are driven by `canProceed` (the same boolean gating the Proceed button): while incomplete, one click fills every one of the 13 sections with representative sample values in one shot (including a synthesized one-item collateral entry, built inline with `crypto.randomUUID()` rather than via `addCollateralEntry()`+`updateCollateralEntry()`, since those are two separate async state updates and the sample-fill needs the entry's data present in the same synchronous `setCallReport` call); once complete, the button relabels to "Remove Sample Data" and clicking it resets every field in the report back to its blank default (leaving `AdminContext`'s other steps, and the read-only Application Details data pulled from `RegistrationContext`, untouched). `clientType` still exists on `CallReport` (kept for potential future use) but currently has no rendered UI anywhere, since the card that used to show it was removed.
 
 ### Requirement Checklist (`src/sections/admin/requirement-checklist-view.tsx`)
 
 Rendered at `/admin/applications/[id]/requirement-checklist`, "Step 3 ·
-Requirement Checklist". Credit Investigation and Financial Evaluation share
-one card (separated by a divider, with independent collapse controls);
-Appraisal remains a separate card with officer-managed per-property TCT/CCT
+Requirement Checklist". Credit Investigation, Appraisal, and Financial
+Evaluation are displayed as three separate cards, each with its own collapse
+control and verified indicator. Appraisal includes officer-managed per-property TCT/CCT
 groups, each carrying its own independent 8-document checklist. The page
 reviews these documents against what's on file, shows a merged AI
 review/summary/recommendation card, and either
@@ -1106,29 +1134,25 @@ endorses the application onward or returns it to the applicant with a
 recorded reason. See `docs/ADMIN_REQUIREMENT_CHECKLIST.md` for the full
 document breakdown and the Appraisal group model.
 
-`ApplicationDetailsCard` is always the first card on this page, including the
-Endorsed and Returned completion states. Requirement Checklist hides
-`ApplicationReviewHeader`'s separate borrower card while
-retaining back navigation, compact aging, step tracking, and the amber Step 3
-pill. The compact Application Details variant provides borrower/application/
-loan context plus the Full application and All officer notes modal actions
-before any checklist or completion-state content. Requirement Checklist also
-passes `showCallReportAction`, adding **View call report** to the action row.
-That button opens `call-report/call-report-result-modal.tsx`, a read-only dialog
-that mirrors the active UAT-aligned Call Report fields: call details, Agenda,
-Call Summary, facility/amount/sub-product, Plan of Action, proposal terms and
-derived values, collateral, collateral details, and remarks. The action remains available in the
-Endorsed and Returned completion states.
-It also passes `showCreditCheckingResultAction`, adding **Initial credit
-checking result** via the existing `CreditCheckingResultModal`. Requirement
-Checklist opens that report with `recommendationEditable={false}`, keeping its
-Recommendation & Remarks read-only at this later workflow stage. Both report
-actions remain available in the Endorsed and Returned states. The shared action
-row is `nowrap` and progressively reveals actions as space increases: View Full
-Application always stays visible, Initial Credit Checking Result appears next,
-then View Call Report and View All Officer Notes. The bordered three-dot menu
-contains only the actions hidden at the current breakpoint and disappears once
-all buttons fit, preventing a second line.
+Requirement Checklist renders the shared collapsible `ApplicationDetailsCard`
+first in both the active and completion states. The regular summary/progress
+card follows it in the active state; the duplicate sticky mini-summary remains
+removed. `ApplicationReviewHeader` still provides back navigation, compact
+aging, step tracking, and the Step 3 pill.
+
+Uploaded document rows use a compact review pattern: View opens the actual
+newly selected browser file, while a three-dot menu holds Add/Edit Remarks and
+Delete. Completed rows omit the redundant Verified chip, while Needs review
+and Missing remain visible. The separate checkbox records
+reviewed-and-accepted immediately; optional remarks are managed only from the
+three-dot menu.
+
+**End-of-process decision actions are visually uniform across process pages.**
+Initial Credit Checking, Reconsideration, Call Report, and Requirement
+Checklist use a green contained positive action with a check icon and a
+neutral gray outlined negative/return action with a close icon, navy hover,
+10px radius, consistent horizontal padding, and wrapping action rows for
+smaller widths. The wording and validation gates remain process-specific.
 
 **Requirement Checklist has its own dedicated doc:
 `docs/ADMIN_REQUIREMENT_CHECKLIST.md`.** It covers the fixed document list
@@ -1145,17 +1169,17 @@ application.
 `/admin/credit-checking` — see "The Application List is no longer its own page"
 above) shows **multiple applications**, not just one: the one **live** application (the real
 `useRegistration()` session, fully interactive as described throughout this doc) plus
-**5 hardcoded read-only sample applications** (`src/sections/admin/sample-applications.ts`,
+**6 hardcoded read-only sample applications** (`src/sections/admin/sample-applications.ts`,
 `SAMPLE_APPLICATIONS`), covering the 4 review steps (Initial Credit
 Checking, Reconsideration, Call Report, Requirement Checklist — two samples
-land on Requirement Checklist) so every step always has content to show, even
+land on Initial Credit Checking and two on Requirement Checklist) so every step always has content to show, even
 the ones the live application has already passed through or hasn't reached
 yet. Each sample carries its own `RegistrationState` (name, loan details,
 personal info, backdated `submittedAt` for realistic aging) and a `step` —
 there is **no `ApplicationReview` state for samples** (no CIBI form, no
 uploads, no decision state) since they're display-only.
 
-- **Why read-only, not fully interactive:** making all 6 applications fully workable
+- **Why read-only, not fully interactive:** making all 7 applications fully workable
   (independent Approve/No, CIBI forms, uploads, etc. per applicant) would require
   reworking `AdminContext`/`RegistrationContext` from "one global review/application
   object" to a map keyed by applicant id, touching nearly every admin screen. That
@@ -1181,9 +1205,24 @@ uploads, no decision state) since they're display-only.
   admin inspect her application's state at *any* step on demand, so that
   restriction was removed; `isActionable` is now unconditionally `true` for
   every live row.
-- **Row identity:** each row shows a "Sample" chip for the 5 non-live applications
+- **Row identity:** each row shows a "Sample" chip for the 6 non-live applications
   (the live one has none), plus the same aging badge, officer, and status chip
-  treatment as before. On any given step's filtered list, the live application's
+  treatment as before. On the Initial Credit Checking list, any row without
+  `application.assignedOfficer` shows a compact navy outlined **Assign Officer**
+  action in the card's right-side action group, separated from the applicant
+  identity line and aligned with aging/status controls. After assignment, the action remains
+  visible as **Change Officer**, allowing reassignment instead of disappearing.
+  Initial Credit Checking sample cards do not also repeat
+  `Officer: {assignedOfficer}` in the loan subtitle while this management
+  action is present.
+  It opens a searchable roster popover
+  (currently Ramon Cruz, Bea Lopez, Ivan Tan, and Grace Uy) with a pinned
+  search field, filtered results, a no-results state, and a scrollable results
+  area so the control remains usable as the officer roster grows. Selection
+  updates the assignment state immediately and persists sample-card assignments in
+  `hhc-lms-sample-officer-assignments`. This makes missing ownership explicit
+  and actionable instead of representing it with an absent subtitle fragment.
+  On any given step's filtered list, the live application's
   row always sorts first (`.sort((a, b) => Number(b.isLive) - Number(a.isLive))`),
   ahead of that step's sample, since she's always the "real" one and the sample
   is just filler.
@@ -1193,17 +1232,14 @@ uploads, no decision state) since they're display-only.
   live row and `false` for every sample row. Samples remain permanently
   non-clickable (historical/demo filler only); the live application is
   unconditionally clickable on all 5 steps.
-- **Step chip vs. status chip — fixed a real duplicate-label bug:** each row shows
-  two chips: the step (`STEP_LABELS[row.step]`, e.g. "Call Report") and a status
-  (`row.statusLabel`). `SAMPLE_APPLICATIONS` used to carry its own per-entry
-  `statusLabel` string that duplicated (or nearly duplicated) the step name itself
-  — e.g. a "Call Report" step chip sitting right next to a second "Call Report"
-  chip, or "Reconsideration" next to a mismatched "In Reconsideration". That field
-  was removed entirely from `SampleApplicationEntry`; all sample rows now use
-  `DECISION_LABEL.pending` (the same "Pending Review" status the live application
-  starts with) as their status chip, since none of them have a real decision —
-  giving the two chips genuinely different information instead of repeating the
-  same text twice per row.
+- **No process chip inside listing cards:** the active process is already stated
+  by the filtered page heading and navigation, so repeating
+  `STEP_LABELS[row.step]` on every card was removed. Cards retain the decision
+  status, aging, officer assignment state, and navigation indicator. The
+  right-side metadata consistently presents decision status first and
+  application aging second.
+  `SAMPLE_APPLICATIONS` uses `DECISION_LABEL.pending` for its status because
+  sample rows do not have a real decision.
 - **Fixed a real routing bug while building the above:** `handleRowClick` for
   the live application used to always route to `paths.admin.creditChecking(id)`
   regardless of the row's actual step — so clicking the live application's row

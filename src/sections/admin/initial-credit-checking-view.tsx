@@ -177,15 +177,20 @@ export function InitialCreditCheckingView() {
       terms,
       installment: computeInstallment(amount, terms),
       submitted: true,
-      reportFile: null,
-      reportFileName: 'cibi-report-sample.pdf',
+      reportFile: '/assets/documents/sample-local-pdf.pdf',
+      reportFileName: 'sample-local-pdf.pdf',
       reportUploadedAt: uploadedAt,
     });
 
-    setLoandexUpload({ fileName: 'loandex-report-sample.pdf', uploadedAt });
-    setCicUpload({ fileName: 'cic-report-sample.pdf', uploadedAt });
-    setCmapUpload({ fileName: 'cmap-report-sample.pdf', uploadedAt });
-    setNfisBapUpload({ fileName: 'nfis-bap-report-sample.pdf', uploadedAt });
+    const sampleReport = {
+      fileName: 'sample-local-pdf.pdf',
+      fileData: '/assets/documents/sample-local-pdf.pdf',
+      uploadedAt,
+    };
+    setLoandexUpload(sampleReport);
+    setCicUpload(sampleReport);
+    setCmapUpload(sampleReport);
+    setNfisBapUpload(sampleReport);
   };
 
   // Undoes exactly what handleFillSampleData sets — scoped to only the
@@ -226,10 +231,10 @@ export function InitialCreditCheckingView() {
       reportUploadedAt: null,
     });
 
-    setLoandexUpload({ fileName: null, uploadedAt: null });
-    setCicUpload({ fileName: null, uploadedAt: null });
-    setCmapUpload({ fileName: null, uploadedAt: null });
-    setNfisBapUpload({ fileName: null, uploadedAt: null });
+    setLoandexUpload({ fileName: null, fileData: null, uploadedAt: null });
+    setCicUpload({ fileName: null, fileData: null, uploadedAt: null });
+    setCmapUpload({ fileName: null, fileData: null, uploadedAt: null });
+    setNfisBapUpload({ fileName: null, fileData: null, uploadedAt: null });
   };
 
   useRegisterPageActions(
@@ -494,11 +499,15 @@ export function InitialCreditCheckingView() {
               variant="outlined"
               startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
               sx={{
-                color: '#F04438',
-                borderColor: '#F04438',
+                color: '#5A6273',
+                borderColor: '#C7CCDA',
                 borderRadius: '10px',
                 px: 2.5,
-                '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(240,68,56,0.04)' },
+                '&:hover': {
+                  color: '#1C2A6E',
+                  borderColor: '#1C2A6E',
+                  bgcolor: '#F5F7FF',
+                },
               }}
             >
               Disapprove
@@ -565,6 +574,7 @@ export function InitialCreditCheckingView() {
         open={notesModalOpen}
         onClose={() => setNotesModalOpen(false)}
         notes={creditChecking.notes}
+        process="Initial Credit Checking"
       />
 
       <CreditCheckingResultModal

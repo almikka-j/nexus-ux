@@ -3,17 +3,27 @@
 import { useState } from 'react';
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
-import Collapse from '@mui/material/Collapse';
-import ButtonBase from '@mui/material/ButtonBase';
+import IconButton from '@mui/material/IconButton';
+import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
+import { getLoanNumber } from 'src/utils/get-loan-number';
+
+import { OfficerNotesDialog } from './officer-notes-history';
+import { CallReportResultModal } from './call-report/call-report-result-modal';
+import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
 
 // ----------------------------------------------------------------------
 
@@ -137,15 +147,28 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: boolean }) {
+export function ApplicationDetailsCard({
+  collapsible = false,
+  onViewCreditCheckingResult,
+  showCreditCheckingResultAction = false,
+  showCallReportAction = false,
+  officerNotesProcess,
+}: {
+  collapsible?: boolean;
+  onViewCreditCheckingResult?: () => void;
+  showCreditCheckingResultAction?: boolean;
+  showCallReportAction?: boolean;
+  officerNotesProcess?: string;
+}) {
   const { signUpData, application } = useRegistration();
   const { review } = useAdmin();
-  // Only relevant when collapsible — defaults collapsed to save vertical
-  // space on pages (like Call Report) that already show a lot of other
-  // structured content below this card. Initial Credit Checking doesn't
-  // pass `collapsible`, so it never mounts this state and stays always
-  // expanded, since the officer needs the full detail there before deciding.
-  const [expanded, setExpanded] = useState(false);
+  // On long workflow pages, the application is presented as a compact
+  // summary and the complete submission is opened on demand in a dialog.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [callReportOpen, setCallReportOpen] = useState(false);
+  const [creditCheckingOpen, setCreditCheckingOpen] = useState(false);
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
 
   if (!signUpData) return null;
 
@@ -169,6 +192,340 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
   const desiredAmount = financialInfo
     ? `₱${Number(financialInfo.desiredLoanAmount).toLocaleString()}`
     : '—';
+  const applicationNumber = getLoanNumber(signUpData.email);
+  const hasCreditCheckingAction = Boolean(
+    onViewCreditCheckingResult || showCreditCheckingResultAction
+  );
+  const overflowOnly = showCreditCheckingResultAction && showCallReportAction;
+  const handleViewCreditChecking = () => {
+    setActionsAnchor(null);
+    if (onViewCreditCheckingResult) onViewCreditCheckingResult();
+    else setCreditCheckingOpen(true);
+  };
+
+  const detailsContent = (
+    <Stack spacing={2.5}>
+      <Stack spacing={1.5}>
+        <SectionLabel>Applicant</SectionLabel>
+        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
+          <DetailField label="Full name" value={fullName} />
+          <DetailField label="Email address" value={signUpData.email} />
+          <DetailField label="Mobile number" value={signUpData.mobile ? `+63 ${signUpData.mobile}` : ''} />
+        </Stack>
+      </Stack>
+
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack spacing={1.5}>
+        <SectionLabel>Loan request</SectionLabel>
+        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
+          <DetailField label="Loan type" value={loanTypeLabel} />
+          {financialInfo && (
+            <>
+              <DetailField label="Desired loan amount" value={desiredAmount} />
+              <DetailField label="Loan term" value={`${financialInfo.loanTermMonths} months`} />
+              <DetailField label="Purpose of loan" value={financialInfo.loanPurpose} />
+              <DetailField label="Employment status" value={financialInfo.employmentStatus} />
+              <DetailField label="Monthly income" value={`₱${Number(financialInfo.monthlyIncome).toLocaleString()}`} />
+              {financialInfo.employmentStatus === 'Business Owner' && (
+                <DetailField label="Business type" value={financialInfo.businessType} />
+              )}
+            </>
+          )}
+        </Stack>
+      </Stack>
+
+      {personalInfo && (
+        <>
+          <Divider sx={{ borderColor: '#EEF0F5' }} />
+          <Stack spacing={1.5}>
+            <SectionLabel>Personal &amp; ID information</SectionLabel>
+            <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
+              <DetailField label="Birthday" value={personalInfo.birthday} />
+              <DetailField label="Gender" value={personalInfo.gender} />
+              <DetailField label="Civil status" value={personalInfo.civilStatus} />
+              <DetailField label="ID type" value={personalInfo.idType} />
+              <DetailField label="ID number" value={personalInfo.idNumber} />
+            </Stack>
+            <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
+              <DetailField label="Address" value={personalInfo.address} />
+              <DetailField label="Barangay" value={personalInfo.barangay} />
+              <DetailField label="City" value={personalInfo.city} />
+              <DetailField label="Province" value={personalInfo.province} />
+              <DetailField label="Zip code" value={personalInfo.zipCode} />
+              <DetailField label="TIN number" value={personalInfo.tinNumber} />
+              <DetailField label="Referral source" value={personalInfo.referralSource} />
+            </Stack>
+
+            {personalInfo.civilStatus === 'Married' && (
+              <>
+                <Divider sx={{ borderColor: '#EEF0F5' }} />
+                <SectionLabel>Spouse information</SectionLabel>
+                <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
+                  <DetailField
+                    label="Spouse's name"
+                    value={`${personalInfo.spouseFirstName ?? ''}${personalInfo.spouseMiddleName ? ` ${personalInfo.spouseMiddleName}` : ''} ${personalInfo.spouseLastName ?? ''}${personalInfo.spouseExtensionName ? ` ${personalInfo.spouseExtensionName}` : ''}`.trim()}
+                  />
+                  <DetailField label="Spouse's birthday" value={personalInfo.spouseBirthday} />
+                  <DetailField label="Spouse's address" value={personalInfo.spouseAddress} />
+                  <DetailField label="Spouse's barangay" value={personalInfo.spouseBarangay} />
+                  <DetailField label="Spouse's city" value={personalInfo.spouseCity} />
+                  <DetailField label="Spouse's province" value={personalInfo.spouseProvince} />
+                  <DetailField label="Spouse's zip code" value={personalInfo.spouseZipCode} />
+                </Stack>
+              </>
+            )}
+          </Stack>
+
+          <Divider sx={{ borderColor: '#EEF0F5' }} />
+          <Stack spacing={1.5}>
+            <SectionLabel>Uploaded documents</SectionLabel>
+            <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
+              <DocumentPreview
+                label={personalInfo.idFileBack ? 'Uploaded ID — Front' : 'Uploaded ID'}
+                src={typeof personalInfo.idFile === 'string' ? personalInfo.idFile : null}
+                placeholderIcon="solar:card-2-bold-duotone"
+              />
+              {!!personalInfo.idFileBack && (
+                <DocumentPreview
+                  label="Uploaded ID — Back"
+                  src={typeof personalInfo.idFileBack === 'string' ? personalInfo.idFileBack : null}
+                  placeholderIcon="solar:card-2-bold-duotone"
+                />
+              )}
+              <DocumentPreview
+                label="Selfie with ID"
+                src={application.selfiePhoto}
+                placeholderIcon="solar:user-rounded-bold-duotone"
+              />
+              {financialInfo?.employmentStatus === 'Business Owner' && (
+                <BusinessDocumentPreview
+                  label={financialInfo.businessType ? `${financialInfo.businessType} document` : 'Business document'}
+                  src={financialInfo.businessDocument ?? null}
+                />
+              )}
+            </Stack>
+          </Stack>
+        </>
+      )}
+
+    </Stack>
+  );
+
+  if (collapsible) {
+    return (
+      <>
+        <Box
+          sx={{
+            p: { xs: 2.5, md: 3 },
+            borderRadius: '16px',
+            bgcolor: 'common.white',
+            border: '1px solid #EBEDF3',
+            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
+          }}
+        >
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} alignItems={{ sm: 'center' }}>
+            <Box
+              sx={{
+                width: 56,
+                height: 56,
+                borderRadius: '16px',
+                bgcolor: '#EEF1FE',
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Iconify
+                icon="solar:clipboard-list-bold-duotone"
+                width={27}
+                sx={{ color: '#3448B0' }}
+              />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                alignItems={{ md: 'center' }}
+                justifyContent="space-between"
+                spacing={1.5}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>{fullName}</Typography>
+                  <Typography sx={{ fontSize: 13.5, color: '#8891A6', wordBreak: 'break-word' }}>
+                    {signUpData.email}{signUpData.mobile ? ` · +63 ${signUpData.mobile}` : ''}
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {application.assignedOfficer && (
+                    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ px: 0.75 }}>
+                      <Iconify icon="solar:user-id-bold-duotone" width={15} sx={{ color: '#8891A6' }} />
+                      <Typography sx={{ fontSize: 12.5, color: '#667085' }}>
+                        Officer: <strong>{application.assignedOfficer}</strong>
+                      </Typography>
+                    </Stack>
+                  )}
+                  <Box sx={{ px: 1.75, py: 0.75, borderRadius: '999px', bgcolor: '#EEF1FE', color: '#3448B0', fontSize: 12.5, fontWeight: 700 }}>
+                    App No. {applicationNumber}
+                  </Box>
+                </Stack>
+              </Stack>
+            </Box>
+          </Stack>
+
+          <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(6, minmax(0, 1fr))' }, gap: 2 }}>
+            <DetailField label="Loan type" value={loanTypeLabel} />
+            <DetailField label="Amount" value={desiredAmount} />
+            <DetailField label="Term" value={financialInfo ? `${financialInfo.loanTermMonths} months` : '—'} />
+            <DetailField label="Purpose" value={financialInfo?.loanPurpose} />
+            <DetailField label="Monthly income" value={financialInfo ? `₱${Number(financialInfo.monthlyIncome).toLocaleString()}` : '—'} />
+            <DetailField label="Date filed" value={applicationDate} />
+          </Box>
+
+          <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
+
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ width: 1, minWidth: 0 }}>
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+              onClick={() => setDetailsOpen(true)}
+              sx={{
+                color: '#1C2A6E',
+                borderColor: '#C7CEEA',
+                borderRadius: '10px',
+                px: 2.25,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
+              }}
+            >
+              View full application
+            </Button>
+            {hasCreditCheckingAction && (
+              <Button
+                variant="outlined"
+                startIcon={<Iconify icon="solar:clipboard-check-bold-duotone" width={18} />}
+                onClick={handleViewCreditChecking}
+                sx={{ display: { xs: 'none', sm: overflowOnly ? 'inline-flex' : 'none', md: 'inline-flex' }, color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: { sm: 1.5, md: 2 }, whiteSpace: 'nowrap', fontSize: 13, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
+              >
+                Initial credit checking result
+              </Button>
+            )}
+            {showCallReportAction && (
+              <Button
+                variant="outlined"
+                startIcon={<Iconify icon="solar:phone-calling-rounded-bold-duotone" width={18} />}
+                onClick={() => setCallReportOpen(true)}
+                sx={{ display: { xs: 'none', md: overflowOnly ? 'none' : 'inline-flex', lg: 'inline-flex' }, color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: { md: 1.5, lg: 2 }, whiteSpace: 'nowrap', fontSize: 13, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
+              >
+                View call report
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="solar:notes-bold-duotone" width={18} />}
+              onClick={() => setNotesOpen(true)}
+              sx={{ display: { xs: 'none', md: overflowOnly ? 'none' : 'inline-flex', lg: 'inline-flex' }, color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: { md: 1.5, lg: 2 }, whiteSpace: 'nowrap', fontSize: 13, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
+            >
+              View all officer notes
+            </Button>
+            {(hasCreditCheckingAction || showCallReportAction || overflowOnly) && (
+              <IconButton
+                onClick={(event) => setActionsAnchor(event.currentTarget)}
+                aria-label="More application actions"
+                aria-controls={actionsAnchor ? 'application-actions-menu' : undefined}
+                aria-haspopup="true"
+                aria-expanded={actionsAnchor ? 'true' : undefined}
+                sx={{
+                  width: 40,
+                  height: 40,
+                  color: '#1C2A6E',
+                  border: '1px solid #C7CEEA',
+                  borderRadius: '10px',
+                  display: { xs: 'inline-flex', md: overflowOnly ? 'inline-flex' : 'none', lg: 'none' },
+                  flexShrink: 0,
+                  '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
+                }}
+              >
+                <Iconify icon="solar:menu-dots-bold" width={20} />
+              </IconButton>
+            )}
+          </Stack>
+
+          <Menu
+            id="application-actions-menu"
+            anchorEl={actionsAnchor}
+            open={Boolean(actionsAnchor)}
+            onClose={() => setActionsAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            slotProps={{ paper: { sx: { mt: 0.75, minWidth: 250, borderRadius: '10px' } } }}
+          >
+            {hasCreditCheckingAction && (
+              <MenuItem
+                onClick={handleViewCreditChecking}
+                sx={{ gap: 1.25, display: { xs: 'flex', sm: overflowOnly ? 'none' : 'flex', md: 'none' } }}
+              >
+                <Iconify icon="solar:clipboard-check-bold-duotone" width={18} sx={{ color: '#1C2A6E' }} />
+                Initial credit checking result
+              </MenuItem>
+            )}
+            {showCallReportAction && (
+              <MenuItem
+                onClick={() => { setActionsAnchor(null); setCallReportOpen(true); }}
+                sx={{ gap: 1.25, display: { xs: 'flex', md: overflowOnly ? 'flex' : 'none', lg: 'none' } }}
+              >
+                <Iconify icon="solar:phone-calling-rounded-bold-duotone" width={18} sx={{ color: '#1C2A6E' }} />
+                View call report
+              </MenuItem>
+            )}
+            <MenuItem
+              onClick={() => { setActionsAnchor(null); setNotesOpen(true); }}
+              sx={{ gap: 1.25, display: { xs: 'flex', md: overflowOnly ? 'flex' : 'none', lg: 'none' } }}
+            >
+              <Iconify icon="solar:notes-bold-duotone" width={18} sx={{ color: '#1C2A6E' }} />
+              View all officer notes
+            </MenuItem>
+          </Menu>
+        </Box>
+
+        <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} fullWidth maxWidth="md" scroll="paper">
+          <DialogTitle sx={{ p: 3, pb: 2 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+              <Box>
+                <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>Full application</Typography>
+                <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>{fullName} · {applicationNumber}</Typography>
+              </Box>
+              <IconButton onClick={() => setDetailsOpen(false)} aria-label="Close full application">
+                <Iconify icon="mingcute:close-line" width={22} />
+              </IconButton>
+            </Stack>
+          </DialogTitle>
+          <Divider />
+          <DialogContent sx={{ p: 3 }}>{detailsContent}</DialogContent>
+        </Dialog>
+
+        <OfficerNotesDialog
+          open={notesOpen}
+          onClose={() => setNotesOpen(false)}
+          notes={creditCheckingNotes}
+          process={officerNotesProcess}
+        />
+        <CallReportResultModal
+          open={callReportOpen}
+          onClose={() => setCallReportOpen(false)}
+        />
+        {showCreditCheckingResultAction && (
+          <CreditCheckingResultModal
+            open={creditCheckingOpen}
+            onClose={() => setCreditCheckingOpen(false)}
+            recommendationEditable={false}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <Box
@@ -180,178 +537,13 @@ export function ApplicationDetailsCard({ collapsible = false }: { collapsible?: 
         boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
       }}
     >
-      {collapsible ? (
-        <ButtonBase
-          onClick={() => setExpanded((prev) => !prev)}
-          sx={{
-            width: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            textAlign: 'left',
-            borderRadius: '10px',
-          }}
-        >
-          <Box>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 1 }}>
-              Application details
-            </Typography>
-            <Stack direction="row" flexWrap="wrap" spacing={3} rowGap={1}>
-              <DetailField label="Client name" value={fullName} />
-              <DetailField label="Loan type" value={loanTypeLabel} />
-              <DetailField label="Application date" value={applicationDate} />
-              <DetailField label="Desired loan amount" value={desiredAmount} />
-            </Stack>
-          </Box>
-          <Iconify
-            icon={expanded ? 'solar:alt-arrow-up-bold' : 'solar:alt-arrow-down-bold'}
-            width={20}
-            sx={{ color: '#8891A6', flexShrink: 0, ml: 2 }}
-          />
-        </ButtonBase>
-      ) : (
-        <>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-            Application details
-          </Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 3 }}>
-            Everything the borrower submitted, for review before deciding.
-          </Typography>
-        </>
-      )}
-
-      <Collapse in={!collapsible || expanded}>
-      <Stack spacing={2.5} sx={{ pt: collapsible ? 3 : 0 }}>
-        <Stack spacing={1.5}>
-          <SectionLabel>Applicant</SectionLabel>
-          <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-            <DetailField label="Full name" value={fullName} />
-            <DetailField label="Email address" value={signUpData.email} />
-            <DetailField label="Mobile number" value={signUpData.mobile ? `+63 ${signUpData.mobile}` : ''} />
-          </Stack>
-        </Stack>
-
-        <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-        <Stack spacing={1.5}>
-          <SectionLabel>Loan request</SectionLabel>
-          <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-            <DetailField label="Loan type" value={loanTypeLabel} />
-            {financialInfo && (
-              <>
-                <DetailField
-                  label="Desired loan amount"
-                  value={`₱${Number(financialInfo.desiredLoanAmount).toLocaleString()}`}
-                />
-                <DetailField label="Loan term" value={`${financialInfo.loanTermMonths} months`} />
-                <DetailField label="Purpose of loan" value={financialInfo.loanPurpose} />
-                <DetailField label="Employment status" value={financialInfo.employmentStatus} />
-                <DetailField
-                  label="Monthly income"
-                  value={`₱${Number(financialInfo.monthlyIncome).toLocaleString()}`}
-                />
-              </>
-            )}
-          </Stack>
-          {financialInfo?.employmentStatus === 'Business Owner' && (
-            <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-              <DetailField label="Business type" value={financialInfo.businessType} />
-            </Stack>
-          )}
-        </Stack>
-
-        {personalInfo && (
-          <>
-            <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-            <Stack spacing={1.5}>
-              <SectionLabel>Personal &amp; ID information</SectionLabel>
-              <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-                <DetailField label="Birthday" value={personalInfo.birthday} />
-                <DetailField label="Gender" value={personalInfo.gender} />
-                <DetailField label="Civil status" value={personalInfo.civilStatus} />
-                <DetailField label="ID type" value={personalInfo.idType} />
-                <DetailField label="ID number" value={personalInfo.idNumber} />
-                <DetailField label="TIN number" value={personalInfo.tinNumber} />
-              </Stack>
-              <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-                <DetailField label="Address" value={personalInfo.address} />
-                <DetailField label="Barangay" value={personalInfo.barangay} />
-                <DetailField label="City" value={personalInfo.city} />
-                <DetailField label="Province" value={personalInfo.province} />
-                <DetailField label="Zip code" value={personalInfo.zipCode} />
-              </Stack>
-              <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-                <DetailField label="Referral source" value={personalInfo.referralSource} />
-              </Stack>
-
-              {personalInfo.civilStatus === 'Married' && (
-                <>
-                  <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-                    <DetailField
-                      label="Spouse's name"
-                      value={`${personalInfo.spouseFirstName ?? ''}${personalInfo.spouseMiddleName ? ` ${personalInfo.spouseMiddleName}` : ''} ${personalInfo.spouseLastName ?? ''}${personalInfo.spouseExtensionName ? ` ${personalInfo.spouseExtensionName}` : ''}`.trim()}
-                    />
-                    <DetailField label="Spouse's birthday" value={personalInfo.spouseBirthday} />
-                  </Stack>
-                  <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-                    <DetailField label="Spouse's address" value={personalInfo.spouseAddress} />
-                    <DetailField label="Spouse's barangay" value={personalInfo.spouseBarangay} />
-                    <DetailField label="Spouse's city" value={personalInfo.spouseCity} />
-                    <DetailField label="Spouse's province" value={personalInfo.spouseProvince} />
-                    <DetailField label="Spouse's zip code" value={personalInfo.spouseZipCode} />
-                  </Stack>
-                </>
-              )}
-            </Stack>
-
-            <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-            <Stack spacing={1.5}>
-              <SectionLabel>Uploaded documents</SectionLabel>
-              <Stack direction="row" flexWrap="wrap" spacing={2.5} rowGap={1.75}>
-                <DocumentPreview
-                  label={personalInfo.idFileBack ? 'Uploaded ID — Front' : 'Uploaded ID'}
-                  src={typeof personalInfo.idFile === 'string' ? personalInfo.idFile : null}
-                  placeholderIcon="solar:card-2-bold-duotone"
-                />
-                {!!personalInfo.idFileBack && (
-                  <DocumentPreview
-                    label="Uploaded ID — Back"
-                    src={typeof personalInfo.idFileBack === 'string' ? personalInfo.idFileBack : null}
-                    placeholderIcon="solar:card-2-bold-duotone"
-                  />
-                )}
-                <DocumentPreview
-                  label="Selfie with ID"
-                  src={application.selfiePhoto}
-                  placeholderIcon="solar:user-rounded-bold-duotone"
-                />
-                {financialInfo?.employmentStatus === 'Business Owner' && (
-                  <BusinessDocumentPreview
-                    label={financialInfo.businessType ? `${financialInfo.businessType} document` : 'Business document'}
-                    src={financialInfo.businessDocument ?? null}
-                  />
-                )}
-              </Stack>
-            </Stack>
-          </>
-        )}
-
-        {!collapsible && creditCheckingNotes && (
-          <>
-            <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-            <Stack spacing={1.5}>
-              <SectionLabel>Notes from initial credit checking</SectionLabel>
-              <Typography sx={{ fontSize: 14, color: '#3B4256', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                {creditCheckingNotes}
-              </Typography>
-            </Stack>
-          </>
-        )}
-      </Stack>
-      </Collapse>
+      <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+        Application details
+      </Typography>
+      <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 3 }}>
+        Everything the borrower submitted, for review before deciding.
+      </Typography>
+      {detailsContent}
     </Box>
   );
 }

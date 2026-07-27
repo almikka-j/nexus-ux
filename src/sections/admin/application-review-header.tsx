@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
@@ -26,12 +25,18 @@ import type { ReviewStep } from 'src/auth/admin-context';
 type ApplicationReviewHeaderProps = {
   step: string;
   reviewStep?: ReviewStep;
+  hideApplicationCard?: boolean;
+  applicationSummaryStyle?: boolean;
 };
 
-export function ApplicationReviewHeader({ step, reviewStep }: ApplicationReviewHeaderProps) {
+export function ApplicationReviewHeader({
+  step,
+  reviewStep,
+  hideApplicationCard = false,
+  applicationSummaryStyle = false,
+}: ApplicationReviewHeaderProps) {
   const { signUpData, application } = useRegistration();
   const { review, markStepEntered } = useAdmin();
-  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
     if (reviewStep) markStepEntered(reviewStep);
@@ -43,7 +48,6 @@ export function ApplicationReviewHeader({ step, reviewStep }: ApplicationReviewH
   const stepEnteredAt = reviewStep ? review.stepTimestamps[reviewStep] : null;
   const agingLevel = getAgingLevel(application.submittedAt);
   const agingColors = AGING_LEVEL_COLORS[agingLevel];
-  const stepAgingLevel = getAgingLevel(stepEnteredAt);
 
   return (
     <Stack spacing={2.5} sx={{ mb: 4 }}>
@@ -113,88 +117,130 @@ export function ApplicationReviewHeader({ step, reviewStep }: ApplicationReviewH
                 </Typography>
               </>
             )}
+
+            <Box
+              sx={{
+                fontSize: 11.5,
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                color: '#B36A05',
+                bgcolor: '#FFF8E8',
+                border: '1px solid #F4C95D',
+                borderRadius: '999px',
+                px: 1.5,
+                py: 0.6,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {step}
+            </Box>
           </Stack>
         )}
       </Stack>
 
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        justifyContent="space-between"
-        spacing={2}
+      {!hideApplicationCard && (
+        <Box
         sx={{
-          p: { xs: 2.5, md: 3 },
           borderRadius: '16px',
           bgcolor: 'common.white',
           border: '1px solid #EBEDF3',
           boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
+          overflow: 'hidden',
         }}
       >
-        <Stack direction="row" spacing={1.75} alignItems="center">
-          <Box
-            sx={{
-              width: 42,
-              height: 42,
-              flexShrink: 0,
-              borderRadius: '11px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: '#EEF1FE',
-            }}
-          >
-            <Iconify icon="solar:document-text-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
-          </Box>
-          <Stack spacing={0.25}>
-            <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#14172A' }}>
-              {signUpData.firstName} {signUpData.lastName}
-            </Typography>
-            <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
-              Loan No. {getLoanNumber(signUpData.email)} ·{' '}
-              {application.loanType === 'business' ? 'Business Loan' : 'Personal Loan'}
-            </Typography>
-          </Stack>
-        </Stack>
-
-        <Stack direction="row" alignItems="center" spacing={2}>
-          {application.assignedOfficer && (
-            <Stack direction="row" spacing={0.75} alignItems="center">
-              <Iconify icon="solar:user-id-bold-duotone" width={15} sx={{ color: '#8891A6' }} />
-              <Typography sx={{ fontSize: 12.5, color: '#667085' }}>
-                Officer: <strong>{application.assignedOfficer}</strong>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          justifyContent="space-between"
+          spacing={2}
+          sx={{ p: { xs: 2.5, md: 3 } }}
+        >
+          {applicationSummaryStyle ? (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+              <Box
+                sx={{
+                  width: 56,
+                  height: 56,
+                  flexShrink: 0,
+                  borderRadius: '16px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  bgcolor: '#EEF1FE',
+                }}
+              >
+                <Iconify icon="solar:clipboard-list-bold-duotone" width={27} sx={{ color: '#3448B0' }} />
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+                  {signUpData.prefix ? `${signUpData.prefix} ` : ''}
+                  {signUpData.firstName}{' '}
+                  {signUpData.middleName ? `${signUpData.middleName} ` : ''}
+                  {signUpData.lastName}
+                  {signUpData.extensionName ? ` ${signUpData.extensionName}` : ''}
+                </Typography>
+                <Typography sx={{ fontSize: 13.5, color: '#8891A6', wordBreak: 'break-word', mt: 0.25 }}>
+                  {signUpData.email}{signUpData.mobile ? ` · +63 ${signUpData.mobile}` : ''}
+                </Typography>
+              </Box>
+            </Stack>
+          ) : (
+            <Stack direction="row" spacing={1.75} alignItems="center">
+            <Box
+              sx={{
+                width: 42,
+                height: 42,
+                flexShrink: 0,
+                borderRadius: '11px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: '#EEF1FE',
+              }}
+            >
+              <Iconify icon="solar:document-text-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
+            </Box>
+            <Stack spacing={0.25}>
+              <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#14172A' }}>
+                {signUpData.firstName} {signUpData.lastName}
               </Typography>
+              <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
+                Loan No. {getLoanNumber(signUpData.email)} ·{' '}
+                {application.loanType === 'business' ? 'Business Loan' : 'Personal Loan'}
+              </Typography>
+            </Stack>
             </Stack>
           )}
 
-          <Box
-            sx={{
-              fontSize: 12.5,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: '#3448B0',
-              bgcolor: '#EEF1FE',
-              borderRadius: '999px',
-              px: 1.75,
-              py: 0.75,
-            }}
-          >
-            {step}
-          </Box>
-        </Stack>
-      </Stack>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            {application.assignedOfficer && (
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <Iconify icon="solar:user-id-bold-duotone" width={15} sx={{ color: '#8891A6' }} />
+                <Typography sx={{ fontSize: 12.5, color: '#667085' }}>
+                  Officer: <strong>{application.assignedOfficer}</strong>
+                </Typography>
+              </Stack>
+            )}
 
-      {stepAgingLevel !== 'normal' && !bannerDismissed && (
-        <Alert
-          severity={stepAgingLevel === 'overdue' ? 'error' : 'warning'}
-          onClose={() => setBannerDismissed(true)}
-          icon={<Iconify icon="solar:danger-triangle-bold" width={20} />}
-          sx={{ borderRadius: '12px' }}
-        >
-          This application has been on <strong>{step}</strong> for{' '}
-          <strong>{formatAging(stepEnteredAt)}</strong>
-          {stepAgingLevel === 'overdue' ? ' — it needs attention.' : '.'}
-        </Alert>
+            {applicationSummaryStyle && (
+              <Box
+                sx={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: '#3448B0',
+                  bgcolor: '#EEF1FE',
+                  borderRadius: '999px',
+                  px: 1.75,
+                  py: 0.75,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                App No. {getLoanNumber(signUpData.email)}
+              </Box>
+            )}
+          </Stack>
+        </Stack>
+        </Box>
       )}
     </Stack>
   );
