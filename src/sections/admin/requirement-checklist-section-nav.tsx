@@ -5,8 +5,6 @@ import Stack from '@mui/material/Stack';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 
-import { Iconify } from 'src/components/iconify';
-
 // ----------------------------------------------------------------------
 
 export type SectionNavEntry = {
