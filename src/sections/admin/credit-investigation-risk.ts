@@ -21,28 +21,48 @@ export function buildCreditInvestigationSummary(
   const fixedDocs = documents.filter((doc) => !doc.isCustom);
   const requiredDocs = fixedDocs.filter((doc) => metaByKey.get(doc.key)?.required);
 
-  const verifiedCount = documents.filter((doc) => doc.status === 'verified').length;
-  const needsReviewCount = documents.filter((doc) => doc.status === 'needs-review').length;
-  const missingCount = documents.filter((doc) => doc.status === 'missing').length;
-  const missingRequiredCount =
-    requiredDocs.filter((doc) => doc.status === 'missing').length + (bureauChecksComplete ? 0 : 1);
+  // Only the fixed (non-custom) document list participates in the AI card's
+  // completeness math — this must match `allFixedReceived` in
+  // credit-investigation-view.tsx, which only checks the fixed metadata list
+  // when deciding the "Fill with Sample Data"/"Remove Sample Data" page
+  // action label. Officer-added custom documents still render as their own
+  // checklist rows, but never affect this summary/recommendation/level.
+  const verifiedCount = fixedDocs.filter((doc) => doc.status === 'verified').length;
+  const needsReviewCount = fixedDocs.filter((doc) => doc.status === 'needs-review').length;
+  const missingCount = fixedDocs.filter((doc) => doc.status === 'missing').length;
+  const missingRequiredCount = requiredDocs.filter((doc) => doc.status === 'missing').length;
 
-  const summary = `${documents.length - missingCount} of ${documents.length} documents are on file. AI verified ${verifiedCount} document(s), flagged ${needsReviewCount} for review, and found ${missingCount} still missing. ${bureauChecksComplete ? 'Bureau & verification checks (CIC/CMAP/NFIS-BAP) are on file from Requirement Checklist.' : 'One or more Bureau & Verification checks are still missing from Requirement Checklist.'}`;
+  const summary = `${fixedDocs.length - missingCount} of ${fixedDocs.length} documents are on file. AI verified ${verifiedCount} document(s), flagged ${needsReviewCount} for review, and found ${missingCount} still missing. ${bureauChecksComplete ? 'Bureau & verification checks (CIC/CMAP/NFIS-BAP) are on file from Requirement Checklist.' : 'One or more Bureau & Verification checks are still missing from Requirement Checklist.'}`;
 
-  const outstandingLabels = documents
+  const outstandingLabels = fixedDocs
     .filter((doc) => doc.status !== 'verified')
     .map((doc) => doc.label ?? metaByKey.get(doc.key)?.label)
     .filter((label): label is string => !!label);
   const bureauNote = bureauChecksComplete ? [] : ['Bureau & Verification checks'];
   const allOutstanding = [...outstandingLabels, ...bureauNote];
 
-  if (missingRequiredCount > 0 || needsReviewCount > 0) {
-    const level: CreditInvestigationRiskLevel = missingRequiredCount > 0 ? 'high' : 'watch';
+  // Bureau checks (CIC/CMAP/NFIS-BAP) are owned and fixed one step earlier,
+  // in Requirement Checklist — this page can only read their status, never
+  // fix it. So an incomplete bureau check alone must never force 'high'
+  // ("Not ready"), since the officer would have no in-page action able to
+  // ever clear that red state. Only a missing REQUIRED fixed document (one
+  // this page's officer actually can act on) produces 'high'.
+  if (missingRequiredCount > 0) {
     const recommendation =
       allOutstanding.length > 0
         ? `Clear the ${allOutstanding.length} outstanding item(s) — ${allOutstanding.join(', ')} — before proceeding.`
         : 'Resolve the outstanding items above before proceeding.';
-    return { level, summary, recommendation };
+    return { level: 'high', summary, recommendation };
+  }
+
+  if (needsReviewCount > 0 || !bureauChecksComplete) {
+    const onlyBureauGapOutstanding = needsReviewCount === 0 && !bureauChecksComplete;
+    const recommendation = onlyBureauGapOutstanding
+      ? 'Bureau & Verification checks are still incomplete — return to Requirement Checklist to finish them before proceeding.'
+      : allOutstanding.length > 0
+        ? `Clear the ${allOutstanding.length} outstanding item(s) — ${allOutstanding.join(', ')} — before proceeding.`
+        : 'Resolve the outstanding items above before proceeding.';
+    return { level: 'watch', summary, recommendation };
   }
 
   return {

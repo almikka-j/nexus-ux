@@ -391,9 +391,12 @@ export function CreditInvestigationView() {
               <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{summary}</Typography>
             </Box>
             <Box sx={{ p: 2, borderRadius: '11px', bgcolor: riskStyle.bg }}>
-              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color, mb: 1 }}>
-                AI Recommendation · {riskStyle.label}
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Iconify icon={riskStyle.icon} width={16} sx={{ color: riskStyle.color }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
+                  AI Recommendation · {riskStyle.label}
+                </Typography>
+              </Stack>
               <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6 }}>{recommendation}</Typography>
             </Box>
           </Stack>

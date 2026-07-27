@@ -77,6 +77,16 @@ Plus two groups outside the fixed metadata:
   each becomes a `CreditInvestigationDoc` with `isCustom: true` and its own
   `label`, otherwise behaving like any other upload row.
 
+The page action **"Fill with Sample Data"/"Remove Sample Data"** (its label
+toggles based on whether every fixed document is received) only fills or
+clears the fixed metadata document list — officer-added custom documents are
+always preserved untouched by both directions of that toggle. This is a
+deliberate contract, not an oversight: a bug where "Remove Sample Data"
+destructively deleted custom documents was caught and fixed earlier in this
+feature's development, so any future change to
+`handleFillSampleData`/`handleClearSampleData` in
+`credit-investigation-view.tsx` must keep skipping `doc.isCustom` documents.
+
 **Request Documents** opens `RequestDocumentsDrawer`, reusing the existing
 component but scoped to this page's own
 `review.creditInvestigation.outreachMessages` — independent history from
@@ -86,11 +96,25 @@ Requirement Checklist's.
 
 `buildCreditInvestigationSummary()` (`credit-investigation-risk.ts`) is a
 pure function, recomputed at render time, never stored — same pattern as
-`requirement-checklist-risk.ts`. It counts the fixed document list's
-verified/needs-review/missing documents and factors in whether the 3 Bureau
-& Verification checks are complete (read from Requirement Checklist's
-state, passed in as a plain boolean) to decide the risk level
+`requirement-checklist-risk.ts`. It counts **only the fixed (non-custom)
+document list's** verified/needs-review/missing documents — deliberately
+excluding officer-added custom documents, so this card's completeness math
+always agrees with `allFixedReceived` in `credit-investigation-view.tsx`
+(the same fixed-list-only check that drives the "Fill with Sample
+Data"/"Remove Sample Data" page action label) — and factors in whether the
+3 Bureau & Verification checks are complete (read from Requirement
+Checklist's state, passed in as a plain boolean) to decide the risk level
 (`'good' | 'watch' | 'high'`) and recommendation text.
+
+Risk level rules: `'high'` only when a required fixed document is missing;
+`'watch'` when there's no missing required fixed document but either a
+fixed document needs review or the bureau checks are incomplete (since this
+page can only read those bureau checks, never fix them — Requirement
+Checklist owns that gate); `'good'` only when every fixed document is
+verified and the bureau checks are complete. When the bureau-check gap is
+the *only* outstanding item, the recommendation explicitly points the
+officer back to Requirement Checklist rather than implying there's an
+action available on this page.
 
 ## CI Fee
 

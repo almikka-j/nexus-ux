@@ -174,7 +174,7 @@ function SuccessState({
           variant={forwardHref ? 'outlined' : 'contained'}
           sx={
             forwardHref
-              ? { color: '#5A6273', borderColor: '#C7CCDA', borderRadius: '10px', mt: forwardHref ? 0.5 : 1 }
+              ? { color: '#5A6273', borderColor: '#C7CCDA', borderRadius: '10px', mt: 0.5 }
               : { bgcolor: '#1C2A6E', borderRadius: '10px', mt: 1, '&:hover': { bgcolor: '#14205A' } }
           }
         >
