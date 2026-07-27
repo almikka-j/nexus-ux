@@ -181,19 +181,21 @@ export function CreditInvestigationView() {
 
   const handleClearSampleData = () => {
     setCreditInvestigation({
-      documents: documents
-        .filter((doc) => !doc.isCustom)
-        .map((doc) => ({
-          ...doc,
-          status: 'missing',
-          aiNote: '',
-          fileName: null,
-          fileUrl: null,
-          uploadedAt: null,
-          uploadedBy: null,
-          remarks: '',
-          reviewed: false,
-        })),
+      documents: documents.map((doc) =>
+        doc.isCustom
+          ? doc
+          : {
+              ...doc,
+              status: 'missing',
+              aiNote: '',
+              fileName: null,
+              fileUrl: null,
+              uploadedAt: null,
+              uploadedBy: null,
+              remarks: '',
+              reviewed: false,
+            }
+      ),
     });
   };
 
@@ -208,7 +210,7 @@ export function CreditInvestigationView() {
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [allFixedReceived]
+      [allFixedReceived, documents]
     )
   );
 
