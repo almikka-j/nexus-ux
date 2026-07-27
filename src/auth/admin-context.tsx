@@ -537,6 +537,47 @@ export type RequirementChecklist = {
   returnReason: string;
 };
 
+export type CiFeeStatus = 'not-requested' | 'pending-approval' | 'approved';
+
+export type CreditInvestigationDoc = RequirementDoc & {
+  // Only set on ad-hoc officer-added rows (via "+ Add document"), which have
+  // no fixed CreditInvestigationDocMeta entry to look up a label from.
+  isCustom?: boolean;
+  label?: string;
+};
+
+export type CiReport = {
+  visitDate: string;
+  visitTime: string;
+  visitLocation: string;
+  visitingOfficer: string;
+  identityConfirmed: IdentityConfirmed | '';
+  residenceConfirmed: 'yes' | 'no' | 'for-verification' | '';
+  businessConfirmed: 'yes' | 'no' | 'not-applicable' | '';
+  neighborhoodFeedback: string;
+  neighborhoodStanding: MembershipStanding | '';
+  findings: string;
+  recommendation: PreliminaryRecommendation | '';
+  recommendationNotes: string;
+  // Filename-only, same "never read file contents" convention as every
+  // other upload in this app — stands in for a PLAUD.ai transcript export.
+  transcriptFileName: string | null;
+  transcriptUploadedAt: string | null;
+};
+
+export type CreditInvestigation = {
+  documents: CreditInvestigationDoc[];
+  // Independent outreach history from Requirement Checklist's — this page
+  // has its own "Request Documents" drawer/history.
+  outreachMessages: OutreachMessage[];
+  ciFeeStatus: CiFeeStatus;
+  report: CiReport;
+  decision: CreditCheckDecision;
+  decisionReason: string;
+  returnedToAmd: boolean;
+  returnToAmdReason: string;
+};
+
 export type ReviewStep =
   | 'creditChecking'
   | 'reconsideration'
@@ -566,6 +607,7 @@ export type ApplicationReview = {
   negativeCreditReport: NegativeCreditReport;
   callReport: CallReport;
   requirementChecklist: RequirementChecklist;
+  creditInvestigation: CreditInvestigation;
   stepTimestamps: StepTimestamps;
 };
 
@@ -605,6 +647,11 @@ type AdminContextValue = AdminState & {
   removeAppraisalGroup: (groupId: string) => void;
   updateAppraisalGroupDoc: (groupId: string, docKey: string, data: Partial<RequirementDoc>) => void;
   addOutreachMessage: (message: { channel: OutreachChannel; text: string }) => void;
+  setCreditInvestigation: (data: Partial<CreditInvestigation>) => void;
+  setCiReport: (data: Partial<CiReport>) => void;
+  addCreditInvestigationDocument: (label: string) => void;
+  removeCreditInvestigationDocument: (key: string) => void;
+  addCiOutreachMessage: (message: { channel: OutreachChannel; text: string }) => void;
   markStepEntered: (step: ReviewStep) => void;
   addToNegativeList: (entry: Omit<NegativeListEntry, 'recordedAt'>) => void;
   resetReview: () => void;
@@ -664,6 +711,68 @@ function createInitialRequirementDocuments(): RequirementDoc[] {
       reviewed: false,
     };
   });
+}
+
+// Fixed keys for Credit Investigation's non-bureau, non-custom document
+// rows. Every document starts 'missing' — unlike Requirement Checklist,
+// this is not a pre-seeded demo state, since Credit Investigation is a
+// later step the officer starts fresh on.
+const CREDIT_INVESTIGATION_DOC_KEYS = [
+  'ciTinPrimaryId',
+  'ciSpousePassport',
+  'ciSpouseDriversLicense',
+  'ciPrimaryIdsMortgagor',
+  'ciPrimaryIdsBorrowers',
+  'ciBankAuthForm',
+  'ciRegistrationOfBusinessName',
+  'ciProofOfBilling',
+  'ciAdditionalOtherDocuments',
+];
+
+function createInitialCreditInvestigationDocuments(): CreditInvestigationDoc[] {
+  return CREDIT_INVESTIGATION_DOC_KEYS.map((key) => ({
+    key,
+    status: 'missing',
+    aiNote: '',
+    fileName: null,
+    fileUrl: null,
+    uploadedAt: null,
+    uploadedBy: null,
+    remarks: '',
+    reviewed: false,
+  }));
+}
+
+function createInitialCiReport(): CiReport {
+  return {
+    visitDate: '',
+    visitTime: '',
+    visitLocation: '',
+    visitingOfficer: '',
+    identityConfirmed: '',
+    residenceConfirmed: '',
+    businessConfirmed: '',
+    neighborhoodFeedback: '',
+    neighborhoodStanding: '',
+    findings: '',
+    recommendation: '',
+    recommendationNotes: '',
+    transcriptFileName: null,
+    transcriptUploadedAt: null,
+  };
+}
+
+function createInitialCreditInvestigation(): CreditInvestigation {
+  return {
+    documents: createInitialCreditInvestigationDocuments(),
+    outreachMessages: [],
+    ciFeeStatus: 'not-requested',
+    report: createInitialCiReport(),
+    decision: 'pending',
+    decisionReason: '',
+    returnedToAmd: false,
+    returnToAmdReason: '',
+  };
 }
 
 // Documents a newly-added TCT/property group starts with — all missing by
@@ -872,6 +981,7 @@ function createInitialReview(): ApplicationReview {
       returnedToApplicant: false,
       returnReason: '',
     },
+    creditInvestigation: createInitialCreditInvestigation(),
     stepTimestamps: {},
   };
 }
@@ -960,6 +1070,31 @@ function readStoredState(): AdminState {
                 : doc;
             }),
           })),
+        },
+        creditInvestigation: {
+          ...initialState.review.creditInvestigation,
+          ...storedReview.creditInvestigation,
+          documents: (
+            storedReview.creditInvestigation?.documents ?? []
+          ).length === 0
+            ? initialState.review.creditInvestigation.documents
+            : [
+                ...initialState.review.creditInvestigation.documents.map((defaultDoc: CreditInvestigationDoc) => {
+                  const storedDoc = storedReview.creditInvestigation?.documents?.find(
+                    (doc: CreditInvestigationDoc) => doc.key === defaultDoc.key
+                  );
+                  return storedDoc ? { ...defaultDoc, ...storedDoc } : defaultDoc;
+                }),
+                // Preserve any ad-hoc custom rows the officer added — they
+                // have no entry in the default array to merge onto.
+                ...(storedReview.creditInvestigation?.documents ?? []).filter(
+                  (doc: CreditInvestigationDoc) => doc.isCustom
+                ),
+              ],
+          report: {
+            ...initialState.review.creditInvestigation.report,
+            ...storedReview.creditInvestigation?.report,
+          },
         },
       },
     };
@@ -1194,6 +1329,76 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               ...prev.review.requirementChecklist,
               outreachMessages: [
                 ...prev.review.requirementChecklist.outreachMessages,
+                { id: crypto.randomUUID(), sentAt: new Date().toISOString(), ...message },
+              ],
+            },
+          },
+        })),
+      setCreditInvestigation: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditInvestigation: { ...prev.review.creditInvestigation, ...data },
+          },
+        })),
+      setCiReport: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditInvestigation: {
+              ...prev.review.creditInvestigation,
+              report: { ...prev.review.creditInvestigation.report, ...data },
+            },
+          },
+        })),
+      addCreditInvestigationDocument: (label) =>
+        setState((prev) => {
+          const newDoc: CreditInvestigationDoc = {
+            key: crypto.randomUUID(),
+            status: 'missing',
+            aiNote: '',
+            fileName: null,
+            fileUrl: null,
+            uploadedAt: null,
+            uploadedBy: null,
+            remarks: '',
+            reviewed: false,
+            isCustom: true,
+            label,
+          };
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              creditInvestigation: {
+                ...prev.review.creditInvestigation,
+                documents: [...prev.review.creditInvestigation.documents, newDoc],
+              },
+            },
+          };
+        }),
+      removeCreditInvestigationDocument: (key) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditInvestigation: {
+              ...prev.review.creditInvestigation,
+              documents: prev.review.creditInvestigation.documents.filter((doc) => doc.key !== key),
+            },
+          },
+        })),
+      addCiOutreachMessage: (message) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditInvestigation: {
+              ...prev.review.creditInvestigation,
+              outreachMessages: [
+                ...prev.review.creditInvestigation.outreachMessages,
                 { id: crypto.randomUUID(), sentAt: new Date().toISOString(), ...message },
               ],
             },
