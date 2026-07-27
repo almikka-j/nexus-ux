@@ -91,7 +91,7 @@ export function getAdminReviewStep(pathname: string, searchStep: string | null) 
   }
 
   const routeStep = pathname.match(
-    /^\/admin\/applications\/[^/]+\/(credit-checking|reconsideration|call-report|requirement-checklist)$/
+    /^\/admin\/applications\/[^/]+\/(credit-checking|reconsideration|call-report|requirement-checklist|credit-investigation)$/
   )?.[1];
 
   return {
@@ -99,6 +99,7 @@ export function getAdminReviewStep(pathname: string, searchStep: string | null) 
     reconsideration: 'reconsideration',
     'call-report': 'callReport',
     'requirement-checklist': 'requirementChecklist',
+    'credit-investigation': 'creditInvestigation',
   }[routeStep ?? ''] ?? null;
 }
 

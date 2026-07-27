@@ -23,6 +23,18 @@ import { Iconify } from 'src/components/iconify';
 import type { RequirementDoc } from 'src/auth/admin-context';
 import type { RequirementDocMeta, AppraisalDocMeta } from './requirement-checklist-docs';
 
+// The component only ever reads these 4 fields (never `tabs`/`subgroup`),
+// so any caller's meta object — including credit-investigation-docs.ts's
+// CreditInvestigationDocMeta and ad-hoc custom-document objects — can be
+// passed as long as it has this shape, without needing to be one of the
+// two named checklist types.
+export type RequirementDocRowMeta = {
+  label: string;
+  required: boolean;
+  freshStatus: 'verified' | 'needs-review';
+  freshNote: string;
+};
+
 // ----------------------------------------------------------------------
 
 const STATUS_STYLES: Record<
@@ -74,7 +86,7 @@ function formatUploadedAt(uploadedAt: string | null) {
 }
 
 type RequirementDocRowProps = {
-  meta: RequirementDocMeta | AppraisalDocMeta;
+  meta: RequirementDocMeta | AppraisalDocMeta | RequirementDocRowMeta;
   doc: RequirementDoc;
   applicantName: string;
   onUpload: (data: Partial<RequirementDoc>) => void;

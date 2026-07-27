@@ -149,7 +149,7 @@ RequirementChecklist  { documents, appraisalGroups, collateralNotes, endorsed,
                         property, each with its own 8-document set. See
                         docs/ADMIN_REQUIREMENT_CHECKLIST.md.
 
-ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callReport, requirementChecklist }
+ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callReport, requirementChecklist, creditInvestigation }
 ```
 
 Exposed via `useAdmin()`: `setAdminUser`, `setCreditChecking`, `setReconsideration`,
@@ -568,7 +568,11 @@ rather than blocking the flow. Sets `application.selfieVerified = true` and call
 /admin/login  →  /admin/dashboard  →  /admin/credit-checking (list, all applications)
   →  /admin/applications/[id]/credit-checking
        ├─ Approved → /admin/applications/[id]/call-report
-       │              → Proceed → /admin/applications/[id]/requirement-checklist → Endorse
+       │              → Proceed → /admin/applications/[id]/requirement-checklist
+       │                 → Endorse → /admin/applications/[id]/credit-investigation
+       │                    ├─ Proceed → Application List
+       │                    ├─ Disapprove → /admin/applications/[id]/reconsideration
+       │                    └─ Return to AMD → /admin/applications/[id]/requirement-checklist
        └─ No → /admin/applications/[id]/reconsideration
                  ├─ Approve → rejoins at call-report
                  └─ No → "Client notified" terminal state
@@ -590,6 +594,15 @@ This flow was built directly from a process-flow diagram the user provided
 (System / Client / LMS User swimlanes). Initial Credit Checking includes a mocked
 "AI" step (uploaded bureau reports + application details → generated summary +
 recommendation text) — not a real AI integration.
+
+**Credit Investigation has its own dedicated doc:
+`docs/ADMIN_CREDIT_INVESTIGATION.md`.** It is the detail workspace for the
+`creditInvestigation` step under the sidebar's "Comprehensive Credit
+Checking" section, sitting after Requirement Checklist in the pipeline —
+covering the grouped document checklist (including view-only Bureau &
+Verification rows sourced from Requirement Checklist's own state), the CI
+Fee request/approval gate, and the CI Report's transcript-upload auto-fill.
+Update that file, not this section, when this screen changes.
 
 **Initial Credit Checking has its own dedicated doc:
 `docs/ADMIN_INITIAL_CREDIT_CHECKING.md`.** It covers the layout (stacked vs.
