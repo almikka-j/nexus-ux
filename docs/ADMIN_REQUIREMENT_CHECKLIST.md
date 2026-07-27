@@ -37,6 +37,22 @@ Full Application, Initial Credit Checking Result, View Call Report, and View
 All Officer Notes actions. The Requirement Checklist summary follows it in
 normal page flow; there is no duplicate sticky mini-summary.
 
+### Section navigation & verified-docs folding
+
+To reduce how far an officer has to scroll on applications with many
+documents:
+
+- A section nav (side panel on desktop ≥`md`, sticky top bar below `md`)
+  lists Credit Investigation, Appraisal, and Financial Evaluation with a
+  live `received/total` count and a green/amber status dot. Clicking an
+  entry scrolls to and auto-expands that section if it was collapsed.
+- Within each section (and each Appraisal property group), documents
+  already at `status: 'verified'` are folded into a single
+  "✓ N verified documents" row instead of listing every verified row in
+  full. Only documents that still need attention (`status !== 'verified'`)
+  render expanded by default. The fold is expandable per section/group
+  independently.
+
 ## Layout: three document cards
 
 The screen presents **Credit Investigation**, **Appraisal**, and **Financial
