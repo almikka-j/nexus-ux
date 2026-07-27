@@ -467,13 +467,6 @@ export type CallReport = {
   preliminaryRecommendation: PreliminaryRecommendation | '';
   recommendationReason: string;
   loanPackageNotes: string;
-
-  // 12. Call Summary
-  callSummary: string;
-  callSummaryEdited: boolean;
-
-  // 13. Additional Remarks
-  additionalRemarks: string;
 };
 
 export type RequirementDoc = {
@@ -852,9 +845,6 @@ function createInitialReview(): ApplicationReview {
       preliminaryRecommendation: '',
       recommendationReason: '',
       loanPackageNotes: '',
-      callSummary: '',
-      callSummaryEdited: false,
-      additionalRemarks: '',
     },
     requirementChecklist: {
       documents: createInitialRequirementDocuments(),

@@ -27,9 +27,10 @@ import {
 // ----------------------------------------------------------------------
 // Pure function: reads the structured CallReport answers and composes a
 // plain-text summary, skipping any section whose relevant fields are still
-// empty ("include when available" per the design spec). Never called
-// automatically on every keystroke — only when the officer opens the Call
-// Summary card for the first time (empty callSummary) or clicks Regenerate.
+// empty ("include when available" per the design spec). Recomputed fresh on
+// every render for the "AI review, summary & recommendation" card — not
+// stored on CallReport, so it can never drift out of sync with the answers
+// above it.
 // ----------------------------------------------------------------------
 
 function formatCurrency(value: number): string {

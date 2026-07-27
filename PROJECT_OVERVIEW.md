@@ -960,28 +960,32 @@ pre-hydration default for the bare `/admin/credit-checking` URL.
 
 ### Call Report (`src/sections/admin/call-report-view.tsx` + `src/sections/admin/call-report/`)
 
-A detailed, numbered 13-section structured interview the officer fills out
+A detailed, numbered 11-section structured interview the officer fills out
 live while on the call with the borrower, followed by a preliminary loan
-package proposal. This is the original, more detailed field model — restored
-after a period where the page briefly rendered a shorter, consolidated
-`ReferenceCallReportForm` instead; that consolidated form and its two
-merged cards (`borrower-interview-card.tsx`, `financial-declaration-card.tsx`)
-have been deleted.
+package proposal and an AI-derived summary/recommendation. This is the
+original, more detailed field model — restored after a period where the page
+briefly rendered a shorter, consolidated `ReferenceCallReportForm` instead;
+that consolidated form and its two merged cards (`borrower-interview-card.tsx`,
+`financial-declaration-card.tsx`) have been deleted. The manual Call Summary
+and Additional Remarks cards (sections 12–13 of the original design) have
+also been removed, superseded by the AI review card below.
 
 **Call Report has its own dedicated maintenance doc:
 `docs/ADMIN_CALL_REPORT.md`.** It is the authoritative guide for the current
-13-card page order, every section's fields and option lists, the Proceed
+11-card page order, every section's fields and option lists, the Proceed
 gate, sample-data behavior, and the read-only result-modal mirror.
 
 State lives entirely in `AdminContext.review.callReport` (the `CallReport`
-type, `src/auth/admin-context.tsx`), one large object (~100 fields across the
-13 sections plus `approved` and `clientType`) following the same
-`setCallReport(partial)` pattern as every other review step, plus three
-array-mutation setters for collateral (`addCollateralEntry`,
-`updateCollateralEntry(id, data)`, `removeCollateralEntry(id)`).
+type, `src/auth/admin-context.tsx`), one large object (~95 fields across the
+11 sections plus `approved` and `clientType` — `callSummary`/
+`callSummaryEdited`/`additionalRemarks` were removed along with their cards)
+following the same `setCallReport(partial)` pattern as every other review
+step, plus three array-mutation setters for collateral
+(`addCollateralEntry`, `updateCollateralEntry(id, data)`,
+`removeCollateralEntry(id)`).
 
 **File split**:
-- `call-details-card.tsx` … `additional-remarks-card.tsx` — the 13 section
+- `call-details-card.tsx` … `loan-package-proposal-card.tsx` — the 11 section
   cards, one file each; see `docs/ADMIN_CALL_REPORT.md` for the full list,
   order, and per-card field notes. `call-details-card.tsx` additionally
   exports two shared UI primitives used by every other card: `RadioRow` (a
@@ -994,8 +998,9 @@ array-mutation setters for collateral (`addCollateralEntry`,
   and read-only in Loan Package Proposal (section 11).
 - `call-report-types.ts` — every enum's `{value,label}` option list, plus shared `fieldSx`/`cardSx` and a `labelFor()` lookup helper.
 - `call-report-computations.ts` — pure functions (`toNumber`, `computeTotalMonthlyIncome`, `computeTotalMonthlyObligations`, `computeDisposableIncome`, `computeDti`, `compareAmount`, `compareTerm`). Financial ratios are **never stored** — always recomputed at render time from the raw input fields, so they can't drift out of sync.
-- `call-report-summary.ts` — `buildCallSummary(callReport, signUpData)`, a pure function that composes the auto-generated Call Summary text, skipping any section whose fields are still empty.
-- `call-report-result-modal.tsx` — `CallReportResultModal`, a read-only, section-by-section mirror of all 13 cards, opened from `ApplicationDetailsCard`'s **View Call Report** action on other review steps (e.g. Requirement Checklist).
+- `call-report-summary.ts` — `buildCallSummary(callReport, signUpData)`, a pure function that composes the AI Summary text shown on the "AI review, summary & recommendation" card, skipping any section whose fields are still empty. Recomputed fresh on every render, not stored on `CallReport`.
+- `call-report-risk.ts` — `buildCallReportAiRecommendation(callReport)`, mirroring `initial-credit-checking-risk.ts`'s `{level, text}` shape. Driven by the officer's own `preliminaryRecommendation` answer first, falling back to the computed DTI ratio when no recommendation has been entered yet.
+- `call-report-result-modal.tsx` — `CallReportResultModal`, a read-only, section-by-section mirror of all 11 cards, opened both from the Call Report page's own **AI review, summary & recommendation** card (**View Call Report Result**) and from `ApplicationDetailsCard`'s **View Call Report** action on other review steps (e.g. Requirement Checklist).
 - `officer-notes-history.tsx` (shared one directory above `call-report/`) —
   `OfficerNotesHistory` (boxed-card renderer, used standalone by
   Reconsideration only), `OfficerNotesDialog` (the chat-drawer used by
@@ -1007,10 +1012,16 @@ array-mutation setters for collateral (`addCollateralEntry`,
   Details' shared `OfficerNotesDialog`, tagged with Process = `Call Report`.
 - `credit-checking-result-modal.tsx` — `CreditCheckingResultModal`, a centered MUI `Dialog`, opened from both this page and Initial Credit Checking (see "View Initial Credit Checking Result" below). It reads Initial Credit Checking state only, not `CallReport`, so it's unaffected by Call Report field changes.
 
-**Section numbering is back** — each card's heading is numbered ("1. Call
-Details", "2. Loan Discussion", … "13. Additional Remarks"), matching the
-original structured-interview design; this had briefly been removed while the
-page used the shorter consolidated form.
+**Section numbering stops at 11** — each card's heading is numbered ("1. Call
+Details", "2. Loan Discussion", … "11. Loan Package Proposal"), matching the
+original structured-interview design minus the two removed manual sections.
+The **AI review, summary & recommendation** card that follows mirrors Initial
+Credit Checking's own card of the same name: an **AI Summary** block (from
+`buildCallSummary()`), a color-coded **AI Recommendation** block
+(`good`/`watch`/`high`, from `buildCallReportAiRecommendation()`), and a
+**View Call Report Result** button opening `CallReportResultModal` — it is
+not numbered as a 12th section since it isn't part of the interview, just a
+derived read of it.
 
 **Application Details is a compact summary with modal actions on Call Report.**
 `ApplicationDetailsCard` (`src/sections/admin/application-details-card.tsx`,

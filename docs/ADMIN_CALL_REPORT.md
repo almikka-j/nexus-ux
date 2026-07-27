@@ -15,15 +15,16 @@
 `/admin/applications/[id]/call-report` by `CallReportView`
 (`src/sections/admin/call-report-view.tsx`).
 
-The page is a structured, 13-section interview an officer fills out live
+The page is a structured, 11-section interview an officer fills out live
 while on the call with the borrower, followed by a preliminary loan package
-proposal. There is no real backend, document generation, or lending engine —
-every derived value (DTI, disposable income, requested-vs-proposed
-comparisons) is a pure client-side computation in
-`call-report-computations.ts`, and all answers live in
-`AdminContext.review.callReport` (`CallReport`, defined in
-`src/auth/admin-context.tsx`), persisted by the prototype's existing
-localStorage behavior.
+proposal and an AI-derived summary/recommendation. There is no real backend,
+document generation, or lending engine — every derived value (DTI,
+disposable income, requested-vs-proposed comparisons, the AI summary and
+recommendation) is a pure client-side computation in
+`call-report-computations.ts`/`call-report-summary.ts`/`call-report-risk.ts`,
+and all answers live in `AdminContext.review.callReport` (`CallReport`,
+defined in `src/auth/admin-context.tsx`), persisted by the prototype's
+existing localStorage behavior.
 
 ## Page order
 
@@ -36,16 +37,18 @@ localStorage behavior.
    full application**, **Initial Credit Checking Result**
    (`CreditCheckingResultModal`), and **View all officer notes**
    (`officerNotesProcess="Call Report"`).
-3. The 13 section cards, in fixed order (see below).
-4. **Proceed application?** decision card.
-5. `CreditCheckingResultModal`, mounted outside the card stack.
+3. The 11 section cards, in fixed order (see below).
+4. **AI review, summary & recommendation** card — see below.
+5. **Proceed application?** decision card.
+6. `CreditCheckingResultModal` and `CallReportResultModal`, both mounted
+   outside the card stack.
 
 **Fill with Sample Data / Remove Sample Data** is registered as a page action
 via `useRegisterPageActions` (shared admin settings/page-actions popover, not
 a floating per-page button) — the label and direction are driven by the same
 `canProceed` boolean used by the Proceed button.
 
-## The 13 section cards
+## The 11 section cards
 
 Each card is its own file under `src/sections/admin/call-report/`, imports its
 `{value,label}` option lists and shared `cardSx`/`fieldSx` from
@@ -65,8 +68,35 @@ Each card is its own file under `src/sections/admin/call-report/`, imports its
 | 9 | Collateral Information | `collateral-information-card.tsx` | Repeatable `CollateralEntry` list via `collateral-entry-fields.tsx`; add/update/remove through `addCollateralEntry`/`updateCollateralEntry`/`removeCollateralEntry`. |
 | 10 | Agreed Next Steps | `agreed-next-steps-card.tsx` | `nextSteps` chip list, `responsibleParty`, due/follow-up dates. |
 | 11 | Loan Package Proposal | `loan-package-proposal-card.tsx` | Original-request vs. proposed-terms comparison, loan computation fields, required documents, conditions, preliminary recommendation. Re-renders the section-9 collateral entries read-only. |
-| 12 | Call Summary | `call-summary-card.tsx` | `buildCallSummary()` (`call-report-summary.ts`) composes a plain-text summary from the answers above; editing sets `callSummaryEdited: true` so Regenerate confirms before overwriting manual edits. |
-| 13 | Additional Remarks | `additional-remarks-card.tsx` | Free-text catch-all. |
+
+There is no manual Call Summary or Additional Remarks card — both were
+removed in favor of the AI review card below, which derives its own summary
+fresh from the 11 sections' answers on every render rather than storing a
+separately-editable summary.
+
+## AI review, summary & recommendation
+
+A card mirroring Initial Credit Checking's own "AI review, summary &
+recommendation" card, added after the 11 section cards, not tied to any one
+of them:
+
+- **View Call Report Result** button opens `CallReportResultModal`
+  (`call-report-result-modal.tsx`) — the same read-only, section-by-section
+  mirror described under "Read-only mirrors elsewhere" below, now also
+  reachable from within the Call Report page itself, not just from other
+  review steps.
+- **AI Summary** — `buildCallSummary()` (`call-report-summary.ts`), called
+  fresh on every render (not stored on `CallReport`), so it can never drift
+  out of sync with the answers above it.
+- **AI Recommendation** — `buildCallReportAiRecommendation()`
+  (`call-report-risk.ts`), mirroring `initial-credit-checking-risk.ts`'s
+  `{level, text}` shape (`good`/`watch`/`high`, same color/icon treatment via
+  a local `CALL_REPORT_RISK_STYLES` map in `call-report-view.tsx`). Driven
+  primarily by the officer's own `preliminaryRecommendation` answer
+  (section 11) — `proceed-as-requested` → `good`, `hold`/`do-not-proceed` →
+  `high`, everything else → `watch` — falling back to the computed DTI ratio
+  (`computeDti()`) only when no preliminary recommendation has been entered
+  yet.
 
 ### Shared option lists and helpers
 
@@ -110,7 +140,10 @@ to `paths.admin.requirementChecklist(email)`; Do Not Proceed returns to
 ## Read-only mirrors elsewhere
 
 - `call-report/call-report-result-modal.tsx` (`CallReportResultModal`) — a
-  read-only, section-by-section mirror of all 13 cards, opened from
+  read-only, section-by-section mirror of all 11 cards (no Call Summary or
+  Additional Remarks section — both were removed along with their cards),
+  opened both from the Call Report page's own **AI review, summary &
+  recommendation** card (**View Call Report Result**) and from
   `ApplicationDetailsCard`'s **View Call Report** action on other review
   steps (e.g. Requirement Checklist). Must be updated whenever a `CallReport`
   field is added, removed, or renamed.
@@ -121,26 +154,28 @@ to `paths.admin.requirementChecklist(email)`; Do Not Proceed returns to
 ## Sample data action
 
 `handleFillSampleData`/`handleClearSampleData` in `call-report-view.tsx`
-set/clear every field on `CallReport` (all 13 sections). Sample values are
-chosen to be internally consistent (e.g. `callStatus: 'completed'`,
-`preliminaryRecommendation: 'proceed-as-requested'`, a single sample
-`CollateralEntry`) and to satisfy `canProceed` so the button immediately
-demonstrates the "Remove Sample Data" state. Clearing resets Call Report
-fields only — it does not touch Application Details, Initial Credit
-Checking, or Requirement Checklist state.
+set/clear every remaining field on `CallReport` (all 11 sections). Sample
+values are chosen to be internally consistent (e.g. `callStatus:
+'completed'`, `preliminaryRecommendation: 'proceed-as-requested'`, a single
+sample `CollateralEntry`) and to satisfy `canProceed` so the button
+immediately demonstrates the "Remove Sample Data" state. Clearing resets
+Call Report fields only — it does not touch Application Details, Initial
+Credit Checking, or Requirement Checklist state. The AI summary/recommendation
+need no sample-data handling of their own since they're derived fresh from
+whatever the 11 sections currently hold, not stored.
 
 ## Verification checklist
 
 After changing Call Report:
 
-1. Confirm all 13 cards still render in order, with `ApplicationDetailsCard`
-   first.
+1. Confirm all 11 cards still render in order, with `ApplicationDetailsCard`
+   first and the **AI review, summary & recommendation** card after them.
 2. Confirm every enum field added/changed has a matching option list in
    `call-report-types.ts` and an initial value in `admin-context.tsx`'s
    `createInitialReview()`.
 3. Confirm `call-report-result-modal.tsx` reflects any field rename/addition.
-4. Confirm `call-report-summary.ts` and `call-report-computations.ts` still
-   reference valid field names.
+4. Confirm `call-report-summary.ts`, `call-report-computations.ts`, and
+   `call-report-risk.ts` still reference valid field names.
 5. Confirm Fill/Remove Sample Data still toggles correctly and satisfies
    `canProceed`.
 6. Run `npx tsc --noEmit -p .` and `npx eslint src --ext .ts,.tsx`.

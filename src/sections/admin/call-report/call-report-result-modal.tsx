@@ -460,11 +460,6 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
               )}
             </Stack>
           </Box>
-
-          <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-          <NarrativeBlock label="12. CALL SUMMARY" value={callReport.callSummary} />
-          <NarrativeBlock label="13. ADDITIONAL REMARKS" value={callReport.additionalRemarks} />
         </Stack>
       </DialogContent>
     </Dialog>

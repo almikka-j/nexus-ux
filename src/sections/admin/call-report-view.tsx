@@ -22,6 +22,7 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
 import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
+import { CallReportResultModal } from './call-report/call-report-result-modal';
 import { CallDetailsCard } from './call-report/call-details-card';
 import { LoanDiscussionCard } from './call-report/loan-discussion-card';
 import { ResidenceHouseholdCard } from './call-report/residence-household-card';
@@ -33,17 +34,28 @@ import { OfficerObservationCard } from './call-report/officer-observation-card';
 import { CollateralInformationCard } from './call-report/collateral-information-card';
 import { AgreedNextStepsCard } from './call-report/agreed-next-steps-card';
 import { LoanPackageProposalCard } from './call-report/loan-package-proposal-card';
-import { CallSummaryCard } from './call-report/call-summary-card';
-import { AdditionalRemarksCard } from './call-report/additional-remarks-card';
+import { buildCallSummary } from './call-report/call-report-summary';
+import { buildCallReportAiRecommendation } from './call-report/call-report-risk';
 import { cardSx } from './call-report/call-report-types';
+import type { CallReportRiskLevel } from './call-report/call-report-risk';
 
 // ----------------------------------------------------------------------
+
+const CALL_REPORT_RISK_STYLES: Record<
+  CallReportRiskLevel,
+  { bg: string; color: string; icon: string; label: string }
+> = {
+  good: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Low risk' },
+  watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Needs a closer look' },
+  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High risk' },
+};
 
 export function CallReportView() {
   const router = useRouter();
   const { signUpData, application } = useRegistration();
   const { review, setCallReport } = useAdmin();
-  const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [creditCheckingResultModalOpen, setCreditCheckingResultModalOpen] = useState(false);
+  const [callReportResultModalOpen, setCallReportResultModalOpen] = useState(false);
 
   const { callReport } = review;
 
@@ -187,7 +199,6 @@ export function CallReportView() {
       preliminaryRecommendation: 'proceed-as-requested',
       recommendationReason: '',
       loanPackageNotes: '',
-      additionalRemarks: '',
     });
   };
 
@@ -287,9 +298,6 @@ export function CallReportView() {
       preliminaryRecommendation: '',
       recommendationReason: '',
       loanPackageNotes: '',
-      callSummary: '',
-      callSummaryEdited: false,
-      additionalRemarks: '',
     });
   };
 
@@ -310,6 +318,10 @@ export function CallReportView() {
 
   if (!signUpData || !application.financialInfo || !application.personalInfo) return null;
 
+  const aiSummary = buildCallSummary(callReport, signUpData);
+  const aiRecommendation = buildCallReportAiRecommendation(callReport);
+  const callReportRiskStyle = CALL_REPORT_RISK_STYLES[aiRecommendation.level];
+
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
       <ApplicationReviewHeader
@@ -321,7 +333,7 @@ export function CallReportView() {
       <Stack spacing={2.5}>
         <ApplicationDetailsCard
           collapsible
-          onViewCreditCheckingResult={() => setResultModalOpen(true)}
+          onViewCreditCheckingResult={() => setCreditCheckingResultModalOpen(true)}
           officerNotesProcess="Call Report"
         />
 
@@ -336,8 +348,60 @@ export function CallReportView() {
         <CollateralInformationCard />
         <AgreedNextStepsCard />
         <LoanPackageProposalCard />
-        <CallSummaryCard />
-        <AdditionalRemarksCard />
+
+        <Box sx={cardSx}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+            <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+              AI review, summary &amp; recommendation
+            </Typography>
+          </Stack>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
+            Based on the structured call report answers above.
+          </Typography>
+
+          <Button
+            onClick={() => setCallReportResultModalOpen(true)}
+            variant="outlined"
+            startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+            sx={{
+              mb: 2.5,
+              color: '#1C2A6E',
+              borderColor: '#C7CEEA',
+              borderRadius: '10px',
+              px: 2,
+              '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
+            }}
+          >
+            View Call Report Result
+          </Button>
+
+          <Stack spacing={2}>
+            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Iconify icon="solar:document-text-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>
+                  AI Summary
+                </Typography>
+              </Stack>
+              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
+                {aiSummary || 'Complete the call report above to generate a summary.'}
+              </Typography>
+            </Box>
+
+            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: callReportRiskStyle.bg }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Iconify icon={callReportRiskStyle.icon} width={16} sx={{ color: callReportRiskStyle.color }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: callReportRiskStyle.color }}>
+                  AI Recommendation · {callReportRiskStyle.label}
+                </Typography>
+              </Stack>
+              <Typography sx={{ fontSize: 13.5, color: callReportRiskStyle.color, lineHeight: 1.6 }}>
+                {aiRecommendation.text}
+              </Typography>
+            </Box>
+          </Stack>
+        </Box>
 
         <Box sx={cardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
@@ -393,9 +457,13 @@ export function CallReportView() {
       </Stack>
 
       <CreditCheckingResultModal
-        open={resultModalOpen}
-        onClose={() => setResultModalOpen(false)}
+        open={creditCheckingResultModalOpen}
+        onClose={() => setCreditCheckingResultModalOpen(false)}
         recommendationEditable={false}
+      />
+      <CallReportResultModal
+        open={callReportResultModalOpen}
+        onClose={() => setCallReportResultModalOpen(false)}
       />
     </Container>
   );
