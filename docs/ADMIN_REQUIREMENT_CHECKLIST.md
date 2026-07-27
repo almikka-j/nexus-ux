@@ -47,11 +47,13 @@ documents:
   live `received/total` count and a green/amber status dot. Clicking an
   entry scrolls to and auto-expands that section if it was collapsed.
 - Within each section (and each Appraisal property group), documents
-  already at `status: 'verified'` are folded into a single
-  "✓ N verified documents" row instead of listing every verified row in
-  full. Only documents that still need attention (`status !== 'verified'`)
-  render expanded by default. The fold is expandable per section/group
-  independently.
+  already at `status: 'verified'` are folded into a single row with a
+  checkmark icon and text instead of listing every verified row in full.
+  Only documents that still need attention (`status !== 'verified'`) render
+  expanded by default. When every document in a section/subgroup is already
+  verified (nothing needs attention), the row reads "All N verified"; when
+  some documents still need attention, it reads "N verified document(s)".
+  The fold is expandable per section/group independently.
 
 ## Layout: three document cards
 
