@@ -28,6 +28,7 @@ import { ApplicationDetailsCard } from './application-details-card';
 import { RequirementDocRow } from './requirement-doc-row';
 import { RequestDocumentsDrawer } from './request-documents-drawer';
 import { buildRequirementChecklistSummary } from './requirement-checklist-risk';
+import { RequirementChecklistSectionNav } from './requirement-checklist-section-nav';
 import {
   REQUIREMENT_DOC_META,
   APPRAISAL_DOC_META,
@@ -38,6 +39,7 @@ import {
 import type { RequirementDoc, OutreachChannel } from 'src/auth/admin-context';
 import type { AppraisalDocMeta, RequirementDocMeta, RequirementDocSubgroup } from './requirement-checklist-docs';
 import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk';
+import type { SectionNavEntry } from './requirement-checklist-section-nav';
 
 // ----------------------------------------------------------------------
 
@@ -202,6 +204,9 @@ export function RequirementChecklistView() {
   // or `${groupId}:${docKey}` for Appraisal rows since the same doc key
   // repeats across groups).
   const rowRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const sectionRefs = useRef<Map<'creditInvestigation' | 'appraisal' | 'financialEvaluation', HTMLDivElement | null>>(
+    new Map()
+  );
 
   const {
     documents,
@@ -538,6 +543,16 @@ export function RequirementChecklistView() {
     });
   };
 
+  const scrollToSection = (key: 'creditInvestigation' | 'appraisal' | 'financialEvaluation') => {
+    if (key === 'creditInvestigation') setCreditInvestigationCollapsed(false);
+    if (key === 'appraisal') setAppraisalCollapsed(false);
+    if (key === 'financialEvaluation') setFinancialEvaluationCollapsed(false);
+
+    requestAnimationFrame(() => {
+      sectionRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   useRegisterPageActions(
     useMemo(
       () => [
@@ -619,13 +634,61 @@ export function RequirementChecklistView() {
     );
   }
 
+  const sectionNavEntries: SectionNavEntry[] = [
+    {
+      key: 'creditInvestigation',
+      label: REQUIREMENT_TAB_LABELS.creditInvestigation,
+      received: creditInvestigationDocs.filter((doc) => doc.status !== 'missing').length,
+      total: creditInvestigationDocs.length,
+      fullyVerified: creditInvestigationFullyVerified,
+      onClick: () => scrollToSection('creditInvestigation'),
+    },
+    {
+      key: 'appraisal',
+      label: 'Appraisal',
+      received: appraisalNotApplicable
+        ? 0
+        : appraisalGroups.flatMap((group) => group.documents).filter((doc) => doc.status !== 'missing').length,
+      total: appraisalNotApplicable
+        ? 0
+        : appraisalGroups.reduce((total, group) => total + group.documents.length, 0),
+      fullyVerified: appraisalFullyVerified,
+      onClick: () => scrollToSection('appraisal'),
+    },
+    {
+      key: 'financialEvaluation',
+      label: REQUIREMENT_TAB_LABELS.financialEvaluation,
+      received: financialEvaluationDocs.filter((doc) => doc.status !== 'missing').length,
+      total: financialEvaluationDocs.length,
+      fullyVerified: financialEvaluationFullyVerified,
+      onClick: () => scrollToSection('financialEvaluation'),
+    },
+  ];
+
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
-      <ApplicationReviewHeader
-        step="Step 3 · Requirement Checklist"
-        reviewStep="requirementChecklist"
-        hideApplicationCard
-      />
+    <Box sx={{ position: 'relative' }}>
+      <Box
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          position: 'sticky',
+          top: 88,
+          float: 'left',
+          ml: { md: 'calc(50% - 620px)' },
+          width: 200,
+          zIndex: 1,
+        }}
+      >
+        <RequirementChecklistSectionNav entries={sectionNavEntries} variant="side" />
+      </Box>
+      <Box sx={{ display: { xs: 'block', md: 'none' }, position: 'sticky', top: 0, zIndex: 2 }}>
+        <RequirementChecklistSectionNav entries={sectionNavEntries} variant="bar" />
+      </Box>
+      <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+        <ApplicationReviewHeader
+          step="Step 3 · Requirement Checklist"
+          reviewStep="requirementChecklist"
+          hideApplicationCard
+        />
 
       <Stack spacing={2.5}>
         <ApplicationDetailsCard
@@ -768,7 +831,12 @@ export function RequirementChecklistView() {
           )}
         </Box>
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+        <Box
+          ref={(el: HTMLDivElement | null) => {
+            sectionRefs.current.set('creditInvestigation', el);
+          }}
+          sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}
+        >
           <Stack
             component={ButtonBase}
             onClick={() => setCreditInvestigationCollapsed((prev) => !prev)}
@@ -841,7 +909,12 @@ export function RequirementChecklistView() {
 
         </Box>
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+        <Box
+          ref={(el: HTMLDivElement | null) => {
+            sectionRefs.current.set('appraisal', el);
+          }}
+          sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}
+        >
           <Stack
             direction="row"
             alignItems="center"
@@ -1192,7 +1265,12 @@ export function RequirementChecklistView() {
           )}
         </Box>
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+        <Box
+          ref={(el: HTMLDivElement | null) => {
+            sectionRefs.current.set('financialEvaluation', el);
+          }}
+          sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}
+        >
           <Stack
             component={ButtonBase}
             onClick={() => setFinancialEvaluationCollapsed((prev) => !prev)}
@@ -1389,6 +1467,7 @@ export function RequirementChecklistView() {
         history={outreachMessages}
         onSend={handleSendOutreachMessage}
       />
-    </Container>
+      </Container>
+    </Box>
   );
 }
