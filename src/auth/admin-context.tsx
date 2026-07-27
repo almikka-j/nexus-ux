@@ -918,6 +918,10 @@ function readStoredState(): AdminState {
           ...initialState.review.nfisBapUpload,
           ...storedReview.nfisBapUpload,
         },
+        callReport: {
+          ...initialState.review.callReport,
+          ...storedReview.callReport,
+        },
         requirementChecklist: {
           ...initialState.review.requirementChecklist,
           ...storedReview.requirementChecklist,
