@@ -64,5 +64,6 @@ export const paths = {
     reconsideration: (id: string) => `/admin/applications/${id}/reconsideration`,
     callReport: (id: string) => `/admin/applications/${id}/call-report`,
     requirementChecklist: (id: string) => `/admin/applications/${id}/requirement-checklist`,
+    creditInvestigation: (id: string) => `/admin/applications/${id}/credit-investigation`,
   },
 };
