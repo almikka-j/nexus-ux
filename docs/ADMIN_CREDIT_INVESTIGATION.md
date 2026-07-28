@@ -22,8 +22,11 @@ this page is that workspace.
 Pipeline position: Initial Credit Checking → Call Report → Requirement
 Checklist → **Credit Investigation** → *(next step not yet built — Appraisal
 and Financial Evaluation remain non-actionable placeholders)*. The live
-application's Credit Investigation queue row only becomes actionable once
-`review.requirementChecklist.endorsed` is `true`.
+application's Credit Investigation queue row is always actionable, same as
+every other built step in this pipeline (Initial Credit Checking through
+Requirement Checklist) — an admin can inspect/act on the live application at
+any step at will, regardless of whether Requirement Checklist has been
+endorsed yet.
 
 There is no real backend and no real AI — every document's status, every
 "AI Summary"/recommendation, and the transcript auto-fill are deterministic,
@@ -172,9 +175,15 @@ this app's generally permissive decision-gate style elsewhere):
 ## Queue unlocking
 
 `application-list-view.tsx`'s live-row `isActionable` for the
-`creditInvestigation` step is `review.requirementChecklist.endorsed` — the
-row is clickable in the "Comprehensive Credit Checking → Credit
-Investigation" queue only once Requirement Checklist has been endorsed.
+`creditInvestigation` step is unconditionally `true`, matching every other
+built step in this pipeline (`creditChecking` through
+`requirementChecklist`) — the row is always clickable in the "Comprehensive
+Credit Checking → Credit Investigation" queue, regardless of Requirement
+Checklist's endorsement status. An earlier version of this page gated the
+row behind `review.requirementChecklist.endorsed`, but that broke the
+established "the live application's row is always actionable on every
+step" convention every other step in this list follows — reverted so an
+admin can reach this page directly at any time, same as any other step.
 Appraisal and Financial Evaluation remain always non-actionable (unbuilt).
 
 Requirement Checklist's "Endorsed for comprehensive process" success screen

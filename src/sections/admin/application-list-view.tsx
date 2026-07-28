@@ -126,12 +126,14 @@ export function ApplicationListView() {
         step,
         statusLabel: liveDecision.label,
         statusColor: liveDecision.color,
-        // The queue is introduced before its detailed application workspace.
-        // Keep its rows informational until that workspace is implemented.
-        isActionable:
-          step === 'creditInvestigation'
-            ? review.requirementChecklist.endorsed
-            : !['appraisal', 'financialEvaluation'].includes(step),
+        // The live application is always clickable on every step's row,
+        // same as every other step in this pipeline (creditChecking through
+        // requirementChecklist) — letting an admin inspect/act on her
+        // application at any step at will, not gating access behind
+        // completing an earlier step first. Appraisal and Financial
+        // Evaluation remain informational-only since their detailed
+        // workspace pages don't exist yet.
+        isActionable: !['appraisal', 'financialEvaluation'].includes(step),
       }))
     : [];
 
