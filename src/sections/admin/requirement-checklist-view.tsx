@@ -28,8 +28,6 @@ import { ApplicationDetailsCard } from './application-details-card';
 import { RequirementDocRow } from './requirement-doc-row';
 import { RequestDocumentsDrawer } from './request-documents-drawer';
 import { buildRequirementChecklistSummary } from './requirement-checklist-risk';
-import { RequirementChecklistSectionNav } from './requirement-checklist-section-nav';
-import { VerifiedDocsGroup } from './requirement-checklist-verified-docs-group';
 import {
   REQUIREMENT_DOC_META,
   APPRAISAL_DOC_META,
@@ -40,7 +38,6 @@ import {
 import type { RequirementDoc, OutreachChannel } from 'src/auth/admin-context';
 import type { AppraisalDocMeta, RequirementDocMeta, RequirementDocSubgroup } from './requirement-checklist-docs';
 import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk';
-import type { SectionNavEntry } from './requirement-checklist-section-nav';
 
 // ----------------------------------------------------------------------
 
@@ -65,6 +62,22 @@ const RISK_STYLES: Record<
 // each card) and whether a card auto-collapses.
 function needsAttention(doc: RequirementDoc) {
   return doc.status !== 'verified';
+}
+
+// Stable sort: needs-attention docs first (in their original relative
+// order), fully-verified docs after (also in original relative order) — so
+// outstanding work always surfaces at the top of a card without documents
+// jumping around unpredictably as their status changes mid-session.
+function sortByAttentionFirst<T extends { doc: RequirementDoc }>(entries: T[]): T[] {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => {
+      const aNeedsAttention = needsAttention(a.entry.doc);
+      const bNeedsAttention = needsAttention(b.entry.doc);
+      if (aNeedsAttention === bNeedsAttention) return a.index - b.index;
+      return aNeedsAttention ? -1 : 1;
+    })
+    .map(({ entry }) => entry);
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -207,9 +220,6 @@ export function RequirementChecklistView() {
   // or `${groupId}:${docKey}` for Appraisal rows since the same doc key
   // repeats across groups).
   const rowRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
-  const sectionRefs = useRef<Map<'creditInvestigation' | 'appraisal' | 'financialEvaluation', HTMLDivElement | null>>(
-    new Map()
-  );
 
   const {
     documents,
@@ -546,16 +556,6 @@ export function RequirementChecklistView() {
     });
   };
 
-  const scrollToSection = (key: 'creditInvestigation' | 'appraisal' | 'financialEvaluation') => {
-    if (key === 'creditInvestigation') setCreditInvestigationCollapsed(false);
-    if (key === 'appraisal') setAppraisalCollapsed(false);
-    if (key === 'financialEvaluation') setFinancialEvaluationCollapsed(false);
-
-    requestAnimationFrame(() => {
-      sectionRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-
   useRegisterPageActions(
     useMemo(
       () => [
@@ -639,61 +639,13 @@ export function RequirementChecklistView() {
     );
   }
 
-  const sectionNavEntries: SectionNavEntry[] = [
-    {
-      key: 'creditInvestigation',
-      label: REQUIREMENT_TAB_LABELS.creditInvestigation,
-      received: creditInvestigationDocs.filter((doc) => doc.status !== 'missing').length,
-      total: creditInvestigationDocs.length,
-      fullyVerified: creditInvestigationFullyVerified,
-      onClick: () => scrollToSection('creditInvestigation'),
-    },
-    {
-      key: 'appraisal',
-      label: 'Appraisal',
-      received: appraisalNotApplicable
-        ? 0
-        : appraisalGroups.flatMap((group) => group.documents).filter((doc) => doc.status !== 'missing').length,
-      total: appraisalNotApplicable
-        ? 0
-        : appraisalGroups.reduce((total, group) => total + group.documents.length, 0),
-      fullyVerified: appraisalFullyVerified,
-      onClick: () => scrollToSection('appraisal'),
-    },
-    {
-      key: 'financialEvaluation',
-      label: REQUIREMENT_TAB_LABELS.financialEvaluation,
-      received: financialEvaluationDocs.filter((doc) => doc.status !== 'missing').length,
-      total: financialEvaluationDocs.length,
-      fullyVerified: financialEvaluationFullyVerified,
-      onClick: () => scrollToSection('financialEvaluation'),
-    },
-  ];
-
   return (
-    <Box sx={{ position: 'relative' }}>
-      <Box
-        sx={{
-          display: { xs: 'none', md: 'block' },
-          position: 'sticky',
-          top: 88,
-          float: 'left',
-          ml: { md: 'calc(50% - 620px)' },
-          width: 200,
-          zIndex: 1,
-        }}
-      >
-        <RequirementChecklistSectionNav entries={sectionNavEntries} variant="side" />
-      </Box>
-      <Box sx={{ display: { xs: 'block', md: 'none' }, position: 'sticky', top: 0, zIndex: 2 }}>
-        <RequirementChecklistSectionNav entries={sectionNavEntries} variant="bar" />
-      </Box>
-      <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
-        <ApplicationReviewHeader
-          step="Step 3 · Requirement Checklist"
-          reviewStep="requirementChecklist"
-          hideApplicationCard
-        />
+    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+      <ApplicationReviewHeader
+        step="Step 3 · Requirement Checklist"
+        reviewStep="requirementChecklist"
+        hideApplicationCard
+      />
 
       <Stack spacing={2.5}>
         <ApplicationDetailsCard
@@ -836,12 +788,7 @@ export function RequirementChecklistView() {
           )}
         </Box>
 
-        <Box
-          ref={(el: HTMLDivElement | null) => {
-            sectionRefs.current.set('creditInvestigation', el);
-          }}
-          sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}
-        >
+        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
           <Stack
             component={ButtonBase}
             onClick={() => setCreditInvestigationCollapsed((prev) => !prev)}
@@ -882,13 +829,12 @@ export function RequirementChecklistView() {
                   )
                     .map((meta) => ({ meta, doc: requiredDocsByKey.get(meta.key) }))
                     .filter((entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc);
-                const attentionEntries = subgroupEntries.filter(({ doc }) => needsAttention(doc));
-                const verifiedEntries = subgroupEntries.filter(({ doc }) => !needsAttention(doc));
+                const sortedEntries = sortByAttentionFirst(subgroupEntries);
                 return (
                   <Stack key={subgroup} spacing={1.25}>
                     <SectionLabel>{REQUIREMENT_SUBGROUP_LABELS[subgroup]}</SectionLabel>
                     <Stack spacing={1.25}>
-                      {attentionEntries.map(({ meta, doc }) => (
+                      {sortedEntries.map(({ meta, doc }) => (
                         <Box
                           key={meta.key}
                           ref={(el: HTMLDivElement | null) => {
@@ -906,16 +852,6 @@ export function RequirementChecklistView() {
                           />
                         </Box>
                       ))}
-                      <VerifiedDocsGroup
-                        entries={verifiedEntries}
-                        applicantName={applicantName}
-                        onUpload={handleUploadDoc}
-                        onRemove={handleRemoveDoc}
-                        onToggleReviewed={handleToggleReviewed}
-                        onRemarksChange={handleRemarksChange}
-                        registerRowRef={(key, el) => rowRefs.current.set(key, el)}
-                        allVerified={attentionEntries.length === 0}
-                      />
                     </Stack>
                   </Stack>
                 );
@@ -925,12 +861,7 @@ export function RequirementChecklistView() {
 
         </Box>
 
-        <Box
-          ref={(el: HTMLDivElement | null) => {
-            sectionRefs.current.set('appraisal', el);
-          }}
-          sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}
-        >
+        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
           <Stack
             direction="row"
             alignItems="center"
@@ -1246,45 +1177,32 @@ export function RequirementChecklistView() {
                             </IconButton>
                           </Stack>
                         </Stack>
-                        {!groupCollapsed && (() => {
-                          const groupEntries = APPRAISAL_DOC_META
-                            .map((meta) => ({ meta, doc: groupDocsByKey.get(meta.key) }))
-                            .filter((entry): entry is { meta: AppraisalDocMeta; doc: RequirementDoc } => !!entry.doc);
-                          const attentionEntries = groupEntries.filter(({ doc }) => needsAttention(doc));
-                          const verifiedEntries = groupEntries.filter(({ doc }) => !needsAttention(doc));
-                          return (
-                            <Stack spacing={1.25}>
-                              {attentionEntries.map(({ meta, doc }) => (
-                                <Box
-                                  key={meta.key}
-                                  ref={(el: HTMLDivElement | null) => {
-                                    rowRefs.current.set(`${group.id}:${meta.key}`, el);
-                                  }}
-                                >
-                                  <RequirementDocRow
-                                    meta={meta}
-                                    doc={doc}
-                                    applicantName={applicantName}
-                                    onUpload={handleUploadAppraisalDoc(group.id, meta.key)}
-                                    onRemove={handleRemoveAppraisalDoc(group.id, meta.key)}
-                                    onToggleReviewed={handleToggleAppraisalDocReviewed(group.id, meta.key)}
-                                    onRemarksChange={handleAppraisalDocRemarksChange(group.id, meta.key)}
-                                  />
-                                </Box>
-                              ))}
-                              <VerifiedDocsGroup
-                                entries={verifiedEntries}
+                        {!groupCollapsed && <Stack spacing={1.25}>
+                          {sortByAttentionFirst(
+                            APPRAISAL_DOC_META
+                              .map((meta) => ({ meta, doc: groupDocsByKey.get(meta.key) }))
+                              .filter(
+                                (entry): entry is { meta: AppraisalDocMeta; doc: RequirementDoc } => !!entry.doc
+                              )
+                          ).map(({ meta, doc }) => (
+                            <Box
+                              key={meta.key}
+                              ref={(el: HTMLDivElement | null) => {
+                                rowRefs.current.set(`${group.id}:${meta.key}`, el);
+                              }}
+                            >
+                              <RequirementDocRow
+                                meta={meta}
+                                doc={doc}
                                 applicantName={applicantName}
-                                onUpload={(key) => handleUploadAppraisalDoc(group.id, key)}
-                                onRemove={(key) => handleRemoveAppraisalDoc(group.id, key)}
-                                onToggleReviewed={(key) => handleToggleAppraisalDocReviewed(group.id, key)}
-                                onRemarksChange={(key) => handleAppraisalDocRemarksChange(group.id, key)}
-                                registerRowRef={(key, el) => rowRefs.current.set(`${group.id}:${key}`, el)}
-                                allVerified={attentionEntries.length === 0}
+                                onUpload={handleUploadAppraisalDoc(group.id, meta.key)}
+                                onRemove={handleRemoveAppraisalDoc(group.id, meta.key)}
+                                onToggleReviewed={handleToggleAppraisalDocReviewed(group.id, meta.key)}
+                                onRemarksChange={handleAppraisalDocRemarksChange(group.id, meta.key)}
                               />
-                            </Stack>
-                          );
-                        })()}
+                            </Box>
+                          ))}
+                        </Stack>}
                       </Box>
                     );
                   })}
@@ -1294,12 +1212,7 @@ export function RequirementChecklistView() {
           )}
         </Box>
 
-        <Box
-          ref={(el: HTMLDivElement | null) => {
-            sectionRefs.current.set('financialEvaluation', el);
-          }}
-          sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}
-        >
+        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
           <Stack
             component={ButtonBase}
             onClick={() => setFinancialEvaluationCollapsed((prev) => !prev)}
@@ -1331,45 +1244,34 @@ export function RequirementChecklistView() {
             />
           </Stack>
 
-          {!financialEvaluationCollapsed && (() => {
-            const financialEntries = REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
-              .map((meta) => ({ meta, doc: requiredDocsByKey.get(meta.key) }))
-              .filter((entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc);
-            const attentionEntries = financialEntries.filter(({ doc }) => needsAttention(doc));
-            const verifiedEntries = financialEntries.filter(({ doc }) => !needsAttention(doc));
-            return (
-              <Stack spacing={1.25}>
-                {attentionEntries.map(({ meta, doc }) => (
-                  <Box
-                    key={meta.key}
-                    ref={(el: HTMLDivElement | null) => {
-                      rowRefs.current.set(meta.key, el);
-                    }}
-                  >
-                    <RequirementDocRow
-                      meta={meta}
-                      doc={doc}
-                      applicantName={applicantName}
-                      onUpload={handleUploadDoc(meta.key)}
-                      onRemove={handleRemoveDoc(meta.key)}
-                      onToggleReviewed={handleToggleReviewed(meta.key)}
-                      onRemarksChange={handleRemarksChange(meta.key)}
-                    />
-                  </Box>
-                ))}
-                <VerifiedDocsGroup
-                  entries={verifiedEntries}
-                  applicantName={applicantName}
-                  onUpload={handleUploadDoc}
-                  onRemove={handleRemoveDoc}
-                  onToggleReviewed={handleToggleReviewed}
-                  onRemarksChange={handleRemarksChange}
-                  registerRowRef={(key, el) => rowRefs.current.set(key, el)}
-                  allVerified={attentionEntries.length === 0}
-                />
-              </Stack>
-            );
-          })()}
+          {!financialEvaluationCollapsed && (
+            <Stack spacing={1.25}>
+              {sortByAttentionFirst(
+                REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
+                  .map((meta) => ({ meta, doc: requiredDocsByKey.get(meta.key) }))
+                  .filter(
+                    (entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc
+                  )
+              ).map(({ meta, doc }) => (
+                <Box
+                  key={meta.key}
+                  ref={(el: HTMLDivElement | null) => {
+                    rowRefs.current.set(meta.key, el);
+                  }}
+                >
+                  <RequirementDocRow
+                    meta={meta}
+                    doc={doc}
+                    applicantName={applicantName}
+                    onUpload={handleUploadDoc(meta.key)}
+                    onRemove={handleRemoveDoc(meta.key)}
+                    onToggleReviewed={handleToggleReviewed(meta.key)}
+                    onRemarksChange={handleRemarksChange(meta.key)}
+                  />
+                </Box>
+              ))}
+            </Stack>
+          )}
         </Box>
 
         <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
@@ -1507,7 +1409,6 @@ export function RequirementChecklistView() {
         history={outreachMessages}
         onSend={handleSendOutreachMessage}
       />
-      </Container>
-    </Box>
+    </Container>
   );
 }
