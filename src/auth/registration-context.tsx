@@ -25,6 +25,7 @@ export type FinancialInfo = {
   employmentStatus: string;
   monthlyIncome: number;
   loanPurpose: string;
+  hasCollateral: 'yes' | 'no';
   // Collected only when employmentStatus === 'Business Owner' — see
   // PreliminaryApplicationView's conditional "Business Type" + document
   // upload fields. businessDocument is stored as a base64 data URL (a raw
@@ -48,6 +49,9 @@ export type PersonalInfo = {
   gender: string;
   tinNumber: string;
   referralSource: string;
+  // Collected only when referralSource === 'Agent' — see StepPersonalInfo's
+  // conditional "Agent Code" field.
+  agentCode?: string;
   // Collected only when civilStatus === 'Married' — see StepPersonalInfo's
   // "Spouse Information" section. spouseAddress/spouseProvince are either a
   // direct copy of the borrower's own address/province (when "Same address

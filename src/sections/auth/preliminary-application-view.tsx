@@ -30,9 +30,46 @@ import { fileToDataUrl } from 'src/utils/file-to-data-url';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
+import { LogoFull } from 'src/components/logo/logo-full';
 
 import { AuthBrandPanel } from './auth-brand-panel';
 import { authFieldSx, authFieldLabelSx, authPrimaryButtonSx } from './auth-input-styles';
+
+// ----------------------------------------------------------------------
+// Denser field sizing for this form specifically — it packs more fields
+// onto one screen than the other auth views sharing auth-input-styles, so
+// it overrides height/spacing locally instead of shrinking the shared
+// tokens (which would also shrink login/onboarding screens).
+// ----------------------------------------------------------------------
+
+const compactFieldSx = {
+  ...authFieldSx,
+  '& .MuiOutlinedInput-root': {
+    ...authFieldSx['& .MuiOutlinedInput-root'],
+    height: 40,
+    fontSize: 13.5,
+  },
+  '& .MuiOutlinedInput-input::placeholder': {
+    ...authFieldSx['& .MuiOutlinedInput-input::placeholder'],
+    fontSize: 12.5,
+  },
+  '& .MuiInputAdornment-root, & .MuiInputAdornment-root .MuiTypography-root': {
+    fontSize: 13.5,
+  },
+};
+
+// Select's MenuItem list renders in a MUI Popover portal, outside this
+// form's DOM subtree, so compactFieldSx (an sx prop on the field itself)
+// never reaches it — has to be passed via MenuProps.PaperProps instead.
+const compactMenuProps = {
+  PaperProps: { sx: { '& .MuiMenuItem-root': { fontSize: 13.5 } } },
+};
+
+const compactFieldLabelSx = {
+  ...authFieldLabelSx,
+  fontSize: 12,
+  mb: 0.5,
+};
 
 // ----------------------------------------------------------------------
 // The new front door of the borrower sign-up flow — screens loan
@@ -46,7 +83,7 @@ const PREFIXES = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Engr.', 'Atty.'];
 
 const LOAN_TERMS = [6, 12, 18, 24, 36];
 
-const INCOME_SOURCES = ['Employed', 'Self-Employed', 'Business Owner', 'OFW', 'Unemployed'];
+const INCOME_SOURCES = ['Employed', 'Self-Employed', 'Business Owner', 'OFW'];
 
 const LOAN_PURPOSES = [
   'Working Capital',
@@ -97,6 +134,7 @@ export const PreliminarySchema = zod
     businessDocument: zod.any().nullable(),
     monthlyIncome: zod.coerce.number().min(1, { message: 'Enter your monthly income.' }),
     loanPurpose: zod.array(zod.string()).min(1, { message: 'Select at least one purpose.' }),
+    hasCollateral: zod.enum(['yes', 'no'], { message: 'Select whether you have collateral.' }),
     dataConsent: zod.boolean().refine((value) => value === true, {
       message: 'You must agree to the Terms & Conditions and Privacy Policy to continue.',
     }),
@@ -132,6 +170,7 @@ const BLANK_VALUES: PreliminarySchemaType = {
   businessDocument: null,
   monthlyIncome: '' as unknown as number,
   loanPurpose: [],
+  hasCollateral: '' as unknown as 'yes' | 'no',
   dataConsent: false,
 };
 
@@ -153,6 +192,7 @@ const SAMPLE_VALUES: PreliminarySchemaType = {
   businessDocument: '/assets/placeholder.svg',
   monthlyIncome: 30000,
   loanPurpose: ['Working Capital'],
+  hasCollateral: 'no',
   dataConsent: true,
 };
 
@@ -185,15 +225,15 @@ function CompactDropzone({ value, onChange, error, documentLabel }: CompactDropz
         display: 'flex',
         alignItems: 'center',
         gap: 1.25,
-        minHeight: 44,
+        minHeight: 40,
         px: 1.25,
         py: value ? 0.75 : 0,
         borderRadius: '10px',
         cursor: value ? 'default' : 'pointer',
-        border: '1px dashed',
-        borderColor: error ? 'error.main' : '#D6DAE3',
-        bgcolor: error ? 'error.lighter' : '#F9FAFC',
-        '&:hover': value ? undefined : { opacity: 0.8 },
+        border: '1.5px dashed',
+        borderColor: error ? 'error.main' : '#B0B8CC',
+        bgcolor: error ? 'error.lighter' : value ? '#F9FAFC' : '#EEF1FE',
+        '&:hover': value ? undefined : { borderColor: error ? 'error.main' : '#1C2A6E', bgcolor: error ? undefined : '#E4E9FD' },
       }}
     >
       {!value && <input {...getInputProps()} />}
@@ -213,9 +253,9 @@ function CompactDropzone({ value, onChange, error, documentLabel }: CompactDropz
           <Iconify
             icon="solar:upload-minimalistic-bold-duotone"
             width={18}
-            sx={{ color: error ? 'error.main' : '#8891A6' }}
+            sx={{ color: error ? 'error.main' : '#1C2A6E' }}
           />
-          <Typography sx={{ fontSize: 12.5, color: error ? 'error.main' : '#8891A6' }}>
+          <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: error ? 'error.main' : '#1C2A6E' }}>
             Choose a file — {documentLabel}
           </Typography>
         </>
@@ -234,7 +274,7 @@ function BusinessDocumentUpload({ businessType }: { businessType?: string }) {
       control={control}
       render={({ field, fieldState: { error } }) => (
         <Box>
-          <Typography sx={authFieldLabelSx}>Upload your business document</Typography>
+          <Typography sx={compactFieldLabelSx}>Upload your business document</Typography>
 
           <CompactDropzone
             value={field.value as File | string | null}
@@ -255,43 +295,137 @@ function BusinessDocumentUpload({ businessType }: { businessType?: string }) {
 function SoftDecline({ onTryAgain }: { onTryAgain: () => void }) {
   return (
     <Stack
-      alignItems="center"
-      textAlign="center"
-      spacing={2}
-      sx={{ minHeight: '100vh', justifyContent: 'center', px: 3, bgcolor: 'common.white' }}
+      direction="row"
+      sx={{ minHeight: '100dvh', bgcolor: '#F7F8FC' }}
     >
+      <AuthBrandPanel
+        title="The right financing starts with the right fit."
+        description="Our eligibility check is quick, secure, and won’t affect your credit score. You’re welcome to review your request and try again."
+        icon="solar:hand-heart-bold-duotone"
+      />
+
       <Box
         sx={{
-          width: 72,
-          height: 72,
-          borderRadius: '50%',
+          flex: 1,
+          minWidth: 0,
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
           justifyContent: 'center',
-          bgcolor: '#FEF0D6',
+          alignItems: 'center',
+          px: { xs: 2, sm: 4, lg: 7 },
+          py: { xs: 3, sm: 5 },
+          bgcolor: 'common.white',
         }}
       >
-        <Iconify icon="solar:heart-bold" width={34} sx={{ color: '#B36A05' }} />
+        <Box
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            width: 1,
+            maxWidth: 560,
+            mb: 4,
+          }}
+        >
+          <LogoFull width={132} height={26} />
+        </Box>
+
+        <Box
+          sx={{
+            width: 1,
+            maxWidth: 560,
+          }}
+        >
+          <Box
+            sx={{
+              width: 64,
+              height: 64,
+              borderRadius: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: '#FFF5E5',
+              mb: 3,
+            }}
+          >
+            <Iconify icon="solar:heart-bold-duotone" width={32} sx={{ color: '#C77700' }} />
+          </Box>
+
+          <Typography
+            sx={{
+              fontSize: { xs: 25, sm: 30 },
+              fontWeight: 800,
+              lineHeight: 1.2,
+              color: '#14172A',
+              letterSpacing: '-0.025em',
+              mb: 1.5,
+            }}
+          >
+            We appreciate you reaching out
+          </Typography>
+          <Typography sx={{ fontSize: 15, color: '#667085', lineHeight: 1.7, mb: 3 }}>
+            Your requested amount is currently below the minimum we can support. This is not a
+            decision about your creditworthiness, and no credit check was performed.
+          </Typography>
+
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#344054', mb: 1.25 }}>
+            What you can do next
+          </Typography>
+          <Stack spacing={1.15} sx={{ mb: 3.5 }}>
+            {[
+              'Review your application and update the requested amount.',
+              'Come back anytime if your financing needs change.',
+            ].map((item) => (
+              <Stack key={item} direction="row" alignItems="flex-start" spacing={1.25}>
+                <Iconify
+                  icon="eva:checkmark-circle-2-fill"
+                  width={18}
+                  sx={{ color: '#12B76A', flexShrink: 0, mt: '2px' }}
+                />
+                <Typography sx={{ fontSize: 13.5, color: '#5A6273', lineHeight: 1.55 }}>
+                  {item}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.25}
+            sx={{ '& .MuiButton-root': { height: 50 } }}
+          >
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={onTryAgain}
+              startIcon={<Iconify icon="solar:pen-new-square-bold" width={18} />}
+              sx={{ ...authPrimaryButtonSx, flex: 1.35 }}
+            >
+              Review my application
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              href={paths.root}
+              sx={{
+                flex: 1,
+                borderRadius: '11px',
+                borderColor: '#D8DCE7',
+                color: '#475467',
+                fontWeight: 700,
+                '&:hover': { borderColor: '#B7BECE', bgcolor: '#F9FAFC' },
+              }}
+            >
+              Back to home
+            </Button>
+          </Stack>
+
+          <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.75} sx={{ mt: 2.5 }}>
+            <Iconify icon="solar:shield-check-bold-duotone" width={16} sx={{ color: '#8891A6' }} />
+            <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
+              Your information remains private and secure
+            </Typography>
+          </Stack>
+        </Box>
       </Box>
-      <Typography sx={{ fontSize: 24, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em' }}>
-        We appreciate you reaching out
-      </Typography>
-      <Typography sx={{ fontSize: 14.5, color: '#667085', lineHeight: 1.6, maxWidth: 440 }}>
-        Right now, we&apos;re best able to support loan requests of{' '}
-        <Box component="strong" sx={{ color: '#14172A' }}>
-          ₱{MINIMUM_LOAN_AMOUNT.toLocaleString()}
-        </Box>{' '}
-        or more. This isn&apos;t a final decision about you — your needs may simply be better
-        suited to a different amount. Feel free to come back anytime your loan amount changes.
-      </Typography>
-      <Stack direction="row" spacing={1.5} sx={{ pt: 1 }}>
-        <Button variant="contained" onClick={onTryAgain} sx={authPrimaryButtonSx}>
-          Try Again
-        </Button>
-        <Button variant="outlined" href={paths.root} sx={{ borderRadius: '11px' }}>
-          Back to Home
-        </Button>
-      </Stack>
     </Stack>
   );
 }
@@ -366,6 +500,7 @@ export function PreliminaryApplicationView() {
       employmentStatus: data.incomeSource,
       monthlyIncome: data.monthlyIncome,
       loanPurpose: data.loanPurpose.join(', '),
+      hasCollateral: data.hasCollateral,
       businessType: isBusinessOwner ? data.businessType : undefined,
       businessDocument: isBusinessOwner ? businessDocument : undefined,
     });
@@ -431,20 +566,21 @@ export function PreliminaryApplicationView() {
           </Stack>
 
           <Form methods={methods} onSubmit={onSubmit}>
-            <Stack spacing={1.75} sx={{ mt: 3 }}>
+            <Stack spacing={1.1} sx={{ mt: 2.5 }}>
               <Stack direction="row" spacing={1.25}>
                 <Box sx={{ width: 120 }}>
-                  <Typography sx={authFieldLabelSx}>Prefix</Typography>
+                  <Typography sx={compactFieldLabelSx}>Prefix</Typography>
                   <Field.Select
                     name="prefix"
-                    sx={authFieldSx}
+                    sx={compactFieldSx}
                     SelectProps={{
                       displayEmpty: true,
+                      MenuProps: compactMenuProps,
                       renderValue: (value) =>
                         value ? (
                           String(value)
                         ) : (
-                          <Typography component="span" sx={{ fontSize: 14, color: 'text.disabled' }}>
+                          <Typography component="span" sx={{ fontSize: 12.5, color: 'text.disabled' }}>
                             Select prefix
                           </Typography>
                         ),
@@ -461,23 +597,23 @@ export function PreliminaryApplicationView() {
                   </Field.Select>
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={authFieldLabelSx}>Surname</Typography>
-                  <Field.Text name="lastName" placeholder="Dela Cruz" sx={authFieldSx} />
+                  <Typography sx={compactFieldLabelSx}>Surname</Typography>
+                  <Field.Text name="lastName" placeholder="Dela Cruz" sx={compactFieldSx} />
                 </Box>
               </Stack>
 
               <Stack direction="row" spacing={1.25}>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={authFieldLabelSx}>Email address</Typography>
-                  <Field.Text name="email" placeholder="juan@email.com" sx={authFieldSx} />
+                  <Typography sx={compactFieldLabelSx}>Email address</Typography>
+                  <Field.Text name="email" placeholder="juan@email.com" sx={compactFieldSx} />
                 </Box>
 
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography sx={authFieldLabelSx}>Mobile number</Typography>
+                  <Typography sx={compactFieldLabelSx}>Mobile number</Typography>
                   <Field.Text
                     name="mobile"
                     placeholder="912 345 6789"
-                    sx={authFieldSx}
+                    sx={compactFieldSx}
                     InputProps={{
                       startAdornment: <InputAdornment position="start">+63</InputAdornment>,
                     }}
@@ -486,7 +622,7 @@ export function PreliminaryApplicationView() {
               </Stack>
 
               <Box>
-                <Typography sx={authFieldLabelSx}>Purpose of loan</Typography>
+                <Typography sx={compactFieldLabelSx}>Purpose of loan</Typography>
                 <Controller
                   name="loanPurpose"
                   control={control}
@@ -498,19 +634,20 @@ export function PreliminaryApplicationView() {
                         multiple
                         displayEmpty
                         value={field.value ?? []}
-                        sx={authFieldSx}
+                        sx={compactFieldSx}
                         error={!!error}
+                        MenuProps={compactMenuProps}
                         renderValue={(selected) => {
                           const values = selected as string[];
                           if (values.length === 0) {
                             return (
-                              <Typography component="span" sx={{ fontSize: 14, color: 'text.disabled' }}>
+                              <Typography component="span" sx={{ fontSize: 12.5, color: 'text.disabled' }}>
                                 Select one or more
                               </Typography>
                             );
                           }
                           return (
-                            <Typography noWrap component="span" sx={{ fontSize: 14, display: 'block' }}>
+                            <Typography noWrap component="span" sx={{ fontSize: 13.5, display: 'block' }}>
                               {values.join(', ')}
                             </Typography>
                           );
@@ -531,7 +668,7 @@ export function PreliminaryApplicationView() {
 
               <Stack direction="row" spacing={1.25}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={authFieldLabelSx}>Desired loan amount</Typography>
+                  <Typography sx={compactFieldLabelSx}>Desired loan amount</Typography>
                   <Controller
                     name="desiredLoanAmount"
                     control={control}
@@ -539,7 +676,7 @@ export function PreliminaryApplicationView() {
                       <Field.Text
                         name="desiredLoanAmount"
                         placeholder="200,000"
-                        sx={authFieldSx}
+                        sx={compactFieldSx}
                         value={!field.value ? '' : formatThousands(String(field.value))}
                         onChange={(event) => {
                           const digits = event.target.value.replace(/[^\d]/g, '');
@@ -555,8 +692,12 @@ export function PreliminaryApplicationView() {
                   />
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={authFieldLabelSx}>Preferred loan term</Typography>
-                  <Field.Select name="loanTermMonths" sx={authFieldSx}>
+                  <Typography sx={compactFieldLabelSx}>Preferred loan term</Typography>
+                  <Field.Select
+                    name="loanTermMonths"
+                    sx={compactFieldSx}
+                    SelectProps={{ MenuProps: compactMenuProps }}
+                  >
                     {LOAN_TERMS.map((term) => (
                       <MenuItem key={term} value={term}>
                         {term} months
@@ -566,19 +707,46 @@ export function PreliminaryApplicationView() {
                 </Box>
               </Stack>
 
+              <Box>
+                <Typography sx={compactFieldLabelSx}>Do you have collateral?</Typography>
+                <Field.Select
+                  name="hasCollateral"
+                  sx={compactFieldSx}
+                  SelectProps={{
+                    displayEmpty: true,
+                    MenuProps: compactMenuProps,
+                    renderValue: (value) =>
+                      value ? (
+                        value === 'yes' ? 'Yes' : 'No'
+                      ) : (
+                        <Typography component="span" sx={{ fontSize: 12.5, color: 'text.disabled' }}>
+                          Select an option
+                        </Typography>
+                      ),
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    Select an option
+                  </MenuItem>
+                  <MenuItem value="yes">Yes</MenuItem>
+                  <MenuItem value="no">No</MenuItem>
+                </Field.Select>
+              </Box>
+
               <Stack direction="row" spacing={1.25}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={authFieldLabelSx}>Source of income</Typography>
+                  <Typography sx={compactFieldLabelSx}>Source of income</Typography>
                   <Field.Select
                     name="incomeSource"
-                    sx={authFieldSx}
+                    sx={compactFieldSx}
                     SelectProps={{
                       displayEmpty: true,
+                      MenuProps: compactMenuProps,
                       renderValue: (value) =>
                         value ? (
                           String(value)
                         ) : (
-                          <Typography component="span" sx={{ fontSize: 14, color: 'text.disabled' }}>
+                          <Typography component="span" sx={{ fontSize: 12.5, color: 'text.disabled' }}>
                             Select source of income
                           </Typography>
                         ),
@@ -595,12 +763,12 @@ export function PreliminaryApplicationView() {
                   </Field.Select>
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={authFieldLabelSx}>Monthly income</Typography>
+                  <Typography sx={compactFieldLabelSx}>Gross Monthly Income</Typography>
                   <Field.Text
                     name="monthlyIncome"
                     type="number"
                     placeholder="35,000"
-                    sx={authFieldSx}
+                    sx={compactFieldSx}
                     InputProps={{
                       startAdornment: <InputAdornment position="start">PHP</InputAdornment>,
                     }}
@@ -613,10 +781,14 @@ export function PreliminaryApplicationView() {
                   <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
                     Business information
                   </Typography>
-                  <Stack spacing={1.75}>
+                  <Stack spacing={1.1}>
                     <Box>
-                      <Typography sx={authFieldLabelSx}>Business type</Typography>
-                      <Field.Select name="businessType" sx={authFieldSx}>
+                      <Typography sx={compactFieldLabelSx}>Business type</Typography>
+                      <Field.Select
+                        name="businessType"
+                        sx={compactFieldSx}
+                        SelectProps={{ MenuProps: compactMenuProps }}
+                      >
                         {BUSINESS_TYPES.map((type) => (
                           <MenuItem key={type} value={type}>
                             {type}
@@ -676,13 +848,13 @@ export function PreliminaryApplicationView() {
                 )}
               />
 
-              <Box sx={{ pt: 0.5 }}>
+              <Box sx={{ pt: 0.25 }}>
                 <Button
                   fullWidth
                   type="submit"
                   variant="contained"
                   disabled={isSubmitting}
-                  sx={{ ...authPrimaryButtonSx, height: 52 }}
+                  sx={{ ...authPrimaryButtonSx, height: 46 }}
                 >
                   {isSubmitting ? 'Checking eligibility...' : 'Continue →'}
                 </Button>

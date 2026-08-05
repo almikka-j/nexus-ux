@@ -13,6 +13,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { Iconify } from 'src/components/iconify';
+import { TONE_COLORS, adminCardSx } from 'src/components/admin-ui';
 import { formatAging } from 'src/utils/format-aging';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
@@ -31,6 +32,21 @@ const STEP_LABELS: Record<ReviewStep, string> = {
   appraisal: 'Appraisal',
   financialEvaluation: 'Financial Evaluation',
 };
+
+const SAMPLE_CHIP = (
+  <Chip
+    size="small"
+    label="Sample"
+    sx={{
+      height: 18,
+      fontSize: 10,
+      fontWeight: 700,
+      bgcolor: '#F5F6FA',
+      color: '#8891A6',
+      '& .MuiChip-label': { px: 0.75 },
+    }}
+  />
+);
 
 function DocumentPreview({
   label,
@@ -67,7 +83,7 @@ function DocumentPreview({
             width: 1,
             aspectRatio,
             borderRadius: '10px',
-            border: '1.5px dashed #E1E4ED',
+            border: '1px dashed #E1E4ED',
             bgcolor: '#FAFBFD',
           }}
         >
@@ -149,11 +165,8 @@ export function SampleApplicationView({ email }: SampleApplicationViewProps) {
           justifyContent="space-between"
           spacing={2}
           sx={{
+            ...adminCardSx,
             p: { xs: 2.5, md: 3 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
-            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
           }}
         >
           <Stack direction="row" spacing={1.75} alignItems="center">
@@ -176,18 +189,7 @@ export function SampleApplicationView({ email }: SampleApplicationViewProps) {
                 <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#14172A' }}>
                   {signUpData!.firstName} {signUpData!.lastName}
                 </Typography>
-                <Chip
-                  size="small"
-                  label="Sample"
-                  sx={{
-                    height: 18,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    bgcolor: '#F5F6FA',
-                    color: '#8891A6',
-                    '& .MuiChip-label': { px: 0.75 },
-                  }}
-                />
+                {SAMPLE_CHIP}
               </Stack>
               <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
                 Loan No. {getLoanNumber(signUpData!.email)} ·{' '}
@@ -199,15 +201,16 @@ export function SampleApplicationView({ email }: SampleApplicationViewProps) {
 
           <Box
             sx={{
-              fontSize: 12.5,
+              fontSize: 11.5,
               fontWeight: 700,
-              letterSpacing: '0.06em',
+              letterSpacing: '0.05em',
               textTransform: 'uppercase',
-              color: '#3448B0',
-              bgcolor: '#EEF1FE',
+              color: TONE_COLORS.info.text,
+              bgcolor: TONE_COLORS.info.bg,
               borderRadius: '999px',
-              px: 1.75,
-              py: 0.75,
+              px: 1.5,
+              py: 0.6,
+              whiteSpace: 'nowrap',
             }}
           >
             {STEP_LABELS[entry.step]}
@@ -226,15 +229,7 @@ export function SampleApplicationView({ email }: SampleApplicationViewProps) {
         </Alert>
       </Stack>
 
-      <Box
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: '16px',
-          bgcolor: 'common.white',
-          border: '1px solid #EBEDF3',
-          boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-        }}
-      >
+      <Box sx={adminCardSx}>
         <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
           Application details
         </Typography>
@@ -274,7 +269,7 @@ export function SampleApplicationView({ email }: SampleApplicationViewProps) {
                   <DetailField label="Purpose of loan" value={financialInfo.loanPurpose} />
                   <DetailField label="Employment status" value={financialInfo.employmentStatus} />
                   <DetailField
-                    label="Monthly income"
+                    label="Gross Monthly Income"
                     value={`₱${Number(financialInfo.monthlyIncome).toLocaleString()}`}
                   />
                 </>
@@ -303,6 +298,9 @@ export function SampleApplicationView({ email }: SampleApplicationViewProps) {
                 </Stack>
                 <Stack direction="row" flexWrap="wrap" spacing={3.5} rowGap={2}>
                   <DetailField label="Referral source" value={personalInfo.referralSource} />
+                  {personalInfo.referralSource === 'Agent' && (
+                    <DetailField label="Agent code" value={personalInfo.agentCode} />
+                  )}
                 </Stack>
               </Stack>
 

@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import { useAdmin } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
+import { adminCardSx } from 'src/components/admin-ui';
 
 // ----------------------------------------------------------------------
 
@@ -31,13 +32,7 @@ export function NegativeListView() {
             {negativeList.map((entry) => (
               <Box
                 key={entry.email}
-                sx={{
-                  p: { xs: 2.5, md: 3 },
-                  borderRadius: '16px',
-                  bgcolor: 'common.white',
-                  border: '1px solid #EBEDF3',
-                  boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-                }}
+                sx={{ ...adminCardSx, p: { xs: 2.5, md: 3 } }}
               >
                 <Stack direction="row" spacing={1.75} alignItems="flex-start">
                   <Box
@@ -72,13 +67,7 @@ export function NegativeListView() {
           </Stack>
         ) : (
           <Box
-            sx={{
-              p: { xs: 4, md: 6 },
-              borderRadius: '16px',
-              bgcolor: 'common.white',
-              border: '1px solid #EBEDF3',
-              textAlign: 'center',
-            }}
+            sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}
           >
             <Iconify
               icon="solar:shield-check-bold-duotone"

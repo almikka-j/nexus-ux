@@ -31,7 +31,7 @@ export function PaymentBehaviorCard() {
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        7. Payment Behavior
+        Payment Behavior
       </Typography>
       <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: '#FEF0D6', mb: 2.5 }}>
         <Typography sx={{ fontSize: 12.5, color: '#B36A05' }}>

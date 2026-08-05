@@ -20,10 +20,40 @@ import { authFieldSx, authFieldLabelSx, authPrimaryButtonSx } from '../auth-inpu
 import type { FinancialInfo } from 'src/auth/registration-context';
 
 // ----------------------------------------------------------------------
+// Denser field sizing, matching Preliminary Application's compact scale —
+// overridden locally rather than shrinking the shared auth-input-styles
+// tokens (which would also shrink login/admin-login screens).
+// ----------------------------------------------------------------------
+
+const compactFieldSx = {
+  ...authFieldSx,
+  '& .MuiOutlinedInput-root': {
+    ...authFieldSx['& .MuiOutlinedInput-root'],
+    height: 40,
+    fontSize: 13.5,
+  },
+  '& .MuiOutlinedInput-input::placeholder': {
+    ...authFieldSx['& .MuiOutlinedInput-input::placeholder'],
+    fontSize: 12.5,
+  },
+  '& .MuiInputAdornment-root, & .MuiInputAdornment-root .MuiTypography-root': {
+    fontSize: 13.5,
+  },
+};
+
+const compactFieldLabelSx = {
+  ...authFieldLabelSx,
+  fontSize: 12,
+  mb: 0.5,
+};
+
+const compactMenuProps = {
+  PaperProps: { sx: { '& .MuiMenuItem-root': { fontSize: 13.5 } } },
+};
 
 const LOAN_TERMS = [6, 12, 18, 24, 36];
 
-const EMPLOYMENT_STATUSES = ['Employed', 'Self-Employed', 'Business Owner', 'OFW', 'Unemployed'];
+const EMPLOYMENT_STATUSES = ['Employed', 'Self-Employed', 'Business Owner', 'OFW'];
 
 const LOAN_PURPOSES = [
   'Working Capital',
@@ -90,9 +120,6 @@ export function StepFinancialInfo({ defaultValues, onContinue }: StepFinancialIn
       }}
     >
       <Stack alignItems="center" textAlign="center" spacing={0.75} sx={{ mb: 3.5 }}>
-        <Typography sx={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8891A6' }}>
-          Step 2 · Preliminary
-        </Typography>
         <Typography sx={{ fontSize: 24, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em' }}>
           Preliminary application
         </Typography>
@@ -113,23 +140,27 @@ export function StepFinancialInfo({ defaultValues, onContinue }: StepFinancialIn
       </Stack>
 
       <Form methods={methods} onSubmit={onSubmit}>
-        <Stack spacing={2}>
-          <Stack direction="row" spacing={2}>
+        <Stack spacing={1.5}>
+          <Stack direction="row" spacing={1.5}>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>Desired loan amount</Typography>
+              <Typography sx={compactFieldLabelSx}>Desired loan amount</Typography>
               <Field.Text
                 name="desiredLoanAmount"
                 type="number"
                 placeholder="100,000"
-                sx={authFieldSx}
+                sx={compactFieldSx}
                 InputProps={{
                   startAdornment: <InputAdornment position="start">PHP</InputAdornment>,
                 }}
               />
             </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>Loan term</Typography>
-              <Field.Select name="loanTermMonths" sx={authFieldSx}>
+              <Typography sx={compactFieldLabelSx}>Loan term</Typography>
+              <Field.Select
+                name="loanTermMonths"
+                sx={compactFieldSx}
+                SelectProps={{ MenuProps: compactMenuProps }}
+              >
                 {LOAN_TERMS.map((term) => (
                   <MenuItem key={term} value={term}>
                     {term} months
@@ -139,10 +170,14 @@ export function StepFinancialInfo({ defaultValues, onContinue }: StepFinancialIn
             </Box>
           </Stack>
 
-          <Stack direction="row" spacing={2}>
+          <Stack direction="row" spacing={1.5}>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>Employment status</Typography>
-              <Field.Select name="employmentStatus" sx={authFieldSx}>
+              <Typography sx={compactFieldLabelSx}>Employment status</Typography>
+              <Field.Select
+                name="employmentStatus"
+                sx={compactFieldSx}
+                SelectProps={{ MenuProps: compactMenuProps }}
+              >
                 {EMPLOYMENT_STATUSES.map((status) => (
                   <MenuItem key={status} value={status}>
                     {status}
@@ -151,12 +186,12 @@ export function StepFinancialInfo({ defaultValues, onContinue }: StepFinancialIn
               </Field.Select>
             </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography sx={authFieldLabelSx}>Monthly income</Typography>
+              <Typography sx={compactFieldLabelSx}>Gross Monthly Income</Typography>
               <Field.Text
                 name="monthlyIncome"
                 type="number"
                 placeholder="35,000"
-                sx={authFieldSx}
+                sx={compactFieldSx}
                 InputProps={{
                   startAdornment: <InputAdornment position="start">PHP</InputAdornment>,
                 }}
@@ -165,8 +200,12 @@ export function StepFinancialInfo({ defaultValues, onContinue }: StepFinancialIn
           </Stack>
 
           <Box>
-            <Typography sx={authFieldLabelSx}>Purpose of loan</Typography>
-            <Field.Select name="loanPurpose" sx={authFieldSx}>
+            <Typography sx={compactFieldLabelSx}>Purpose of loan</Typography>
+            <Field.Select
+              name="loanPurpose"
+              sx={compactFieldSx}
+              SelectProps={{ MenuProps: compactMenuProps }}
+            >
               {LOAN_PURPOSES.map((purpose) => (
                 <MenuItem key={purpose} value={purpose}>
                   {purpose}

@@ -70,6 +70,7 @@ export function LoanApplicationView() {
     <OnboardingLayout
       step={step}
       totalSteps={4}
+      stepLabels={['Loan Type', 'Financial Info', 'Personal Info', 'Verify Identity']}
       onBack={step > 1 ? () => setStep(step - 1) : undefined}
       onExit={step === 1 ? handleCancel : undefined}
     >

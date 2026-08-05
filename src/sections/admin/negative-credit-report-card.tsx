@@ -3,7 +3,6 @@
 import { useState } from 'react';
 
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -17,6 +16,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { StatusBadge, TONE_COLORS, adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import type { NegativeReportEntry, NegativeReportEntryListKey } from 'src/auth/admin-context';
 
@@ -82,16 +82,15 @@ function EntryCard({
   return (
     <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-        <Chip
-          label={`Entry ${index + 1}`}
-          size="small"
-          sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
-        />
+        <StatusBadge tone="info" label={`Entry ${index + 1}`} />
         <Button
           onClick={onRemove}
           size="small"
           startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={15} />}
-          sx={{ color: '#F04438' }}
+          sx={{
+            color: TONE_COLORS.error.text,
+            '&:hover': { bgcolor: TONE_COLORS.error.bg },
+          }}
         >
           Remove
         </Button>
@@ -152,20 +151,18 @@ function SpecialSection({
           <Typography sx={{ fontSize: 12, color: '#8891A6' }}>{description}</Typography>
         </Box>
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <Chip
-            size="small"
+          <StatusBadge
+            tone={hasEntries ? 'warning' : 'neutral'}
             label={hasEntries ? `${entries.length} added` : 'None added'}
-            sx={{
-              bgcolor: hasEntries ? '#FEF0D6' : '#F5F6FA',
-              color: hasEntries ? '#B36A05' : '#8891A6',
-              fontWeight: 700,
-              fontSize: 11.5,
-            }}
           />
           <Iconify
-            icon={expanded ? 'solar:alt-arrow-up-bold' : 'solar:alt-arrow-down-bold'}
-            width={18}
-            sx={{ color: '#8891A6' }}
+            icon="eva:chevron-down-fill"
+            width={20}
+            sx={{
+              color: '#8891A6',
+              transition: 'transform 0.15s ease',
+              transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+            }}
           />
         </Stack>
       </ButtonBase>
@@ -187,7 +184,7 @@ function SpecialSection({
             variant="outlined"
             size="small"
             startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
-            sx={{ borderRadius: '9px', alignSelf: 'flex-start' }}
+            sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
           >
             Add Entry
           </Button>
@@ -231,18 +228,18 @@ export function NegativeCreditReportCard() {
         sx={{
           p: { xs: 3, md: 4 },
           borderRadius: '16px',
-          bgcolor: '#E7F8F0',
-          border: '1px solid #C7EDDA',
+          bgcolor: TONE_COLORS.success.bg,
+          border: `1px solid ${TONE_COLORS.success.border}`,
         }}
       >
         <Stack direction="row" spacing={1.5} alignItems="flex-start" justifyContent="space-between">
           <Stack direction="row" spacing={1.5} alignItems="flex-start">
-            <Iconify icon="solar:check-circle-bold" width={22} sx={{ color: '#0C8A4F', mt: 0.25 }} />
+            <Iconify icon="solar:check-circle-bold" width={22} sx={{ color: TONE_COLORS.success.text, mt: 0.25 }} />
             <Box>
-              <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#0C8A4F' }}>
+              <Typography sx={{ fontSize: 15, fontWeight: 700, color: TONE_COLORS.success.text }}>
                 Negative Credit Report submitted
               </Typography>
-              <Typography sx={{ fontSize: 13, color: '#0C8A4F' }}>
+              <Typography sx={{ fontSize: 13, color: TONE_COLORS.success.text }}>
                 This report now appears in the Initial Credit Checking Result. You can still edit
                 it below if something needs correcting.
               </Typography>
@@ -252,7 +249,7 @@ export function NegativeCreditReportCard() {
             onClick={() => setNegativeCreditReport({ submitted: false })}
             size="small"
             variant="outlined"
-            sx={{ borderColor: '#0C8A4F', color: '#0C8A4F', borderRadius: '9px', flexShrink: 0 }}
+            sx={{ borderColor: TONE_COLORS.success.text, color: TONE_COLORS.success.text, borderRadius: '9px', flexShrink: 0 }}
           >
             Edit
           </Button>
@@ -262,15 +259,7 @@ export function NegativeCreditReportCard() {
   }
 
   return (
-    <Box
-      sx={{
-        p: { xs: 3, md: 4 },
-        borderRadius: '16px',
-        bgcolor: 'common.white',
-        border: '1px solid #EBEDF3',
-        boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-      }}
-    >
+    <Box sx={adminCardSx}>
       <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 2.5 }}>
         <Box
           sx={{
@@ -281,10 +270,10 @@ export function NegativeCreditReportCard() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            bgcolor: '#FDE2DF',
+            bgcolor: TONE_COLORS.error.bg,
           }}
         >
-          <Iconify icon="solar:danger-triangle-bold" width={19} sx={{ color: '#B32C22' }} />
+          <Iconify icon="solar:danger-triangle-bold" width={19} sx={{ color: TONE_COLORS.error.text }} />
         </Box>
         <Box>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
@@ -333,10 +322,9 @@ export function NegativeCreditReportCard() {
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
             <SectionLabel>Account Findings</SectionLabel>
             {negativeCreditReport.accountFindings.length > 0 && (
-              <Chip
-                size="small"
+              <StatusBadge
+                tone="info"
                 label={`${negativeCreditReport.accountFindings.length} account${negativeCreditReport.accountFindings.length > 1 ? 's' : ''}`}
-                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, fontSize: 11.5 }}
               />
             )}
           </Stack>
@@ -355,7 +343,7 @@ export function NegativeCreditReportCard() {
               onClick={() => addNegativeReportEntry('accountFindings', `${fullName} - Borrower`)}
               variant="outlined"
               startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
-              sx={{ borderRadius: '10px', alignSelf: 'flex-start' }}
+              sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
             >
               Add Account
             </Button>

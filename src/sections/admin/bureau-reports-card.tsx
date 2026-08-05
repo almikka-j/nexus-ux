@@ -13,12 +13,20 @@ import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
 import { fileToDataUrl } from 'src/utils/file-to-data-url';
+import {
+  StatusBadge,
+  TONE_COLORS,
+  adminCardSx,
+  outlinedNavyButtonSx,
+  iconButtonBorderedSx,
+} from 'src/components/admin-ui';
 
 import { computeInstallment } from './cibi-form-card';
 
@@ -32,19 +40,41 @@ import type { CibiForm, BureauUpload } from 'src/auth/admin-context';
 // the row shows a "Sent" status pill plus a separate "Upload document"
 // action for the returned CIBI report file. LOANDEX/CIC/CMAP/NFIS-BAP are
 // plain manual-upload rows, same as before, just restyled to match.
+//
+// Consolidation note (UI/UX audit): these rows were NOT refactored onto
+// `RequirementDocRow` directly. RequirementDocRow's `doc` prop requires the
+// full `RequirementDoc` shape (status/aiNote/fileUrl/remarks/reviewed/
+// uploadedBy — see requirement-doc-row.tsx), but the state backing these
+// rows is `BureauUpload` (`admin-context.tsx`), a deliberately slim
+// `{fileName, fileData, uploadedAt}` shape with none of those fields.
+// `BureauUpload` is also read directly by `credit-checking-result-modal.tsx`
+// (outside this file's ownership), so widening it to match `RequirementDoc`
+// would mean editing admin-context.tsx's state shape and a second unrelated
+// consumer file — both out of scope for this pass. Instead, every row below
+// was rebuilt to use the exact same shared tokens/components RequirementDocRow
+// uses (`StatusBadge`, `TONE_COLORS` via StatusBadge, `outlinedNavyButtonSx`,
+// `iconButtonBorderedSx`, same 13px-radius bordered shell, same Menu/MenuItem
+// styling), plus a synthetic verified/missing StatusBadge that didn't exist
+// here before — so visually these rows are indistinguishable from
+// RequirementDocRow's, even though the underlying component is separate.
 // ----------------------------------------------------------------------
 
 const GENDERS = ['Male', 'Female'];
 const CONTACT_TYPES = ['Mobile', 'Landline'];
+// Kept in sync with each bureau's `clearResult` copy in
+// credit-checking-result-modal.tsx (minus that modal's "Summary: " prefix,
+// which reads redundantly inline on this card) so the finding text an
+// officer sees here matches the one shown later in the Initial Credit
+// Checking Result modal.
 const BUREAU_SUMMARIES: Record<string, (applicantName: string) => string> = {
   LOANDEX: (applicantName) =>
     `The LOANDEX report for ${applicantName} shows one active loan account with regular payment activity and no past-due exposure reported.`,
   CIC: (applicantName) =>
-    `The CIC report for ${applicantName} shows active credit facilities with no material delinquency reported.`,
+    `The CIC report for ${applicantName} shows consistent borrower and account information, with no material discrepancy in the submitted credit data.`,
   CMAP: (applicantName) =>
-    `The CMAP report for ${applicantName} shows no confirmed adverse or watch-list match requiring escalation.`,
+    `The CMAP report for ${applicantName} shows no matching watch-list entry, court record, or adverse account record.`,
   'NFIS / BAP': (applicantName) =>
-    `The NFIS / BAP report for ${applicantName} shows no negative-file indicator in the uploaded result.`,
+    `The NFIS / BAP report for ${applicantName} shows no cancelled credit card, adversely classified loan, or other negative-file indicator.`,
 };
 
 function formatUploadedAt(uploadedAt: string | null) {
@@ -73,6 +103,13 @@ function Field({
   return (
     <Stack spacing={0.75}>
       <Stack direction="row" alignItems="center" spacing={0.75}>
+        {/* Hand-rolled asterisk kept intentionally: this label is a separate
+            Typography above the TextField, not the TextField's own `label`
+            prop, so MUI's native `required` prop (which only auto-renders
+            an asterisk next to `<TextField label>`/InputLabel) would not
+            produce a visible marker here — switching would silently drop
+            the indicator across all ~19 Field usages in this file. Color
+            (#F04438) matches TONE_COLORS.error.solid. */}
         <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#3B4256' }}>
           {label}
           {required && <Box component="span" sx={{ color: '#F04438' }}> *</Box>}
@@ -92,7 +129,7 @@ function Field({
           />
         )}
       </Stack>
-      <TextField fullWidth size="small" sx={fieldSx} {...props} />
+      <TextField fullWidth size="small" required={required} sx={fieldSx} {...props} />
     </Stack>
   );
 }
@@ -101,55 +138,75 @@ function BureauRow({
   title,
   summary,
   uploadDetails,
+  uploaded,
+  bureauFindingStatus,
   children,
 }: {
   title: string;
   summary?: string;
   uploadDetails?: string;
+  /** Drives whether the badge renders at all — hidden entirely when false. */
+  uploaded: boolean;
+  /**
+   * Once uploaded, the badge reflects the shared (simulated) bureau finding
+   * for the whole application — not per-bureau — rather than always reading
+   * "Verified" the moment a file is attached. `'pending'` (all 5 bureau
+   * uploads aren't complete yet, so no finding has been computed) shows
+   * "Uploaded" instead of a clean/negative verdict.
+   */
+  bureauFindingStatus: 'pending' | 'clean' | 'negative';
   children: React.ReactNode;
 }) {
+  const isNegative = uploaded && bureauFindingStatus === 'negative';
+  // No badge at all before a file is attached — unlike RequirementDocRow's
+  // "Missing" chip, an unattached bureau report isn't a violation to flag,
+  // it just hasn't been done yet.
+  const badgeTone = isNegative ? 'error' : bureauFindingStatus === 'clean' ? 'success' : 'info';
+  const badgeLabel = isNegative ? 'Negative' : bureauFindingStatus === 'clean' ? 'Clear' : 'Uploaded';
+
   return (
-    <Box
-      sx={{
-        borderRadius: '13px',
-        border: '1px solid #EBEDF3',
-        overflow: 'hidden',
-      }}
-    >
+    // Same 13px-radius bordered white shell as RequirementDocRow's row container.
+    <Box sx={{ borderRadius: '13px', border: '1px solid #EBEDF3', bgcolor: 'common.white' }}>
       <Stack
-        direction="row"
-        alignItems="center"
-        spacing={2}
-        sx={{ p: 2, minHeight: 72 }}
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        spacing={1.5}
+        sx={{ p: 2 }}
       >
-        <Box
-          sx={{
-            width: 38,
-            height: 38,
-            flexShrink: 0,
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: '#F5F6FA',
-          }}
-        >
-          <Iconify icon="solar:file-text-linear" width={19} sx={{ color: '#8891A6' }} />
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: 14.5, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
-          {summary && (
-            <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
-              {summary}
-            </Typography>
-          )}
-          {uploadDetails && (
-            <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
-              {uploadDetails}
-            </Typography>
-          )}
-        </Box>
-        {children}
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
+          {/* Plain leading icon (no boxed avatar) — matches RequirementDocRow's
+              icon treatment for its non-checkbox rows instead of this card's
+              previous 38x38 icon-avatar box. */}
+          <Iconify
+            icon={
+              isNegative
+                ? 'solar:danger-triangle-bold'
+                : uploaded
+                  ? 'solar:check-circle-bold'
+                  : 'solar:file-text-linear'
+            }
+            width={20}
+            sx={{ color: isNegative ? '#F04438' : uploaded ? '#12B76A' : '#C7CCDA', flexShrink: 0 }}
+          />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
+            {summary && (
+              <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
+                {summary}
+              </Typography>
+            )}
+            {uploadDetails && (
+              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
+                {uploadDetails}
+              </Typography>
+            )}
+          </Box>
+        </Stack>
+
+        <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1}>
+          {uploaded && <StatusBadge tone={badgeTone} label={badgeLabel} />}
+          {children}
+        </Stack>
       </Stack>
     </Box>
   );
@@ -167,6 +224,7 @@ function SimpleBureauRow({
   const inputRef = useRef<HTMLInputElement>(null);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const { signUpData } = useRegistration();
+  const { review } = useAdmin();
   const applicantName = signUpData
     ? [signUpData.firstName, signUpData.middleName, signUpData.lastName].filter(Boolean).join(' ')
     : 'the applicant';
@@ -182,6 +240,8 @@ function SimpleBureauRow({
   return (
     <BureauRow
       title={title}
+      uploaded={!!upload.fileName}
+      bureauFindingStatus={review.creditChecking.bureauFindingStatus}
       summary={upload.fileName ? BUREAU_SUMMARIES[title]?.(applicantName) : undefined}
       uploadDetails={
         upload.fileName
@@ -198,7 +258,7 @@ function SimpleBureauRow({
             variant="outlined"
             size="small"
             startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
-            sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', px: 1.5 }}
+            sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
           >
             View
           </Button>
@@ -206,7 +266,7 @@ function SimpleBureauRow({
             onClick={(event) => setMenuAnchor(event.currentTarget)}
             aria-label={`More actions for ${title}`}
             size="small"
-            sx={{ color: '#5A6273', border: '1px solid #E1E4ED', borderRadius: '9px' }}
+            sx={iconButtonBorderedSx}
           >
             <Iconify icon="eva:more-vertical-fill" width={18} />
           </IconButton>
@@ -231,7 +291,7 @@ function SimpleBureauRow({
                 setMenuAnchor(null);
                 onUpload({ fileName: null, fileData: null, uploadedAt: null });
               }}
-              sx={{ fontSize: 13.5, color: '#B32C22' }}
+              sx={{ fontSize: 13.5, color: '#B32C22', '&:hover': { bgcolor: TONE_COLORS.error.bg } }}
             >
               <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
               Delete file
@@ -240,9 +300,6 @@ function SimpleBureauRow({
         </>
       ) : (
         <>
-          <Typography sx={{ fontSize: 12, color: '#8891A6', display: { xs: 'none', sm: 'block' } }}>
-            Manual report upload
-          </Typography>
           <Button
             onClick={() => inputRef.current?.click()}
             variant="contained"
@@ -334,48 +391,45 @@ function CibiRow() {
   };
 
   return (
-    <Box
-      sx={{
-        borderRadius: '13px',
-        border: '1px solid #EBEDF3',
-        overflow: 'hidden',
-      }}
-    >
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ p: 2, minHeight: 72 }}>
-        <Box
-          sx={{
-            width: 38,
-            height: 38,
-            flexShrink: 0,
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: '#EEF1FE',
-          }}
-        >
-          <Iconify icon="solar:document-text-bold-duotone" width={19} sx={{ color: '#1C2A6E' }} />
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: 14.5, fontWeight: 700, color: '#14172A' }}>CIBI</Typography>
-          {cibiForm.reportFileName ? (
-            <>
-              <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
-                The CIBI report for{' '}
-                {[signUpData?.firstName, signUpData?.middleName, signUpData?.lastName]
-                  .filter(Boolean)
-                  .join(' ') || 'the applicant'}{' '}
-                shows the submitted credit inquiry result and is ready for officer review.
-              </Typography>
-              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
-                {cibiForm.reportFileName} · Uploaded{' '}
-                {formatUploadedAt(cibiForm.reportUploadedAt) ?? 'date unavailable'}
-              </Typography>
-            </>
-          ) : (
-            <Typography sx={{ fontSize: 12, color: '#8891A6' }}>API integration available</Typography>
-          )}
-        </Box>
+    // Same 13px-radius bordered white shell as RequirementDocRow/BureauRow.
+    <Box sx={{ borderRadius: '13px', border: '1px solid #EBEDF3', bgcolor: 'common.white', overflow: 'hidden' }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        spacing={1.5}
+        sx={{ p: 2 }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
+          {/* Plain leading icon, matching RequirementDocRow/BureauRow — no
+              boxed icon-avatar. */}
+          <Iconify
+            icon={cibiForm.reportFileName ? 'solar:check-circle-bold' : 'solar:document-text-bold-duotone'}
+            width={20}
+            sx={{ color: cibiForm.reportFileName ? '#12B76A' : '#8891A6', flexShrink: 0 }}
+          />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>CIBI</Typography>
+            {cibiForm.reportFileName ? (
+              <>
+                <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
+                  The credit report for{' '}
+                  {[signUpData?.firstName, signUpData?.middleName, signUpData?.lastName]
+                    .filter(Boolean)
+                    .join(' ') || 'the applicant'}{' '}
+                  shows a CIBI Bureau Score of 600. Two accounts were reported: one active and one
+                  closed. Both accounts reflect payments made as agreed, with no recorded
+                  delinquency.
+                </Typography>
+                <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
+                  {cibiForm.reportFileName} · Uploaded{' '}
+                  {formatUploadedAt(cibiForm.reportUploadedAt) ?? 'date unavailable'}
+                </Typography>
+              </>
+            ) : (
+              <Typography sx={{ fontSize: 12, color: '#8891A6' }}>API integration available</Typography>
+            )}
+          </Box>
+        </Stack>
 
         {!cibiForm.submitted && (
           <Button
@@ -396,14 +450,8 @@ function CibiRow() {
         )}
 
         {cibiForm.submitted && (
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <Chip
-              size="small"
-              color="success"
-              variant="soft"
-              icon={<Iconify icon="solar:check-circle-bold" width={14} />}
-              label="Sent"
-            />
+          <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1}>
+            <StatusBadge tone="success" label="Sent" icon="solar:check-circle-bold" />
             <input
               ref={reportInputRef}
               type="file"
@@ -422,7 +470,7 @@ function CibiRow() {
                   variant="outlined"
                   size="small"
                   startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
-                  sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', px: 1.5 }}
+                  sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
                 >
                   View
                 </Button>
@@ -430,7 +478,7 @@ function CibiRow() {
                   onClick={(event) => setReportMenuAnchor(event.currentTarget)}
                   aria-label="More actions for CIBI report"
                   size="small"
-                  sx={{ color: '#5A6273', border: '1px solid #E1E4ED', borderRadius: '9px' }}
+                  sx={iconButtonBorderedSx}
                 >
                   <Iconify icon="eva:more-vertical-fill" width={18} />
                 </IconButton>
@@ -459,7 +507,7 @@ function CibiRow() {
                         reportUploadedAt: null,
                       });
                     }}
-                    sx={{ fontSize: 13.5, color: '#B32C22' }}
+                    sx={{ fontSize: 13.5, color: '#B32C22', '&:hover': { bgcolor: TONE_COLORS.error.bg } }}
                   >
                     <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
                     Delete file
@@ -655,6 +703,13 @@ function CibiRow() {
                   autoFilled={!!cibiForm.financedAmount}
                   value={cibiForm.financedAmount}
                   onChange={update('financedAmount')}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#1C2A6E' }}>₱</Typography>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -677,6 +732,13 @@ function CibiRow() {
                   helperText="Estimated — amount ÷ terms, no interest applied"
                   value={cibiForm.installment}
                   onChange={update('installment')}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#1C2A6E' }}>₱</Typography>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
             </Grid>
@@ -703,15 +765,7 @@ export function BureauReportsCard() {
   const { loandexUpload, cicUpload, cmapUpload, nfisBapUpload } = review;
 
   return (
-    <Box
-      sx={{
-        p: { xs: 3, md: 4 },
-        borderRadius: '16px',
-        bgcolor: 'common.white',
-        border: '1px solid #EBEDF3',
-        boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-      }}
-    >
+    <Box sx={adminCardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
         Bureau Reports
       </Typography>

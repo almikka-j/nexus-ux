@@ -13,6 +13,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { adminCardSx } from 'src/components/admin-ui';
 import { getAgingLevel } from 'src/utils/format-aging';
 
 // ----------------------------------------------------------------------
@@ -31,13 +32,10 @@ function StatCard({
   return (
     <Box
       sx={{
+        ...adminCardSx,
         flex: 1,
         minWidth: 200,
         p: 2.75,
-        borderRadius: '16px',
-        bgcolor: 'common.white',
-        border: '1px solid #EBEDF3',
-        boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
       }}
     >
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
@@ -114,15 +112,7 @@ export function AdminDashboardView() {
           />
         </Stack>
 
-        <Box
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
-            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-          }}
-        >
+        <Box sx={adminCardSx}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
             <Stack spacing={0.5}>
               <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>

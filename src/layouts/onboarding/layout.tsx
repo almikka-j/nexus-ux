@@ -15,6 +15,7 @@ type OnboardingLayoutProps = {
   children: React.ReactNode;
   step: number;
   totalSteps?: number;
+  stepLabels?: string[];
   onBack?: () => void;
   onExit?: () => void;
   complete?: boolean;
@@ -24,6 +25,7 @@ export function OnboardingLayout({
   children,
   step,
   totalSteps = 4,
+  stepLabels,
   onBack,
   onExit,
   complete,
@@ -34,12 +36,20 @@ export function OnboardingLayout({
         direction="row"
         alignItems="center"
         justifyContent="space-between"
-        sx={{ px: { xs: 3, md: 5 }, py: 2.75, borderBottom: '1px solid #EBEDF3', bgcolor: 'common.white' }}
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: (theme) => theme.zIndex.appBar,
+          px: { xs: 3, md: 5 },
+          py: 2.75,
+          borderBottom: '1px solid #EBEDF3',
+          bgcolor: 'common.white',
+        }}
       >
         <LogoFull width={124} height={26} />
 
-        <Box sx={{ width: 280, display: { xs: 'none', sm: 'block' } }}>
-          <ProgressBar activeStep={step} totalSteps={totalSteps} complete={complete} />
+        <Box sx={{ width: 420, display: { xs: 'none', sm: 'block' } }}>
+          <ProgressBar activeStep={step} totalSteps={totalSteps} complete={complete} labels={stepLabels} />
         </Box>
 
         {complete ? (

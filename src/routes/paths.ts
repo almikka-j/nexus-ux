@@ -58,8 +58,14 @@ export const paths = {
     // with the per-applicant /admin/applications/[id]/credit-checking route.
     applications: '/admin/credit-checking',
     applicationsByStep: (step: string) => `/admin/credit-checking?step=${step}`,
+    // Account Solicitation groups the three forward-moving intake steps
+    // (Initial Credit Checking, Call Report, Requirement Checklist) into one
+    // unfiltered list, replacing what used to be the expandable "Application
+    // List" nav section with its 3 separate sub-items.
+    accountSolicitation: '/admin/account-solicitation',
     sampleApplication: (email: string) => `/admin/applications/sample/${email}`,
     negativeList: '/admin/negative-list',
+    ciFeeApproval: '/admin/ci-fee-approval',
     creditChecking: (id: string) => `/admin/applications/${id}/credit-checking`,
     reconsideration: (id: string) => `/admin/applications/${id}/reconsideration`,
     callReport: (id: string) => `/admin/applications/${id}/call-report`,

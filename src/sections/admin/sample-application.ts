@@ -63,6 +63,7 @@ export const SAMPLE_APPLICATION: RegistrationState = {
       employmentStatus: 'Employed',
       monthlyIncome: 45000,
       loanPurpose: 'Home Improvement',
+      hasCollateral: 'no',
     },
     personalInfo: {
       idType: 'PhilSys / National ID',

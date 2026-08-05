@@ -56,10 +56,12 @@ page. Negative findings are summarized inside `CreditCheckingResultModal`,
 which remains available from the "View Initial Credit Checking Result" button.
 
 Each Bureau Report row shows a concise, applicant-personalized report summary
-directly below its title after a document is uploaded. LOANDEX, CIC, CMAP, and
-NFIS/BAP use report-specific summary copy; CIBI shows its summary after the
-returned report document is uploaded. Rows without an uploaded report retain
-their existing upload/API guidance instead.
+directly below its title after a document is uploaded, for all five bureaus
+(CIBI, LOANDEX, CIC, CMAP, NFIS/BAP). Each summary's wording is kept in sync
+with that bureau's `clearResult` copy in the Initial Credit Checking Result
+modal's Bureau Reports Result row, minus that modal's "Summary: " prefix
+(redundant inline on this card). Rows without an uploaded report retain their
+existing upload/API guidance instead.
 
 Uploaded Bureau Report rows follow the Requirement Checklist document-card
 interaction pattern without its acceptance checkbox or Remarks workflow:

@@ -48,7 +48,7 @@ src/
   layouts/
     borrower/               Borrower app shell (sidebar + topbar)
     admin/                   Admin app shell — top nav bar by default (side nav available via floating settings toggle)
-    onboarding/              Shared onboarding step chrome (progress bar, back/exit)
+    onboarding/              Shared onboarding step chrome (sticky header with labeled stepper, back/exit)
     auth/                    OLD split-panel auth layout — no longer used (see Deprecated below)
   sections/
     auth/                    Sign Up, Verify, Login, onboarding steps, shared AuthBrandPanel
@@ -74,15 +74,17 @@ SignUpData     { prefix?, firstName, middleName?, lastName, extensionName?, emai
 // screen's consent checkboxes, not a dedicated step.
 LoanType       'personal' | 'business'
 FinancialInfo  { desiredLoanAmount, loanTermMonths, employmentStatus, monthlyIncome, loanPurpose,
-                 businessType?, businessDocument? }
+                 hasCollateral, businessType?, businessDocument? }
 // loanPurpose is a single string — multiple Preliminary Application selections are
 // joined with ", ". businessType/businessDocument collected only when
 // employmentStatus === 'Business Owner' (businessDocument is a base64 data URL).
 PersonalInfo   { idType, idNumber, idFile, idFileBack, birthday, address, province,
                  city, barangay, zipCode, civilStatus, gender, tinNumber,
-                 referralSource, spouseName?, spouseBirthday?, spouseAddress?,
+                 referralSource, agentCode?, spouseName?, spouseBirthday?, spouseAddress?,
                  spouseProvince? }
-// spouse fields collected only when civilStatus === 'Married'. idFileBack is
+// spouse fields collected only when civilStatus === 'Married'. agentCode is
+// collected only when referralSource === 'Agent' (a text field revealed
+// beneath the referral Select on StepPersonalInfo). idFileBack is
 // non-null only for two-sided ID types (Driver's License/UMID/SSS ID/PhilHealth
 // ID) — null for PhilSys/National ID and Passport. See "ID type-dependent
 // front/back upload" below. birthday is the borrower's own (distinct from
@@ -278,7 +280,7 @@ screen rather than a fill button).
 > split-panel `AuthBrandPanel` layout — both render centered on plain white.
 
 ```
-/auth/sign-up (Preliminary Application: name/email/mobile/purpose(multi)/amount/term/income/[business info]/consent)
+/auth/sign-up (Preliminary Application: name/email/mobile/purpose(multi)/amount/term/collateral/income/[business info]/consent)
   → [soft-decline in place, if desired loan < ₱150,000 — no navigation, no account created]
   → /auth/verify (OTP only — no password step; [Verified animation] → account auto-created)
   → /auth/onboarding (Welcome (auto-advances) → Upload ID (flat form, no OCR) → Selfie Verification (+ consent) — 3 steps)
@@ -465,10 +467,21 @@ alone at first) → upload dropzone(s), appearing once ID Type is set → ID
 Number → **First Name/Middle Name/Extension** → **Birthday/Gender** →
 Address → **Province/City/Barangay/Zip Code** → an "Additional
 information" section label → Civil Status → (Spouse Information, if
-Married) → TIN Number → Referral Source → "Continue →". Heading/copy also
+Married) → TIN Number → Referral Source → (**Agent Code**, if Referral
+Source is "Agent") → "Continue →". Heading/copy also
 changed: "Step 1 · Upload ID" / "Upload a valid ID" (previously "Step 1 ·
 ID Verification" / "Verify your ID"), button label "Continue →" (previously
 "Confirm & Continue").
+
+**Referral Source "Agent" option + conditional Agent Code field.**
+`REFERRAL_SOURCES` in `step-personal-info.tsx` includes an "Agent" choice
+alongside Social Media/Search Engine/Referral from a Friend/Advertisement/
+Existing Customer/Other. Selecting "Agent" reveals a required "Agent Code"
+text field (`agentCode` in `PersonalInfo`, `src/auth/registration-context.tsx`)
+directly beneath the Referral Source select, validated via `superRefine`
+(required only when `referralSource === 'Agent'`). Surfaced on the admin
+side as an "Agent code" detail row (only when referral source is "Agent")
+in both `application-details-card.tsx` and `sample-application-view.tsx`.
 
 **Instant auto-fill on upload, no delay.** The moment the front ID image is
 selected, `AUTOFILL_VALUES` (a fixed object in `step-personal-info.tsx`:
@@ -867,6 +880,20 @@ The admin shell renders one of two nav components depending on the current
   Financial Evaluation as independent queues so different officers can own the
   three disciplines and work in parallel.
 
+A fourth, flat top-level entry — **"CI Fee Approval"** (`path:
+paths.admin.ciFeeApproval`, no `children`) — sits last in `adminNavData`,
+after "For Reconsideration." Same leaf shape as "Dashboard" (a plain
+clickable row, not a collapsible section), since it's a secondary/
+occasional-use tool screen rather than part of the main pipeline: it
+offers a second way to approve the live application's pending CI Fee
+(`src/sections/admin/ci-fee-approval-view.tsx`), alongside the existing
+"Simulate: Another Officer Approves CI Fee" page action on Credit
+Investigation. Deliberately **not** nested under "Comprehensive Credit
+Checking" — unlike Negative List (which moved from top-level into "For
+Reconsideration" once a natural parent existed for it, see above), CI Fee
+Approval has no natural existing parent section without contradicting its
+own placement as a distinct, always-reachable screen.
+
 Both section headers are **non-clickable labels** (`path: null` in
 `adminNavData` — no `href`, clicking anywhere on the row just toggles that
 section's expand/collapse). Each section's expand/collapse state is tracked
@@ -1163,6 +1190,13 @@ first in both the active and completion states. The regular summary/progress
 card follows it in the active state; the duplicate sticky mini-summary remains
 removed. `ApplicationReviewHeader` still provides back navigation, compact
 aging, step tracking, and the Step 3 pill.
+
+The active state also renders a sticky "Sections" jump-nav
+(`requirement-checklist-section-nav.tsx`) beside the content column on `md`+
+screens (stacked above it on mobile) — a quick-access list of the three cards
+with a status dot and received/total count each, so a long checklist stays
+easy to navigate. See `docs/ADMIN_REQUIREMENT_CHECKLIST.md`'s "Sticky section
+nav" section for the layout details.
 
 Uploaded document rows use a compact review pattern: View opens the actual
 newly selected browser file, while a three-dot menu holds Add/Edit Remarks and

@@ -129,7 +129,7 @@ export function LoanPackageProposalCard() {
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        11. Loan Package Proposal
+        Loan Package Proposal
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
         This is only a preliminary recommendation and must not be treated as the final Credit

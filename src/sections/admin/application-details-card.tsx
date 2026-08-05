@@ -19,6 +19,7 @@ import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
+import { StatusBadge, adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { OfficerNotesDialog } from './officer-notes-history';
@@ -226,7 +227,8 @@ export function ApplicationDetailsCard({
               <DetailField label="Loan term" value={`${financialInfo.loanTermMonths} months`} />
               <DetailField label="Purpose of loan" value={financialInfo.loanPurpose} />
               <DetailField label="Employment status" value={financialInfo.employmentStatus} />
-              <DetailField label="Monthly income" value={`₱${Number(financialInfo.monthlyIncome).toLocaleString()}`} />
+              <DetailField label="Gross Monthly Income" value={`₱${Number(financialInfo.monthlyIncome).toLocaleString()}`} />
+              <DetailField label="Has collateral" value={financialInfo.hasCollateral === 'yes' ? 'Yes' : 'No'} />
               {financialInfo.employmentStatus === 'Business Owner' && (
                 <DetailField label="Business type" value={financialInfo.businessType} />
               )}
@@ -255,6 +257,9 @@ export function ApplicationDetailsCard({
               <DetailField label="Zip code" value={personalInfo.zipCode} />
               <DetailField label="TIN number" value={personalInfo.tinNumber} />
               <DetailField label="Referral source" value={personalInfo.referralSource} />
+              {personalInfo.referralSource === 'Agent' && (
+                <DetailField label="Agent code" value={personalInfo.agentCode} />
+              )}
             </Stack>
 
             {personalInfo.civilStatus === 'Married' && (
@@ -315,15 +320,7 @@ export function ApplicationDetailsCard({
   if (collapsible) {
     return (
       <>
-        <Box
-          sx={{
-            p: { xs: 2.5, md: 3 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
-            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-          }}
-        >
+        <Box sx={{ ...adminCardSx, p: { xs: 2.5, md: 3 } }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} alignItems={{ sm: 'center' }}>
             <Box
               sx={{
@@ -364,9 +361,7 @@ export function ApplicationDetailsCard({
                       </Typography>
                     </Stack>
                   )}
-                  <Box sx={{ px: 1.75, py: 0.75, borderRadius: '999px', bgcolor: '#EEF1FE', color: '#3448B0', fontSize: 12.5, fontWeight: 700 }}>
-                    App No. {applicationNumber}
-                  </Box>
+                  <StatusBadge tone="info" label={`App No. ${applicationNumber}`} />
                 </Stack>
               </Stack>
             </Box>
@@ -379,7 +374,7 @@ export function ApplicationDetailsCard({
             <DetailField label="Amount" value={desiredAmount} />
             <DetailField label="Term" value={financialInfo ? `${financialInfo.loanTermMonths} months` : '—'} />
             <DetailField label="Purpose" value={financialInfo?.loanPurpose} />
-            <DetailField label="Monthly income" value={financialInfo ? `₱${Number(financialInfo.monthlyIncome).toLocaleString()}` : '—'} />
+            <DetailField label="Gross Monthly Income" value={financialInfo ? `₱${Number(financialInfo.monthlyIncome).toLocaleString()}` : '—'} />
             <DetailField label="Date filed" value={applicationDate} />
           </Box>
 
@@ -528,15 +523,7 @@ export function ApplicationDetailsCard({
   }
 
   return (
-    <Box
-      sx={{
-        p: { xs: 3, md: 4 },
-        borderRadius: '16px',
-        bgcolor: 'common.white',
-        border: '1px solid #EBEDF3',
-        boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-      }}
-    >
+    <Box sx={adminCardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
         Application details
       </Typography>

@@ -1,4 +1,4 @@
-import type { ReviewStep } from 'src/auth/admin-context';
+import type { ReviewStep, CiFeeStatus } from 'src/auth/admin-context';
 import type { RegistrationState } from 'src/auth/registration-context';
 
 // ----------------------------------------------------------------------
@@ -53,6 +53,20 @@ export type SampleApplicationEntry = {
   registration: RegistrationState;
   /** Which review step this sample is parked at, for the per-step filtered list views. */
   step: ReviewStep;
+  // Fake, read-only CI Fee state for a few samples so the CI Fee Approval
+  // screen (src/sections/admin/ci-fee-approval-view.tsx) has more than the
+  // one live application to list. Filtered on `ciFee` presence, not on
+  // `step` — the real live application's ciFeeStatus lives entirely
+  // separately, on review.creditInvestigation (a single flat AdminContext
+  // object), so this field is CI Fee Approval's only source for additional
+  // rows. Same as every other sample in this app, these never have a
+  // working Approve/Decline (see file header) — purely visual filler.
+  ciFee?: {
+    status: Extract<CiFeeStatus, 'pending-approval'>;
+    amount: string;
+    amountDescription: string;
+    remarks?: string;
+  };
 };
 
 // ----------------------------------------------------------------------
@@ -83,6 +97,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
           employmentStatus: 'Employed',
           monthlyIncome: 32000,
           loanPurpose: 'Education',
+          hasCollateral: 'no',
         },
         personalInfo: {
           idType: 'PhilSys / National ID',
@@ -132,6 +147,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
           employmentStatus: 'Employed',
           monthlyIncome: 45000,
           loanPurpose: 'Home Improvement',
+          hasCollateral: 'no',
         },
         personalInfo: {
           idType: 'PhilSys / National ID',
@@ -181,6 +197,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
           employmentStatus: 'Self-Employed',
           monthlyIncome: 28000,
           loanPurpose: 'Medical Expenses',
+          hasCollateral: 'no',
         },
         personalInfo: {
           idType: 'Driver’s License',
@@ -207,6 +224,11 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
   },
   {
     step: 'callReport',
+    ciFee: {
+      status: 'pending-approval',
+      amount: '2500',
+      amountDescription: 'Site visit + verification fee',
+    },
     registration: {
       signUpData: {
         firstName: 'Ramil',
@@ -230,6 +252,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
           employmentStatus: 'Business Owner',
           monthlyIncome: 90000,
           loanPurpose: 'Business Expansion',
+          hasCollateral: 'no',
         },
         personalInfo: {
           idType: 'PhilSys / National ID',
@@ -255,7 +278,68 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
     },
   },
   {
+    step: 'callReport',
+    ciFee: {
+      status: 'pending-approval',
+      amount: '2800',
+      amountDescription: 'Site visit + verification fee',
+    },
+    registration: {
+      signUpData: {
+        firstName: 'Marites',
+        middleName: 'Ocampo',
+        lastName: 'Fernandez',
+        extensionName: '',
+        email: 'marites.fernandez@example.com',
+        mobile: '9391234567',
+        password: 'Password123',
+        marketingConsent: false,
+        termsAccepted: true,
+      },
+      verified: true,
+      preliminaryStatus: 'qualified',
+      onboardingStep: 2,
+      application: {
+        loanType: 'personal',
+        financialInfo: {
+          desiredLoanAmount: 180000,
+          loanTermMonths: 24,
+          employmentStatus: 'Employed',
+          monthlyIncome: 38000,
+          loanPurpose: 'Debt Consolidation',
+          hasCollateral: 'no',
+        },
+        personalInfo: {
+          idType: 'PhilSys / National ID',
+          idNumber: 'P7778889A',
+          idFile: svgIdPhoto('PhilSys / National ID (sample)'),
+          idFileBack: null,
+          birthday: '1991-09-18',
+          address: '45 Bonifacio Street',
+          province: 'Cavite',
+          city: 'Dasmariñas',
+          barangay: 'Zone IV',
+          zipCode: '4114',
+          civilStatus: 'Widowed',
+          gender: 'Female',
+          tinNumber: '789-123-456-000',
+          referralSource: 'Referral from a Friend',
+        },
+        selfieVerified: true,
+        selfiePhoto: svgSelfiePhoto('Selfie with ID (sample)'),
+        submittedAt: hoursAgo(64),
+        assignedOfficer: 'Grace Uy',
+      },
+    },
+  },
+  {
     step: 'requirementChecklist',
+    ciFee: {
+      status: 'pending-approval',
+      amount: '3200',
+      amountDescription: 'Credit investigation processing fee',
+      remarks: 'Collateral property is out of town — travel cost included.',
+    },
     registration: {
       signUpData: {
         firstName: 'Cristina',
@@ -279,6 +363,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
           employmentStatus: 'Employed',
           monthlyIncome: 38000,
           loanPurpose: 'Debt Consolidation',
+          hasCollateral: 'no',
         },
         personalInfo: {
           idType: 'UMID',
@@ -328,6 +413,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
           employmentStatus: 'Employed',
           monthlyIncome: 55000,
           loanPurpose: 'Home Improvement',
+          hasCollateral: 'no',
         },
         personalInfo: {
           idType: 'Philippine Passport',

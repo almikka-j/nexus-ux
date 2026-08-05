@@ -85,12 +85,24 @@ export function OnboardingView() {
         direction="row"
         alignItems="center"
         justifyContent="space-between"
-        sx={{ px: { xs: 3, md: 5 }, py: 2.75, borderBottom: '1px solid #EBEDF3', bgcolor: 'common.white' }}
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: (theme) => theme.zIndex.appBar,
+          px: { xs: 3, md: 5 },
+          py: 2.75,
+          borderBottom: '1px solid #EBEDF3',
+          bgcolor: 'common.white',
+        }}
       >
         <LogoFull width={124} height={26} />
 
-        <Box sx={{ width: 280, display: { xs: 'none', sm: 'block' } }}>
-          <ProgressBar activeStep={step} totalSteps={ONBOARDING_TOTAL_STEPS} />
+        <Box sx={{ width: 300, display: { xs: 'none', sm: 'block' } }}>
+          <ProgressBar
+            activeStep={step}
+            totalSteps={ONBOARDING_TOTAL_STEPS}
+            labels={['Personal Info', 'Verify Identity']}
+          />
         </Box>
 
         <Link
@@ -163,7 +175,6 @@ export function OnboardingView() {
 
           {step === 2 && (
             <StepSelfieVerification
-              stepLabel="Step 2 · Verify it's you"
               onContinue={handleSelfieVerified}
             />
           )}

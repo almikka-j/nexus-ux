@@ -25,7 +25,7 @@ export function ResidenceHouseholdCard() {
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        3. Residence and Household Information
+        Residence and Household Information
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
         Living situation and household composition.

@@ -3,7 +3,6 @@
 import { useRef, useState } from 'react';
 
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -19,15 +18,15 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
 import { Iconify } from 'src/components/iconify';
+import { StatusBadge, iconButtonBorderedSx, outlinedNavyButtonSx, type SemanticTone } from 'src/components/admin-ui';
 
 import type { RequirementDoc } from 'src/auth/admin-context';
 import type { RequirementDocMeta, AppraisalDocMeta } from './requirement-checklist-docs';
 
 // The component only ever reads these 4 fields (never `tabs`/`subgroup`),
-// so any caller's meta object — including credit-investigation-docs.ts's
-// CreditInvestigationDocMeta and ad-hoc custom-document objects — can be
-// passed as long as it has this shape, without needing to be one of the
-// two named checklist types.
+// so any caller's meta object — including ad-hoc custom-document objects —
+// can be passed as long as it has this shape, without needing to be one of
+// the two named checklist types.
 export type RequirementDocRowMeta = {
   label: string;
   required: boolean;
@@ -43,8 +42,7 @@ const STATUS_STYLES: Record<
     icon: string;
     iconColor: string;
     chipLabel: string;
-    chipBg: string;
-    chipColor: string;
+    tone: SemanticTone;
     explanation: string;
   }
 > = {
@@ -52,8 +50,7 @@ const STATUS_STYLES: Record<
     icon: 'solar:check-circle-bold',
     iconColor: '#12B76A',
     chipLabel: 'Verified',
-    chipBg: '#E7F8F0',
-    chipColor: '#0C8A4F',
+    tone: 'success',
     explanation:
       'Automated checks found no issue in the uploaded file. Officer review and acceptance are still required.',
   },
@@ -61,8 +58,7 @@ const STATUS_STYLES: Record<
     icon: 'solar:danger-triangle-bold',
     iconColor: '#B36A05',
     chipLabel: 'Needs review',
-    chipBg: '#FEF0D6',
-    chipColor: '#B36A05',
+    tone: 'warning',
     explanation:
       'Automated checks found an item that needs officer attention before the document can be accepted.',
   },
@@ -70,8 +66,7 @@ const STATUS_STYLES: Record<
     icon: 'solar:document-linear',
     iconColor: '#C7CCDA',
     chipLabel: 'Missing',
-    chipBg: '#F5F6FA',
-    chipColor: '#8891A6',
+    tone: 'neutral',
     explanation: 'No document has been uploaded.',
   },
 };
@@ -93,6 +88,9 @@ type RequirementDocRowProps = {
   onRemove: () => void;
   onToggleReviewed: (reviewed: boolean) => void;
   onRemarksChange: (remarks: string) => void;
+  hideReviewedCheckbox?: boolean;
+  /** True when onRemove resets the row back to "missing" rather than deleting it entirely (i.e. every row except ad-hoc custom documents). Only changes the menu item's label/icon. */
+  removeMeansMissing?: boolean;
 };
 
 export function RequirementDocRow({
@@ -103,6 +101,8 @@ export function RequirementDocRow({
   onRemove,
   onToggleReviewed,
   onRemarksChange,
+  hideReviewedCheckbox = false,
+  removeMeansMissing = false,
 }: RequirementDocRowProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
@@ -159,7 +159,7 @@ export function RequirementDocRow({
         sx={{ p: 2 }}
       >
         <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
-          {isMissing ? (
+          {isMissing || hideReviewedCheckbox ? (
             <Iconify icon={style.icon} width={20} sx={{ color: style.iconColor, flexShrink: 0 }} />
           ) : (
             <Checkbox
@@ -176,7 +176,7 @@ export function RequirementDocRow({
             </Typography>
             {!isMissing && doc.aiNote && (
               <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
-                The {meta.label} for {applicantName} was reviewed. {doc.aiNote}
+                {hideReviewedCheckbox ? doc.aiNote : `The ${meta.label} for ${applicantName} was reviewed. ${doc.aiNote}`}
               </Typography>
             )}
             {!isMissing && (
@@ -199,27 +199,16 @@ export function RequirementDocRow({
         <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1}>
           {doc.status !== 'verified' && (
             <Tooltip title={style.explanation} arrow>
-              <Chip
-                size="small"
-                label={style.chipLabel}
-                icon={<Iconify icon="solar:info-circle-linear" width={14} />}
-                sx={{
-                  bgcolor: style.chipBg,
-                  color: style.chipColor,
-                  fontWeight: 700,
-                  fontSize: 11.5,
-                  '& .MuiChip-icon': { color: style.chipColor },
-                }}
-              />
+              <span>
+                <StatusBadge
+                  tone={style.tone}
+                  label={style.chipLabel}
+                  icon="solar:info-circle-linear"
+                />
+              </span>
             </Tooltip>
           )}
-          {doc.reviewed && !isMissing && (
-            <Chip
-              size="small"
-              label="Reviewed"
-              sx={{ bgcolor: '#E6F6ED', color: '#1B8A5A', fontWeight: 700, fontSize: 11.5 }}
-            />
-          )}
+          {doc.reviewed && !isMissing && <StatusBadge tone="success" label="Reviewed" />}
           {isMissing ? (
             <>
               <input ref={inputRef} type="file" accept="image/*,.pdf" hidden onChange={handleUpload} />
@@ -242,7 +231,7 @@ export function RequirementDocRow({
                     variant="outlined"
                     size="small"
                     startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
-                    sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', px: 1.5 }}
+                    sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
                   >
                     View
                   </Button>
@@ -252,7 +241,7 @@ export function RequirementDocRow({
                 onClick={(event) => setMenuAnchor(event.currentTarget)}
                 aria-label={`More actions for ${meta.label}`}
                 size="small"
-                sx={{ color: '#5A6273', border: '1px solid #E1E4ED', borderRadius: '9px' }}
+                sx={iconButtonBorderedSx}
               >
                 <Iconify icon="eva:more-vertical-fill" width={18} />
               </IconButton>
@@ -271,9 +260,13 @@ export function RequirementDocRow({
           <Iconify icon="solar:pen-new-square-bold-duotone" width={17} sx={{ mr: 1.25, color: '#5A6273' }} />
           {doc.remarks ? 'Edit remarks' : 'Add remarks'}
         </MenuItem>
-        <MenuItem onClick={deleteDocument} sx={{ fontSize: 13.5, color: '#B32C22' }}>
-          <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
-          Delete document
+        <MenuItem onClick={deleteDocument} sx={{ fontSize: 13.5, color: removeMeansMissing ? '#B36A05' : '#B32C22' }}>
+          <Iconify
+            icon={removeMeansMissing ? 'solar:undo-left-round-bold-duotone' : 'solar:trash-bin-trash-bold-duotone'}
+            width={17}
+            sx={{ mr: 1.25 }}
+          />
+          {removeMeansMissing ? 'Mark as missing' : 'Delete document'}
         </MenuItem>
       </Menu>
 

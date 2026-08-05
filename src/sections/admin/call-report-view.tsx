@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 
@@ -16,6 +18,7 @@ import { useRegistration } from 'src/auth/registration-context';
 import type { CollateralEntry } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
@@ -50,12 +53,30 @@ const CALL_REPORT_RISK_STYLES: Record<
   high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High risk' },
 };
 
+// Same reason set as Initial Credit Checking's Sales Reject dialog
+// (initial-credit-checking-view.tsx) — kept as a local copy since the two
+// screens don't currently share a constants module for this.
+const SALES_REJECT_REASONS = [
+  'Insufficient income',
+  'Poor credit history',
+  'Incomplete documents',
+  'Employment not verifiable',
+  'Requested amount too high',
+  'Other',
+];
+
 export function CallReportView() {
   const router = useRouter();
   const { signUpData, application } = useRegistration();
   const { review, setCallReport } = useAdmin();
   const [creditCheckingResultModalOpen, setCreditCheckingResultModalOpen] = useState(false);
   const [callReportResultModalOpen, setCallReportResultModalOpen] = useState(false);
+  // Sales Reject requires the officer to pick a reason (and optionally add
+  // remarks) before the application is routed to the Reconsideration screen
+  // — same pattern as Initial Credit Checking's Sales Reject dialog.
+  const [disapproveDialogOpen, setDisapproveDialogOpen] = useState(false);
+  const [reasonCategory, setReasonCategory] = useState('');
+  const [reasonRemarks, setReasonRemarks] = useState('');
 
   const { callReport } = review;
 
@@ -69,15 +90,28 @@ export function CallReportView() {
     !!callReport.preliminaryRecommendation &&
     (!followUpRequired || !!callReport.followUpDate);
 
-  const handleProceed = (proceed: boolean) => {
+  const handleProceed = () => {
     if (!signUpData) return;
     setCallReport({ approved: true });
+    router.push(paths.admin.requirementChecklist(encodeURIComponent(signUpData.email)));
+  };
 
-    if (proceed) {
-      router.push(paths.admin.requirementChecklist(encodeURIComponent(signUpData.email)));
-    } else {
-      router.push(paths.admin.applications);
-    }
+  const closeReasonDialog = () => {
+    setDisapproveDialogOpen(false);
+    setReasonCategory('');
+    setReasonRemarks('');
+  };
+
+  const confirmReasonDialog = () => {
+    if (!signUpData || !reasonCategory) return;
+
+    const decisionReason = reasonRemarks.trim()
+      ? `${reasonCategory} — ${reasonRemarks.trim()}`
+      : reasonCategory;
+
+    setCallReport({ approved: false, decisionReason });
+    closeReasonDialog();
+    router.push(paths.admin.reconsideration(encodeURIComponent(signUpData.email)));
   };
 
   // Fills every section of the call report with representative sample data
@@ -415,7 +449,7 @@ export function CallReportView() {
 
           <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
             <Button
-              onClick={() => handleProceed(true)}
+              onClick={handleProceed}
               disabled={!canProceed}
               variant="contained"
               startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
@@ -426,10 +460,10 @@ export function CallReportView() {
                 '&:hover': { bgcolor: '#0C8A4F' },
               }}
             >
-              Proceed
+              Proceed to Requirement Checklist
             </Button>
             <Button
-              onClick={() => handleProceed(false)}
+              onClick={() => setDisapproveDialogOpen(true)}
               variant="outlined"
               startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
               sx={{
@@ -444,7 +478,7 @@ export function CallReportView() {
                 },
               }}
             >
-              Do Not Proceed
+              Sales Reject
             </Button>
           </Stack>
 
@@ -464,6 +498,54 @@ export function CallReportView() {
       <CallReportResultModal
         open={callReportResultModalOpen}
         onClose={() => setCallReportResultModalOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={disapproveDialogOpen}
+        onClose={closeReasonDialog}
+        title="Reason for sales reject"
+        content={
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              select
+              autoFocus
+              fullWidth
+              label="Reason"
+              value={reasonCategory}
+              onChange={(event) => setReasonCategory(event.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+            >
+              {SALES_REJECT_REASONS.map((reason) => (
+                <MenuItem key={reason} value={reason}>
+                  {reason}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Remarks"
+              placeholder="Add any additional details…"
+              value={reasonRemarks}
+              onChange={(event) => setReasonRemarks(event.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+            />
+          </Stack>
+        }
+        action={
+          <Button
+            variant="contained"
+            disabled={!reasonCategory}
+            onClick={confirmReasonDialog}
+            sx={{
+              bgcolor: '#F04438',
+              '&:hover': { bgcolor: '#B32C22' },
+            }}
+          >
+            Confirm
+          </Button>
+        }
       />
     </Container>
   );

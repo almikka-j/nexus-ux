@@ -38,8 +38,17 @@ canned content, not a call to any external service, OCR, or LLM.
    `reviewStep="creditInvestigation"`, `hideApplicationCard`).
 2. `ApplicationDetailsCard` (collapsible, with Credit Checking Result and
    Call Report actions, `officerNotesProcess="Credit Investigation"`).
-3. **Document Checklist** card.
-4. **AI review, summary & recommendation** card.
+3. **Document Checklist** card. Collapsible; starts collapsed on open
+   whenever `ciFeeStatus` is already `'pending-approval'`/`'approved'` (e.g.
+   reopening an application that reached that stage in an earlier session),
+   and also auto-collapses live the moment `ciFeeStatus` transitions to
+   either status while the page is mounted (re-fires on `'approved'` even if
+   the officer had manually reopened it while waiting) — so it doesn't fight
+   the officer's own toggle otherwise.
+4. **AI review, summary & recommendation** card. Also collapsible; same
+   start-collapsed-on-open plus live-transition behavior as Document
+   Checklist above, gated on `ciFeeStatus === 'approved'`
+   (`credit-investigation-view.tsx`).
 5. **CI Fee** card.
 6. **CI Report** card (visible once CI Fee is approved; otherwise a locked
    placeholder).
@@ -54,9 +63,14 @@ One card, documents grouped into 5 subgroups
 each rendered with the shared `RequirementDocRow` component, sorted
 outstanding-first within each subgroup:
 
-- **Principal/Consumer**: TIN – Primary ID (required).
-- **Spouse**: Philippine Passport – Primary ID (not required), Driver's
-  License – Secondary ID (not required).
+- **Principal/Consumer**: Primary ID (required). Once filled (via Upload or
+  "Fill with Sample Data"), its AI note dynamically appends the applicant's
+  actual `personalInfo.idType`/`idNumber` from onboarding (e.g. "ID on file:
+  PhilSys / National ID (1234-5678-9012)."); this is the only row of the four
+  "Primary ID"-labeled rows with per-application ID-type data to draw from —
+  Spouse/Mortgagor/Borrowers have no modeled ID type field, so their notes
+  stay generic.
+- **Spouse**: Primary ID (not required), Secondary ID (not required).
 - **Mortgagor**: Primary IDs of Mortgagor with 3 specimen signature (not
   required).
 - **Borrowers**: Primary IDs Borrowers with 3 specimen signature (required).
@@ -71,14 +85,27 @@ Plus two groups outside the fixed metadata:
   These are required earlier, during Requirement Checklist
   (`cicCheck`/`cmapCheck`/`nfisBapCheck`); this page reads
   `review.requirementChecklist.documents` directly by key and renders each
-  with `ReadOnlyBureauCheckRow` — a status chip and a **View** button
-  opening the existing `fileUrl`, no Upload/Remove/Mark-as-reviewed
-  controls. This page never maintains independent state for these three
-  documents.
+  with `ReadOnlyRequirementDocRow` (`credit-investigation-doc-row.tsx`) — a
+  status chip and a **View** button opening the existing `fileUrl`, no
+  Upload/Remove/Mark-as-reviewed controls. This page never maintains
+  independent state for these three documents. Once a doc is non-missing,
+  the row also shows the same AI-note sentence as `RequirementDocRow`'s
+  ("The {label} for {applicantName} was reviewed. {doc.aiNote}") — e.g.
+  "The CIC Check for Maria Reyes Santos was reviewed. No adverse records
+  found." — previously this read-only row silently dropped `aiNote`
+  entirely.
 - **Additional Documents** (only rendered once at least one exists) — ad
   hoc rows the officer adds via **"+ Add document"** (a label text field);
   each becomes a `CreditInvestigationDoc` with `isCustom: true` and its own
-  `label`, otherwise behaving like any other upload row.
+  `label`. Unlike the fixed checklist rows, a newly-added custom document
+  starts pre-filled as already uploaded and verified — `status: 'verified'`,
+  a sample `fileName`/`fileUrl`, `uploadedAt: now`, `uploadedBy: officerName`,
+  and `aiNote: 'Reviewed, no issues found.'` — the same shape as
+  `handleFillSampleData`'s output, so it reads like the Bureau &
+  Verification Checks rows (already on file) rather than starting as
+  "missing" and requiring a manual Upload click. Upload (to replace the
+  file) and Delete (via the row's "…" menu) remain available afterward,
+  same as any other non-missing row.
 
 The page action **"Fill with Sample Data"/"Remove Sample Data"** (its label
 toggles based on whether every fixed document is received) only fills or
@@ -122,12 +149,132 @@ action available on this page.
 ## CI Fee
 
 `review.creditInvestigation.ciFeeStatus: 'not-requested' | 'pending-approval'
-| 'approved'`. There is no separate approver role or login in this
-prototype — **"Request CI Fee"** moves the status to `'pending-approval'`;
-**"Mark CI Fee as Approved"** (a second simulated action available to the
-same officer, same convention as "Force Clean/Negative Bureau Finding"
-elsewhere in this app) moves it to `'approved'`. The CI Report card is
-locked (shown as a dashed placeholder) until `ciFeeStatus === 'approved'`.
+| 'approved' | 'not-applicable'`. On `'not-requested'`, the officer picks
+**"Yes, Request CI Fee"** (opens a form for Request Amount, Request Amount
+Description, and Remarks, then moves the status to `'pending-approval'`) or
+**"No CI Fee"** (moves straight to `'not-applicable'`). There is no separate
+approver role or login in this prototype, so approval can't be self-served
+inline — while `ciFeeStatus === 'pending-approval'`, the page registers a
+**"Simulate: Another Officer Approves CI Fee"** action (via
+`useRegisterPageActions`) into the floating settings popover (bottom-right
+gear icon → Page actions), same convention as "Force Clean/Negative Bureau
+Finding" elsewhere in this app. Clicking it sets `ciFeeStatus: 'approved'`.
+The CI Report card is locked (shown as a dashed placeholder) until
+`ciFeeStatus === 'approved'` or `'not-applicable'`.
+
+**Dedicated CI Fee Approval screen** (`/admin/ci-fee-approval`,
+`src/sections/admin/ci-fee-approval-view.tsx`) offers a second way to
+trigger the same approval — a standalone top-level nav item (placed last in
+`adminNavData`, `config-nav-admin.tsx`, flat/no `children` like
+"Dashboard") rather than a page action buried in the settings popover. It
+reads the same single live `review.creditInvestigation` state and, while
+`ciFeeStatus === 'pending-approval'`, shows the applicant identity, the
+same request amount/description/remarks detail box as `ci-fee-card.tsx`,
+and — matching how a real decision looks elsewhere on this page (Credit
+Investigation's own "Proceed application?" always offers Proceed +
+Disapprove + Return to AMD, never a single lone action) — **two**
+outcomes: **"Approve CI Fee"** and **"Decline CI Fee"**. Both open a
+`ConfirmDialog` first rather than mutating on click — same
+confirm-before-mutating convention as Disapprove/Return to AMD elsewhere
+on this page. Approve's dialog ("Approve CI Fee?") just names the
+applicant/amount; Decline's ("Reason for declining") requires a typed
+reason before its Confirm button enables, mirroring
+`credit-investigation-view.tsx`'s `confirmReturnToAmd` exactly.
+
+Confirming **Approve** sets `ciFeeStatus: 'approved'`. Confirming
+**Decline** resets the request back to `ciFeeStatus: 'not-requested'`
+(clearing `ciFeeAmount`/`ciFeeAmountDescription`/`ciFeeRemarks` — same
+re-entry point as an application that never requested a fee, so the
+officer can re-request with corrected terms from the CI Fee card) while
+recording the typed reason in a new **`ciFeeDeclineReason: string`** field
+on `CreditInvestigation` (`admin-context.tsx`), the same
+per-decision-reason convention as `decisionReason`/`returnToAmdReason`.
+
+Either action — instead of redirecting away — flips a local `justApproved`
+or `justDeclined` flag that swaps the whole screen to a one-time
+completed/outcome state (shared `OutcomeScreen` component, local to
+`ci-fee-approval-view.tsx`): centered icon, heading, body copy naming the
+applicant, a **"Continue to Credit Investigation"** primary action, and a
+**"Back to Application List"** secondary one — green check icon for
+approved, amber X icon for declined. This mirrors Requirement Checklist's
+local `SuccessState` component (`requirement-checklist-view.tsx`, shown on
+`endorsed`) so completing this screen reads the same way as completing any
+other step/decision in the pipeline, rather than a card quietly changing
+its own text in place. Both flags are deliberately separate from the
+persisted `ciFeeStatus`: that status can independently become `'approved'`
+via the inline page action or from an earlier session, and a decline
+resets to `'not-requested'` — indistinguishable from an application that
+never requested a fee at all — so treating every render of either
+resulting status as a fresh completion would be wrong. A stale `'approved'`
+status (both flags still `false`) instead falls through to the plain
+"already approved" info card described below; a stale `'not-requested'`
+status falls through to that same info card with its own copy.
+
+For any other `ciFeeStatus` (and no fresh `justApproved` completion), it
+shows a non-actionable empty state with a link back to Credit
+Investigation. If there is no live application at all in this session
+(`!signUpData` — e.g. fresh browser state, no borrower has gone through
+onboarding yet), it shows a distinct "No application in progress" empty
+state with a **"Go to Application List"** button, rather than rendering
+nothing — unlike `credit-investigation-view.tsx`'s
+`if (!signUpData) return null;` guard, which is fine there since every
+other section on that page genuinely needs applicant data to render
+anything at all; this screen has a real "nothing to show yet" state worth
+surfacing (with a way forward) instead of going blank. The existing page
+action on Credit Investigation is unchanged and still works independently
+— this screen is additive, not a replacement.
+
+**Styled as a real per-step queue/list**, matching every other queue in
+this app (`application-list-view.tsx`'s per-step filtered list for
+Initial Credit Checking, Call Report, Requirement Checklist, Credit
+Investigation) — one row per application currently relevant to this
+screen, not a single isolated card. Reuses the exact row shape from that
+page: a `QueueRow` local component (icon box, name + optional **"Sample"**
+badge, "App No. X" subtext, a `StatusBadge tone="warning" label="Pending
+approval"`).
+
+This required a genuine data-model addition, not just a restyle: unlike
+`ReviewStep` (a real per-application concept — every `SampleApplicationEntry`
+already carries its own `step`), `ciFeeStatus` lives on a single flat
+`review.creditInvestigation` object in `AdminContext` — there is exactly
+one `ciFeeStatus` in the whole app, belonging to the one live application.
+`SampleApplicationEntry` had no CI-fee-related fields at all, so nothing
+else in the data model could ever produce a second "pending" row. Fixed by
+adding an optional `ciFee?: { status: 'pending-approval'; amount: string;
+amountDescription: string; remarks?: string }` field to
+`SampleApplicationEntry` (`sample-applications.ts`) and setting it on two
+existing entries (Ramil Dela Cruz, Cristina Villanueva) — same read-only
+convention as every other sample in this app (no working Approve/Decline;
+these rows are non-actionable filler, no click handler, no navigation).
+
+The list combines:
+- **The live application's row — only when actually pending**
+  (`ciFeeStatus === 'pending-approval'`). Unlike `application-list-view.tsx`
+  (where the live row always appears on every step, non-actionable where
+  irrelevant), this row is omitted entirely otherwise, since most
+  `ciFeeStatus` values aren't meaningfully "at this queue" the way an
+  unstarted pipeline step still is.
+- **Sample rows** — every `SAMPLE_APPLICATIONS` entry with `ciFee` set.
+
+If neither the live row nor any sample row applies, an empty-state card
+("No CI Fee pending approval", `NOT_PENDING_COPY[ciFeeStatus]`) renders
+instead of an empty list, with a link back to Credit Investigation.
+
+**The live application's detail card + Approve/Decline actions render
+directly below the list whenever its row is present — no click or expand
+needed.** This was a deliberate simplicity choice (confirmed with the
+user) over making the row itself clickable/expandable, since this screen
+has no per-application URL to route a row-click to (unlike the other
+queues, which route to a dedicated page per application) and there's only
+ever one live row to show detail for.
+
+If there is no live application at all in this session (`!signUpData` —
+e.g. fresh browser state, no borrower has gone through onboarding yet), a
+distinct "No application in progress" empty state renders instead of the
+list entirely, with a **"Go to Application List"** button — unlike
+`credit-investigation-view.tsx`'s `if (!signUpData) return null;` guard,
+which is fine there since every other section on that page genuinely needs
+applicant data to render anything at all.
 
 ## CI Report
 

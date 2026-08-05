@@ -16,6 +16,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { TONE_COLORS, adminCardSx } from 'src/components/admin-ui';
 
 import { ApplicationReviewHeader } from './application-review-header';
 import { OfficerNotesHistory } from './officer-notes-history';
@@ -56,10 +57,8 @@ export function ReconsiderationView() {
           textAlign="center"
           spacing={2}
           sx={{
+            ...adminCardSx,
             p: { xs: 4, md: 6 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
           }}
         >
           <Box
@@ -70,10 +69,10 @@ export function ReconsiderationView() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: '#FDE2DF',
+              bgcolor: TONE_COLORS.error.bg,
             }}
           >
-            <Iconify icon="solar:letter-bold" width={26} sx={{ color: '#F04438' }} />
+            <Iconify icon="solar:letter-bold" width={26} sx={{ color: TONE_COLORS.error.solid }} />
           </Box>
           <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>
             Client has been notified
@@ -104,14 +103,14 @@ export function ReconsiderationView() {
           sx={{
             p: { xs: 3, md: 4 },
             borderRadius: '16px',
-            bgcolor: '#FDE2DF',
-            border: '1px solid #F8C9C4',
+            bgcolor: TONE_COLORS.error.bg,
+            border: `1px solid ${TONE_COLORS.error.border}`,
           }}
         >
           <Stack direction="row" spacing={1.5} alignItems="flex-start">
-            <Iconify icon="solar:danger-triangle-bold" width={20} sx={{ color: '#B32C22', mt: 0.25 }} />
+            <Iconify icon="solar:danger-triangle-bold" width={20} sx={{ color: TONE_COLORS.error.text, mt: 0.25 }} />
             <Box>
-              <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#B32C22' }}>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: TONE_COLORS.error.text }}>
                 Not approved on initial credit checking
               </Typography>
               <Typography sx={{ fontSize: 13, color: '#7A1D17', mt: 0.5 }}>
@@ -127,15 +126,7 @@ export function ReconsiderationView() {
         </Box>
 
         {review.creditChecking.notes && (
-          <Box
-            sx={{
-              p: { xs: 3, md: 4 },
-              borderRadius: '16px',
-              bgcolor: 'common.white',
-              border: '1px solid #EBEDF3',
-              boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-            }}
-          >
+          <Box sx={adminCardSx}>
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
               Notes from initial credit checking
             </Typography>
@@ -145,15 +136,7 @@ export function ReconsiderationView() {
           </Box>
         )}
 
-        <Box
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
-            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-          }}
-        >
+        <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
             Reconsideration notes
           </Typography>
@@ -173,15 +156,7 @@ export function ReconsiderationView() {
           />
         </Box>
 
-        <Box
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
-            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-          }}
-        >
+        <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
             Approved?
           </Typography>

@@ -168,7 +168,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
       <DialogContent sx={{ p: 2.5 }}>
         <Stack spacing={2.5}>
           <Box>
-            <SectionHeading>1. Call Details</SectionHeading>
+            <SectionHeading>Call Details</SectionHeading>
             <FieldGrid columns={4}>
               <ResultField label="Call Date" value={callReport.callDate} />
               <ResultField label="Call Time" value={callReport.callTime} />
@@ -192,7 +192,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>2. Loan Discussion</SectionHeading>
+            <SectionHeading>Loan Discussion</SectionHeading>
             <FieldGrid columns={3}>
               <ResultField
                 label="Loan Purpose Confirmation"
@@ -240,7 +240,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>3. Residence and Household Information</SectionHeading>
+            <SectionHeading>Residence and Household Information</SectionHeading>
             <FieldGrid columns={4}>
               <ResultField
                 label="Years at Residence"
@@ -260,7 +260,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>4. Employment or Business Information</SectionHeading>
+            <SectionHeading>Employment or Business Information</SectionHeading>
             <FieldGrid columns={3}>
               <ResultField
                 label="Main Source of Income"
@@ -284,7 +284,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>5. Organization Membership</SectionHeading>
+            <SectionHeading>Organization Membership</SectionHeading>
             <FieldGrid columns={4}>
               <ResultField label="Member of an Organization" value={callReport.isOrgMember === 'yes' ? 'Yes' : callReport.isOrgMember === 'no' ? 'No' : ''} />
               {callReport.isOrgMember === 'yes' && (
@@ -304,7 +304,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>6. Quick Financial Information</SectionHeading>
+            <SectionHeading>Quick Financial Information</SectionHeading>
             <FieldGrid columns={4}>
               <ResultField label="Declared Gross Monthly Income" value={formatCurrency(callReport.declaredGrossMonthlyIncome)} />
               <ResultField label="Declared Net Monthly Income" value={formatCurrency(callReport.declaredNetMonthlyIncome)} />
@@ -317,7 +317,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>7. Payment Behavior</SectionHeading>
+            <SectionHeading>Payment Behavior</SectionHeading>
             <FieldGrid columns={3}>
               <ResultField
                 label="Electricity Bill Payment"
@@ -344,7 +344,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>8. Officer Observation</SectionHeading>
+            <SectionHeading>Officer Observation</SectionHeading>
             <NarrativeBlock label="OBSERVATIONS" value={observationLabels} />
             {callReport.observationNotes && (
               <Box sx={{ mt: 1.5 }}>
@@ -355,7 +355,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
 
           <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
             <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#8891A6', mb: 1 }}>
-              9. COLLATERAL INFORMATION
+              COLLATERAL INFORMATION
             </Typography>
             <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 1 }}>
               Collateral Offered: {labelFor(COLLATERAL_OFFERED_OPTIONS, callReport.collateralOffered) || '—'}
@@ -375,7 +375,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>10. Agreed Next Steps</SectionHeading>
+            <SectionHeading>Agreed Next Steps</SectionHeading>
             <FieldGrid columns={2}>
               <ResultField label="Next Steps" value={nextStepLabels} />
               <ResultField
@@ -395,7 +395,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
           <Box>
-            <SectionHeading>11. Loan Package Proposal</SectionHeading>
+            <SectionHeading>Loan Package Proposal</SectionHeading>
             <FieldGrid columns={3}>
               <ResultField label="Proposed Loan Amount" value={formatCurrency(callReport.proposedLoanAmount)} />
               <ResultField label="Proposed Loan Term" value={callReport.proposedLoanTerm ? `${callReport.proposedLoanTerm} months` : ''} />

@@ -403,13 +403,9 @@ export const fieldSx = {
 };
 
 // Shared card container sx, matching Initial Credit Checking's white rounded cards.
-export const cardSx = {
-  p: { xs: 3, md: 4 },
-  borderRadius: '16px',
-  bgcolor: 'common.white',
-  border: '1px solid #EBEDF3',
-  boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-};
+// Re-exported from the app-wide token so every admin screen shares one
+// definition instead of each file hand-copying the same five properties.
+export { adminCardSx as cardSx } from 'src/components/admin-ui';
 
 export function labelFor<T extends string>(options: Option<T>[], value: T | ''): string | null {
   if (!value) return null;

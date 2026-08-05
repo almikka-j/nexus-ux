@@ -14,6 +14,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import { buildTranscriptAutoFill } from '../credit-investigation-transcript';
 
@@ -66,15 +67,7 @@ export function CiReportCard() {
     : null;
 
   return (
-    <Box
-      sx={{
-        p: { xs: 3, md: 4 },
-        borderRadius: '16px',
-        bgcolor: 'common.white',
-        border: '1px solid #EBEDF3',
-        boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-      }}
-    >
+    <Box sx={adminCardSx}>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
         <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
         <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>CI Report</Typography>
@@ -111,7 +104,7 @@ export function CiReportCard() {
           variant="outlined"
           size="small"
           startIcon={<Iconify icon="solar:upload-bold-duotone" width={16} />}
-          sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', flexShrink: 0 }}
+          sx={{ ...outlinedNavyButtonSx, flexShrink: 0 }}
         >
           {report.transcriptFileName ? 'Replace transcript' : 'Upload transcript'}
         </Button>

@@ -1,24 +1,29 @@
 'use client';
 
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import { Iconify } from 'src/components/iconify';
+import { StatusBadge, outlinedNavyButtonSx, type SemanticTone } from 'src/components/admin-ui';
 
 import type { RequirementDoc } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
-// Read-only row for the Bureau & Verification Checks group (CIC/CMAP/
-// NFIS-BAP). These documents are required earlier, during Requirement
-// Checklist — by the time an application reaches Credit Investigation they
-// must already be on file. This row re-displays that existing status/file
-// for the officer to re-check as part of the investigation; it has no
-// Upload/Remove/Mark-as-reviewed controls since this page does not own
-// that data (see requirement-checklist-view.tsx for the source of truth).
+// Read-only row for the Credit Investigation Document Checklist. Every
+// fixed document on this page (not just the 3 bureau checks) is collected
+// one step earlier, during Requirement Checklist — this page only
+// re-displays that existing status/file for the officer to re-check as
+// part of the investigation. It has no Upload/Remove/Mark-as-reviewed
+// controls since this page does not own that data (see
+// requirement-checklist-view.tsx for the source of truth).
+//
+// Status chip mirrors requirement-doc-row.tsx's STATUS_STYLES (same
+// palette via admin-tokens, same leading icon convention) so this row
+// reads as part of the same Document Checklist list instead of a
+// different visual system.
 // ----------------------------------------------------------------------
 
 const STATUS_LABEL: Record<RequirementDoc['status'], string> = {
@@ -27,21 +32,29 @@ const STATUS_LABEL: Record<RequirementDoc['status'], string> = {
   missing: 'Missing',
 };
 
-const STATUS_COLOR: Record<RequirementDoc['status'], { bg: string; color: string }> = {
-  verified: { bg: '#E7F8F0', color: '#0C8A4F' },
-  'needs-review': { bg: '#FEF0D6', color: '#B36A05' },
-  missing: { bg: '#F5F6FA', color: '#8891A6' },
+const STATUS_TONE: Record<RequirementDoc['status'], SemanticTone> = {
+  verified: 'success',
+  'needs-review': 'warning',
+  missing: 'neutral',
 };
 
-export function ReadOnlyBureauCheckRow({
+const STATUS_ICON_COLOR: Record<RequirementDoc['status'], string> = {
+  verified: '#12B76A',
+  'needs-review': '#B36A05',
+  missing: '#C7CCDA',
+};
+
+export function ReadOnlyRequirementDocRow({
   label,
   doc,
+  applicantName,
 }: {
   label: string;
   doc: RequirementDoc | undefined;
+  applicantName: string;
 }) {
   const status = doc?.status ?? 'missing';
-  const style = STATUS_COLOR[status];
+  const tone = STATUS_TONE[status];
 
   const handleView = () => {
     if (!doc?.fileUrl) return;
@@ -60,12 +73,17 @@ export function ReadOnlyBureauCheckRow({
           <Iconify
             icon="solar:shield-check-bold-duotone"
             width={20}
-            sx={{ color: style.color, flexShrink: 0 }}
+            sx={{ color: STATUS_ICON_COLOR[status], flexShrink: 0 }}
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
               {label}
             </Typography>
+            {status !== 'missing' && doc?.aiNote && (
+              <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
+                {`The ${label} for ${applicantName} was reviewed. ${doc.aiNote}`}
+              </Typography>
+            )}
             <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.35 }}>
               {doc?.fileName ? `${doc.fileName} · from Requirement Checklist` : 'Not yet uploaded in Requirement Checklist'}
             </Typography>
@@ -73,11 +91,9 @@ export function ReadOnlyBureauCheckRow({
         </Stack>
 
         <Stack direction="row" alignItems="center" spacing={1}>
-          <Chip
-            size="small"
-            label={STATUS_LABEL[status]}
-            sx={{ bgcolor: style.bg, color: style.color, fontWeight: 700, fontSize: 11.5 }}
-          />
+          {status !== 'verified' && (
+            <StatusBadge tone={tone} label={STATUS_LABEL[status]} icon="solar:info-circle-linear" />
+          )}
           <Tooltip title={doc?.fileUrl ? 'Open uploaded file' : 'No file on record yet'}>
             <span>
               <Button
@@ -86,7 +102,7 @@ export function ReadOnlyBureauCheckRow({
                 variant="outlined"
                 size="small"
                 startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
-                sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', px: 1.5 }}
+                sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
               >
                 View
               </Button>

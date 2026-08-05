@@ -66,7 +66,7 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
         <LogoFull width={130} height={32} />
       </Box>
 
-      <Stack direction="row" spacing={0.75} sx={{ flex: 1, overflowX: 'auto' }}>
+      <Stack direction="row" spacing={3} alignItems="center" sx={{ flex: 1, height: 1, overflowX: 'auto' }}>
         {adminNavData.map((item) => {
           const hasChildren = !!item.children?.length;
           const active =
@@ -77,25 +77,23 @@ export function AdminNavHorizontal({ displayName }: AdminNavHorizontalProps) {
 
           const commonSx = {
             flexShrink: 0,
-            height: 40,
-            px: 2,
-            borderRadius: '10px',
+            height: 68,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            px: 0.25,
             color: '#5A6273',
             fontSize: 14,
             fontWeight: 600,
-            gap: 1,
-            transition: 'background-color 0.15s ease, color 0.15s ease',
+            gap: 0.75,
+            transition: 'color 0.15s ease',
             '&:hover': {
-              bgcolor: '#F5F6FA',
+              color: '#1C2A6E',
             },
-            ...(active && {
-              bgcolor: '#1C2A6E',
-              color: 'common.white',
+            ...((active || isMenuOpen) && {
+              color: '#1C2A6E',
               fontWeight: 700,
-              boxShadow: '0 2px 8px rgba(28,42,110,0.28)',
-              '&:hover': { bgcolor: '#1C2A6E' },
             }),
-            ...(isMenuOpen && { bgcolor: '#EEF1FE' }),
           };
 
           if (hasChildren) {

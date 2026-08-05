@@ -55,6 +55,15 @@ export type CreditChecking = {
    * carried on the generated report alongside that derived text.
    */
   officerRecommendation: string;
+  /**
+   * Optional supporting document attached to the "Proceed with Justification"
+   * modal (shown only when bureauFindingStatus === 'negative') — stored as a
+   * base64 data URL, same reasoning as every other upload in this prototype
+   * (no real file storage backend). Cleared alongside the rest of the
+   * negative-finding/justification state by resetNegativeCreditReport-style
+   * flows if the officer starts over.
+   */
+  justificationDocument: { fileName: string; fileData: string } | null;
 };
 
 export type CibiForm = {
@@ -340,6 +349,13 @@ export type ClientType = 'new' | 'existing';
 
 export type CallReport = {
   approved: boolean;
+  /**
+   * The reason recorded when using Sales Reject (dropdown reason + optional
+   * remarks, combined into one string) — same pattern and same field role as
+   * `CreditChecking.decisionReason`. Blank when the application was approved
+   * to proceed instead.
+   */
+  decisionReason: string;
 
   // Client Type — was previously shown in a dedicated read-only Application
   // Summary card (removed from the Call Report page); no other card renders
@@ -526,11 +542,18 @@ export type RequirementChecklist = {
   // from this array's last entry rather than a separate snapshot field.
   outreachMessages: OutreachMessage[];
   endorsed: boolean;
-  returnedToApplicant: boolean;
-  returnReason: string;
+  /**
+   * Set by Sales Reject — same reason-dropdown + optional-remarks pattern as
+   * `CreditChecking.decisionReason`/`CallReport.decisionReason`, combined
+   * into one string. Was previously a "Return to Applicant" action
+   * (`returnedToApplicant`/`returnReason`); renamed when that flow was
+   * replaced to match Initial Credit Checking's Sales Reject.
+   */
+  rejected: boolean;
+  decisionReason: string;
 };
 
-export type CiFeeStatus = 'not-requested' | 'pending-approval' | 'approved';
+export type CiFeeStatus = 'not-requested' | 'pending-approval' | 'approved' | 'not-applicable';
 
 export type CreditInvestigationDoc = RequirementDoc & {
   // Only set on ad-hoc officer-added rows (via "+ Add document"), which have
@@ -564,6 +587,15 @@ export type CreditInvestigation = {
   // has its own "Request Documents" drawer/history.
   outreachMessages: OutreachMessage[];
   ciFeeStatus: CiFeeStatus;
+  ciFeeAmount: string;
+  ciFeeAmountDescription: string;
+  ciFeeRemarks: string;
+  // Set when a pending CI Fee request is declined on the CI Fee Approval
+  // screen (src/sections/admin/ci-fee-approval-view.tsx) — declining resets
+  // ciFeeStatus back to 'not-requested' (same re-entry point as a fresh
+  // application) but keeps this reason on record, same convention as
+  // decisionReason/returnToAmdReason below.
+  ciFeeDeclineReason: string;
   report: CiReport;
   decision: CreditCheckDecision;
   decisionReason: string;
@@ -642,7 +674,7 @@ type AdminContextValue = AdminState & {
   addOutreachMessage: (message: { channel: OutreachChannel; text: string }) => void;
   setCreditInvestigation: (data: Partial<CreditInvestigation>) => void;
   setCiReport: (data: Partial<CiReport>) => void;
-  addCreditInvestigationDocument: (label: string) => void;
+  addCreditInvestigationDocument: (label: string, uploadedBy: string) => void;
   removeCreditInvestigationDocument: (key: string) => void;
   addCiOutreachMessage: (message: { channel: OutreachChannel; text: string }) => void;
   markStepEntered: (step: ReviewStep) => void;
@@ -706,34 +738,13 @@ function createInitialRequirementDocuments(): RequirementDoc[] {
   });
 }
 
-// Fixed keys for Credit Investigation's non-bureau, non-custom document
-// rows. Every document starts 'missing' — unlike Requirement Checklist,
-// this is not a pre-seeded demo state, since Credit Investigation is a
-// later step the officer starts fresh on.
-const CREDIT_INVESTIGATION_DOC_KEYS = [
-  'ciTinPrimaryId',
-  'ciSpousePassport',
-  'ciSpouseDriversLicense',
-  'ciPrimaryIdsMortgagor',
-  'ciPrimaryIdsBorrowers',
-  'ciBankAuthForm',
-  'ciRegistrationOfBusinessName',
-  'ciProofOfBilling',
-  'ciAdditionalOtherDocuments',
-];
-
+// The Credit Investigation Document Checklist has no fixed documents of its
+// own — it displays review.requirementChecklist.documents (the
+// creditInvestigation tab) read-only, since those were already collected one
+// step earlier. This array only ever holds ad-hoc custom rows an officer
+// adds via addCreditInvestigationDocument.
 function createInitialCreditInvestigationDocuments(): CreditInvestigationDoc[] {
-  return CREDIT_INVESTIGATION_DOC_KEYS.map((key) => ({
-    key,
-    status: 'missing',
-    aiNote: '',
-    fileName: null,
-    fileUrl: null,
-    uploadedAt: null,
-    uploadedBy: null,
-    remarks: '',
-    reviewed: false,
-  }));
+  return [];
 }
 
 function createInitialCiReport(): CiReport {
@@ -760,6 +771,10 @@ function createInitialCreditInvestigation(): CreditInvestigation {
     documents: createInitialCreditInvestigationDocuments(),
     outreachMessages: [],
     ciFeeStatus: 'not-requested',
+    ciFeeAmount: '',
+    ciFeeAmountDescription: '',
+    ciFeeRemarks: '',
+    ciFeeDeclineReason: '',
     report: createInitialCiReport(),
     decision: 'pending',
     decisionReason: '',
@@ -827,6 +842,7 @@ function createInitialReview(): ApplicationReview {
       notes: '',
       decisionReason: '',
       officerRecommendation: '',
+      justificationDocument: null,
     },
     cibiForm: {
       firstName: '',
@@ -860,6 +876,7 @@ function createInitialReview(): ApplicationReview {
     negativeCreditReport: createInitialNegativeCreditReport(),
     callReport: {
       approved: false,
+      decisionReason: '',
       clientType: '',
       callDate: '',
       callTime: '',
@@ -968,8 +985,8 @@ function createInitialReview(): ApplicationReview {
       collateralNotes: '',
       outreachMessages: [],
       endorsed: false,
-      returnedToApplicant: false,
-      returnReason: '',
+      rejected: false,
+      decisionReason: '',
     },
     creditInvestigation: createInitialCreditInvestigation(),
     stepTimestamps: {},
@@ -1068,23 +1085,12 @@ function readStoredState(): AdminState {
         creditInvestigation: {
           ...initialState.review.creditInvestigation,
           ...storedReview.creditInvestigation,
-          documents: (
-            storedReview.creditInvestigation?.documents ?? []
-          ).length === 0
-            ? initialState.review.creditInvestigation.documents
-            : [
-                ...initialState.review.creditInvestigation.documents.map((defaultDoc: CreditInvestigationDoc) => {
-                  const storedDoc = storedReview.creditInvestigation?.documents?.find(
-                    (doc: CreditInvestigationDoc) => doc.key === defaultDoc.key
-                  );
-                  return storedDoc ? { ...defaultDoc, ...storedDoc } : defaultDoc;
-                }),
-                // Preserve any ad-hoc custom rows the officer added — they
-                // have no entry in the default array to merge onto.
-                ...(storedReview.creditInvestigation?.documents ?? []).filter(
-                  (doc: CreditInvestigationDoc) => doc.isCustom
-                ),
-              ],
+          // Only ad-hoc custom rows live in this array now (see
+          // createInitialCreditInvestigationDocuments) — carry forward
+          // whatever custom rows were stored, dropping anything else.
+          documents: (storedReview.creditInvestigation?.documents ?? []).filter(
+            (doc: CreditInvestigationDoc) => doc.isCustom
+          ),
           report: {
             ...initialState.review.creditInvestigation.report,
             ...storedReview.creditInvestigation?.report,
@@ -1347,16 +1353,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             },
           },
         })),
-      addCreditInvestigationDocument: (label) =>
+      addCreditInvestigationDocument: (label, uploadedBy) =>
         setState((prev) => {
           const newDoc: CreditInvestigationDoc = {
             key: crypto.randomUUID(),
-            status: 'missing',
-            aiNote: '',
-            fileName: null,
-            fileUrl: null,
-            uploadedAt: null,
-            uploadedBy: null,
+            status: 'verified',
+            aiNote: 'Reviewed, no issues found.',
+            fileName: 'sample-local-pdf.pdf',
+            fileUrl: '/assets/documents/sample-local-pdf.pdf',
+            uploadedAt: new Date().toISOString(),
+            uploadedBy,
             remarks: '',
             reviewed: false,
             isCustom: true,

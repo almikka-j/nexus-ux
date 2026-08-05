@@ -1,7 +1,7 @@
 // src/sections/admin/credit-investigation-view.tsx
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -15,10 +15,12 @@ import { paths } from 'src/routes/paths';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
-import type { CreditInvestigationDoc } from 'src/auth/admin-context';
+import type { CreditInvestigationDoc, RequirementDoc } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
-import { ConfirmDialog } from 'src/components/custom-dialog';
+import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
+import { CollapsibleSection, CollapsibleSectionBadge } from 'src/components/collapsible-section';
+import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
@@ -28,16 +30,16 @@ import { RequirementDocRow } from './requirement-doc-row';
 import { RequestDocumentsDrawer } from './request-documents-drawer';
 import { CiFeeCard } from './credit-investigation/ci-fee-card';
 import { CiReportCard } from './credit-investigation/ci-report-card';
-import { ReadOnlyBureauCheckRow } from './credit-investigation/credit-investigation-doc-row';
+import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 import { buildCreditInvestigationSummary } from './credit-investigation-risk';
 import {
-  CREDIT_INVESTIGATION_DOC_META,
-  CI_SUBGROUP_LABELS,
-  CI_SUBGROUP_ORDER,
-} from './credit-investigation-docs';
+  REQUIREMENT_DOC_META,
+  REQUIREMENT_SUBGROUP_LABELS,
+  REQUIREMENT_SUBGROUP_ORDER,
+} from './requirement-checklist-docs';
 
 import type { OutreachChannel } from 'src/auth/admin-context';
-import type { CreditInvestigationDocMeta } from './credit-investigation-docs';
+import type { RequirementDocMeta } from './requirement-checklist-docs';
 
 // ----------------------------------------------------------------------
 
@@ -47,17 +49,19 @@ const RISK_STYLES = {
   high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'Not ready' },
 } as const;
 
-const BUREAU_CHECKS: { key: string; label: string }[] = [
-  { key: 'cicCheck', label: 'CIC Check' },
-  { key: 'cmapCheck', label: 'CMAP Check' },
-  { key: 'nfisBapCheck', label: 'NFIS/BAP Check' },
-];
+// The Document Checklist's fixed document set — every REQUIREMENT_DOC_META
+// entry tagged for the creditInvestigation tab, including the 3 bureau
+// checks (CIC/CMAP/NFIS-BAP). All of it is collected one step earlier, in
+// Requirement Checklist, and displayed here read-only from
+// review.requirementChecklist.documents — this page never owns or edits
+// these rows (see ReadOnlyRequirementDocRow).
+const CI_FIXED_DOC_META = REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('creditInvestigation'));
 
-function needsAttention(doc: CreditInvestigationDoc) {
+function needsAttention(doc: RequirementDoc | CreditInvestigationDoc) {
   return doc.status !== 'verified';
 }
 
-function sortByAttentionFirst(entries: { meta: CreditInvestigationDocMeta; doc: CreditInvestigationDoc }[]) {
+function sortByAttentionFirst<T extends { doc: RequirementDoc | CreditInvestigationDoc }>(entries: T[]): T[] {
   return entries
     .map((entry, index) => ({ entry, index }))
     .sort((a, b) => {
@@ -88,56 +92,75 @@ export function CreditInvestigationView() {
   const [disapproveReason, setDisapproveReason] = useState('');
   const [returnToAmdOpen, setReturnToAmdOpen] = useState(false);
   const [returnToAmdReason, setReturnToAmdReason] = useState('');
+  const { documents: customDocuments, ciFeeStatus } = review.creditInvestigation;
 
-  const { documents, ciFeeStatus } = review.creditInvestigation;
+  // Document Checklist and the AI review card start collapsed whenever the
+  // application is already past their gate on open (ciFeeStatus already
+  // 'pending-approval'/'approved') — not just when the status transitions
+  // while the page is mounted. That covers opening an application that was
+  // already at that stage in an earlier session, not only moving through it
+  // live in this one.
+  const [checklistExpanded, setChecklistExpanded] = useState(
+    () => ciFeeStatus !== 'pending-approval' && ciFeeStatus !== 'approved'
+  );
+  const [aiReviewExpanded, setAiReviewExpanded] = useState(() => ciFeeStatus !== 'approved');
+
+  // Also collapses both live, the moment the status transitions during this
+  // session (e.g. right after "Yes, Request CI Fee" or the simulated
+  // approval action) — re-fires Document Checklist's collapse on 'approved'
+  // too, in case the officer had manually reopened it while waiting. Only
+  // fires on the transition itself, not every render, so the officer's own
+  // toggle afterward is never fought.
+  const prevCiFeeStatusRef = useRef(ciFeeStatus);
+  useEffect(() => {
+    const justReachedGate =
+      (ciFeeStatus === 'pending-approval' || ciFeeStatus === 'approved') &&
+      prevCiFeeStatusRef.current !== ciFeeStatus &&
+      prevCiFeeStatusRef.current !== 'approved';
+    if (justReachedGate) {
+      setChecklistExpanded(false);
+    }
+    if (ciFeeStatus === 'approved' && prevCiFeeStatusRef.current !== 'approved') {
+      setAiReviewExpanded(false);
+    }
+    prevCiFeeStatusRef.current = ciFeeStatus;
+  }, [ciFeeStatus]);
   const officerName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Credit Officer';
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
-  const docsByKey = new Map(documents.map((doc) => [doc.key, doc]));
-  const customDocs = documents.filter((doc) => doc.isCustom);
+  const customDocs = customDocuments.filter((doc) => doc.isCustom);
 
-  const bureauDocsByKey = new Map(
-    review.requirementChecklist.documents.map((doc) => [doc.key, doc])
-  );
-  const bureauChecksComplete = BUREAU_CHECKS.every(
-    (check) => bureauDocsByKey.get(check.key)?.status !== 'missing'
+  // Every fixed document on this page is collected earlier, in Requirement
+  // Checklist — this page reads that state directly and displays it
+  // read-only (see ReadOnlyRequirementDocRow) instead of keeping its own
+  // separate, editable copy.
+  const fixedDocsByKey = new Map(review.requirementChecklist.documents.map((doc) => [doc.key, doc]));
+  const fixedDocs = CI_FIXED_DOC_META.map((meta) => fixedDocsByKey.get(meta.key)).filter(
+    (doc): doc is RequirementDoc => !!doc
   );
 
-  const patchDoc = (key: string, data: Partial<CreditInvestigationDoc>) => {
+  const patchCustomDoc = (key: string, data: Partial<CreditInvestigationDoc>) => {
     setCreditInvestigation({
-      documents: documents.map((doc) => (doc.key === key ? { ...doc, ...data } : doc)),
+      documents: customDocuments.map((doc) => (doc.key === key ? { ...doc, ...data } : doc)),
     });
   };
 
   const handleUploadDoc = (key: string) => (data: Partial<CreditInvestigationDoc>) => {
-    patchDoc(key, { ...data, uploadedBy: officerName, reviewed: false });
+    patchCustomDoc(key, { ...data, uploadedBy: officerName, reviewed: false });
   };
 
-  const handleRemoveDoc = (key: string) => () => {
-    patchDoc(key, {
-      status: 'missing',
-      aiNote: '',
-      fileName: null,
-      fileUrl: null,
-      uploadedAt: null,
-      uploadedBy: null,
-      remarks: '',
-      reviewed: false,
-    });
-  };
-
-  const handleToggleReviewed = (key: string) => (reviewed: boolean) => patchDoc(key, { reviewed });
-  const handleRemarksChange = (key: string) => (remarks: string) => patchDoc(key, { remarks });
+  const handleToggleReviewed = (key: string) => (reviewed: boolean) => patchCustomDoc(key, { reviewed });
+  const handleRemarksChange = (key: string) => (remarks: string) => patchCustomDoc(key, { remarks });
 
   const handleAddDoc = () => {
     const label = newDocLabel.trim();
     if (!label) return;
-    addCreditInvestigationDocument(label);
+    addCreditInvestigationDocument(label, officerName);
     setNewDocLabel('');
     setAddDocOpen(false);
   };
 
   const missingDocLabels = [
-    ...CREDIT_INVESTIGATION_DOC_META.filter((meta) => docsByKey.get(meta.key)?.status === 'missing').map(
+    ...CI_FIXED_DOC_META.filter((meta) => fixedDocsByKey.get(meta.key)?.status === 'missing').map(
       (meta) => meta.label
     ),
     ...customDocs.filter((doc) => doc.status === 'missing').map((doc) => doc.label ?? 'Custom document'),
@@ -147,70 +170,34 @@ export function CreditInvestigationView() {
     addCiOutreachMessage(message);
   };
 
-  const { level, summary, recommendation } = buildCreditInvestigationSummary(
-    documents,
-    CREDIT_INVESTIGATION_DOC_META,
-    bureauChecksComplete
-  );
+  const { level, summary, recommendation } = buildCreditInvestigationSummary(fixedDocs, CI_FIXED_DOC_META);
   const riskStyle = RISK_STYLES[level];
 
-  const handleFillSampleData = () => {
-    const uploadedAt = new Date().toISOString();
-    setCreditInvestigation({
-      documents: documents.map((doc) => {
-        if (doc.isCustom) return doc;
-        const meta = CREDIT_INVESTIGATION_DOC_META.find((entry) => entry.key === doc.key);
-        if (!meta) return doc;
-        return {
-          ...doc,
-          status: meta.freshStatus,
-          aiNote: meta.freshNote,
-          fileName: 'sample-local-pdf.pdf',
-          fileUrl: '/assets/documents/sample-local-pdf.pdf',
-          uploadedAt,
-          uploadedBy: officerName,
-          reviewed: false,
-        };
-      }),
-    });
-  };
-
-  const allFixedReceived = CREDIT_INVESTIGATION_DOC_META.every(
-    (meta) => docsByKey.get(meta.key)?.status !== 'missing'
+  const allFixedReceived = CI_FIXED_DOC_META.every(
+    (meta) => fixedDocsByKey.get(meta.key)?.status !== 'missing'
   );
-
-  const handleClearSampleData = () => {
-    setCreditInvestigation({
-      documents: documents.map((doc) =>
-        doc.isCustom
-          ? doc
-          : {
-              ...doc,
-              status: 'missing',
-              aiNote: '',
-              fileName: null,
-              fileUrl: null,
-              uploadedAt: null,
-              uploadedBy: null,
-              remarks: '',
-              reviewed: false,
-            }
-      ),
-    });
-  };
 
   useRegisterPageActions(
     useMemo(
       () => [
-        {
-          key: 'sample-data',
-          label: allFixedReceived ? 'Remove Sample Data' : 'Fill with Sample Data',
-          icon: 'solar:magic-stick-3-bold-duotone',
-          onClick: allFixedReceived ? handleClearSampleData : handleFillSampleData,
-        },
+        // The officer who requests the CI Fee can't also approve it — there's no
+        // real second-officer login in this prototype, so approval is simulated
+        // here as an explicit "as another officer" dev shortcut, same convention
+        // as "Force Clean/Negative Bureau Finding" on Initial Credit Checking.
+        ...(ciFeeStatus === 'pending-approval'
+          ? [
+              {
+                key: 'simulate-ci-fee-approval',
+                label: 'Simulate: Another Officer Approves CI Fee',
+                icon: 'solar:user-check-bold-duotone',
+                color: '#0C8A4F',
+                onClick: () => setCreditInvestigation({ ciFeeStatus: 'approved' }),
+              },
+            ]
+          : []),
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [allFixedReceived, documents]
+      [ciFeeStatus]
     )
   );
 
@@ -259,66 +246,62 @@ export function CreditInvestigationView() {
           officerNotesProcess="Credit Investigation"
         />
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 2.5 }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              Document Checklist
-            </Typography>
-            <Button
-              onClick={() => setRequestDrawerOpen(true)}
-              variant="outlined"
-              size="small"
-              startIcon={<Iconify icon="solar:letter-bold-duotone" width={16} />}
-              sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px', px: 2 }}
-            >
-              Request Documents
-            </Button>
-          </Stack>
-
+        <Box sx={adminCardSx}>
+          <CollapsibleSection
+            title="Document Checklist"
+            expanded={checklistExpanded}
+            onToggle={() => setChecklistExpanded((prev) => !prev)}
+            badge={
+              <CollapsibleSectionBadge
+                received={CI_FIXED_DOC_META.filter((meta) => fixedDocsByKey.get(meta.key)?.status !== 'missing').length}
+                total={CI_FIXED_DOC_META.length}
+              />
+            }
+            completeIcon={
+              allFixedReceived && (
+                <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
+              )
+            }
+            headerAction={
+              <Button
+                onClick={() => setRequestDrawerOpen(true)}
+                variant="outlined"
+                size="small"
+                startIcon={<Iconify icon="solar:letter-bold-duotone" width={16} />}
+                sx={{ ...outlinedNavyButtonSx, px: 2 }}
+              >
+                Request Documents
+              </Button>
+            }
+          >
           <Stack spacing={3}>
-            {CI_SUBGROUP_ORDER.map((subgroup) => {
+            {REQUIREMENT_SUBGROUP_ORDER.map((subgroup) => {
               const entries = sortByAttentionFirst(
-                CREDIT_INVESTIGATION_DOC_META.filter((meta) => meta.subgroup === subgroup)
-                  .map((meta) => ({ meta, doc: docsByKey.get(meta.key) }))
+                CI_FIXED_DOC_META.filter((meta) => meta.subgroup === subgroup)
+                  .map((meta) => ({ meta, doc: fixedDocsByKey.get(meta.key) }))
                   .filter(
-                    (entry): entry is { meta: CreditInvestigationDocMeta; doc: CreditInvestigationDoc } =>
-                      !!entry.doc
+                    (entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc
                   )
               );
               if (entries.length === 0) return null;
               return (
                 <Stack key={subgroup} spacing={1.25}>
                   <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6' }}>
-                    {CI_SUBGROUP_LABELS[subgroup]}
+                    {REQUIREMENT_SUBGROUP_LABELS[subgroup]}
                   </Typography>
                   <Stack spacing={1.25}>
                     {entries.map(({ meta, doc }) => (
-                      <RequirementDocRow
+                      <ReadOnlyRequirementDocRow
                         key={meta.key}
-                        meta={meta}
+                        label={meta.label}
                         doc={doc}
                         applicantName={applicantName}
-                        onUpload={handleUploadDoc(meta.key)}
-                        onRemove={handleRemoveDoc(meta.key)}
-                        onToggleReviewed={handleToggleReviewed(meta.key)}
-                        onRemarksChange={handleRemarksChange(meta.key)}
                       />
                     ))}
                   </Stack>
                 </Stack>
               );
             })}
-
-            <Stack spacing={1.25}>
-              <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6' }}>
-                Bureau &amp; Verification Checks
-              </Typography>
-              <Stack spacing={1.25}>
-                {BUREAU_CHECKS.map((check) => (
-                  <ReadOnlyBureauCheckRow key={check.key} label={check.label} doc={bureauDocsByKey.get(check.key)} />
-                ))}
-              </Stack>
-            </Stack>
 
             {customDocs.length > 0 && (
               <Stack spacing={1.25}>
@@ -336,6 +319,7 @@ export function CreditInvestigationView() {
                       onRemove={() => removeCreditInvestigationDocument(doc.key)}
                       onToggleReviewed={handleToggleReviewed(doc.key)}
                       onRemarksChange={handleRemarksChange(doc.key)}
+                      hideReviewedCheckbox
                     />
                   ))}
                 </Stack>
@@ -366,56 +350,58 @@ export function CreditInvestigationView() {
             ) : (
               <Button
                 onClick={() => setAddDocOpen(true)}
+                variant="outlined"
                 startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
-                sx={{ alignSelf: 'flex-start', color: '#1C2A6E' }}
+                sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
               >
                 Add document
               </Button>
             )}
           </Stack>
+          </CollapsibleSection>
         </Box>
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-            <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              AI review, summary &amp; recommendation
+        <Box sx={adminCardSx}>
+          <CollapsibleSection
+            title="AI review, summary & recommendation"
+            expanded={aiReviewExpanded}
+            onToggle={() => setAiReviewExpanded((prev) => !prev)}
+          >
+            <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
+              Automatically checks each uploaded document for completeness against the checklist above.
             </Typography>
-          </Stack>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-            Automatically checks each uploaded document for completeness against the checklist above.
-          </Typography>
-          <Stack spacing={2}>
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>AI Summary</Typography>
-              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{summary}</Typography>
-            </Box>
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: riskStyle.bg }}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Iconify icon={riskStyle.icon} width={16} sx={{ color: riskStyle.color }} />
-                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
-                  AI Recommendation · {riskStyle.label}
-                </Typography>
-              </Stack>
-              <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6 }}>{recommendation}</Typography>
-            </Box>
-          </Stack>
+            <Stack spacing={2}>
+              <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>AI Summary</Typography>
+                <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{summary}</Typography>
+              </Box>
+              <Box sx={{ p: 2, borderRadius: '11px', bgcolor: riskStyle.bg }}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Iconify icon={riskStyle.icon} width={16} sx={{ color: riskStyle.color }} />
+                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
+                    AI Recommendation · {riskStyle.label}
+                  </Typography>
+                </Stack>
+                <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6 }}>{recommendation}</Typography>
+              </Box>
+            </Stack>
+          </CollapsibleSection>
         </Box>
 
         <CiFeeCard />
 
-        {ciFeeStatus === 'approved' ? (
+        {ciFeeStatus === 'approved' || ciFeeStatus === 'not-applicable' ? (
           <CiReportCard />
         ) : (
-          <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', textAlign: 'center' }}>
+          <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
             <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
             <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-              Approve the CI Fee above to unlock the CI Report.
+              Resolve the CI Fee above — approve the request or mark it as not applicable — to unlock the CI Report.
             </Typography>
           </Box>
         )}
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+        <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
             Proceed application?
           </Typography>
@@ -473,7 +459,7 @@ export function CreditInvestigationView() {
             variant="contained"
             disabled={!disapproveReason.trim()}
             onClick={confirmDisapprove}
-            sx={{ bgcolor: '#F04438', '&:hover': { bgcolor: '#B32C22' } }}
+            sx={confirmDialogActionToneSx.destructive}
           >
             Confirm
           </Button>
@@ -501,7 +487,7 @@ export function CreditInvestigationView() {
             variant="contained"
             disabled={!returnToAmdReason.trim()}
             onClick={confirmReturnToAmd}
-            sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', '&:hover': { bgcolor: '#14205A' } }}
+            sx={{ ...confirmDialogActionToneSx.default, borderRadius: '10px' }}
           >
             Confirm
           </Button>

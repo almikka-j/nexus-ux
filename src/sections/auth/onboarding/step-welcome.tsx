@@ -10,7 +10,7 @@ import { LogoFull } from 'src/components/logo/logo-full';
 
 // ----------------------------------------------------------------------
 
-const AUTO_ADVANCE_DELAY = 5000;
+const AUTO_ADVANCE_DELAY = 4000;
 
 type StepWelcomeProps = {
   firstName: string;

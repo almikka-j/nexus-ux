@@ -28,6 +28,38 @@ import { authFieldSx, authFieldLabelSx, authPrimaryButtonSx } from '../auth-inpu
 import type { PersonalInfo } from 'src/auth/registration-context';
 
 // ----------------------------------------------------------------------
+// Denser field sizing, matching Preliminary Application's compact scale —
+// overridden locally rather than shrinking the shared auth-input-styles
+// tokens (which would also shrink login/admin-login screens).
+// ----------------------------------------------------------------------
+
+const compactFieldSx = {
+  ...authFieldSx,
+  '& .MuiOutlinedInput-root': {
+    ...authFieldSx['& .MuiOutlinedInput-root'],
+    height: 40,
+    fontSize: 13.5,
+  },
+  '& .MuiOutlinedInput-input::placeholder': {
+    ...authFieldSx['& .MuiOutlinedInput-input::placeholder'],
+    fontSize: 12.5,
+  },
+  '& .MuiInputAdornment-root, & .MuiInputAdornment-root .MuiTypography-root': {
+    fontSize: 13.5,
+  },
+};
+
+const compactFieldLabelSx = {
+  ...authFieldLabelSx,
+  fontSize: 12,
+  mb: 0.5,
+};
+
+const compactMenuProps = {
+  PaperProps: { sx: { '& .MuiMenuItem-root': { fontSize: 13.5 } } },
+};
+
+// ----------------------------------------------------------------------
 // Upload ID: pick an ID type first — the upload dropzone(s) only appear
 // once a type is selected (front-only vs. front+back depends on the
 // type). Uploading then auto-fills the rest of the borrower's details
@@ -48,6 +80,68 @@ const ID_TYPES_REQUIRING_BACK = new Set(["Driver's License", 'UMID', 'SSS ID', '
 
 const PROVINCES = ['Metro Manila', 'Cebu', 'Davao del Sur', 'Laguna', 'Cavite'];
 
+// Sample PH zip code → province/city/barangay lookup. Not a real PSGC
+// (Philippine Standard Geographic Code) import — just enough real zip
+// codes/barangays across the 5 provinces above to demo the cascading
+// address fields honestly, matching this prototype's "sample data, no real
+// OCR/AI" pattern elsewhere in this file. A zip typed outside this table
+// falls back to manual entry (see `matchedZip` usage below) rather than
+// blocking the borrower from continuing.
+type ZipLocation = { province: string; city: string; barangays: string[] };
+
+const ZIP_LOCATIONS: Record<string, ZipLocation> = {
+  '1121': {
+    province: 'Metro Manila',
+    city: 'Quezon City',
+    barangays: ['Barangay Commonwealth', 'Barangay Batasan Hills', 'Barangay Holy Spirit', 'Barangay Payatas'],
+  },
+  '1000': {
+    province: 'Metro Manila',
+    city: 'Manila',
+    barangays: ['Barangay 1 (Ermita)', 'Barangay 402 (Malate)', 'Barangay 660 (Sampaloc)'],
+  },
+  '1200': {
+    province: 'Metro Manila',
+    city: 'Makati',
+    barangays: ['Barangay Bel-Air', 'Barangay Poblacion', 'Barangay San Lorenzo'],
+  },
+  '6000': {
+    province: 'Cebu',
+    city: 'Cebu City',
+    barangays: ['Barangay Lahug', 'Barangay Capitol Site', 'Barangay Guadalupe', 'Barangay Mabolo'],
+  },
+  '6014': {
+    province: 'Cebu',
+    city: 'Mandaue City',
+    barangays: ['Barangay Tipolo', 'Barangay Subangdaku', 'Barangay Centro'],
+  },
+  '8000': {
+    province: 'Davao del Sur',
+    city: 'Davao City',
+    barangays: ['Barangay Poblacion', 'Barangay Buhangin', 'Barangay Talomo', 'Barangay Matina'],
+  },
+  '4027': {
+    province: 'Laguna',
+    city: 'Calamba',
+    barangays: ['Barangay Real', 'Barangay Uno', 'Barangay Canlubang', 'Barangay Parian'],
+  },
+  '4026': {
+    province: 'Laguna',
+    city: 'Santa Rosa',
+    barangays: ['Barangay Balibago', 'Barangay Tagapo', 'Barangay Market Area'],
+  },
+  '4114': {
+    province: 'Cavite',
+    city: 'Dasmariñas',
+    barangays: ['Barangay Zone IV', 'Barangay San Agustin', 'Barangay Salawag'],
+  },
+  '4103': {
+    province: 'Cavite',
+    city: 'Bacoor',
+    barangays: ['Barangay Zapote', 'Barangay Molino', 'Barangay Talaba'],
+  },
+};
+
 const CIVIL_STATUSES = ['Single', 'Married', 'Widowed', 'Separated', 'Divorced'];
 
 const GENDERS = ['Male', 'Female'];
@@ -58,7 +152,7 @@ const REFERRAL_SOURCES = [
   'Referral from a Friend',
   'Advertisement',
   'Existing Customer',
-  'Other',
+  'Agent',
 ];
 
 // Placeholder-style values auto-filled the instant an ID is uploaded —
@@ -110,6 +204,7 @@ export const PersonalInfoSchema = zod
     gender: zod.string().min(1, { message: 'Select your gender.' }),
     tinNumber: zod.string().optional(),
     referralSource: zod.string().min(1, { message: 'Select how you discovered PG Finance.' }),
+    agentCode: zod.string().optional(),
     spouseFirstName: zod.string().optional(),
     spouseMiddleName: zod.string().optional(),
     spouseLastName: zod.string().optional(),
@@ -135,6 +230,13 @@ export const PersonalInfoSchema = zod
         code: zod.ZodIssueCode.custom,
         path: ['idFileBack'],
         message: 'Upload the back of your ID.',
+      });
+    }
+    if (data.referralSource === 'Agent' && !data.agentCode) {
+      ctx.addIssue({
+        code: zod.ZodIssueCode.custom,
+        path: ['agentCode'],
+        message: 'Please contact your agent for the agent code.',
       });
     }
     if (data.civilStatus === 'Married') {
@@ -269,10 +371,10 @@ function IdUploadSlot({ value, onChange, error, label }: IdUploadSlotProps) {
         borderRadius: '11px',
         overflow: 'hidden',
         cursor: value ? 'default' : 'pointer',
-        border: '1px dashed',
-        borderColor: error ? 'error.main' : '#D6DAE3',
-        bgcolor: error ? 'error.lighter' : '#F9FAFC',
-        '&:hover': value ? undefined : { opacity: 0.8 },
+        border: '1.5px dashed',
+        borderColor: error ? 'error.main' : '#B0B8CC',
+        bgcolor: error ? 'error.lighter' : value ? '#F9FAFC' : '#EEF1FE',
+        '&:hover': value ? undefined : { borderColor: error ? 'error.main' : '#1C2A6E', bgcolor: error ? undefined : '#E4E9FD' },
       }}
     >
       {!value && <input {...getInputProps()} />}
@@ -297,9 +399,9 @@ function IdUploadSlot({ value, onChange, error, label }: IdUploadSlotProps) {
         </>
       ) : (
         <Stack alignItems="center" justifyContent="center" spacing={0.5} sx={{ width: 1, height: 1, px: 1.5 }}>
-          <Iconify icon="solar:upload-minimalistic-bold-duotone" width={22} sx={{ color: '#8891A6' }} />
-          <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#344054' }}>{label}</Typography>
-          <Typography sx={{ fontSize: 11, color: '#8891A6' }}>PNG or JPG, up to 10MB</Typography>
+          <Iconify icon="solar:upload-minimalistic-bold-duotone" width={22} sx={{ color: '#1C2A6E' }} />
+          <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#1C2A6E' }}>{label}</Typography>
+          <Typography sx={{ fontSize: 11, color: '#5A6273' }}>PNG or JPG, up to 10MB</Typography>
         </Stack>
       )}
     </Box>
@@ -352,7 +454,7 @@ function FieldLabel({ children, name, autofilled }: FieldLabelProps) {
 
   return (
     <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.75 }}>
-      <Typography sx={{ ...authFieldLabelSx, mb: 0 }}>{children}</Typography>
+      <Typography sx={{ ...compactFieldLabelSx, mb: 0 }}>{children}</Typography>
       {showChip && <AutofilledChip />}
     </Stack>
   );
@@ -372,7 +474,7 @@ function IdUploadField({ name, label }: IdUploadFieldProps) {
       control={control}
       render={({ field, fieldState: { error } }) => (
         <Box>
-          <Typography sx={authFieldLabelSx}>{label}</Typography>
+          <Typography sx={compactFieldLabelSx}>{label}</Typography>
           <IdUploadSlot
             value={field.value as File | string | null}
             // setValue(..., { shouldValidate: true }) instead of the bare
@@ -426,6 +528,7 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
     gender: defaultValues.gender || '',
     tinNumber: defaultValues.tinNumber || '',
     referralSource: defaultValues.referralSource || '',
+    agentCode: defaultValues.agentCode || '',
     spouseFirstName: defaultValues.spouseFirstName || '',
     spouseMiddleName: defaultValues.spouseMiddleName || '',
     spouseLastName: defaultValues.spouseLastName || '',
@@ -460,9 +563,51 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
   const idType = useWatch({ control, name: 'idType' });
   const idFile = useWatch({ control, name: 'idFile' });
   const idFileBack = useWatch({ control, name: 'idFileBack' });
+  const referralSource = useWatch({ control, name: 'referralSource' });
+  const zipCode = useWatch({ control, name: 'zipCode' });
+  const spouseZipCode = useWatch({ control, name: 'spouseZipCode' });
   const isMarried = civilStatus === 'Married';
+  const isAgentReferral = referralSource === 'Agent';
   const requiresIdBack = ID_TYPES_REQUIRING_BACK.has(idType);
   const previousIdTypeRef = useRef(idType);
+  const matchedZip = ZIP_LOCATIONS[zipCode] ?? null;
+  const matchedSpouseZip = ZIP_LOCATIONS[spouseZipCode ?? ''] ?? null;
+  const previousZipCodeRef = useRef(zipCode);
+  const previousSpouseZipCodeRef = useRef(spouseZipCode);
+
+  // Zip code drives Province/City (read-only, filled from the lookup) and
+  // resets Barangay whenever the matched zip changes — the previously
+  // selected barangay may not even exist in the new city's list. Skipped
+  // when the current barangay is already valid for the new zip (e.g. the
+  // ID-read autofill sets zipCode and barangay together in the same batch;
+  // clearing here would wipe out that just-autofilled value).
+  useEffect(() => {
+    if (zipCode === previousZipCodeRef.current) return;
+    previousZipCodeRef.current = zipCode;
+
+    if (matchedZip) {
+      setValue('province', matchedZip.province, { shouldValidate: true });
+      setValue('city', matchedZip.city, { shouldValidate: true });
+    }
+    const currentBarangay = methods.getValues('barangay');
+    if (!matchedZip || !matchedZip.barangays.includes(currentBarangay)) {
+      setValue('barangay', '', { shouldValidate: false });
+    }
+  }, [zipCode, matchedZip, setValue, methods]);
+
+  useEffect(() => {
+    if (spouseZipCode === previousSpouseZipCodeRef.current) return;
+    previousSpouseZipCodeRef.current = spouseZipCode;
+
+    if (matchedSpouseZip) {
+      setValue('spouseProvince', matchedSpouseZip.province, { shouldValidate: true });
+      setValue('spouseCity', matchedSpouseZip.city, { shouldValidate: true });
+    }
+    const currentSpouseBarangay = methods.getValues('spouseBarangay');
+    if (!matchedSpouseZip || !matchedSpouseZip.barangays.includes(currentSpouseBarangay || '')) {
+      setValue('spouseBarangay', '', { shouldValidate: false });
+    }
+  }, [spouseZipCode, matchedSpouseZip, setValue, methods]);
 
   // A different ID type must be uploaded and read again; do not carry an
   // image from the previously selected document type into the new choice.
@@ -625,9 +770,6 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
       }}
     >
       <Stack alignItems="center" textAlign="center" spacing={0.75} sx={{ mb: 3.5 }}>
-        <Typography sx={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8891A6' }}>
-          Step 1 · Upload ID
-        </Typography>
         <Typography sx={{ fontSize: 24, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em' }}>
           Upload a valid ID
         </Typography>
@@ -660,19 +802,20 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
 
       <Form methods={methods} onSubmit={onSubmit}>
         <AutofilledFieldsContext.Provider value={autofilledFields}>
-        <Stack spacing={2}>
+        <Stack spacing={1.1}>
           <Box>
-            <Typography sx={authFieldLabelSx}>ID type</Typography>
+            <Typography sx={compactFieldLabelSx}>ID type</Typography>
             <Field.Select
               name="idType"
-              sx={authFieldSx}
+              sx={compactFieldSx}
               SelectProps={{
                 displayEmpty: true,
+                MenuProps: compactMenuProps,
                 renderValue: (value) =>
                   value ? (
                     String(value)
                   ) : (
-                    <Typography component="span" sx={{ fontSize: 14, color: 'text.disabled' }}>
+                    <Typography component="span" sx={{ fontSize: 12.5, color: 'text.disabled' }}>
                       Select ID type
                     </Typography>
                   ),
@@ -762,7 +905,7 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
 
           <Box>
             <FieldLabel name="idNumber">ID number</FieldLabel>
-            <Field.Text name="idNumber" placeholder="0000 0000 0000" sx={authFieldSx} />
+            <Field.Text name="idNumber" placeholder="0000 0000 0000" sx={compactFieldSx} />
           </Box>
 
           <Stack direction="row" spacing={1.75}>
@@ -770,36 +913,36 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
               <FieldLabel name="firstName" autofilled={detailsState === 'ready'}>
                 First name
               </FieldLabel>
-              <Field.Text name="firstName" placeholder="Juan" sx={authFieldSx} />
+              <Field.Text name="firstName" placeholder="Juan" sx={compactFieldSx} />
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <FieldLabel name="middleName" autofilled={detailsState === 'ready'}>
                 Middle name
               </FieldLabel>
-              <Field.Text name="middleName" placeholder="Santos" sx={authFieldSx} />
+              <Field.Text name="middleName" placeholder="Santos" sx={compactFieldSx} />
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <FieldLabel name="lastName" autofilled={detailsState === 'ready'}>
                 Last name
               </FieldLabel>
-              <Field.Text name="lastName" placeholder="Dela Cruz" sx={authFieldSx} />
+              <Field.Text name="lastName" placeholder="Dela Cruz" sx={compactFieldSx} />
             </Box>
             <Box sx={{ width: 140, flexShrink: 0 }}>
               <FieldLabel name="extensionName" autofilled={detailsState === 'ready'}>
                 Extension
               </FieldLabel>
-              <Field.Text name="extensionName" placeholder="Jr." sx={authFieldSx} />
+              <Field.Text name="extensionName" placeholder="Jr." sx={compactFieldSx} />
             </Box>
           </Stack>
 
           <Stack direction="row" spacing={1.75}>
             <Box sx={{ flex: 1 }}>
               <FieldLabel name="birthday">Birthday</FieldLabel>
-              <Field.Text name="birthday" type="date" sx={authFieldSx} InputLabelProps={{ shrink: true }} />
+              <Field.Text name="birthday" type="date" sx={compactFieldSx} InputLabelProps={{ shrink: true }} />
             </Box>
             <Box sx={{ flex: 1 }}>
               <FieldLabel name="gender">Gender</FieldLabel>
-              <Field.Select name="gender" sx={authFieldSx}>
+              <Field.Select name="gender" sx={compactFieldSx} SelectProps={{ MenuProps: compactMenuProps }}>
                 {GENDERS.map((gender) => (
                   <MenuItem key={gender} value={gender}>
                     {gender}
@@ -811,41 +954,62 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
 
           <Box>
             <FieldLabel name="address">Address (House / Unit No., Street)</FieldLabel>
-            <Field.Text name="address" placeholder="123 Mabini St." sx={authFieldSx} />
+            <Field.Text name="address" placeholder="123 Mabini St." sx={compactFieldSx} />
           </Box>
 
-          <Stack direction="row" spacing={1.75}>
-            <Box sx={{ flex: 1 }}>
-              <FieldLabel name="province">Province</FieldLabel>
-              <Field.Select name="province" sx={authFieldSx}>
-                {PROVINCES.map((province) => (
-                  <MenuItem key={province} value={province}>
-                    {province}
-                  </MenuItem>
-                ))}
-              </Field.Select>
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <FieldLabel name="city">City</FieldLabel>
-              <Field.Text name="city" sx={authFieldSx} />
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <FieldLabel name="barangay">Barangay</FieldLabel>
-              <Field.Text name="barangay" sx={authFieldSx} />
-            </Box>
-            <Box sx={{ width: 140, flexShrink: 0 }}>
-              <FieldLabel name="zipCode">Zip code</FieldLabel>
-              <Field.Text name="zipCode" placeholder="1121" sx={authFieldSx} />
-            </Box>
-          </Stack>
+          <Box>
+            <Stack direction="row" spacing={1.75}>
+              <Box sx={{ width: { xs: 1, sm: 140 }, flexShrink: 0 }}>
+                <FieldLabel name="zipCode">Zip code</FieldLabel>
+                <Field.Text name="zipCode" placeholder="1121" sx={compactFieldSx} />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <FieldLabel name="province">Province</FieldLabel>
+                {matchedZip ? (
+                  <Field.Text name="province" sx={compactFieldSx} InputProps={{ readOnly: true }} />
+                ) : (
+                  <Field.Select name="province" sx={compactFieldSx} SelectProps={{ MenuProps: compactMenuProps }}>
+                    {PROVINCES.map((province) => (
+                      <MenuItem key={province} value={province}>
+                        {province}
+                      </MenuItem>
+                    ))}
+                  </Field.Select>
+                )}
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <FieldLabel name="city">City</FieldLabel>
+                <Field.Text name="city" sx={compactFieldSx} InputProps={{ readOnly: !!matchedZip }} />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <FieldLabel name="barangay">Barangay</FieldLabel>
+                {matchedZip ? (
+                  <Field.Select name="barangay" sx={compactFieldSx} SelectProps={{ MenuProps: compactMenuProps }}>
+                    {matchedZip.barangays.map((barangay) => (
+                      <MenuItem key={barangay} value={barangay}>
+                        {barangay}
+                      </MenuItem>
+                    ))}
+                  </Field.Select>
+                ) : (
+                  <Field.Text name="barangay" sx={compactFieldSx} />
+                )}
+              </Box>
+            </Stack>
+            {!matchedZip && !!zipCode && (
+              <FormHelperText sx={{ mx: 0, mt: 0.5 }}>
+                Zip code not recognized — enter province, city, and barangay manually.
+              </FormHelperText>
+            )}
+          </Box>
 
           <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8891A6', pt: 1 }}>
             Additional information
           </Typography>
 
           <Box>
-            <Typography sx={authFieldLabelSx}>Civil status</Typography>
-            <Field.Select name="civilStatus" sx={authFieldSx}>
+            <Typography sx={compactFieldLabelSx}>Civil status</Typography>
+            <Field.Select name="civilStatus" sx={compactFieldSx} SelectProps={{ MenuProps: compactMenuProps }}>
               {CIVIL_STATUSES.map((status) => (
                 <MenuItem key={status} value={status}>
                   {status}
@@ -859,29 +1023,29 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
               <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
                 Spouse information
               </Typography>
-              <Stack spacing={1.75}>
+              <Stack spacing={1.1}>
                 <Stack direction="row" spacing={1.75}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={authFieldLabelSx}>Spouse&apos;s first name</Typography>
-                    <Field.Text name="spouseFirstName" placeholder="Maria" sx={authFieldSx} />
+                    <Typography sx={compactFieldLabelSx}>Spouse&apos;s first name</Typography>
+                    <Field.Text name="spouseFirstName" placeholder="Maria" sx={compactFieldSx} />
                   </Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={authFieldLabelSx}>Spouse&apos;s middle name</Typography>
-                    <Field.Text name="spouseMiddleName" placeholder="Reyes" sx={authFieldSx} />
+                    <Typography sx={compactFieldLabelSx}>Spouse&apos;s middle name</Typography>
+                    <Field.Text name="spouseMiddleName" placeholder="Reyes" sx={compactFieldSx} />
                   </Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={authFieldLabelSx}>Spouse&apos;s last name</Typography>
-                    <Field.Text name="spouseLastName" placeholder="Dela Cruz" sx={authFieldSx} />
+                    <Typography sx={compactFieldLabelSx}>Spouse&apos;s last name</Typography>
+                    <Field.Text name="spouseLastName" placeholder="Dela Cruz" sx={compactFieldSx} />
                   </Box>
                   <Box sx={{ width: 110, flexShrink: 0 }}>
-                    <Typography sx={authFieldLabelSx}>Extension</Typography>
-                    <Field.Text name="spouseExtensionName" placeholder="Jr." sx={authFieldSx} />
+                    <Typography sx={compactFieldLabelSx}>Extension</Typography>
+                    <Field.Text name="spouseExtensionName" placeholder="Jr." sx={compactFieldSx} />
                   </Box>
                 </Stack>
 
                 <Box>
-                  <Typography sx={authFieldLabelSx}>Spouse&apos;s birthday</Typography>
-                  <Field.Text name="spouseBirthday" type="date" sx={authFieldSx} InputLabelProps={{ shrink: true }} />
+                  <Typography sx={compactFieldLabelSx}>Spouse&apos;s birthday</Typography>
+                  <Field.Text name="spouseBirthday" type="date" sx={compactFieldSx} InputLabelProps={{ shrink: true }} />
                 </Box>
 
                 <FormControlLabel
@@ -899,35 +1063,69 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
                 />
 
                 {!sameAddressAsSpouse && (
-                  <Stack spacing={1.75}>
+                  <Stack spacing={1.1}>
                     <Box>
-                      <Typography sx={authFieldLabelSx}>Address (House / Unit No., Street)</Typography>
-                      <Field.Text name="spouseAddress" placeholder="123 Mabini St." sx={authFieldSx} />
+                      <Typography sx={compactFieldLabelSx}>Address (House / Unit No., Street)</Typography>
+                      <Field.Text name="spouseAddress" placeholder="123 Mabini St." sx={compactFieldSx} />
                     </Box>
-                    <Stack direction="row" spacing={1.75}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography sx={authFieldLabelSx}>Province</Typography>
-                        <Field.Select name="spouseProvince" sx={authFieldSx}>
-                          {PROVINCES.map((province) => (
-                            <MenuItem key={province} value={province}>
-                              {province}
-                            </MenuItem>
-                          ))}
-                        </Field.Select>
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography sx={authFieldLabelSx}>City</Typography>
-                        <Field.Text name="spouseCity" sx={authFieldSx} />
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography sx={authFieldLabelSx}>Barangay</Typography>
-                        <Field.Text name="spouseBarangay" sx={authFieldSx} />
-                      </Box>
-                      <Box sx={{ width: 120 }}>
-                        <Typography sx={authFieldLabelSx}>Zip code</Typography>
-                        <Field.Text name="spouseZipCode" placeholder="1121" sx={authFieldSx} />
-                      </Box>
-                    </Stack>
+
+                    <Box>
+                      <Stack direction="row" spacing={1.75}>
+                        <Box sx={{ width: { xs: 1, sm: 140 }, flexShrink: 0 }}>
+                          <Typography sx={compactFieldLabelSx}>Zip code</Typography>
+                          <Field.Text name="spouseZipCode" placeholder="1121" sx={compactFieldSx} />
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography sx={compactFieldLabelSx}>Province</Typography>
+                          {matchedSpouseZip ? (
+                            <Field.Text name="spouseProvince" sx={compactFieldSx} InputProps={{ readOnly: true }} />
+                          ) : (
+                            <Field.Select
+                              name="spouseProvince"
+                              sx={compactFieldSx}
+                              SelectProps={{ MenuProps: compactMenuProps }}
+                            >
+                              {PROVINCES.map((province) => (
+                                <MenuItem key={province} value={province}>
+                                  {province}
+                                </MenuItem>
+                              ))}
+                            </Field.Select>
+                          )}
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography sx={compactFieldLabelSx}>City</Typography>
+                          <Field.Text
+                            name="spouseCity"
+                            sx={compactFieldSx}
+                            InputProps={{ readOnly: !!matchedSpouseZip }}
+                          />
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography sx={compactFieldLabelSx}>Barangay</Typography>
+                          {matchedSpouseZip ? (
+                            <Field.Select
+                              name="spouseBarangay"
+                              sx={compactFieldSx}
+                              SelectProps={{ MenuProps: compactMenuProps }}
+                            >
+                              {matchedSpouseZip.barangays.map((barangay) => (
+                                <MenuItem key={barangay} value={barangay}>
+                                  {barangay}
+                                </MenuItem>
+                              ))}
+                            </Field.Select>
+                          ) : (
+                            <Field.Text name="spouseBarangay" sx={compactFieldSx} />
+                          )}
+                        </Box>
+                      </Stack>
+                      {!matchedSpouseZip && !!spouseZipCode && (
+                        <FormHelperText sx={{ mx: 0, mt: 0.5 }}>
+                          Zip code not recognized — enter province, city, and barangay manually.
+                        </FormHelperText>
+                      )}
+                    </Box>
                   </Stack>
                 )}
               </Stack>
@@ -935,13 +1133,13 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
           )}
 
           <Box>
-            <Typography sx={authFieldLabelSx}>TIN number</Typography>
-            <Field.Text name="tinNumber" placeholder="000-000-000-000" sx={authFieldSx} />
+            <Typography sx={compactFieldLabelSx}>TIN number</Typography>
+            <Field.Text name="tinNumber" placeholder="000-000-000-000" sx={compactFieldSx} />
           </Box>
 
           <Box>
-            <Typography sx={authFieldLabelSx}>How did you discover PG Finance?</Typography>
-            <Field.Select name="referralSource" sx={authFieldSx}>
+            <Typography sx={compactFieldLabelSx}>How did you discover PG Finance?</Typography>
+            <Field.Select name="referralSource" sx={compactFieldSx} SelectProps={{ MenuProps: compactMenuProps }}>
               {REFERRAL_SOURCES.map((source) => (
                 <MenuItem key={source} value={source}>
                   {source}
@@ -949,6 +1147,13 @@ export function StepPersonalInfo({ defaultValues, nameDefaultValues, onSubmitApp
               ))}
             </Field.Select>
           </Box>
+
+          {isAgentReferral && (
+            <Box>
+              <Typography sx={compactFieldLabelSx}>Agent Code</Typography>
+              <Field.Text name="agentCode" placeholder="Enter agent code" sx={compactFieldSx} />
+            </Box>
+          )}
 
               <Button fullWidth type="submit" variant="contained" sx={authPrimaryButtonSx}>
                 Continue →

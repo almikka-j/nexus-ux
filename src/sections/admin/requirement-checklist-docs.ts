@@ -67,6 +67,17 @@ export const REQUIREMENT_SUBGROUP_LABELS: Record<RequirementDocSubgroup, string>
   loanRequirements: 'Loan Requirements',
 };
 
+// Credit Investigation is the only card with a further nested grouping —
+// this fixed order matches the two sub-groups' presentation order in the
+// design reference (Loan Credit Checking Documents above Loan
+// Requirements). Shared by requirement-checklist-view.tsx and
+// credit-investigation-view.tsx, which displays the same creditInvestigation
+// tab documents read-only.
+export const REQUIREMENT_SUBGROUP_ORDER: RequirementDocSubgroup[] = [
+  'loanCreditChecking',
+  'loanRequirements',
+];
+
 export const REQUIREMENT_DOC_META: RequirementDocMeta[] = [
   // Credit Investigation · Loan Credit Checking Documents
   {

@@ -70,6 +70,7 @@ type FinancialInfo = {
   employmentStatus: string; // borrower-facing label is "Source of income"
   monthlyIncome: number;
   loanPurpose: string; // multiple selections joined with ", " — see "Purpose of loan" below
+  hasCollateral: 'yes' | 'no'; // borrower-facing label is "Do you have collateral?"
   // Collected only when employmentStatus === 'Business Owner':
   businessType?: string;         // Corporation / Cooperative / Sole Proprietorship / Partnership
   businessDocument?: string | null; // base64 data URL of the uploaded business document
@@ -163,6 +164,9 @@ Hook Form + Zod (`PreliminarySchema`). Fields, in this order:
   `Number` for the underlying RHF value, and re-formats the displayed
   string via a small `formatThousands()` helper — the stored/validated
   value is still a plain `number`.
+- **Do you have collateral?** — select (Yes / No), required. Stored as
+  `FinancialInfo.hasCollateral` (`'yes' | 'no'`). Surfaced read-only on the
+  admin Application Details card ("Has collateral").
 - Source of Income (select: Employed / Self-Employed / Business Owner /
   OFW / Unemployed) + Monthly Income (₱) — one row.
   **If Source of Income is "Business Owner"**, a conditional "Business
@@ -309,7 +313,22 @@ Order, top to bottom:
 6. **Birthday, Gender** — one row. Birthday is the borrower's own
    (`PersonalInfo.birthday`), distinct from Spouse's Birthday below.
 7. Address (House/Unit No., Street).
-8. **Province, City, Barangay, Zip Code** — one row.
+8. **Zip Code** — its own row, entered first. Then **Province, City,
+   Barangay** — one row. Driven by a sample PH zip → province/city/barangay
+   lookup (`ZIP_LOCATIONS` in `step-personal-info.tsx`; not a real PSGC
+   import, just enough real zip codes/barangays across the 5 sample
+   provinces to demo this honestly — same "sample data, no real OCR/AI"
+   pattern as the ID-read simulation). When the typed zip matches:
+   Province/City auto-fill and become read-only, and Barangay becomes a
+   `Field.Select` populated from that zip's barangay list. When the zip
+   doesn't match anything in the table, all three fall back to manual entry
+   (Province: the original 5-option select; City/Barangay: free text) with
+   a helper note that the zip wasn't recognized. Changing the zip resets
+   Barangay unless the current value is still valid for the new zip (guards
+   against the ID-read autofill, which sets zip code and barangay together,
+   from having its own barangay value immediately wiped by this same
+   effect). The identical pattern is used for the conditional Spouse's
+   Zip Code/Province/City/Barangay fields below.
 9. An "Additional information" section label, then:
    - **Civil Status** (select).
    - **If Civil Status = Married**, a conditional "Spouse information" box

@@ -1,11 +1,13 @@
 'use client';
 
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
@@ -19,7 +21,9 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
-import { ConfirmDialog } from 'src/components/custom-dialog';
+import { adminCardSx, StatusBadge, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
+import { CollapsibleSection, CollapsibleSectionBadge } from 'src/components/collapsible-section';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
@@ -27,24 +31,21 @@ import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
 import { RequirementDocRow } from './requirement-doc-row';
 import { RequestDocumentsDrawer } from './request-documents-drawer';
+import { RequirementChecklistSectionNav, useActiveSection } from './requirement-checklist-section-nav';
 import { buildRequirementChecklistSummary } from './requirement-checklist-risk';
 import {
   REQUIREMENT_DOC_META,
   APPRAISAL_DOC_META,
   REQUIREMENT_TAB_LABELS,
   REQUIREMENT_SUBGROUP_LABELS,
+  REQUIREMENT_SUBGROUP_ORDER,
 } from './requirement-checklist-docs';
 
 import type { RequirementDoc, OutreachChannel } from 'src/auth/admin-context';
-import type { AppraisalDocMeta, RequirementDocMeta, RequirementDocSubgroup } from './requirement-checklist-docs';
+import type { AppraisalDocMeta, RequirementDocMeta } from './requirement-checklist-docs';
 import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk';
 
 // ----------------------------------------------------------------------
-
-// Credit Investigation is the only card with a further nested grouping —
-// this fixed order matches the two sub-groups' presentation order in the
-// design reference (Loan Credit Checking Documents above Loan Requirements).
-const SUBGROUP_ORDER: RequirementDocSubgroup[] = ['loanCreditChecking', 'loanRequirements'];
 
 const RISK_STYLES: Record<
   RequirementChecklistRiskLevel,
@@ -54,6 +55,18 @@ const RISK_STYLES: Record<
   watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Almost ready' },
   high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'Not ready' },
 };
+
+// Same reason set as Initial Credit Checking's and Call Report's Sales
+// Reject dialogs — kept as a local copy since the three screens don't
+// currently share a constants module for this.
+const SALES_REJECT_REASONS = [
+  'Insufficient income',
+  'Poor credit history',
+  'Incomplete documents',
+  'Employment not verifiable',
+  'Requested amount too high',
+  'Other',
+];
 
 // A document "needs attention" whenever it isn't fully verified — this
 // covers both `'missing'` (nothing on file yet) and `'needs-review'`
@@ -87,25 +100,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     >
       {children}
     </Typography>
-  );
-}
-
-function DocumentCountBadge({ received, total }: { received: number; total: number }) {
-  return (
-    <Box
-      sx={{
-        px: 1,
-        py: 0.25,
-        borderRadius: '999px',
-        bgcolor: '#F5F6FA',
-        color: '#667085',
-        fontSize: 11.5,
-        fontWeight: 700,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {received}/{total} documents
-    </Box>
   );
 }
 
@@ -149,7 +143,7 @@ function SuccessState({
         alignItems="center"
         textAlign="center"
         spacing={2}
-        sx={{ p: { xs: 4, md: 6 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3' }}
+        sx={{ ...adminCardSx, p: { xs: 4, md: 6 } }}
       >
         <Box
           sx={{ width: 56, height: 56, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: iconBg }}
@@ -186,6 +180,7 @@ function SuccessState({
 }
 
 export function RequirementChecklistView() {
+  const router = useRouter();
   const { signUpData, application } = useRegistration();
   const {
     review,
@@ -196,20 +191,31 @@ export function RequirementChecklistView() {
     updateAppraisalGroupDoc,
     addOutreachMessage,
   } = useAdmin();
-  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
-  const [returnReasonDraft, setReturnReasonDraft] = useState('');
+  // Sales Reject requires the officer to pick a reason (and optionally add
+  // remarks) before the application is routed to the Reconsideration screen
+  // — same pattern as Initial Credit Checking's and Call Report's Sales
+  // Reject dialogs. Replaces the previous "Return to Applicant" action.
+  const [disapproveDialogOpen, setDisapproveDialogOpen] = useState(false);
+  const [reasonCategory, setReasonCategory] = useState('');
+  const [reasonRemarks, setReasonRemarks] = useState('');
   const [appraisalNotApplicableConfirmOpen, setAppraisalNotApplicableConfirmOpen] = useState(false);
   const [newTctNumber, setNewTctNumber] = useState('');
   const [requestDrawerOpen, setRequestDrawerOpen] = useState(false);
 
   // Each document card can be collapsed independently, manually via its own
-  // chevron — always starts expanded. Auto-collapsing on completion was
-  // tried and removed: a card's "fully verified" boolean can flip back and
+  // chevron — always starts expanded, then auto-collapses the moment its
+  // documents become fully verified (creditInvestigationFullyVerified /
+  // appraisalFullyVerified / financialEvaluationFullyVerified below). A
+  // naive "if fully verified, collapsed=true" render-time assignment was
+  // tried and reverted: a card's "fully verified" boolean can flip back and
   // forth (e.g. appraisalFullyVerified toggles with appraisalNotApplicable),
-  // and an effect that only ever sets collapsed=true had no way to
-  // re-expand the card when that boolean went false again — toggling
-  // Appraisal from Not Applicable back to Applicable left the card stuck
-  // collapsed with no visible way back in except the header itself.
+  // so that approach fought the officer's own re-expand click on every
+  // render, and toggling Appraisal from Not Applicable back to Applicable
+  // could leave it stuck collapsed. The effect below fixes both: it only
+  // sets collapsed=true on the false→true transition (edge-triggered via a
+  // prev-value ref, same pattern as Credit Investigation's
+  // prevCiFeeStatusRef), never on every render, so a manual re-expand always
+  // sticks until the card goes incomplete and becomes complete again.
   const [creditInvestigationCollapsed, setCreditInvestigationCollapsed] = useState(false);
   const [financialEvaluationCollapsed, setFinancialEvaluationCollapsed] = useState(false);
   const [appraisalCollapsed, setAppraisalCollapsed] = useState(false);
@@ -221,13 +227,17 @@ export function RequirementChecklistView() {
   // repeats across groups).
   const rowRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
+  // Scroll targets for the sticky section nav — one ref per card, keyed by
+  // the same ids the nav items use.
+  const sectionRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+
   const {
     documents,
     appraisalGroups,
     appraisalNotApplicable,
     outreachMessages,
     endorsed,
-    returnedToApplicant,
+    rejected,
   } = review.requirementChecklist;
   const officerName = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Credit Officer';
   const applicantName = [signUpData?.firstName, signUpData?.middleName, signUpData?.lastName]
@@ -348,7 +358,7 @@ export function RequirementChecklistView() {
           fileUrl: '/assets/documents/sample-local-pdf.pdf',
           uploadedAt,
           uploadedBy: officerName,
-          reviewed: false,
+          reviewed: true,
         };
       }),
       appraisalGroups: [
@@ -364,7 +374,7 @@ export function RequirementChecklistView() {
             uploadedAt,
             uploadedBy: officerName,
             remarks: '',
-            reviewed: false,
+            reviewed: true,
           })),
         },
       ],
@@ -391,7 +401,7 @@ export function RequirementChecklistView() {
           fileUrl: '/assets/documents/sample-local-pdf.pdf',
           uploadedAt,
           uploadedBy: officerName,
-          reviewed: false,
+          reviewed: true,
         };
       }),
       appraisalGroups: [
@@ -407,7 +417,7 @@ export function RequirementChecklistView() {
             uploadedAt,
             uploadedBy: officerName,
             remarks: '',
-            reviewed: false,
+            reviewed: true,
           })),
         },
       ],
@@ -485,6 +495,81 @@ export function RequirementChecklistView() {
     appraisalNotApplicable ||
     (hasAppraisalGroups &&
       appraisalGroups.every((group) => group.documents.every((doc) => doc.status === 'verified')));
+
+  // Edge-triggered auto-collapse: fires only on the false→true transition of
+  // each card's "fully verified" boolean, via a prev-value ref, so it never
+  // re-fires (and never fights a manual re-expand) on renders where the
+  // boolean stays true — see the collapsed-state comment above for why a
+  // render-time assignment doesn't work here.
+  const prevCreditInvestigationFullyVerifiedRef = useRef(creditInvestigationFullyVerified);
+  const prevFinancialEvaluationFullyVerifiedRef = useRef(financialEvaluationFullyVerified);
+  const prevAppraisalFullyVerifiedRef = useRef(appraisalFullyVerified);
+  useEffect(() => {
+    if (creditInvestigationFullyVerified && !prevCreditInvestigationFullyVerifiedRef.current) {
+      setCreditInvestigationCollapsed(true);
+    }
+    prevCreditInvestigationFullyVerifiedRef.current = creditInvestigationFullyVerified;
+  }, [creditInvestigationFullyVerified]);
+  useEffect(() => {
+    if (financialEvaluationFullyVerified && !prevFinancialEvaluationFullyVerifiedRef.current) {
+      setFinancialEvaluationCollapsed(true);
+    }
+    prevFinancialEvaluationFullyVerifiedRef.current = financialEvaluationFullyVerified;
+  }, [financialEvaluationFullyVerified]);
+  useEffect(() => {
+    if (appraisalFullyVerified && !prevAppraisalFullyVerifiedRef.current) {
+      setAppraisalCollapsed(true);
+    }
+    prevAppraisalFullyVerifiedRef.current = appraisalFullyVerified;
+  }, [appraisalFullyVerified]);
+
+  const appraisalReceivedCount = appraisalNotApplicable
+    ? 0
+    : appraisalGroups.flatMap((group) => group.documents).filter((doc) => doc.status !== 'missing').length;
+  const appraisalTotalCount = appraisalNotApplicable
+    ? 0
+    : appraisalGroups.reduce((total, group) => total + group.documents.length, 0);
+
+  const sectionNavItems = [
+    {
+      key: 'creditInvestigation',
+      label: REQUIREMENT_TAB_LABELS.creditInvestigation,
+      icon: 'solar:shield-check-bold-duotone',
+      received: creditInvestigationDocs.filter((doc) => doc.status !== 'missing').length,
+      total: creditInvestigationDocs.length,
+      collapsed: creditInvestigationCollapsed,
+    },
+    {
+      key: 'appraisal',
+      label: 'Appraisal',
+      icon: 'solar:home-2-bold-duotone',
+      received: appraisalReceivedCount,
+      total: appraisalTotalCount,
+      collapsed: appraisalCollapsed,
+    },
+    {
+      key: 'financialEvaluation',
+      label: REQUIREMENT_TAB_LABELS.financialEvaluation,
+      icon: 'solar:wallet-money-bold-duotone',
+      received: financialEvaluationDocs.filter((doc) => doc.status !== 'missing').length,
+      total: financialEvaluationDocs.length,
+      collapsed: financialEvaluationCollapsed,
+    },
+  ];
+
+  const activeSectionKey = useActiveSection(
+    sectionRefs,
+    sectionNavItems.map((item) => item.key)
+  );
+
+  const handleJumpToSection = (key: string) => {
+    if (key === 'creditInvestigation') setCreditInvestigationCollapsed(false);
+    if (key === 'appraisal') setAppraisalCollapsed(false);
+    if (key === 'financialEvaluation') setFinancialEvaluationCollapsed(false);
+    requestAnimationFrame(() => {
+      sectionRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   // Every currently-missing document's label, across the fixed list and
   // every Appraisal group — not just required ones, since a missing
@@ -597,18 +682,22 @@ export function RequirementChecklistView() {
     setRequirementChecklist({ endorsed: true });
   };
 
-  const closeReturnDialog = () => {
-    setReturnDialogOpen(false);
-    setReturnReasonDraft('');
+  const closeReasonDialog = () => {
+    setDisapproveDialogOpen(false);
+    setReasonCategory('');
+    setReasonRemarks('');
   };
 
-  const confirmReturn = () => {
-    if (!returnReasonDraft.trim()) return;
-    setRequirementChecklist({
-      returnedToApplicant: true,
-      returnReason: returnReasonDraft.trim(),
-    });
-    closeReturnDialog();
+  const confirmReasonDialog = () => {
+    if (!signUpData || !reasonCategory) return;
+
+    const decisionReason = reasonRemarks.trim()
+      ? `${reasonCategory} — ${reasonRemarks.trim()}`
+      : reasonCategory;
+
+    setRequirementChecklist({ rejected: true, decisionReason });
+    closeReasonDialog();
+    router.push(paths.admin.reconsideration(encodeURIComponent(signUpData.email)));
   };
 
   if (endorsed) {
@@ -626,28 +715,33 @@ export function RequirementChecklistView() {
     );
   }
 
-  if (returnedToApplicant) {
-    return (
-      <SuccessState
-        icon="solar:undo-left-round-bold"
-        iconBg="#FEF0D6"
-        iconColor="#B36A05"
-        heading="Returned to applicant"
-        body="This application has been sent back with the outstanding requirements noted. The officer's reason has been recorded on file."
-        stepLabel="Requirement Checklist · Returned"
-      />
-    );
-  }
-
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
       <ApplicationReviewHeader
         step="Step 3 · Requirement Checklist"
         reviewStep="requirementChecklist"
         hideApplicationCard
       />
 
-      <Stack spacing={2.5}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
+        <Box
+          sx={{
+            width: { xs: 1, md: 240 },
+            flexShrink: 0,
+            position: { md: 'sticky' },
+            top: { md: 92 },
+            zIndex: (theme) => theme.zIndex.appBar - 1,
+            order: { xs: -1, md: 0 },
+          }}
+        >
+          <RequirementChecklistSectionNav
+            items={sectionNavItems}
+            activeKey={activeSectionKey}
+            onJump={handleJumpToSection}
+          />
+        </Box>
+
+        <Stack spacing={2.5} sx={{ flex: 1, minWidth: 0, width: 1 }}>
         <ApplicationDetailsCard
           collapsible
           showCreditCheckingResultAction
@@ -655,7 +749,7 @@ export function RequirementChecklistView() {
           officerNotesProcess="Requirement Checklist"
         />
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #E3E7F0', boxShadow: '0 3px 12px rgba(20,23,42,0.05)' }}>
+        <Box sx={adminCardSx}>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             alignItems={{ xs: 'stretch', sm: 'center' }}
@@ -678,7 +772,7 @@ export function RequirementChecklistView() {
                 <Iconify icon="solar:checklist-minimalistic-bold-duotone" width={21} sx={{ color: '#1C2A6E' }} />
               </Box>
               <Box>
-                <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#14172A' }}>
+                <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
                   Requirement Checklist
                 </Typography>
                 <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
@@ -692,18 +786,11 @@ export function RequirementChecklistView() {
               size="small"
               startIcon={<Iconify icon="solar:letter-bold-duotone" width={16} />}
               sx={{
+                ...outlinedNavyButtonSx,
                 minHeight: 38,
-                color: '#1C2A6E',
-                borderColor: '#C7CEEA',
-                borderRadius: '9px',
                 px: 2,
                 boxShadow: 'none',
                 flexShrink: 0,
-                '&:hover': {
-                  borderColor: '#1C2A6E',
-                  bgcolor: 'rgba(28,42,110,0.04)',
-                  boxShadow: 'none',
-                },
               }}
             >
               Request Documents
@@ -788,41 +875,30 @@ export function RequirementChecklistView() {
           )}
         </Box>
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
-          <Stack
-            component={ButtonBase}
-            onClick={() => setCreditInvestigationCollapsed((prev) => !prev)}
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ width: '100%', mb: creditInvestigationCollapsed ? 0 : 2 }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-                {REQUIREMENT_TAB_LABELS.creditInvestigation}
-              </Typography>
-              <DocumentCountBadge
+        <Box
+          sx={adminCardSx}
+          ref={(el: HTMLDivElement | null) => {
+            sectionRefs.current.set('creditInvestigation', el);
+          }}
+        >
+          <CollapsibleSection
+            title={REQUIREMENT_TAB_LABELS.creditInvestigation}
+            expanded={!creditInvestigationCollapsed}
+            onToggle={() => setCreditInvestigationCollapsed((prev) => !prev)}
+            badge={
+              <CollapsibleSectionBadge
                 received={creditInvestigationDocs.filter((doc) => doc.status !== 'missing').length}
                 total={creditInvestigationDocs.length}
               />
-              {creditInvestigationFullyVerified && (
+            }
+            completeIcon={
+              creditInvestigationFullyVerified && (
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
-              )}
-            </Stack>
-            <Iconify
-              icon="eva:chevron-down-fill"
-              width={20}
-              sx={{
-                color: '#8891A6',
-                transition: 'transform 0.15s ease',
-                transform: creditInvestigationCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-              }}
-            />
-          </Stack>
-
-          {!creditInvestigationCollapsed && (
+              )
+            }
+          >
             <Stack spacing={3}>
-              {SUBGROUP_ORDER.map((subgroup) => {
+              {REQUIREMENT_SUBGROUP_ORDER.map((subgroup) => {
                 const subgroupEntries: { meta: RequirementDocMeta; doc: RequirementDoc }[] =
                   REQUIREMENT_DOC_META.filter(
                     (meta) => meta.tabs.includes('creditInvestigation') && meta.subgroup === subgroup
@@ -849,6 +925,7 @@ export function RequirementChecklistView() {
                             onRemove={handleRemoveDoc(meta.key)}
                             onToggleReviewed={handleToggleReviewed(meta.key)}
                             onRemarksChange={handleRemarksChange(meta.key)}
+                            removeMeansMissing
                           />
                         </Box>
                       ))}
@@ -857,63 +934,49 @@ export function RequirementChecklistView() {
                 );
               })}
             </Stack>
-          )}
-
+          </CollapsibleSection>
         </Box>
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            spacing={2}
-            sx={{ mb: appraisalCollapsed ? 0 : 2.5 }}
-          >
-            <Stack
-              component={ButtonBase}
-              onClick={() => setAppraisalCollapsed((prev) => !prev)}
-              direction="row"
-              alignItems="center"
-              spacing={1}
-              sx={{ borderRadius: '8px', px: 0.5, mx: -0.5 }}
-            >
-              <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-                Appraisal
-              </Typography>
-              <DocumentCountBadge
-                received={
-                  appraisalNotApplicable
-                    ? 0
-                    : appraisalGroups
-                        .flatMap((group) => group.documents)
-                        .filter((doc) => doc.status !== 'missing').length
-                }
-                total={
-                  appraisalNotApplicable
-                    ? 0
-                    : appraisalGroups.reduce((total, group) => total + group.documents.length, 0)
-                }
-              />
-              {appraisalFullyVerified && (
+        <Box
+          sx={adminCardSx}
+          ref={(el: HTMLDivElement | null) => {
+            sectionRefs.current.set('appraisal', el);
+          }}
+        >
+          <CollapsibleSection
+            title="Appraisal"
+            expanded={!appraisalCollapsed}
+            onToggle={() => setAppraisalCollapsed((prev) => !prev)}
+            badge={
+              <>
+                <CollapsibleSectionBadge
+                  received={
+                    appraisalNotApplicable
+                      ? 0
+                      : appraisalGroups
+                          .flatMap((group) => group.documents)
+                          .filter((doc) => doc.status !== 'missing').length
+                  }
+                  total={
+                    appraisalNotApplicable
+                      ? 0
+                      : appraisalGroups.reduce((total, group) => total + group.documents.length, 0)
+                  }
+                />
+                {!appraisalNotApplicable && appraisalGroups.length > 0 && (
+                  <StatusBadge
+                    tone={appraisalGroupsComplete ? 'success' : 'warning'}
+                    label={`${appraisalGroups.length} ${appraisalGroups.length === 1 ? 'property' : 'properties'}`}
+                  />
+                )}
+              </>
+            }
+            completeIcon={
+              appraisalFullyVerified && (
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
-              )}
-              {!appraisalNotApplicable && appraisalGroups.length > 0 && (
-                <Box
-                  sx={{
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: '999px',
-                    bgcolor: appraisalGroupsComplete ? '#E7F8F0' : '#FEF0D6',
-                    color: appraisalGroupsComplete ? '#0C8A4F' : '#B36A05',
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                  }}
-                >
-                  {appraisalGroups.length} {appraisalGroups.length === 1 ? 'property' : 'properties'}
-                </Box>
-              )}
-            </Stack>
-            <Stack direction="row" alignItems="center" spacing={1}>
+              )
+            }
+            headerAction={
               <Button
                 onClick={handleToggleAppraisalNotApplicable}
                 size="small"
@@ -925,37 +988,19 @@ export function RequirementChecklistView() {
                   />
                 }
                 sx={{
-                  color: '#1C2A6E',
-                  borderColor: '#C7CEEA',
+                  ...outlinedNavyButtonSx,
                   borderRadius: '10px',
                   px: 1.75,
                   fontWeight: 700,
                   fontSize: 12.5,
                   flexShrink: 0,
-                  '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
                 }}
               >
                 {appraisalNotApplicable ? 'Mark as Applicable' : 'Set as Not Applicable'}
               </Button>
-              <IconButton
-                onClick={() => setAppraisalCollapsed((prev) => !prev)}
-                aria-label={appraisalCollapsed ? 'Expand Appraisal' : 'Collapse Appraisal'}
-                size="small"
-                sx={{ color: '#8891A6', flexShrink: 0 }}
-              >
-                <Iconify
-                  icon="eva:chevron-down-fill"
-                  width={20}
-                  sx={{
-                    transition: 'transform 0.15s ease',
-                    transform: appraisalCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                  }}
-                />
-              </IconButton>
-            </Stack>
-          </Stack>
-
-          {appraisalCollapsed ? null : appraisalNotApplicable ? (
+            }
+          >
+          {appraisalNotApplicable ? (
             <Stack
               direction="row"
               alignItems="center"
@@ -1132,19 +1177,10 @@ export function RequirementChecklistView() {
                             <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
                               {group.tctNumber}
                             </Typography>
-                            <Box
-                              sx={{
-                                px: 1,
-                                py: 0.15,
-                                borderRadius: '999px',
-                                bgcolor: groupComplete ? '#E7F8F0' : '#FEF0D6',
-                                color: groupComplete ? '#0C8A4F' : '#B36A05',
-                                fontSize: 11,
-                                fontWeight: 700,
-                              }}
-                            >
-                              {groupReceivedDocuments}/{group.documents.length} documents
-                            </Box>
+                            <StatusBadge
+                              tone={groupComplete ? 'success' : 'warning'}
+                              label={`${groupReceivedDocuments}/${group.documents.length} documents`}
+                            />
                           </Stack>
                           <Stack direction="row" alignItems="center" spacing={0.5}>
                             <IconButton
@@ -1199,6 +1235,7 @@ export function RequirementChecklistView() {
                                 onRemove={handleRemoveAppraisalDoc(group.id, meta.key)}
                                 onToggleReviewed={handleToggleAppraisalDocReviewed(group.id, meta.key)}
                                 onRemarksChange={handleAppraisalDocRemarksChange(group.id, meta.key)}
+                                removeMeansMissing
                               />
                             </Box>
                           ))}
@@ -1210,41 +1247,31 @@ export function RequirementChecklistView() {
               )}
             </>
           )}
+          </CollapsibleSection>
         </Box>
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
-          <Stack
-            component={ButtonBase}
-            onClick={() => setFinancialEvaluationCollapsed((prev) => !prev)}
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ width: '100%', mb: financialEvaluationCollapsed ? 0 : 2 }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-                {REQUIREMENT_TAB_LABELS.financialEvaluation}
-              </Typography>
-              <DocumentCountBadge
+        <Box
+          sx={adminCardSx}
+          ref={(el: HTMLDivElement | null) => {
+            sectionRefs.current.set('financialEvaluation', el);
+          }}
+        >
+          <CollapsibleSection
+            title={REQUIREMENT_TAB_LABELS.financialEvaluation}
+            expanded={!financialEvaluationCollapsed}
+            onToggle={() => setFinancialEvaluationCollapsed((prev) => !prev)}
+            badge={
+              <CollapsibleSectionBadge
                 received={financialEvaluationDocs.filter((doc) => doc.status !== 'missing').length}
                 total={financialEvaluationDocs.length}
               />
-              {financialEvaluationFullyVerified && (
+            }
+            completeIcon={
+              financialEvaluationFullyVerified && (
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
-              )}
-            </Stack>
-            <Iconify
-              icon="eva:chevron-down-fill"
-              width={20}
-              sx={{
-                color: '#8891A6',
-                transition: 'transform 0.15s ease',
-                transform: financialEvaluationCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-              }}
-            />
-          </Stack>
-
-          {!financialEvaluationCollapsed && (
+              )
+            }
+          >
             <Stack spacing={1.25}>
               {sortByAttentionFirst(
                 REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
@@ -1267,14 +1294,15 @@ export function RequirementChecklistView() {
                     onRemove={handleRemoveDoc(meta.key)}
                     onToggleReviewed={handleToggleReviewed(meta.key)}
                     onRemarksChange={handleRemarksChange(meta.key)}
+                    removeMeansMissing
                   />
                 </Box>
               ))}
             </Stack>
-          )}
+          </CollapsibleSection>
         </Box>
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+        <Box sx={adminCardSx}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
             <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
@@ -1311,7 +1339,7 @@ export function RequirementChecklistView() {
           </Stack>
         </Box>
 
-        <Box sx={{ p: { xs: 3, md: 4 }, borderRadius: '16px', bgcolor: 'common.white', border: '1px solid #EBEDF3', boxShadow: '0 1px 2px rgba(20,23,42,0.04)' }}>
+        <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
             Ready to endorse?
           </Typography>
@@ -1332,7 +1360,7 @@ export function RequirementChecklistView() {
               Endorse
             </Button>
             <Button
-              onClick={() => setReturnDialogOpen(true)}
+              onClick={() => setDisapproveDialogOpen(true)}
               variant="outlined"
               startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
               sx={{
@@ -1343,10 +1371,11 @@ export function RequirementChecklistView() {
                 '&:hover': { color: '#1C2A6E', borderColor: '#1C2A6E', bgcolor: '#F5F7FF' },
               }}
             >
-              Return to Applicant
+              Sales Reject
             </Button>
           </Stack>
         </Box>
+        </Stack>
       </Stack>
 
       <ConfirmDialog
@@ -1366,7 +1395,7 @@ export function RequirementChecklistView() {
               setRequirementChecklist({ appraisalNotApplicable: true });
               setAppraisalNotApplicableConfirmOpen(false);
             }}
-            sx={{ bgcolor: '#1C2A6E', '&:hover': { bgcolor: '#14205A' } }}
+            sx={confirmDialogActionToneSx.default}
           >
             Mark as Not Applicable
           </Button>
@@ -1374,27 +1403,44 @@ export function RequirementChecklistView() {
       />
 
       <ConfirmDialog
-        open={returnDialogOpen}
-        onClose={closeReturnDialog}
-        title="Reason for returning to applicant"
+        open={disapproveDialogOpen}
+        onClose={closeReasonDialog}
+        title="Reason for sales reject"
         content={
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={3}
-            placeholder="Explain what's missing or needs correction…"
-            value={returnReasonDraft}
-            onChange={(event) => setReturnReasonDraft(event.target.value)}
-            sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
-          />
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              select
+              autoFocus
+              fullWidth
+              label="Reason"
+              value={reasonCategory}
+              onChange={(event) => setReasonCategory(event.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+            >
+              {SALES_REJECT_REASONS.map((reason) => (
+                <MenuItem key={reason} value={reason}>
+                  {reason}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Remarks"
+              placeholder="Add any additional details…"
+              value={reasonRemarks}
+              onChange={(event) => setReasonRemarks(event.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+            />
+          </Stack>
         }
         action={
           <Button
             variant="contained"
-            disabled={!returnReasonDraft.trim()}
-            onClick={confirmReturn}
-            sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', '&:hover': { bgcolor: '#14205A' } }}
+            disabled={!reasonCategory}
+            onClick={confirmReasonDialog}
+            sx={{ ...confirmDialogActionToneSx.destructive, borderRadius: '10px' }}
           >
             Confirm
           </Button>

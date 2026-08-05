@@ -28,19 +28,9 @@ const COUNTDOWN_START = 3;
 
 type StepSelfieVerificationProps = {
   onContinue: (photo: string | null) => void;
-  // This screen is shared by two wizards with different step counts — the
-  // primary /auth/onboarding flow (2 steps: Upload ID, Selfie) and the
-  // /borrower/apply repeat-application wizard (4 steps: Loan Type,
-  // Financial Info, Personal Info, Selfie) — so the eyebrow label can't be
-  // hardcoded here. Defaults to the /borrower/apply wording since that call
-  // site doesn't pass this prop.
-  stepLabel?: string;
 };
 
-export function StepSelfieVerification({
-  onContinue,
-  stepLabel = "Step 4 · Verify it's you",
-}: StepSelfieVerificationProps) {
+export function StepSelfieVerification({ onContinue }: StepSelfieVerificationProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -135,9 +125,6 @@ export function StepSelfieVerification({
       }}
     >
       <Stack alignItems="center" textAlign="center" spacing={0.75} sx={{ mb: 3 }}>
-        <Typography sx={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8891A6' }}>
-          {stepLabel}
-        </Typography>
         <Typography sx={{ fontSize: 24, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em' }}>
           Selfie with ID
         </Typography>

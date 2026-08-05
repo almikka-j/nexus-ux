@@ -37,6 +37,48 @@ Full Application, Initial Credit Checking Result, View Call Report, and View
 All Officer Notes actions. The Requirement Checklist summary follows it in
 normal page flow; there is no duplicate sticky mini-summary.
 
+## Sticky section nav
+
+The page renders as a two-column layout on `md`+ screens (`src/sections/admin/requirement-checklist-section-nav.tsx`,
+mounted from `requirement-checklist-view.tsx`) — a narrow (`240px`) sticky
+sidebar (`position: sticky, top: 92` — 68px top nav bar + 24px margin,
+`zIndex: theme.zIndex.appBar - 1` so it never renders under the sticky top
+nav) lists the three cards (Credit Investigation / Appraisal / Financial
+Evaluation) so an officer can see and jump to whichever section still needs
+attention without scrolling past the others — the same problem `rowRefs`'s
+"jump to next outstanding item" solves at the row level, solved here at the
+card level. Clicking an item expands that card if collapsed and
+smooth-scrolls it into view via a second ref map (`sectionRefs`, separate
+from `rowRefs`). On mobile (`xs`), the sidebar stacks above the content
+column instead of beside it and is not sticky (`order: -1` moves it above
+`ApplicationDetailsCard` in the DOM/flex order). The container widened from
+`maxWidth="md"` to `"lg"` to make room for the sidebar without squeezing the
+content column. A `useIsStuck` scroll listener flags once the page has
+scrolled past the nav's sticky offset, swapping the card's resting shadow
+for a stronger "lifted" one — so it visually separates from the page only
+once it's genuinely pinned under the top nav, not from initial load.
+
+Redesigned as a compact list rather than a card of standalone rows: the
+overall `received/total` percentage and its thin progress bar moved into the
+card **header** (next to the "Sections" label) instead of a separate footer
+strip, and each row dropped the earlier 34px conic-gradient `ProgressRing`
+in favor of a small tone-colored status dot plus a left accent rail that
+lights up navy on the active row — lighter per-row weight so the list scans
+quickly across many sections, while the header still gives one coherent
+progress summary at a glance. The per-section `icon` field on
+`ChecklistSectionNavItem` is still populated by the caller but no longer
+rendered by this component.
+
+**Active-section highlighting** (`useActiveSection`, exported from the same
+file): an `IntersectionObserver` watches all three `sectionRefs` entries and
+tracks whichever one is nearest the top of the viewport (using a
+`rootMargin` biased toward the top ~30% of the screen, to switch a beat
+before a section's heading actually reaches the very top), driving a
+highlighted background/navy label/dark chevron on that row — the nav reflects
+"where you are" during an ordinary scroll, not only right after a jump-click.
+`requirement-checklist-view.tsx` computes `activeSectionKey` once via this
+hook and passes it into `RequirementChecklistSectionNav`'s `activeKey` prop.
+
 ## Layout: three document cards
 
 The screen presents **Credit Investigation**, **Appraisal**, and **Financial
@@ -72,21 +114,28 @@ navigate once documents start piling up (all in `requirement-checklist-view.tsx`
   panel emphasizes received-versus-total, completion percentage, and a thicker
   state-aware progress bar without a redundant outstanding-count pill. The review instruction and
   latest request history remain below with lighter visual weight.
-- **Each document card collapses independently, manually only** —
-  `creditInvestigationCollapsed` / `appraisalCollapsed` /
+- **Each document card collapses independently, manually or on
+  completion** — `creditInvestigationCollapsed` / `appraisalCollapsed` /
   `financialEvaluationCollapsed`, one `useState` per card, toggled by
   clicking anywhere in that card's header (wrapped in a `ButtonBase`-backed
   `Stack`) or its chevron icon specifically. Collapsing hides that card's
   rows but keeps its header (including status badges) visible, so a
   collapsed card still communicates its state at a glance. All three start
-  expanded and there is no auto-collapse-on-completion behavior — that was
-  tried and removed as a bug fix (see "Known issues / History" below):
-  `creditInvestigationFullyVerified` / `financialEvaluationFullyVerified` /
-  `appraisalFullyVerified` still exist and drive a small green check icon
-  next to each card's title (requiring **every** document in that card to be
-  `status === 'verified'`, stricter than the required-received gate used
-  elsewhere on this page — a lingering `'needs-review'` item keeps the badge
-  off), but none of them collapse anything anymore.
+  expanded, then auto-collapse the moment `creditInvestigationFullyVerified`
+  / `financialEvaluationFullyVerified` / `appraisalFullyVerified` (requiring
+  **every** document in that card to be `status === 'verified'`, stricter
+  than the required-received gate used elsewhere on this page — a lingering
+  `'needs-review'` item keeps both the badge and the auto-collapse off)
+  turns `true` — driven by one `useEffect` per card, each guarded by a
+  prev-value ref so it only fires on the `false`→`true` transition, never on
+  every render where the boolean is already `true`. An earlier
+  render-time-assignment version of this was tried and reverted as a bug
+  (see "Non-goals / History" below); this edge-triggered version fixes that
+  bug directly rather than dropping the feature — a manual re-expand click
+  always sticks (the effect only ever transitions collapsed false→true, never
+  the other way), and `appraisalFullyVerified` flipping back to `false` when
+  Appraisal is toggled from Not Applicable back to Applicable no longer
+  matters, since nothing re-collapses it going the other way regardless.
 - **Rows sort outstanding-first within every card/sub-group/property group**
   — `sortByAttentionFirst()` (a small generic stable sort) reorders each
   list so every `needsAttention(doc)` row (`status !== 'verified'` — this
@@ -549,20 +598,26 @@ confirmation screen, not an actual message sent to anyone.
 
 ## Non-goals / History
 
-- **Auto-collapse-on-completion was tried and removed as a bug fix.** An
-  earlier version had each card's `useEffect` auto-collapse it the moment its
-  `fullyVerified` boolean turned `true`. Bug: `appraisalFullyVerified` is
-  `true` whenever `appraisalNotApplicable` is set (by design — see "Not
-  Applicable" above), and the effect only ever called `setAppraisalCollapsed(true)`,
-  never `false`. Toggling Appraisal from Not Applicable back to Applicable
-  left the whole card — Add Property form, property list, everything —
-  stuck collapsed behind its header, with no way back in except manually
-  clicking the header itself. The same effect shape existed (dormant, never
-  actually triggered by real data) on Credit Investigation and Financial
-  Evaluation too. Fixed by removing all three `useEffect`s outright — cards
-  now only ever collapse via the manual header click, never automatically.
-  The `fullyVerified` booleans themselves were kept (they still drive each
-  card's green check-icon badge), just disconnected from collapse state.
+- **Auto-collapse-on-completion: first version reverted, then reintroduced
+  edge-triggered.** An early version had each card's `useEffect`
+  auto-collapse it on every render where its `fullyVerified` boolean was
+  `true` (not guarded to only the transition). Bug: `appraisalFullyVerified`
+  is `true` whenever `appraisalNotApplicable` is set (by design — see "Not
+  Applicable" above), and the effect only ever called
+  `setAppraisalCollapsed(true)`, never `false` — so re-expanding the card
+  manually while `appraisalFullyVerified` was still `true` got immediately
+  re-collapsed on the next render. Toggling Appraisal from Not Applicable
+  back to Applicable could leave the whole card — Add Property form,
+  property list, everything — stuck collapsed with no reliable way back in.
+  That version was reverted outright (all three effects removed, cards only
+  ever collapsing via manual header click). The feature was later
+  reintroduced with the actual fix: each effect is now guarded by a
+  prev-value ref (`prevCreditInvestigationFullyVerifiedRef` etc.) and only
+  calls `setXCollapsed(true)` on the `false`→`true` transition — never
+  re-fires while the boolean stays `true`, so a manual re-expand always
+  sticks regardless of how `appraisalFullyVerified` flips afterward. The
+  `fullyVerified` booleans still drive each card's green check-icon badge,
+  same as before.
 - **`rowRefs` is explicitly pruned when an Appraisal property group is
   removed** (`handleRemoveAppraisalGroup`, wrapping `removeAppraisalGroup`) —
   without this, the ref `Map` used for "jump to next outstanding item" keeps

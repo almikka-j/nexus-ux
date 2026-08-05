@@ -1,13 +1,16 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
@@ -15,8 +18,12 @@ import { paths } from 'src/routes/paths';
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
+import { fCurrency } from 'src/utils/format-number';
 import { Iconify } from 'src/components/iconify';
+import { fileToDataUrl } from 'src/utils/file-to-data-url';
 import { ConfirmDialog } from 'src/components/custom-dialog';
+import { FileThumbnail } from 'src/components/file-thumbnail';
+import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
@@ -31,6 +38,75 @@ import { buildInitialAiRecommendation } from './initial-credit-checking-risk';
 import type { InitialRiskLevel } from './initial-credit-checking-risk';
 
 // ----------------------------------------------------------------------
+
+const SALES_REJECT_REASONS = [
+  'Insufficient income',
+  'Poor credit history',
+  'Incomplete documents',
+  'Employment not verifiable',
+  'Requested amount too high',
+  'Other',
+];
+
+// Same compact drag-and-drop file row used for the business document upload
+// on the borrower sign-up flow (see CompactDropzone in
+// preliminary-application-view.tsx) — kept as a local copy rather than a
+// shared export since the two live in unrelated sections (borrower auth vs.
+// admin) and this is currently the only admin-side consumer.
+function JustificationDropzone({
+  value,
+  onChange,
+}: {
+  value: File | null;
+  onChange: (file: File | null) => void;
+}) {
+  const { getRootProps, getInputProps } = useDropzone({
+    multiple: false,
+    accept: { 'image/*': [], 'application/pdf': [] },
+    onDrop: (acceptedFiles) => onChange(acceptedFiles[0] ?? null),
+  });
+
+  return (
+    <Box
+      {...(value ? {} : getRootProps())}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.25,
+        minHeight: 44,
+        px: 1.25,
+        py: value ? 0.75 : 0,
+        borderRadius: '10px',
+        cursor: value ? 'default' : 'pointer',
+        border: '1.5px dashed',
+        borderColor: '#B0B8CC',
+        bgcolor: value ? '#F9FAFC' : '#EEF1FE',
+        '&:hover': value ? undefined : { borderColor: '#1C2A6E', bgcolor: '#E4E9FD' },
+      }}
+    >
+      {!value && <input {...getInputProps()} />}
+
+      {value ? (
+        <>
+          <FileThumbnail file={value} sx={{ width: 28, height: 28 }} />
+          <Typography noWrap sx={{ fontSize: 12.5, fontWeight: 600, color: '#344054', flex: 1, minWidth: 0 }}>
+            {value.name}
+          </Typography>
+          <IconButton size="small" onClick={() => onChange(null)}>
+            <Iconify icon="mingcute:close-line" width={16} />
+          </IconButton>
+        </>
+      ) : (
+        <>
+          <Iconify icon="solar:upload-minimalistic-bold-duotone" width={18} sx={{ color: '#1C2A6E' }} />
+          <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#1C2A6E' }}>
+            Choose a file — supporting document
+          </Typography>
+        </>
+      )}
+    </Box>
+  );
+}
 
 // AI summary/recommendation are computed directly from Application details,
 // and additionally from the uploaded Bureau Reports once those are on file —
@@ -47,9 +123,9 @@ function buildAiSummary(
   allBureauReportsUploaded: boolean
 ) {
   if (allBureauReportsUploaded) {
-    return `${firstName}'s bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) are on file and consistent with the application details submitted. Stated employment status is "${employmentStatus}" with a requested loan amount of ₱${loanAmount.toLocaleString()}. No mismatches were found between the bureau reports and the application form.`;
+    return `${firstName}'s bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) are on file and consistent with the application details submitted. Stated employment status is "${employmentStatus}" with a requested loan amount of ${fCurrency(loanAmount)}. No mismatches were found between the bureau reports and the application form.`;
   }
-  return `${firstName} has requested ₱${loanAmount.toLocaleString()} with stated employment status "${employmentStatus}". Bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) haven't been uploaded yet, so this summary is based on application details only.`;
+  return `${firstName} has requested ${fCurrency(loanAmount)} with stated employment status "${employmentStatus}". Bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) haven't been uploaded yet, so this summary is based on application details only.`;
 }
 
 function buildAiRecommendation(
@@ -90,10 +166,19 @@ export function InitialCreditCheckingView() {
     setNfisBapUpload,
     resetNegativeCreditReport,
   } = useAdmin();
-  // Disapproval requires the officer to enter a reason before the application
-  // is routed to the Reconsideration screen.
+  // Sales Reject requires the officer to pick a reason (and optionally add
+  // remarks) before the application is routed to the Reconsideration screen.
   const [disapproveDialogOpen, setDisapproveDialogOpen] = useState(false);
-  const [reasonDraft, setReasonDraft] = useState('');
+  const [reasonCategory, setReasonCategory] = useState('');
+  const [reasonRemarks, setReasonRemarks] = useState('');
+  // When the bureau finding came back negative, proceeding still requires a
+  // written justification (and optionally a supporting document) — captured
+  // here, appended to Officer Notes, and stored on
+  // review.creditChecking.justificationDocument (see confirmJustifyDialog)
+  // rather than blocking the officer from proceeding outright.
+  const [justifyDialogOpen, setJustifyDialogOpen] = useState(false);
+  const [justificationDraft, setJustificationDraft] = useState('');
+  const [justificationFile, setJustificationFile] = useState<File | null>(null);
   // Pure display preference, not persisted — resets to the stacked layout on
   // navigation/refresh, since it's how this admin wants to view *this*
   // session, not application data that should carry forward.
@@ -301,17 +386,49 @@ export function InitialCreditCheckingView() {
     router.push(paths.admin.callReport(encodeURIComponent(signUpData.email)));
   };
 
+  const closeJustifyDialog = () => {
+    setJustifyDialogOpen(false);
+    setJustificationDraft('');
+    setJustificationFile(null);
+  };
+
+  const confirmJustifyDialog = async () => {
+    const justification = justificationDraft.trim();
+    if (!justification) return;
+
+    const author = adminUser ? `${adminUser.firstName} ${adminUser.lastName}` : 'Credit Officer';
+    const entry = buildOfficerNoteEntry({
+      officer: author,
+      process: 'Initial Credit Checking — Proceed with Justification (negative bureau finding)',
+      note: justificationFile ? `${justification}\n\nAttached document: ${justificationFile.name}` : justification,
+    });
+
+    setCreditChecking({
+      notes: creditChecking.notes ? `${creditChecking.notes}\n\n---\n\n${entry}` : entry,
+      justificationDocument: justificationFile
+        ? { fileName: justificationFile.name, fileData: await fileToDataUrl(justificationFile) }
+        : null,
+    });
+    closeJustifyDialog();
+    handleApprove();
+  };
+
   const closeReasonDialog = () => {
     setDisapproveDialogOpen(false);
-    setReasonDraft('');
+    setReasonCategory('');
+    setReasonRemarks('');
   };
 
   const confirmReasonDialog = () => {
-    if (!reasonDraft.trim()) return;
+    if (!reasonCategory) return;
+
+    const decisionReason = reasonRemarks.trim()
+      ? `${reasonCategory} — ${reasonRemarks.trim()}`
+      : reasonCategory;
 
     setCreditChecking({
       decision: 'rejected',
-      decisionReason: reasonDraft.trim(),
+      decisionReason,
     });
     router.push(paths.admin.reconsideration(encodeURIComponent(signUpData.email)));
   };
@@ -336,15 +453,7 @@ export function InitialCreditCheckingView() {
     <Stack spacing={2.5}>
         <BureauReportsCard />
 
-        <Box
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
-            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-          }}
-        >
+        <Box sx={adminCardSx}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 0.5 }}>
             <Stack direction="row" alignItems="center" spacing={1}>
               <Iconify icon="solar:notes-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
@@ -357,18 +466,7 @@ export function InitialCreditCheckingView() {
               variant="outlined"
               onClick={() => setNotesModalOpen(true)}
               startIcon={<Iconify icon="solar:notes-bold-duotone" width={16} />}
-              sx={{
-                color: '#1C2A6E',
-                borderColor: '#C7CEEA',
-                borderRadius: '10px',
-                px: 1.75,
-                fontWeight: 700,
-                flexShrink: 0,
-                '&:hover': {
-                  borderColor: '#1C2A6E',
-                  bgcolor: 'rgba(28,42,110,0.04)',
-                },
-              }}
+              sx={{ ...outlinedNavyButtonSx, px: 1.75, fontWeight: 700, flexShrink: 0 }}
             >
               View all officer notes
             </Button>
@@ -399,15 +497,7 @@ export function InitialCreditCheckingView() {
           </Stack>
         </Box>
 
-        <Box
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
-            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-          }}
-        >
+        <Box sx={adminCardSx}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
             <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
@@ -424,14 +514,7 @@ export function InitialCreditCheckingView() {
             onClick={() => setResultModalOpen(true)}
             variant="outlined"
             startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-            sx={{
-              mb: 2.5,
-              color: '#1C2A6E',
-              borderColor: '#C7CEEA',
-              borderRadius: '10px',
-              px: 2,
-              '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
-            }}
+            sx={{ ...outlinedNavyButtonSx, mb: 2.5, px: 2 }}
           >
             View Initial Credit Checking Result
           </Button>
@@ -463,15 +546,7 @@ export function InitialCreditCheckingView() {
           </Stack>
         </Box>
 
-        <Box
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: '16px',
-            bgcolor: 'common.white',
-            border: '1px solid #EBEDF3',
-            boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-          }}
-        >
+        <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
             Approved?
           </Typography>
@@ -482,7 +557,11 @@ export function InitialCreditCheckingView() {
 
           <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
             <Button
-              onClick={handleApprove}
+              onClick={
+                creditChecking.bureauFindingStatus === 'negative'
+                  ? () => setJustifyDialogOpen(true)
+                  : handleApprove
+              }
               variant="contained"
               startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
               sx={{
@@ -492,7 +571,9 @@ export function InitialCreditCheckingView() {
                 '&:hover': { bgcolor: '#0C8A4F' },
               }}
             >
-              Proceed to Call Report
+              {creditChecking.bureauFindingStatus === 'negative'
+                ? 'Proceed with Justification'
+                : 'Proceed to Call Report'}
             </Button>
             <Button
               onClick={() => setDisapproveDialogOpen(true)}
@@ -510,7 +591,7 @@ export function InitialCreditCheckingView() {
                 },
               }}
             >
-              Disapprove
+              Sales Reject
             </Button>
           </Stack>
         </Box>
@@ -542,23 +623,40 @@ export function InitialCreditCheckingView() {
       <ConfirmDialog
         open={disapproveDialogOpen}
         onClose={closeReasonDialog}
-        title="Reason for disapproval"
+        title="Reason for sales reject"
         content={
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={3}
-            placeholder="Explain why…"
-            value={reasonDraft}
-            onChange={(event) => setReasonDraft(event.target.value)}
-            sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
-          />
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              select
+              autoFocus
+              fullWidth
+              label="Reason"
+              value={reasonCategory}
+              onChange={(event) => setReasonCategory(event.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+            >
+              {SALES_REJECT_REASONS.map((reason) => (
+                <MenuItem key={reason} value={reason}>
+                  {reason}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Remarks"
+              placeholder="Add any additional details…"
+              value={reasonRemarks}
+              onChange={(event) => setReasonRemarks(event.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+            />
+          </Stack>
         }
         action={
           <Button
             variant="contained"
-            disabled={!reasonDraft.trim()}
+            disabled={!reasonCategory}
             onClick={confirmReasonDialog}
             sx={{
               bgcolor: '#F04438',
@@ -566,6 +664,46 @@ export function InitialCreditCheckingView() {
             }}
           >
             Confirm
+          </Button>
+        }
+      />
+
+      <ConfirmDialog
+        open={justifyDialogOpen}
+        onClose={closeJustifyDialog}
+        title="Justification for proceeding"
+        content={
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Box>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#3B4256', mb: 0.75 }}>
+                Supporting document (optional)
+              </Typography>
+              <JustificationDropzone value={justificationFile} onChange={setJustificationFile} />
+            </Box>
+
+            <TextField
+              fullWidth
+              multiline
+              minRows={3}
+              label="Remarks"
+              placeholder="Explain why this application should proceed despite the negative bureau finding…"
+              value={justificationDraft}
+              onChange={(event) => setJustificationDraft(event.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+            />
+          </Stack>
+        }
+        action={
+          <Button
+            variant="contained"
+            disabled={!justificationDraft.trim()}
+            onClick={confirmJustifyDialog}
+            sx={{
+              bgcolor: '#12B76A',
+              '&:hover': { bgcolor: '#0C8A4F' },
+            }}
+          >
+            Confirm &amp; Proceed
           </Button>
         }
       />

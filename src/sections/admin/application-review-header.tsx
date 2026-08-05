@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 
+import type { ReactNode } from 'react';
+
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
@@ -15,6 +17,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { TONE_COLORS, adminCardSx } from 'src/components/admin-ui';
 import { AGING_LEVEL_COLORS, formatAging, getAgingLevel } from 'src/utils/format-aging';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
@@ -27,6 +30,8 @@ type ApplicationReviewHeaderProps = {
   reviewStep?: ReviewStep;
   hideApplicationCard?: boolean;
   applicationSummaryStyle?: boolean;
+  /** Optional extra chip/badge rendered next to the applicant name, e.g. a "Sample" tag. */
+  extraBadge?: ReactNode;
 };
 
 export function ApplicationReviewHeader({
@@ -34,6 +39,7 @@ export function ApplicationReviewHeader({
   reviewStep,
   hideApplicationCard = false,
   applicationSummaryStyle = false,
+  extraBadge,
 }: ApplicationReviewHeaderProps) {
   const { signUpData, application } = useRegistration();
   const { review, markStepEntered } = useAdmin();
@@ -124,9 +130,8 @@ export function ApplicationReviewHeader({
                 fontWeight: 700,
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                color: '#B36A05',
-                bgcolor: '#FFF8E8',
-                border: '1px solid #F4C95D',
+                color: TONE_COLORS.info.text,
+                bgcolor: TONE_COLORS.info.bg,
                 borderRadius: '999px',
                 px: 1.5,
                 py: 0.6,
@@ -142,10 +147,8 @@ export function ApplicationReviewHeader({
       {!hideApplicationCard && (
         <Box
         sx={{
-          borderRadius: '16px',
-          bgcolor: 'common.white',
-          border: '1px solid #EBEDF3',
-          boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
+          ...adminCardSx,
+          p: 0,
           overflow: 'hidden',
         }}
       >
@@ -201,9 +204,12 @@ export function ApplicationReviewHeader({
               <Iconify icon="solar:document-text-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
             </Box>
             <Stack spacing={0.25}>
-              <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#14172A' }}>
-                {signUpData.firstName} {signUpData.lastName}
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#14172A' }}>
+                  {signUpData.firstName} {signUpData.lastName}
+                </Typography>
+                {extraBadge}
+              </Stack>
               <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
                 Loan No. {getLoanNumber(signUpData.email)} ·{' '}
                 {application.loanType === 'business' ? 'Business Loan' : 'Personal Loan'}

@@ -45,7 +45,12 @@ export function ThankYouView() {
     : '—';
 
   return (
-    <OnboardingLayout step={4} totalSteps={4} complete>
+    <OnboardingLayout
+      step={4}
+      totalSteps={4}
+      stepLabels={['Loan Type', 'Financial Info', 'Personal Info', 'Verify Identity']}
+      complete
+    >
       <Box sx={{ width: 1, maxWidth: 520, textAlign: 'center' }}>
         <Box sx={{ position: 'relative', width: 92, height: 92, mx: 'auto', mb: 3.75 }}>
           <Box

@@ -25,19 +25,6 @@ export function StepLoanType({ firstName, value, onChange, onContinue }: StepLoa
   const isSample = value === SAMPLE_LOAN_TYPE;
   return (
     <Box sx={{ width: 1, maxWidth: 760, textAlign: 'center' }}>
-      <Typography
-        sx={{
-          display: 'inline-block',
-          fontSize: 12.5,
-          fontWeight: 700,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          color: '#8891A6',
-          mb: 1.75,
-        }}
-      >
-        Step 1 · Loan type
-      </Typography>
       <Typography sx={{ fontSize: 30, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em', mb: 1 }}>
         What type of loan do you need, {firstName}?
       </Typography>
