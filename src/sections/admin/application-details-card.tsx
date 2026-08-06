@@ -148,6 +148,49 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Icon-headed sub-card used to group each section of the full (non-collapsible)
+// Application details card, so a reviewer scanning a long sidebar can jump
+// between "Applicant" / "Loan request" / "Personal & ID" etc. by shape and
+// icon instead of reading through one continuous label/value scroll.
+function DetailSection({
+  icon,
+  title,
+  children,
+}: {
+  icon: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Box
+      sx={{
+        border: '1px solid #EEF0F5',
+        borderRadius: '14px',
+        bgcolor: '#FAFBFD',
+        p: 2,
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+        <Box
+          sx={{
+            width: 28,
+            height: 28,
+            borderRadius: '8px',
+            bgcolor: '#EEF1FE',
+            display: 'grid',
+            placeItems: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Iconify icon={icon} width={16} sx={{ color: '#3448B0' }} />
+        </Box>
+        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
+      </Stack>
+      {children}
+    </Box>
+  );
+}
+
 export function ApplicationDetailsCard({
   collapsible = false,
   onViewCreditCheckingResult,
@@ -205,21 +248,17 @@ export function ApplicationDetailsCard({
   };
 
   const detailsContent = (
-    <Stack spacing={2.5}>
-      <Stack spacing={1.5}>
-        <SectionLabel>Applicant</SectionLabel>
-        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
+    <Stack spacing={2}>
+      <DetailSection icon="solar:user-bold-duotone" title="Applicant">
+        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
           <DetailField label="Full name" value={fullName} />
           <DetailField label="Email address" value={signUpData.email} />
           <DetailField label="Mobile number" value={signUpData.mobile ? `+63 ${signUpData.mobile}` : ''} />
         </Stack>
-      </Stack>
+      </DetailSection>
 
-      <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-      <Stack spacing={1.5}>
-        <SectionLabel>Loan request</SectionLabel>
-        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
+      <DetailSection icon="solar:document-text-bold-duotone" title="Loan request">
+        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
           <DetailField label="Loan type" value={loanTypeLabel} />
           {financialInfo && (
             <>
@@ -235,57 +274,53 @@ export function ApplicationDetailsCard({
             </>
           )}
         </Stack>
-      </Stack>
+      </DetailSection>
 
       {personalInfo && (
         <>
-          <Divider sx={{ borderColor: '#EEF0F5' }} />
-          <Stack spacing={1.5}>
-            <SectionLabel>Personal &amp; ID information</SectionLabel>
-            <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
-              <DetailField label="Birthday" value={personalInfo.birthday} />
-              <DetailField label="Gender" value={personalInfo.gender} />
-              <DetailField label="Civil status" value={personalInfo.civilStatus} />
-              <DetailField label="ID type" value={personalInfo.idType} />
-              <DetailField label="ID number" value={personalInfo.idNumber} />
+          <DetailSection icon="solar:id-card-bold-duotone" title="Personal & ID information">
+            <Stack spacing={2}>
+              <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
+                <DetailField label="Birthday" value={personalInfo.birthday} />
+                <DetailField label="Gender" value={personalInfo.gender} />
+                <DetailField label="Civil status" value={personalInfo.civilStatus} />
+                <DetailField label="ID type" value={personalInfo.idType} />
+                <DetailField label="ID number" value={personalInfo.idNumber} />
+              </Stack>
+              <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
+                <DetailField label="Address" value={personalInfo.address} />
+                <DetailField label="Barangay" value={personalInfo.barangay} />
+                <DetailField label="City" value={personalInfo.city} />
+                <DetailField label="Province" value={personalInfo.province} />
+                <DetailField label="Zip code" value={personalInfo.zipCode} />
+                <DetailField label="TIN number" value={personalInfo.tinNumber} />
+                <DetailField label="Referral source" value={personalInfo.referralSource} />
+                {personalInfo.referralSource === 'Agent' && (
+                  <DetailField label="Agent code" value={personalInfo.agentCode} />
+                )}
+              </Stack>
             </Stack>
-            <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
-              <DetailField label="Address" value={personalInfo.address} />
-              <DetailField label="Barangay" value={personalInfo.barangay} />
-              <DetailField label="City" value={personalInfo.city} />
-              <DetailField label="Province" value={personalInfo.province} />
-              <DetailField label="Zip code" value={personalInfo.zipCode} />
-              <DetailField label="TIN number" value={personalInfo.tinNumber} />
-              <DetailField label="Referral source" value={personalInfo.referralSource} />
-              {personalInfo.referralSource === 'Agent' && (
-                <DetailField label="Agent code" value={personalInfo.agentCode} />
-              )}
-            </Stack>
+          </DetailSection>
 
-            {personalInfo.civilStatus === 'Married' && (
-              <>
-                <Divider sx={{ borderColor: '#EEF0F5' }} />
-                <SectionLabel>Spouse information</SectionLabel>
-                <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
-                  <DetailField
-                    label="Spouse's name"
-                    value={`${personalInfo.spouseFirstName ?? ''}${personalInfo.spouseMiddleName ? ` ${personalInfo.spouseMiddleName}` : ''} ${personalInfo.spouseLastName ?? ''}${personalInfo.spouseExtensionName ? ` ${personalInfo.spouseExtensionName}` : ''}`.trim()}
-                  />
-                  <DetailField label="Spouse's birthday" value={personalInfo.spouseBirthday} />
-                  <DetailField label="Spouse's address" value={personalInfo.spouseAddress} />
-                  <DetailField label="Spouse's barangay" value={personalInfo.spouseBarangay} />
-                  <DetailField label="Spouse's city" value={personalInfo.spouseCity} />
-                  <DetailField label="Spouse's province" value={personalInfo.spouseProvince} />
-                  <DetailField label="Spouse's zip code" value={personalInfo.spouseZipCode} />
-                </Stack>
-              </>
-            )}
-          </Stack>
+          {personalInfo.civilStatus === 'Married' && (
+            <DetailSection icon="solar:heart-bold-duotone" title="Spouse information">
+              <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
+                <DetailField
+                  label="Spouse's name"
+                  value={`${personalInfo.spouseFirstName ?? ''}${personalInfo.spouseMiddleName ? ` ${personalInfo.spouseMiddleName}` : ''} ${personalInfo.spouseLastName ?? ''}${personalInfo.spouseExtensionName ? ` ${personalInfo.spouseExtensionName}` : ''}`.trim()}
+                />
+                <DetailField label="Spouse's birthday" value={personalInfo.spouseBirthday} />
+                <DetailField label="Spouse's address" value={personalInfo.spouseAddress} />
+                <DetailField label="Spouse's barangay" value={personalInfo.spouseBarangay} />
+                <DetailField label="Spouse's city" value={personalInfo.spouseCity} />
+                <DetailField label="Spouse's province" value={personalInfo.spouseProvince} />
+                <DetailField label="Spouse's zip code" value={personalInfo.spouseZipCode} />
+              </Stack>
+            </DetailSection>
+          )}
 
-          <Divider sx={{ borderColor: '#EEF0F5' }} />
-          <Stack spacing={1.5}>
-            <SectionLabel>Uploaded documents</SectionLabel>
-            <Stack direction="row" flexWrap="wrap" sx={{ gap: 2.5 }}>
+          <DetailSection icon="solar:gallery-bold-duotone" title="Uploaded documents">
+            <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
               <DocumentPreview
                 label={personalInfo.idFileBack ? 'Uploaded ID — Front' : 'Uploaded ID'}
                 src={typeof personalInfo.idFile === 'string' ? personalInfo.idFile : null}
@@ -310,10 +345,9 @@ export function ApplicationDetailsCard({
                 />
               )}
             </Stack>
-          </Stack>
+          </DetailSection>
         </>
       )}
-
     </Stack>
   );
 
@@ -524,12 +558,29 @@ export function ApplicationDetailsCard({
 
   return (
     <Box sx={adminCardSx}>
-      <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        Application details
-      </Typography>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 3 }}>
-        Everything the borrower submitted, for review before deciding.
-      </Typography>
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2.5 }}>
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: '12px',
+            bgcolor: '#EEF1FE',
+            display: 'grid',
+            placeItems: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Iconify icon="solar:clipboard-list-bold-duotone" width={20} sx={{ color: '#3448B0' }} />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+            Application details
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
+            Everything the borrower submitted, for review before deciding.
+          </Typography>
+        </Box>
+      </Stack>
       {detailsContent}
     </Box>
   );

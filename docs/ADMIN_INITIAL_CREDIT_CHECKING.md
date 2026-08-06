@@ -84,6 +84,16 @@ Application Details does not repeat a "Notes from initial credit checking"
 section—the dedicated Officer Notes card and shared history modal are the only
 note surfaces on this page.
 
+The non-collapsible layout (the one Initial Credit Checking uses, as opposed
+to the compact `collapsible` header used on Call Report/Credit
+Investigation/Requirement Checklist) renders each of the four sections — plus
+the conditional Spouse information block — as its own icon-headed
+`DetailSection` sub-card (bordered, `#FAFBFD` background, rounded, with a
+small tinted icon badge and section title) instead of plain
+label-then-fields-then-divider stacking. This keeps a long sidebar column
+scannable by shape/icon rather than requiring a reviewer to read through one
+continuous scroll of dividers.
+
 **Personal & ID information** includes a separately labeled, conditional
 **Spouse information** block — shown only when
 `personalInfo.civilStatus === 'Married'` — covering
