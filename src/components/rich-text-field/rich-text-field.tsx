@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 
@@ -70,6 +72,26 @@ export function RichTextField({
       },
     },
   });
+
+  // Resync the editor whenever `value` changes from OUTSIDE the editor itself
+  // (pre-fill effects, transcript upload, sample-data fill/clear). `useEditor`
+  // only reads `content` once at initialization, so without this the editor's
+  // visible content goes stale after any programmatic update to `value`.
+  //
+  // The `value !== currentHtml` check is what prevents an infinite loop / the
+  // user's cursor from jumping while typing: when the user types, `onUpdate`
+  // calls `onChange(html)`, which flows back in as the new `value` prop — but
+  // by then `editor.getHTML()` already equals that same html, so this effect
+  // is a no-op. It only calls `setContent` when `value` changed externally.
+  useEffect(() => {
+    if (!editor) return;
+    const currentHtml = editor.getHTML();
+    if (value !== currentHtml) {
+      // `emitUpdate: false` — don't fire `onUpdate` for this programmatic
+      // change, since it would just feed `value` right back into itself.
+      editor.commands.setContent(value, { emitUpdate: false });
+    }
+  }, [value, editor]);
 
   if (!editor) return null;
 
