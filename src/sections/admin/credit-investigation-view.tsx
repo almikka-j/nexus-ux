@@ -32,6 +32,7 @@ import { CiFeeCard } from './credit-investigation/ci-fee-card';
 import { CiReportCard } from './credit-investigation/ci-report-card';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 import { buildCreditInvestigationSummary } from './credit-investigation-risk';
+import { buildTranscriptAutoFill } from './credit-investigation-transcript';
 import {
   REQUIREMENT_DOC_META,
   REQUIREMENT_SUBGROUP_LABELS,
@@ -80,6 +81,7 @@ export function CreditInvestigationView() {
     review,
     adminUser,
     setCreditInvestigation,
+    setCiReport,
     addCreditInvestigationDocument,
     removeCreditInvestigationDocument,
     addCiOutreachMessage,
@@ -177,6 +179,69 @@ export function CreditInvestigationView() {
     (meta) => fixedDocsByKey.get(meta.key)?.status !== 'missing'
   );
 
+  // Dev/test shortcut, scoped to CI Fee + CI Report only — the Document
+  // Checklist above is read-only on this page (sourced from Requirement
+  // Checklist) so there's nothing left here for a sample-data feature to
+  // fill for documents. Mirrors the "Fill with Sample Data"/"Remove Sample
+  // Data" convention already used on Requirement Checklist.
+  const isSampleFilled = ciFeeStatus !== 'not-requested';
+
+  const handleFillSampleData = () => {
+    setCreditInvestigation({
+      ciFeeStatus: 'approved',
+      ciFeeAmount: '2500',
+      ciFeeAmountDescription: 'Site visit + verification fee',
+      ciFeeRemarks: '',
+    });
+
+    const autoFill = buildTranscriptAutoFill(
+      [signUpData?.email ?? '', 'sample-transcript.pdf'],
+      applicantName
+    );
+    setCiReport({
+      visitDate: new Date().toISOString().slice(0, 10),
+      subjectAsOf: autoFill.findingsNarrativeHtml,
+      residenceLeasedType: autoFill.residenceLeasedType,
+      residenceLengthOfStay: autoFill.residenceLengthOfStay,
+      employmentType: autoFill.employmentType,
+      employerName: 'Sample Employer Corp.',
+      position: 'Staff Supervisor',
+      salary: '35000',
+      lengthOfService: autoFill.lengthOfService,
+      negativeRecordFinding: autoFill.negativeRecordFinding,
+      recommendation: 'proceed-as-requested',
+      recommendationNotes: 'Sample data: site visit findings support proceeding with the application as requested.',
+      transcriptFileName: 'sample-transcript.pdf',
+      transcriptUploadedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleClearSampleData = () => {
+    setCreditInvestigation({
+      ciFeeStatus: 'not-requested',
+      ciFeeAmount: '',
+      ciFeeAmountDescription: '',
+      ciFeeRemarks: '',
+    });
+
+    setCiReport({
+      visitDate: '',
+      subjectAsOf: '',
+      residenceLeasedType: '',
+      residenceLengthOfStay: '',
+      employmentType: '',
+      employerName: '',
+      position: '',
+      salary: '',
+      lengthOfService: '',
+      negativeRecordFinding: '',
+      recommendation: '',
+      recommendationNotes: '',
+      transcriptFileName: null,
+      transcriptUploadedAt: null,
+    });
+  };
+
   useRegisterPageActions(
     useMemo(
       () => [
@@ -195,9 +260,15 @@ export function CreditInvestigationView() {
               },
             ]
           : []),
+        {
+          key: 'sample-data',
+          label: isSampleFilled ? 'Remove Sample Data' : 'Fill with Sample Data',
+          icon: 'solar:magic-stick-3-bold-duotone',
+          onClick: isSampleFilled ? handleClearSampleData : handleFillSampleData,
+        },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [ciFeeStatus]
+      [ciFeeStatus, isSampleFilled]
     )
   );
 
