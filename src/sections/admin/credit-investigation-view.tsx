@@ -184,7 +184,17 @@ export function CreditInvestigationView() {
   // Checklist) so there's nothing left here for a sample-data feature to
   // fill for documents. Mirrors the "Fill with Sample Data"/"Remove Sample
   // Data" convention already used on Requirement Checklist.
-  const isSampleFilled = ciFeeStatus !== 'not-requested';
+  //
+  // Must NOT be derived from ciFeeStatus: ciFeeStatus also moves to
+  // 'pending-approval'/'approved' via the normal, real officer workflow
+  // (requesting an actual CI Fee and getting it approved), which has
+  // nothing to do with sample data. Deriving isSampleFilled from ciFeeStatus
+  // mislabels the action "Remove Sample Data" after real work and would
+  // wipe genuine hand-entered CI Report fields if clicked. Instead, key off
+  // the literal transcriptFileName value that only handleFillSampleData
+  // itself ever sets — a real transcript upload elsewhere never produces
+  // this exact filename.
+  const isSampleFilled = review.creditInvestigation.report.transcriptFileName === 'sample-transcript.pdf';
 
   const handleFillSampleData = () => {
     setCreditInvestigation({
@@ -268,7 +278,7 @@ export function CreditInvestigationView() {
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [ciFeeStatus, isSampleFilled]
+      [ciFeeStatus, review.creditInvestigation.report.transcriptFileName]
     )
   );
 
