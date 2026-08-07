@@ -15,7 +15,7 @@
 `/admin/applications/[id]/call-report` by `CallReportView`
 (`src/sections/admin/call-report-view.tsx`).
 
-The page is a structured, 11-section interview an officer fills out live
+The page is a structured, 12-section interview an officer fills out live
 while on the call with the borrower, followed by a preliminary loan package
 proposal and an AI-derived summary/recommendation. There is no real backend,
 document generation, or lending engine — every derived value (DTI,
@@ -47,7 +47,7 @@ width.
    full application**, **Initial Credit Checking Result**
    (`CreditCheckingResultModal`), and **View all officer notes**
    (`officerNotesProcess="Call Report"`).
-3. The 11 section cards, in fixed order (see below).
+3. The 12 section cards, in fixed order (see below).
 4. **AI review, summary & recommendation** card — see below.
 5. **Proceed application?** decision card.
 6. `CreditCheckingResultModal` and `CallReportResultModal`, both mounted
@@ -58,7 +58,7 @@ via `useRegisterPageActions` (shared admin settings/page-actions popover, not
 a floating per-page button) — the label and direction are driven by the same
 `canProceed` boolean used by the Proceed button.
 
-## The 11 section cards
+## The 12 section cards
 
 Each card is its own file under `src/sections/admin/call-report/`, imports its
 `{value,label}` option lists and shared `cardSx`/`fieldSx` from
@@ -78,16 +78,17 @@ Each card is its own file under `src/sections/admin/call-report/`, imports its
 | 9 | Collateral Information | `collateral-information-card.tsx` | Repeatable `CollateralEntry` list via `collateral-entry-fields.tsx`; add/update/remove through `addCollateralEntry`/`updateCollateralEntry`/`removeCollateralEntry`. |
 | 10 | Agreed Next Steps | `agreed-next-steps-card.tsx` | `nextSteps` chip list, `responsibleParty`, due/follow-up dates. |
 | 11 | Loan Package Proposal | `loan-package-proposal-card.tsx` | Original-request vs. proposed-terms comparison, loan computation fields, required documents, conditions, preliminary recommendation. Re-renders the section-9 collateral entries read-only. |
+| 12 | Comaker | `comaker-information-card.tsx` | Repeatable `CiComakerEntry` list, same pattern as Collateral Information; no gating radio (zero comakers is a normal end state). Read read-only by Credit Investigation's CI Report (`review.callReport.comakers`). |
 
 There is no manual Call Summary or Additional Remarks card — both were
 removed in favor of the AI review card below, which derives its own summary
-fresh from the 11 sections' answers on every render rather than storing a
+fresh from the 12 sections' answers on every render rather than storing a
 separately-editable summary.
 
 ## AI review, summary & recommendation
 
 A card mirroring Initial Credit Checking's own "AI review, summary &
-recommendation" card, added after the 11 section cards, not tied to any one
+recommendation" card, added after the 12 section cards, not tied to any one
 of them:
 
 - **View Call Report Result** button opens `CallReportResultModal`
@@ -150,9 +151,10 @@ to `paths.admin.requirementChecklist(email)`; Do Not Proceed returns to
 ## Read-only mirrors elsewhere
 
 - `call-report/call-report-result-modal.tsx` (`CallReportResultModal`) — a
-  read-only, section-by-section mirror of all 11 cards (no Call Summary or
-  Additional Remarks section — both were removed along with their cards),
-  opened both from the Call Report page's own **AI review, summary &
+  read-only, section-by-section mirror of the first 11 cards (no Call Summary
+  or Additional Remarks section — both were removed along with their cards).
+  Does not yet mirror the section-12 Comaker card — still a gap to close.
+  Opened both from the Call Report page's own **AI review, summary &
   recommendation** card (**View Call Report Result**) and from
   `ApplicationDetailsCard`'s **View Call Report** action on other review
   steps (e.g. Requirement Checklist). Must be updated whenever a `CallReport`
@@ -164,21 +166,22 @@ to `paths.admin.requirementChecklist(email)`; Do Not Proceed returns to
 ## Sample data action
 
 `handleFillSampleData`/`handleClearSampleData` in `call-report-view.tsx`
-set/clear every remaining field on `CallReport` (all 11 sections). Sample
+set/clear every remaining field on `CallReport` (all 12 sections). Sample
 values are chosen to be internally consistent (e.g. `callStatus:
 'completed'`, `preliminaryRecommendation: 'proceed-as-requested'`, a single
-sample `CollateralEntry`) and to satisfy `canProceed` so the button
-immediately demonstrates the "Remove Sample Data" state. Clearing resets
-Call Report fields only — it does not touch Application Details, Initial
-Credit Checking, or Requirement Checklist state. The AI summary/recommendation
-need no sample-data handling of their own since they're derived fresh from
-whatever the 11 sections currently hold, not stored.
+sample `CollateralEntry`, a single sample `CiComakerEntry`) and to satisfy
+`canProceed` so the button immediately demonstrates the "Remove Sample Data"
+state. Clearing resets Call Report fields only — it does not touch
+Application Details, Initial Credit Checking, or Requirement Checklist
+state. The AI summary/recommendation need no sample-data handling of their
+own since they're derived fresh from whatever the 12 sections currently
+hold, not stored.
 
 ## Verification checklist
 
 After changing Call Report:
 
-1. Confirm all 11 cards still render in order, with `ApplicationDetailsCard`
+1. Confirm all 12 cards still render in order, with `ApplicationDetailsCard`
    first and the **AI review, summary & recommendation** card after them.
 2. Confirm every enum field added/changed has a matching option list in
    `call-report-types.ts` and an initial value in `admin-context.tsx`'s

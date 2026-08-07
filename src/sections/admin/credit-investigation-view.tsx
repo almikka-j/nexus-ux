@@ -225,70 +225,6 @@ export function CreditInvestigationView() {
     setAddDocOpen(false);
   };
 
-  // Fills only what this page actually owns — CI Fee and the CI Report.
-  // The Document Checklist above is read-only here (collected one step
-  // earlier, in Requirement Checklist, and displayed via
-  // ReadOnlyRequirementDocRow — see the CI_FIXED_DOC_META comment), so
-  // there's nothing to sample-fill for it from this page; officers who want
-  // that pre-filled use Requirement Checklist's own Fill Sample Data first.
-  const handleFillSampleData = () => {
-    setCreditInvestigation({
-      ciFeeStatus: 'approved',
-      ciFeeAmount: '2500',
-      ciFeeAmountDescription: 'Site visit + verification fee',
-      ciFeeRemarks: '',
-    });
-    const autoFill = buildTranscriptAutoFill(
-      [signUpData?.email ?? '', 'sample-transcript.pdf'],
-      applicantName
-    );
-    setCiReport({
-      visitDate: new Date().toISOString().slice(0, 10),
-      visitTime: '10:30',
-      visitLocation: autoFill.visitLocation,
-      visitingOfficer: officerName,
-      identityConfirmed: autoFill.identityConfirmed,
-      residenceConfirmed: autoFill.residenceConfirmed,
-      businessConfirmed: autoFill.businessConfirmed,
-      neighborhoodFeedback: autoFill.neighborhoodFeedback,
-      neighborhoodStanding: autoFill.neighborhoodStanding,
-      findings: autoFill.findings,
-      recommendation: autoFill.recommendation,
-      recommendationNotes: autoFill.recommendationNotes,
-      transcriptFileName: 'sample-transcript.pdf',
-      transcriptUploadedAt: new Date().toISOString(),
-    });
-  };
-
-  // Undoes exactly what handleFillSampleData sets, scoped to CI Fee and CI
-  // Report only — same convention as every other Remove Sample Data action
-  // in this app (never a full resetReview(), which would wipe unrelated
-  // steps this button has no business touching).
-  const handleClearSampleData = () => {
-    setCreditInvestigation({
-      ciFeeStatus: 'not-requested',
-      ciFeeAmount: '',
-      ciFeeAmountDescription: '',
-      ciFeeRemarks: '',
-    });
-    setCiReport({
-      visitDate: '',
-      visitTime: '',
-      visitLocation: '',
-      visitingOfficer: '',
-      identityConfirmed: '',
-      residenceConfirmed: '',
-      businessConfirmed: '',
-      neighborhoodFeedback: '',
-      neighborhoodStanding: '',
-      findings: '',
-      recommendation: '',
-      recommendationNotes: '',
-      transcriptFileName: null,
-      transcriptUploadedAt: null,
-    });
-  };
-
   const missingDocLabels = [
     ...CI_FIXED_DOC_META.filter((meta) => fixedDocsByKey.get(meta.key)?.status === 'missing').map(
       (meta) => meta.label
@@ -307,11 +243,78 @@ export function CreditInvestigationView() {
     (meta) => fixedDocsByKey.get(meta.key)?.status !== 'missing'
   );
 
-  // "Filled" for this button's purposes means CI Fee has moved off its
-  // default 'not-requested' state — same single boolean gates both the CI
-  // Fee section and the CI Report having sample content, since
-  // handleFillSampleData/handleClearSampleData always set both together.
-  const isSampleFilled = ciFeeStatus !== 'not-requested';
+  // Dev/test shortcut, scoped to CI Fee + CI Report only — the Document
+  // Checklist above is read-only on this page (sourced from Requirement
+  // Checklist) so there's nothing left here for a sample-data feature to
+  // fill for documents. Mirrors the "Fill with Sample Data"/"Remove Sample
+  // Data" convention already used on Requirement Checklist.
+  //
+  // Must NOT be derived from ciFeeStatus: ciFeeStatus also moves to
+  // 'pending-approval'/'approved' via the normal, real officer workflow
+  // (requesting an actual CI Fee and getting it approved), which has
+  // nothing to do with sample data. Deriving isSampleFilled from ciFeeStatus
+  // mislabels the action "Remove Sample Data" after real work and would
+  // wipe genuine hand-entered CI Report fields if clicked. Instead, key off
+  // the literal transcriptFileName value that only handleFillSampleData
+  // itself ever sets — a real transcript upload elsewhere never produces
+  // this exact filename.
+  const isSampleFilled = review.creditInvestigation.report.transcriptFileName === 'sample-transcript.pdf';
+
+  const handleFillSampleData = () => {
+    setCreditInvestigation({
+      ciFeeStatus: 'approved',
+      ciFeeAmount: '2500',
+      ciFeeAmountDescription: 'Site visit + verification fee',
+      ciFeeRemarks: '',
+    });
+
+    const autoFill = buildTranscriptAutoFill(
+      [signUpData?.email ?? '', 'sample-transcript.pdf'],
+      applicantName
+    );
+    setCiReport({
+      visitDate: new Date().toISOString().slice(0, 10),
+      subjectAsOf: autoFill.findingsNarrativeHtml,
+      residenceLeasedType: autoFill.residenceLeasedType,
+      residenceLengthOfStay: autoFill.residenceLengthOfStay,
+      employmentType: autoFill.employmentType,
+      employerName: 'Sample Employer Corp.',
+      position: 'Staff Supervisor',
+      salary: '35000',
+      lengthOfService: autoFill.lengthOfService,
+      negativeRecordFinding: autoFill.negativeRecordFinding,
+      recommendation: 'proceed-as-requested',
+      recommendationNotes: 'Sample data: site visit findings support proceeding with the application as requested.',
+      transcriptFileName: 'sample-transcript.pdf',
+      transcriptUploadedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleClearSampleData = () => {
+    setCreditInvestigation({
+      ciFeeStatus: 'not-requested',
+      ciFeeAmount: '',
+      ciFeeAmountDescription: '',
+      ciFeeRemarks: '',
+    });
+
+    setCiReport({
+      visitDate: '',
+      subjectAsOf: '',
+      residenceLeasedType: '',
+      residenceLengthOfStay: '',
+      employmentType: '',
+      employerName: '',
+      position: '',
+      salary: '',
+      lengthOfService: '',
+      negativeRecordFinding: '',
+      recommendation: '',
+      recommendationNotes: '',
+      transcriptFileName: null,
+      transcriptUploadedAt: null,
+    });
+  };
 
   useRegisterPageActions(
     useMemo(
@@ -348,9 +351,15 @@ export function CreditInvestigationView() {
               },
             ]
           : []),
+        {
+          key: 'sample-data',
+          label: isSampleFilled ? 'Remove Sample Data' : 'Fill with Sample Data',
+          icon: 'solar:magic-stick-3-bold-duotone',
+          onClick: isSampleFilled ? handleClearSampleData : handleFillSampleData,
+        },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [ciFeeStatus, isSampleFilled]
+      [ciFeeStatus, review.creditInvestigation.report.transcriptFileName]
     )
   );
 

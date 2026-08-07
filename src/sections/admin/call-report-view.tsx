@@ -15,7 +15,7 @@ import { paths } from 'src/routes/paths';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
-import type { CollateralEntry } from 'src/auth/admin-context';
+import type { CollateralEntry, CiComakerEntry } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -37,6 +37,7 @@ import { OfficerObservationCard } from './call-report/officer-observation-card';
 import { CollateralInformationCard } from './call-report/collateral-information-card';
 import { AgreedNextStepsCard } from './call-report/agreed-next-steps-card';
 import { LoanPackageProposalCard } from './call-report/loan-package-proposal-card';
+import { ComakerInformationCard } from './call-report/comaker-information-card';
 import { buildCallSummary } from './call-report/call-report-summary';
 import { buildCallReportAiRecommendation } from './call-report/call-report-risk';
 import { cardSx } from './call-report/call-report-types';
@@ -138,6 +139,16 @@ export function CallReportView() {
       requiresAppraisal: 'yes',
     };
 
+    const sampleComaker: CiComakerEntry = {
+      id: crypto.randomUUID(),
+      name: 'Juan Dela Cruz',
+      relationshipToBorrower: 'Sibling',
+      address: 'Quezon City, Metro Manila',
+      contactNumber: '9171234567',
+      occupation: 'Nurse',
+      monthlyIncome: '28000',
+    };
+
     setCallReport({
       clientType: 'new',
       callDate: new Date().toISOString().slice(0, 10),
@@ -198,6 +209,7 @@ export function CallReportView() {
       observationNotes: '',
       collateralOffered: 'yes',
       collateralEntries: [sampleCollateral],
+      comakers: [sampleComaker],
       nextSteps: ['submit-proof-of-income', 'proceed-to-next-process'],
       responsibleParty: 'borrower',
       nextStepsDueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
@@ -297,6 +309,7 @@ export function CallReportView() {
       observationNotes: '',
       collateralOffered: '',
       collateralEntries: [],
+      comakers: [],
       nextSteps: [],
       responsibleParty: '',
       nextStepsDueDate: '',
@@ -382,6 +395,7 @@ export function CallReportView() {
         <CollateralInformationCard />
         <AgreedNextStepsCard />
         <LoanPackageProposalCard />
+        <ComakerInformationCard />
 
         <Box sx={cardSx}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>

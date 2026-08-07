@@ -7,18 +7,22 @@
 // result and reproduces consistently across reloads during a QA pass.
 // Uploading a transcript never reads its actual contents — only its
 // filename feeds the seed.
+//
+// Only fields a transcript could plausibly attest to are covered here.
+// The read-only header block (residence/business address), Loan Purpose,
+// and Comaker are sourced from application data / Call Report instead —
+// see ci-report-card.tsx — and are never touched by this auto-fill, so a
+// transcript re-upload can't clobber them.
 // ----------------------------------------------------------------------
 
 export type CiTranscriptAutoFill = {
-  visitLocation: string;
-  identityConfirmed: 'yes' | 'no' | 'for-verification';
-  residenceConfirmed: 'yes' | 'no' | 'for-verification';
-  businessConfirmed: 'yes' | 'no' | 'not-applicable';
-  neighborhoodFeedback: string;
-  neighborhoodStanding: 'good-standing' | 'with-concern' | 'not-verified';
-  findings: string;
-  recommendation: 'proceed-as-requested' | 'proceed-with-conditions' | 'needs-additional-verification';
-  recommendationNotes: string;
+  residenceLeasedType: 'owned' | 'leased' | 'rent-free';
+  residenceLengthOfStay: string;
+  presentAddressSameAsPermanent: boolean;
+  employmentType: 'direct' | 'agency' | 'self-employed';
+  lengthOfService: string;
+  negativeRecordFinding: 'no-negative-findings-both-cmap-nfis' | 'negative-findings-found';
+  findingsNarrativeHtml: string;
   aiSummary: string;
 };
 
@@ -36,29 +40,25 @@ export function buildTranscriptAutoFill(seedParts: string[], applicantName: stri
 
   if (isPositive) {
     return {
-      visitLocation: 'Residence address on file',
-      identityConfirmed: 'yes',
-      residenceConfirmed: 'yes',
-      businessConfirmed: 'not-applicable',
-      neighborhoodFeedback: `Neighbors confirmed ${applicantName} has resided at the address for an extended period with no adverse remarks.`,
-      neighborhoodStanding: 'good-standing',
-      findings: `Site visit confirmed ${applicantName}'s identity and residence as declared. No inconsistencies were found between the transcript and the application details on file.`,
-      recommendation: 'proceed-as-requested',
-      recommendationNotes: 'Findings support proceeding with the loan as requested.',
+      residenceLeasedType: 'owned',
+      residenceLengthOfStay: 'Over 5 years',
+      presentAddressSameAsPermanent: true,
+      employmentType: 'direct',
+      lengthOfService: '5+ years',
+      negativeRecordFinding: 'no-negative-findings-both-cmap-nfis',
+      findingsNarrativeHtml: `<p>Site visit confirmed ${applicantName}'s identity and residence as declared. No inconsistencies were found between the transcript and the application details on file.</p>`,
       aiSummary: `Transcript reviewed for ${applicantName}. Identity and residence were confirmed on-site, and neighborhood feedback was positive. No red flags detected.`,
     };
   }
 
   return {
-    visitLocation: 'Residence address on file',
-    identityConfirmed: 'for-verification',
-    residenceConfirmed: 'for-verification',
-    businessConfirmed: 'not-applicable',
-    neighborhoodFeedback: `Neighbors had limited information about ${applicantName}; residency could not be fully corroborated during the visit.`,
-    neighborhoodStanding: 'with-concern',
-    findings: `Site visit for ${applicantName} raised some items that need further verification before a final assessment can be made.`,
-    recommendation: 'needs-additional-verification',
-    recommendationNotes: 'Recommend a follow-up visit or additional supporting documents before proceeding.',
+    residenceLeasedType: 'leased',
+    residenceLengthOfStay: 'Less than 1 year',
+    presentAddressSameAsPermanent: false,
+    employmentType: 'agency',
+    lengthOfService: 'Less than 1 year',
+    negativeRecordFinding: 'negative-findings-found',
+    findingsNarrativeHtml: `<p>Site visit for ${applicantName} raised some items that need further verification before a final assessment can be made.</p>`,
     aiSummary: `Transcript reviewed for ${applicantName}. Some details from the site visit could not be fully corroborated — additional verification is recommended before proceeding.`,
   };
 }
