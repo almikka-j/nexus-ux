@@ -17,7 +17,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
-import { TONE_COLORS, adminCardSx } from 'src/components/admin-ui';
+import { TONE_COLORS, adminCardSx, STEP_TONE } from 'src/components/admin-ui';
 import { AGING_LEVEL_COLORS, formatAging, getAgingLevel } from 'src/utils/format-aging';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
@@ -54,6 +54,9 @@ export function ApplicationReviewHeader({
   const stepEnteredAt = reviewStep ? review.stepTimestamps[reviewStep] : null;
   const agingLevel = getAgingLevel(application.submittedAt);
   const agingColors = AGING_LEVEL_COLORS[agingLevel];
+  // Same tone the Application List table's Status column uses for this step,
+  // so the pill reads the same color whichever screen it's viewed from.
+  const stepColors = TONE_COLORS[reviewStep ? STEP_TONE[reviewStep] : 'info'];
 
   return (
     <Stack spacing={2.5} sx={{ mb: 4 }}>
@@ -66,7 +69,7 @@ export function ApplicationReviewHeader({
       >
         <Link
           component={RouterLink}
-          href={paths.admin.applications}
+          href={paths.admin.accountSolicitation}
           sx={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -130,8 +133,8 @@ export function ApplicationReviewHeader({
                 fontWeight: 700,
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
-                color: TONE_COLORS.info.text,
-                bgcolor: TONE_COLORS.info.bg,
+                color: stepColors.text,
+                bgcolor: stepColors.bg,
                 borderRadius: '999px',
                 px: 1.5,
                 py: 0.6,

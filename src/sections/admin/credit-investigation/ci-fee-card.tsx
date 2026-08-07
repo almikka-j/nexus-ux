@@ -15,7 +15,7 @@ import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
-import { adminCardSx } from 'src/components/admin-ui';
+import { adminCardSx, outlinedNavyButtonSx, TONE_COLORS, type SemanticTone } from 'src/components/admin-ui';
 
 // ----------------------------------------------------------------------
 // CI Fee request/approval gate. Not every application has a CI Fee — the
@@ -28,35 +28,35 @@ import { adminCardSx } from 'src/components/admin-ui';
 // Finding" elsewhere in the admin app.
 // ----------------------------------------------------------------------
 
+// Tone-driven, same TONE_COLORS palette every other status banner/pill in
+// the admin app draws from (see admin-tokens.ts) — this card previously
+// hand-picked its own hex values per status instead of reusing the shared
+// warning/success/info/neutral set.
 const STATUS_COPY: Record<
   'not-requested' | 'pending-approval' | 'approved' | 'not-applicable',
-  { icon: string; iconColor: string; bg: string; title: string; body: string }
+  { icon: string; tone: SemanticTone; title: string; body: string }
 > = {
   'not-requested': {
     icon: 'solar:wallet-money-bold-duotone',
-    iconColor: '#8891A6',
-    bg: '#F9FAFC',
+    tone: 'neutral',
     title: 'CI Fee not yet requested',
     body: 'Does this application have a Credit Investigation fee?',
   },
   'pending-approval': {
     icon: 'solar:hourglass-bold-duotone',
-    iconColor: '#B36A05',
-    bg: '#FEF0D6',
-    title: 'Waiting on another officer to approve',
-    body: 'The CI Fee request has been sent. A different officer must approve it before the CI Report can be prepared — this can’t be self-approved.',
+    tone: 'warning',
+    title: 'CI Fee awaiting approval',
+    body: 'The request has been sent. A different officer must approve it before the CI Report can be prepared — this can’t be self-approved.',
   },
   approved: {
     icon: 'solar:check-circle-bold',
-    iconColor: '#0C8A4F',
-    bg: '#E7F8F0',
+    tone: 'success',
     title: 'CI Fee approved',
     body: 'The CI Report below is now unlocked.',
   },
   'not-applicable': {
     icon: 'solar:forbidden-circle-linear',
-    iconColor: '#3448B0',
-    bg: '#EEF1FE',
+    tone: 'info',
     title: 'No CI Fee for this application',
     body: 'No fee was needed for this application. The CI Report below is unlocked either way.',
   },
@@ -67,6 +67,7 @@ export function CiFeeCard() {
   const { ciFeeStatus, ciFeeAmount, ciFeeAmountDescription, ciFeeRemarks } =
     review.creditInvestigation;
   const copy = STATUS_COPY[ciFeeStatus];
+  const toneColors = TONE_COLORS[copy.tone];
 
   const [requestOpen, setRequestOpen] = useState(false);
   const [amountDraft, setAmountDraft] = useState('');
@@ -94,47 +95,89 @@ export function CiFeeCard() {
 
   return (
     <Box sx={adminCardSx}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-        <Iconify icon="solar:wallet-money-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
-        <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>CI Fee</Typography>
-      </Stack>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-        The Credit Investigation fee must be requested and approved before the CI Report can be
-        prepared.
-      </Typography>
-
+      {/* No separate "CI Fee" title row — copy.title already leads with CI
+          Fee context in every status ("CI Fee not yet requested", "CI Fee
+          approved", etc.), so a standalone title above it was a redundant
+          near-empty line. Full-width tinted status banner instead, same
+          visual weight as the AI Recommendation banner above this card on
+          the page. */}
       <Stack
-        direction="row"
-        alignItems="center"
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
         spacing={1.5}
-        sx={{ p: 2, borderRadius: '11px', bgcolor: copy.bg }}
+        sx={{ p: 2, borderRadius: '12px', bgcolor: toneColors.bg }}
       >
-        <Iconify icon={copy.icon} width={22} sx={{ color: copy.iconColor, flexShrink: 0 }} />
-        <Box sx={{ flex: 1 }}>
-          <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: copy.iconColor }}>
+        <Iconify icon={copy.icon} width={22} sx={{ color: toneColors.text, flexShrink: 0 }} />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: toneColors.text }}>
             {copy.title}
           </Typography>
           <Typography sx={{ fontSize: 12.5, color: '#5A6273', mt: 0.25 }}>{copy.body}</Typography>
         </Box>
+
+        {(ciFeeStatus === 'not-requested' || ciFeeStatus === 'not-applicable') && (
+          <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap sx={{ flexShrink: 0 }}>
+            {ciFeeStatus === 'not-requested' && (
+              <>
+                <Button
+                  onClick={openRequestForm}
+                  variant="contained"
+                  size="small"
+                  startIcon={<Iconify icon="solar:send-square-bold" width={16} />}
+                  sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2, whiteSpace: 'nowrap', boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
+                >
+                  Yes, Request CI Fee
+                </Button>
+                <Button
+                  onClick={() => setCreditInvestigation({ ciFeeStatus: 'not-applicable' })}
+                  variant="outlined"
+                  size="small"
+                  sx={{ ...outlinedNavyButtonSx, px: 2, whiteSpace: 'nowrap', bgcolor: 'common.white' }}
+                >
+                  No CI Fee
+                </Button>
+              </>
+            )}
+            {ciFeeStatus === 'not-applicable' && (
+              <Button
+                onClick={() => setCreditInvestigation({ ciFeeStatus: 'not-requested' })}
+                variant="outlined"
+                size="small"
+                sx={{ ...outlinedNavyButtonSx, px: 2, whiteSpace: 'nowrap', bgcolor: 'common.white' }}
+              >
+                Actually, this has a CI Fee
+              </Button>
+            )}
+          </Stack>
+        )}
       </Stack>
 
       {ciFeeStatus === 'pending-approval' || ciFeeStatus === 'approved' ? (
         <Stack
-          spacing={1.5}
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
           sx={{
-            mt: 2,
+            mt: 1.5,
             p: 2,
             borderRadius: '12px',
             bgcolor: '#F9FAFC',
             border: '1px solid #EEF0F5',
           }}
         >
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ pb: 1.5, borderBottom: '1px solid #E7EAF1' }}
-          >
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexShrink: 0 }}>
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                flexShrink: 0,
+                display: 'grid',
+                placeItems: 'center',
+                borderRadius: '10px',
+                bgcolor: '#1C2A6E',
+              }}
+            >
+              <Iconify icon="solar:wad-of-money-bold-duotone" width={24} sx={{ color: 'common.white' }} />
+            </Box>
             <Box>
               <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#8891A6' }}>
                 REQUEST AMOUNT
@@ -143,69 +186,32 @@ export function CiFeeCard() {
                 {fCurrency(ciFeeAmount)}
               </Typography>
             </Box>
-            <Box
-              sx={{
-                width: 38,
-                height: 38,
-                display: 'grid',
-                placeItems: 'center',
-                borderRadius: '10px',
-                color: '#1C2A6E',
-                bgcolor: '#E9EDFF',
-              }}
-            >
-              <Iconify icon="solar:wad-of-money-bold-duotone" width={22} />
+          </Stack>
+
+          <Stack
+            spacing={1.25}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              pt: { xs: 1.5, sm: 0 },
+              pl: { xs: 0, sm: 2 },
+              borderTop: { xs: '1px solid #E7EAF1', sm: 'none' },
+              borderLeft: { xs: 'none', sm: '1px solid #E7EAF1' },
+            }}
+          >
+            <Box>
+              <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#8891A6' }}>Description</Typography>
+              <Typography sx={{ fontSize: 13, color: '#3B4256', mt: 0.25 }}>{ciFeeAmountDescription}</Typography>
             </Box>
+            {ciFeeRemarks && (
+              <Box>
+                <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#8891A6' }}>Remarks</Typography>
+                <Typography sx={{ fontSize: 13, color: '#3B4256', mt: 0.25 }}>{ciFeeRemarks}</Typography>
+              </Box>
+            )}
           </Stack>
-          <Stack direction="row" justifyContent="space-between">
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Description</Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#3B4256', textAlign: 'right', maxWidth: '65%' }}>
-              {ciFeeAmountDescription}
-            </Typography>
-          </Stack>
-          {ciFeeRemarks && (
-            <Stack direction="row" justifyContent="space-between">
-              <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Remarks</Typography>
-              <Typography sx={{ fontSize: 12.5, color: '#3B4256', textAlign: 'right', maxWidth: '65%' }}>
-                {ciFeeRemarks}
-              </Typography>
-            </Stack>
-          )}
         </Stack>
       ) : null}
-
-      <Stack direction="row" spacing={1.5} sx={{ mt: 2.5 }}>
-        {ciFeeStatus === 'not-requested' && (
-          <>
-            <Button
-              onClick={openRequestForm}
-              variant="contained"
-              startIcon={<Iconify icon="solar:send-square-bold" width={18} />}
-              sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#14205A' } }}
-            >
-              Yes, Request CI Fee
-            </Button>
-            <Button
-              onClick={() => setCreditInvestigation({ ciFeeStatus: 'not-applicable' })}
-              variant="outlined"
-              startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
-              sx={{ color: '#5A6273', borderColor: '#C7CCDA', borderRadius: '10px', px: 2.5, '&:hover': { color: '#1C2A6E', borderColor: '#1C2A6E', bgcolor: '#F5F7FF' } }}
-            >
-              No CI Fee
-            </Button>
-          </>
-        )}
-        {ciFeeStatus === 'not-applicable' && (
-          <Button
-            onClick={() => setCreditInvestigation({ ciFeeStatus: 'not-requested' })}
-            variant="outlined"
-            startIcon={<Iconify icon="solar:pen-2-bold-duotone" width={18} />}
-            sx={{ color: '#5A6273', borderColor: '#C7CCDA', borderRadius: '10px', px: 2.5, '&:hover': { color: '#1C2A6E', borderColor: '#1C2A6E', bgcolor: '#F5F7FF' } }}
-          >
-            Actually, this has a CI Fee
-          </Button>
-        )}
-      </Stack>
 
       <ConfirmDialog
         open={requestOpen}

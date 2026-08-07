@@ -3,12 +3,14 @@
 
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDropzone } from 'react-dropzone';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
@@ -18,6 +20,7 @@ import { useRegistration } from 'src/auth/registration-context';
 import type { CreditInvestigationDoc, RequirementDoc } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
+import { FileThumbnail } from 'src/components/file-thumbnail';
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
 import { CollapsibleSection, CollapsibleSectionBadge } from 'src/components/collapsible-section';
 import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
@@ -32,6 +35,7 @@ import { CiFeeCard } from './credit-investigation/ci-fee-card';
 import { CiReportCard } from './credit-investigation/ci-report-card';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 import { buildCreditInvestigationSummary } from './credit-investigation-risk';
+import { buildTranscriptAutoFill } from './credit-investigation-transcript';
 import {
   REQUIREMENT_DOC_META,
   REQUIREMENT_SUBGROUP_LABELS,
@@ -73,6 +77,60 @@ function sortByAttentionFirst<T extends { doc: RequirementDoc | CreditInvestigat
     .map(({ entry }) => entry);
 }
 
+// Same slim single-line dropzone as preliminary-application-view.tsx's
+// private CompactDropzone (used there for "Upload your business document")
+// — a self-contained dashed box that reads "Choose a file — {label}" while
+// empty and swaps to a thumbnail + filename + remove (×) button once a file
+// is picked, rather than a separate label/button pair beside a status row.
+function AddDocFileDropzone({ value, onChange }: { value: File | null; onChange: (file: File | null) => void }) {
+  const { getRootProps, getInputProps } = useDropzone({
+    multiple: false,
+    accept: { 'image/*': [], 'application/pdf': [] },
+    onDrop: (acceptedFiles) => onChange(acceptedFiles[0] ?? null),
+  });
+
+  return (
+    <Box
+      {...(value ? {} : getRootProps())}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.25,
+        minHeight: 40,
+        px: 1.25,
+        py: value ? 0.75 : 0,
+        borderRadius: '10px',
+        cursor: value ? 'default' : 'pointer',
+        border: '1.5px dashed',
+        borderColor: '#B0B8CC',
+        bgcolor: 'common.white',
+        '&:hover': value ? undefined : { borderColor: '#1C2A6E', bgcolor: '#F5F7FF' },
+      }}
+    >
+      {!value && <input {...getInputProps()} />}
+
+      {value ? (
+        <>
+          <FileThumbnail file={value} sx={{ width: 28, height: 28 }} />
+          <Typography noWrap sx={{ fontSize: 12.5, fontWeight: 600, color: '#344054', flex: 1, minWidth: 0 }}>
+            {value.name}
+          </Typography>
+          <IconButton size="small" onClick={() => onChange(null)}>
+            <Iconify icon="mingcute:close-line" width={16} />
+          </IconButton>
+        </>
+      ) : (
+        <>
+          <Iconify icon="solar:upload-minimalistic-bold-duotone" width={18} sx={{ color: '#1C2A6E' }} />
+          <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#1C2A6E' }}>
+            Choose a file — document to attach
+          </Typography>
+        </>
+      )}
+    </Box>
+  );
+}
+
 export function CreditInvestigationView() {
   const router = useRouter();
   const { signUpData } = useRegistration();
@@ -80,6 +138,7 @@ export function CreditInvestigationView() {
     review,
     adminUser,
     setCreditInvestigation,
+    setCiReport,
     addCreditInvestigationDocument,
     removeCreditInvestigationDocument,
     addCiOutreachMessage,
@@ -88,8 +147,11 @@ export function CreditInvestigationView() {
   const [requestDrawerOpen, setRequestDrawerOpen] = useState(false);
   const [addDocOpen, setAddDocOpen] = useState(false);
   const [newDocLabel, setNewDocLabel] = useState('');
+  const [newDocFile, setNewDocFile] = useState<File | null>(null);
   const [disapproveOpen, setDisapproveOpen] = useState(false);
   const [disapproveReason, setDisapproveReason] = useState('');
+  const [declineCiFeeOpen, setDeclineCiFeeOpen] = useState(false);
+  const [declineCiFeeReason, setDeclineCiFeeReason] = useState('');
   const [returnToAmdOpen, setReturnToAmdOpen] = useState(false);
   const [returnToAmdReason, setReturnToAmdReason] = useState('');
   const { documents: customDocuments, ciFeeStatus } = review.creditInvestigation;
@@ -153,10 +215,78 @@ export function CreditInvestigationView() {
 
   const handleAddDoc = () => {
     const label = newDocLabel.trim();
-    if (!label) return;
-    addCreditInvestigationDocument(label, officerName);
+    if (!label || !newDocFile) return;
+    addCreditInvestigationDocument(label, officerName, {
+      fileName: newDocFile.name,
+      fileUrl: URL.createObjectURL(newDocFile),
+    });
     setNewDocLabel('');
+    setNewDocFile(null);
     setAddDocOpen(false);
+  };
+
+  // Fills only what this page actually owns — CI Fee and the CI Report.
+  // The Document Checklist above is read-only here (collected one step
+  // earlier, in Requirement Checklist, and displayed via
+  // ReadOnlyRequirementDocRow — see the CI_FIXED_DOC_META comment), so
+  // there's nothing to sample-fill for it from this page; officers who want
+  // that pre-filled use Requirement Checklist's own Fill Sample Data first.
+  const handleFillSampleData = () => {
+    setCreditInvestigation({
+      ciFeeStatus: 'approved',
+      ciFeeAmount: '2500',
+      ciFeeAmountDescription: 'Site visit + verification fee',
+      ciFeeRemarks: '',
+    });
+    const autoFill = buildTranscriptAutoFill(
+      [signUpData?.email ?? '', 'sample-transcript.pdf'],
+      applicantName
+    );
+    setCiReport({
+      visitDate: new Date().toISOString().slice(0, 10),
+      visitTime: '10:30',
+      visitLocation: autoFill.visitLocation,
+      visitingOfficer: officerName,
+      identityConfirmed: autoFill.identityConfirmed,
+      residenceConfirmed: autoFill.residenceConfirmed,
+      businessConfirmed: autoFill.businessConfirmed,
+      neighborhoodFeedback: autoFill.neighborhoodFeedback,
+      neighborhoodStanding: autoFill.neighborhoodStanding,
+      findings: autoFill.findings,
+      recommendation: autoFill.recommendation,
+      recommendationNotes: autoFill.recommendationNotes,
+      transcriptFileName: 'sample-transcript.pdf',
+      transcriptUploadedAt: new Date().toISOString(),
+    });
+  };
+
+  // Undoes exactly what handleFillSampleData sets, scoped to CI Fee and CI
+  // Report only — same convention as every other Remove Sample Data action
+  // in this app (never a full resetReview(), which would wipe unrelated
+  // steps this button has no business touching).
+  const handleClearSampleData = () => {
+    setCreditInvestigation({
+      ciFeeStatus: 'not-requested',
+      ciFeeAmount: '',
+      ciFeeAmountDescription: '',
+      ciFeeRemarks: '',
+    });
+    setCiReport({
+      visitDate: '',
+      visitTime: '',
+      visitLocation: '',
+      visitingOfficer: '',
+      identityConfirmed: '',
+      residenceConfirmed: '',
+      businessConfirmed: '',
+      neighborhoodFeedback: '',
+      neighborhoodStanding: '',
+      findings: '',
+      recommendation: '',
+      recommendationNotes: '',
+      transcriptFileName: null,
+      transcriptUploadedAt: null,
+    });
   };
 
   const missingDocLabels = [
@@ -177,13 +307,29 @@ export function CreditInvestigationView() {
     (meta) => fixedDocsByKey.get(meta.key)?.status !== 'missing'
   );
 
+  // "Filled" for this button's purposes means CI Fee has moved off its
+  // default 'not-requested' state — same single boolean gates both the CI
+  // Fee section and the CI Report having sample content, since
+  // handleFillSampleData/handleClearSampleData always set both together.
+  const isSampleFilled = ciFeeStatus !== 'not-requested';
+
   useRegisterPageActions(
     useMemo(
       () => [
-        // The officer who requests the CI Fee can't also approve it — there's no
-        // real second-officer login in this prototype, so approval is simulated
-        // here as an explicit "as another officer" dev shortcut, same convention
-        // as "Force Clean/Negative Bureau Finding" on Initial Credit Checking.
+        {
+          key: 'sample-data',
+          label: isSampleFilled ? 'Remove Sample Data' : 'Fill with Sample Data',
+          icon: 'solar:magic-stick-3-bold-duotone',
+          onClick: isSampleFilled ? handleClearSampleData : handleFillSampleData,
+        },
+        // The officer who requests the CI Fee can't also approve/decline it —
+        // there's no real second-officer login in this prototype, so both
+        // outcomes are simulated here as explicit "as another officer" dev
+        // shortcuts, same convention as "Force Clean/Negative Bureau
+        // Finding" on Initial Credit Checking. A dedicated CI Fee Approval
+        // screen offers the same two actions with a fuller review UI; these
+        // stay available inline so an officer never has to leave this page
+        // just to accept or decline.
         ...(ciFeeStatus === 'pending-approval'
           ? [
               {
@@ -193,11 +339,18 @@ export function CreditInvestigationView() {
                 color: '#0C8A4F',
                 onClick: () => setCreditInvestigation({ ciFeeStatus: 'approved' }),
               },
+              {
+                key: 'simulate-ci-fee-decline',
+                label: 'Simulate: Another Officer Declines CI Fee',
+                icon: 'solar:user-cross-bold-duotone',
+                color: '#B32C22',
+                onClick: () => setDeclineCiFeeOpen(true),
+              },
             ]
           : []),
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [ciFeeStatus]
+      [ciFeeStatus, isSampleFilled]
     )
   );
 
@@ -219,6 +372,28 @@ export function CreditInvestigationView() {
     router.push(paths.admin.reconsideration(encodeURIComponent(signUpData.email)));
   };
 
+  const closeDeclineCiFee = () => {
+    setDeclineCiFeeOpen(false);
+    setDeclineCiFeeReason('');
+  };
+
+  // Mirrors ci-fee-approval-view.tsx's confirmDecline: a typed reason is
+  // required, then the request resets back to 'not-requested' (same
+  // re-entry point as an application that never requested a fee) so the
+  // officer can re-request from the CI Fee card with corrected terms.
+  const confirmDeclineCiFee = () => {
+    if (!declineCiFeeReason.trim()) return;
+    setCreditInvestigation({
+      ciFeeStatus: 'not-requested',
+      ciFeeAmount: '',
+      ciFeeAmountDescription: '',
+      ciFeeRemarks: '',
+      ciFeeDeclineReason: declineCiFeeReason.trim(),
+    });
+    setDeclineCiFeeOpen(false);
+    setDeclineCiFeeReason('');
+  };
+
   const closeReturnToAmd = () => {
     setReturnToAmdOpen(false);
     setReturnToAmdReason('');
@@ -231,7 +406,7 @@ export function CreditInvestigationView() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
       <ApplicationReviewHeader
         step="Step 4 · Credit Investigation"
         reviewStep="creditInvestigation"
@@ -327,26 +502,71 @@ export function CreditInvestigationView() {
             )}
 
             {addDocOpen ? (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  autoFocus
-                  label="Document label"
-                  value={newDocLabel}
-                  onChange={(event) => setNewDocLabel(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') handleAddDoc();
-                  }}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-                />
-                <Button onClick={handleAddDoc} disabled={!newDocLabel.trim()} variant="contained" sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', '&:hover': { bgcolor: '#14205A' } }}>
-                  Add
-                </Button>
-                <Button onClick={() => setAddDocOpen(false)} sx={{ color: '#5A6273' }}>
-                  Cancel
-                </Button>
-              </Stack>
+              <Box
+                sx={{
+                  borderRadius: '13px',
+                  p: 2,
+                  bgcolor: '#F9FAFC',
+                  border: '1px solid #EEF0F5',
+                }}
+              >
+                <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mb: 0.25 }}>
+                  Add document
+                </Typography>
+                <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 1.75 }}>
+                  Attach a document that isn&apos;t part of the standard checklist above.
+                </Typography>
+
+                <Stack spacing={1.5}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+                        Document label
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        autoFocus
+                        placeholder="e.g. Barangay Clearance"
+                        value={newDocLabel}
+                        onChange={(event) => setNewDocLabel(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' && newDocFile) handleAddDoc();
+                        }}
+                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'common.white' } }}
+                      />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+                        File
+                      </Typography>
+                      <AddDocFileDropzone value={newDocFile} onChange={setNewDocFile} />
+                    </Box>
+                  </Stack>
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        setAddDocOpen(false);
+                        setNewDocLabel('');
+                        setNewDocFile(null);
+                      }}
+                      sx={{ color: '#5A6273' }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="small"
+                      onClick={handleAddDoc}
+                      disabled={!newDocLabel.trim() || !newDocFile}
+                      variant="contained"
+                      sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2, boxShadow: 'none', fontWeight: 700, '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
+                    >
+                      Add
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Box>
             ) : (
               <Button
                 onClick={() => setAddDocOpen(true)}
@@ -459,6 +679,34 @@ export function CreditInvestigationView() {
             variant="contained"
             disabled={!disapproveReason.trim()}
             onClick={confirmDisapprove}
+            sx={confirmDialogActionToneSx.destructive}
+          >
+            Confirm
+          </Button>
+        }
+      />
+
+      <ConfirmDialog
+        open={declineCiFeeOpen}
+        onClose={closeDeclineCiFee}
+        title="Reason for declining CI Fee"
+        content={
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={3}
+            placeholder="Explain why this CI Fee request is being declined…"
+            value={declineCiFeeReason}
+            onChange={(event) => setDeclineCiFeeReason(event.target.value)}
+            sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+          />
+        }
+        action={
+          <Button
+            variant="contained"
+            disabled={!declineCiFeeReason.trim()}
+            onClick={confirmDeclineCiFee}
             sx={confirmDialogActionToneSx.destructive}
           >
             Confirm

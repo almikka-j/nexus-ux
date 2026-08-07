@@ -481,7 +481,7 @@ text field (`agentCode` in `PersonalInfo`, `src/auth/registration-context.tsx`)
 directly beneath the Referral Source select, validated via `superRefine`
 (required only when `referralSource === 'Agent'`). Surfaced on the admin
 side as an "Agent code" detail row (only when referral source is "Agent")
-in both `application-details-card.tsx` and `sample-application-view.tsx`.
+in both `application-details-card.tsx` and `applicant-profile-view.tsx`.
 
 **Instant auto-fill on upload, no delay.** The moment the front ID image is
 selected, `AUTOFILL_VALUES` (a fixed object in `step-personal-info.tsx`:
@@ -596,7 +596,7 @@ doesn't exist — the list now lives at `/admin/credit-checking`, since Initial 
 Checking is step 1 and every application starts there. `paths.admin.applications`
 (in `src/routes/paths.ts`) still exists as the canonical "go see the list" link name
 for callers, it just resolves to `/admin/credit-checking` now. The per-applicant
-routes under `/admin/applications/[id]/*` and `/admin/applications/sample/[email]`
+routes under `/admin/applications/[id]/*` and `/admin/applications/profile/[email]`
 are unaffected — this only changed where the *list* lives, not the individual
 review screens.
 
@@ -1068,10 +1068,20 @@ derived read of it.
 shared with Initial Credit Checking) still takes the legacy-named optional
 `collapsible` prop, default `false`, but the Call Report variant no longer uses
 an accordion or MUI `Collapse`. `<ApplicationDetailsCard collapsible />` renders
-a responsive borrower summary based on the supplied reference: initials avatar,
-full name, email/mobile, application-number pill (with no redundant "Call Report"
-status pill), and six loan fields (Loan type, Amount, Term, Purpose, Monthly
-income, Date filed). Its single action row contains:
+a responsive borrower summary based on the supplied reference: clipboard-icon
+avatar, full name with email/mobile beneath, and — grouped together on the
+header's right edge — (if assigned) an "Officer: <name>" pill followed by the
+App No. pill. The six loan fields (Loan type, Amount, Term,
+Purpose, Monthly income, Date filed) render as label-over-value `FactChip`s
+inside a single bordered/rounded strip that wraps naturally at any width,
+rather than a fixed 6-column grid — so a long free-text value like Purpose no
+longer fights a column sized for short fields like Term. Both the label and value inside each `FactChip` are `whiteSpace: 'nowrap'` +
+`overflow: hidden` + `textOverflow: 'ellipsis'` (each with its own `title`
+tooltip carrying the untruncated text) rather than wrapping — a short value
+like a date wrapping onto its own second line inside a narrow chip read as
+broken, not as intentional layout. Each chip's flex-basis is 128px, small
+enough that all 6 fit on one row at the page's `maxWidth="md"` container. Its
+single action row contains:
 
 Call Report passes `hideApplicationCard` to `ApplicationReviewHeader`, so the
 header still owns step-entry tracking, back navigation, total/step aging, and
@@ -1242,7 +1252,7 @@ uploads, no decision state) since they're display-only.
   reworking `AdminContext`/`RegistrationContext` from "one global review/application
   object" to a map keyed by applicant id, touching nearly every admin screen. That
   was explicitly deferred as a larger, separate change — this iteration prioritized
-  not risking the one fully-verified live flow. See `SampleApplicationView` below.
+  not risking the one fully-verified live flow. See `ApplicantProfileView` below.
 - **`?step=<reviewStep>` filtering (always on, no "show all" state):**
   `ApplicationListView` reads `useSearchParams()` and always filters rows to
   exactly one step — defaulting to `creditChecking` when there's no `step` param.
@@ -1305,14 +1315,31 @@ uploads, no decision state) since they're display-only.
   Initial Credit Checking instead of Call Report. Fixed with a `STEP_TO_PATH`
   lookup (`Record<ReviewStep, (id: string) => string>`) that picks the correct
   per-step path builder from `paths.admin` based on `row.step`.
-- **`SampleApplicationView`** (`src/sections/admin/sample-application-view.tsx`,
-  route `/admin/applications/sample/[email]`): a standalone, read-only detail screen
-  — applicant info, loan request, personal/ID fields, uploaded ID + selfie previews,
-  and the step badge — with an info banner explicitly stating it's a sample with
-  "nothing to approve or submit here." It does not use `ApplicationReviewHeader` or
-  `ApplicationDetailsCard` (both of those read from the live `useRegistration()`
-  context directly) — it's a parallel, parameterized version of the same visual
-  layout driven by the sample's own data instead.
+- **`ApplicantProfileView`** (`src/sections/admin/applicant-profile-view.tsx`,
+  route `/admin/applications/profile/[email]`, full details in
+  `docs/ADMIN_APPLICANT_PROFILE.md`): a standalone, read-only **borrower**
+  profile, deliberately scoped to the person rather than any one
+  application — a **User details** card first (avatar, name, email, mobile
+  as its header, then personal/ID fields and uploaded documents), followed
+  by a **Loan history** table — reachable by clicking an applicant's name in
+  `ApplicationListView` (independent of the row's own click-through, which
+  still opens the current review step for actionable rows only). Originally
+  sample-only (`SampleApplicationView`, `/admin/applications/sample/[email]`)
+  with an info banner stating there was "nothing to approve or submit here";
+  generalized to also handle the live applicant, then reworked so
+  loan-specific figures (amount, purpose, employment, income) live only on
+  each row in Loan History, not mixed into the person's own details. Loan
+  History is deliberately per-loan, not per-review-step — this prototype
+  tracks exactly one real application per borrower (no "multiple loans over
+  time" data model anywhere in `RegistrationContext`/`AdminContext`), so
+  `buildPastLoans()` deterministically fabricates 0–2 past (Paid Off/Cancelled)
+  loans per email, hashed the same way as `getLoanNumber()`/
+  `simulateBureauFinding()` (not `Math.random()`), so a given borrower always
+  shows the same fake history on reload. The current/in-progress loan is always
+  shown as the first row, using real data (loan number, amount, purpose, current
+  step). It does not use `ApplicationReviewHeader` or `ApplicationDetailsCard` (both of those read from
+  the live `useRegistration()` context directly) — it's a parallel, parameterized
+  layout driven by either the live or the sample data source.
 
 **Account/credit officer auto-tagging**: per the diagram's dashed "Auto tagging
 of account officer and credit officer" note (fires when the borrower submits,
@@ -1444,10 +1471,13 @@ stale silently.
   - `ApplicationReviewHeader` (`application-review-header.tsx`), on every
     review screen — total aging since submission, plus "On this step" aging
     since `markStepEntered` fired for that screen's `reviewStep`. Every process
-    page shows its current step as a separate amber pill on the right side of
-    the aging row; the pill is not duplicated inside the card below. The header
-    calls `markStepEntered` itself via a `useEffect` keyed on the `reviewStep`
-    prop, so each view only has to pass its step name.
+    page shows its current step as a separate pill on the right side of
+    the aging row, colored via `STEP_TONE` (`src/components/admin-ui/admin-tokens.ts`)
+    — the same step→tone mapping the Application List table's Status column
+    uses, so a step's pill reads the same color on both screens; the pill is
+    not duplicated inside the card below. The header calls `markStepEntered`
+    itself via a `useEffect` keyed on the `reviewStep` prop, so each view only
+    has to pass its step name.
 - **Design decisions**: "Endorsed" (end of `RequirementChecklistView`) is
   treated as the practical end of tracked aging — there's no separate
   "Released" step or release timestamp. Aging is not tracked from admin
@@ -1457,7 +1487,7 @@ stale silently.
   - The former dismissible "This application has been on…" warning/error
     banner was removed from `ApplicationReviewHeader` for every process page.
     Admins now see only the compact total-aging and per-step-aging values beside
-    the amber step pill.
+    the step pill.
   - **Dashboard overdue count** — `AdminDashboardView` has a fourth stat
     card, "Overdue (3d+)", counting applications where total aging
     (`getAgingLevel(application.submittedAt)`) is `'overdue'`. Currently

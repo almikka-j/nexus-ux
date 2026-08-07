@@ -674,7 +674,11 @@ type AdminContextValue = AdminState & {
   addOutreachMessage: (message: { channel: OutreachChannel; text: string }) => void;
   setCreditInvestigation: (data: Partial<CreditInvestigation>) => void;
   setCiReport: (data: Partial<CiReport>) => void;
-  addCreditInvestigationDocument: (label: string, uploadedBy: string) => void;
+  addCreditInvestigationDocument: (
+    label: string,
+    uploadedBy: string,
+    file: { fileName: string; fileUrl: string }
+  ) => void;
   removeCreditInvestigationDocument: (key: string) => void;
   addCiOutreachMessage: (message: { channel: OutreachChannel; text: string }) => void;
   markStepEntered: (step: ReviewStep) => void;
@@ -1353,14 +1357,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             },
           },
         })),
-      addCreditInvestigationDocument: (label, uploadedBy) =>
+      addCreditInvestigationDocument: (label, uploadedBy, file) =>
         setState((prev) => {
           const newDoc: CreditInvestigationDoc = {
             key: crypto.randomUUID(),
             status: 'verified',
             aiNote: 'Reviewed, no issues found.',
-            fileName: 'sample-local-pdf.pdf',
-            fileUrl: '/assets/documents/sample-local-pdf.pdf',
+            fileName: file.fileName,
+            fileUrl: file.fileUrl,
             uploadedAt: new Date().toISOString(),
             uploadedBy,
             remarks: '',

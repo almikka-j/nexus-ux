@@ -123,7 +123,7 @@ function SuccessState({
   forwardLabel?: string;
 }) {
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
       <ApplicationReviewHeader
         step={stepLabel}
         reviewStep="requirementChecklist"
@@ -164,7 +164,7 @@ function SuccessState({
         )}
         <Button
           component="a"
-          href={paths.admin.applications}
+          href={paths.admin.accountSolicitation}
           variant={forwardHref ? 'outlined' : 'contained'}
           sx={
             forwardHref
@@ -716,7 +716,7 @@ export function RequirementChecklistView() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
+    <Box sx={{ px: { xs: 2, md: 5 }, py: { xs: 4, md: 6 } }}>
       <ApplicationReviewHeader
         step="Step 3 · Requirement Checklist"
         reviewStep="requirementChecklist"
@@ -1455,6 +1455,6 @@ export function RequirementChecklistView() {
         history={outreachMessages}
         onSend={handleSendOutreachMessage}
       />
-    </Container>
+    </Box>
   );
 }

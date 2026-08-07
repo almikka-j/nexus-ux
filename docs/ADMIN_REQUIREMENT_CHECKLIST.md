@@ -27,8 +27,10 @@ claims" below for what that means for this screen's copy.
 
 The active checklist and both completion states pass `hideApplicationCard` to
 `ApplicationReviewHeader`. The header continues to handle
-back navigation, step-entry tracking, compact aging values, and the amber Step
-3 pill, but it does not render a separate borrower card. Large stale-step alerts
+back navigation, step-entry tracking, compact aging values, and the Step
+3 pill (colored via `STEP_TONE` — `success`/green for `requirementChecklist`,
+same tone the Application List table's Status column uses for this step),
+but it does not render a separate borrower card. Large stale-step alerts
 have been removed globally from all process pages.
 
 The shared collapsible `ApplicationDetailsCard` is the first card in the active
@@ -36,6 +38,25 @@ checklist and both completion states. It provides application context plus
 Full Application, Initial Credit Checking Result, View Call Report, and View
 All Officer Notes actions. The Requirement Checklist summary follows it in
 normal page flow; there is no duplicate sticky mini-summary.
+
+The not-yet-eligible/completion-state screens' `Container` runs
+`maxWidth="lg"` (widened from `"md"`) so `ApplicationDetailsCard`'s header
+(full name, email/mobile beneath, and the Officer pill + App No. pill
+grouped on the right) has room to breathe without wrapping awkwardly.
+
+**The active checklist is full-width, not a centered `Container`.** It uses a
+plain `Box` with `px: { xs: 2, md: 5 }` (matching `AdminHeader`'s own
+horizontal padding in `src/layouts/admin/header.tsx`) instead of
+`Container maxWidth="..."`, so the page body's left/right margins line up
+exactly with the top nav bar's edges rather than being independently
+centered at some fixed pixel width. This was needed because the two-column
+layout's 240px sticky sidebar ate enough of a constrained `Container`'s width
+that `ApplicationDetailsCard`'s `FactChip` values (e.g. Date filed) still
+crowded onto a second line even with the `whiteSpace: 'nowrap'` + ellipsis
+treatment (see `PROJECT_OVERVIEW.md`'s Application Details card description)
+— going full-width (rather than picking a wider fixed `maxWidth`) is what
+finally gives the sidebar+card row enough room while staying visually
+consistent with the nav bar above it.
 
 ## Sticky section nav
 
@@ -52,8 +73,11 @@ smooth-scrolls it into view via a second ref map (`sectionRefs`, separate
 from `rowRefs`). On mobile (`xs`), the sidebar stacks above the content
 column instead of beside it and is not sticky (`order: -1` moves it above
 `ApplicationDetailsCard` in the DOM/flex order). The container widened from
-`maxWidth="md"` to `"lg"` to make room for the sidebar without squeezing the
-content column. A `useIsStuck` scroll listener flags once the page has
+`maxWidth="md"` to `"lg"`, then to `"xl"`, to make room for the sidebar
+without squeezing the content column — `"lg"` alone still wrapped
+`ApplicationDetailsCard`'s "Gross monthly income" `FactChip` label onto two
+lines once the 240px sidebar ate into the remaining width. A `useIsStuck`
+scroll listener flags once the page has
 scrolled past the nav's sticky offset, swapping the card's resting shadow
 for a stronger "lifted" one — so it visually separates from the page only
 once it's genuinely pinned under the top nav, not from initial load.

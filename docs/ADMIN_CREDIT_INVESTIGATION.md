@@ -34,6 +34,11 @@ canned content, not a call to any external service, OCR, or LLM.
 
 ## Page order
 
+The page `Container` is `maxWidth="lg"` (widened from `"md"`) so the
+collapsible `ApplicationDetailsCard`'s header (full name, email/mobile
+beneath, and the Officer pill + App No. pill grouped on the right) has room
+to breathe without wrapping awkwardly.
+
 1. `ApplicationReviewHeader` (`step="Step 4 · Credit Investigation"`,
    `reviewStep="creditInvestigation"`, `hideApplicationCard`).
 2. `ApplicationDetailsCard` (collapsible, with Credit Checking Result and
@@ -55,6 +60,33 @@ canned content, not a call to any external service, OCR, or LLM.
 7. **Proceed application?** decision card.
 8. Dialogs mounted outside the stack: Disapprove reason, Return to AMD
    reason, `RequestDocumentsDrawer`.
+
+## Fill/Remove Sample Data
+
+Registered into the floating settings popover (bottom-right gear icon → Page
+actions) via `useRegisterPageActions`, same convention as Initial Credit
+Checking's/Call Report's/Requirement Checklist's own sample-data toggle.
+Label and behavior are driven by `isSampleFilled` (`ciFeeStatus !==
+'not-requested'`):
+
+- **Fill with Sample Data** (shown while `!isSampleFilled`) sets CI Fee to
+  `approved` with a sample amount (₱2,500, "Site visit + verification fee")
+  and fills every CI Report field via `buildTranscriptAutoFill` (the same
+  deterministic auto-fill `CiReportCard`'s transcript upload uses), plus a
+  synthetic `transcriptFileName`/`transcriptUploadedAt` so the report reads
+  as already reviewed.
+- **Remove Sample Data** (shown while `isSampleFilled`) resets `ciFeeStatus`
+  to `not-requested`, clears the CI Fee amount/description/remarks, and
+  blanks every CI Report field (including the transcript filename), scoped
+  to exactly what Fill sets — not a full `resetReview()`, which would also
+  wipe unrelated steps (Reconsideration, Call Report, Requirement Checklist)
+  this button has no business touching.
+
+This button only fills/clears what this page actually owns — **CI Fee** and
+**CI Report**. The Document Checklist above is read-only here (see its own
+section below); it's collected one step earlier, in Requirement Checklist,
+so an officer who also wants that section pre-filled uses Requirement
+Checklist's own Fill Sample Data action first.
 
 ## Document Checklist
 
@@ -95,17 +127,60 @@ Plus two groups outside the fixed metadata:
   found." — previously this read-only row silently dropped `aiNote`
   entirely.
 - **Additional Documents** (only rendered once at least one exists) — ad
-  hoc rows the officer adds via **"+ Add document"** (a label text field);
-  each becomes a `CreditInvestigationDoc` with `isCustom: true` and its own
-  `label`. Unlike the fixed checklist rows, a newly-added custom document
-  starts pre-filled as already uploaded and verified — `status: 'verified'`,
-  a sample `fileName`/`fileUrl`, `uploadedAt: now`, `uploadedBy: officerName`,
-  and `aiNote: 'Reviewed, no issues found.'` — the same shape as
-  `handleFillSampleData`'s output, so it reads like the Bureau &
-  Verification Checks rows (already on file) rather than starting as
-  "missing" and requiring a manual Upload click. Upload (to replace the
-  file) and Delete (via the row's "…" menu) remain available afterward,
-  same as any other non-missing row.
+  hoc rows the officer adds via **"+ Add document"**, which toggles to a
+  compact inline form in place of the button (not a modal — same
+  expand-in-place convention as Requirement Checklist's "Add Property"
+  row). It's a tinted sub-card (`borderRadius: '13px'`, `p: 2`, `bgcolor:
+  '#F9FAFC'`, `border: 1px solid #EEF0F5`, no `boxShadow` — a sub-section,
+  not a top-level card) rather than plain white, matching the borrower
+  sign-up flow's own conditional "Business information" sub-box
+  (`preliminary-application-view.tsx`) and the same light-gray sub-card
+  convention used for CI Fee's request-amount box and CI Report's
+  transcript-upload row elsewhere in this app — so the form visually stands
+  apart from the white document rows around it while it's open. Its own
+  title ("Add document", `14px` bold) and subtitle ("Attach a document that
+  isn't part of the standard checklist above.", `12.5px` gray) sit above a
+  tight `spacing={1.5}` field stack — deliberately smaller type/spacing
+  than a full top-level card header (`adminCardSx`'s `16px`/`13.5px`, an
+  earlier version of this form used and which read as oversized for a
+  two-field form squeezed between compact document rows). Document label
+  and File sit side by side on one row (`direction: { xs: 'column', sm:
+  'row' }`, each `flex: 1` — stacked only on `xs`) instead of two full-width
+  rows stacked vertically, since neither field needs the full card width on
+  its own. Each field still has its own bold static label above it
+  (`fontSize: 12, fontWeight: 700, color: '#14172A', mb: 0.5`) rather than
+  relying on `TextField`'s floating label. The `TextField` and
+  `AddDocFileDropzone` stay white (`bgcolor:
+  'common.white'`) for contrast against the gray card, and **Cancel**/**Add**
+  are `size="small"` to match the tighter footprint.
+
+  Inside that shell, it requires a label (`TextField`) and a real file,
+  attached via `AddDocFileDropzone` — a local component mirroring
+  `preliminary-application-view.tsx`'s private `CompactDropzone` (the same
+  dashed single-line dropzone behind the borrower sign-up flow's "Upload
+  your business document"): a click-or-drag dashed box reading "Choose a
+  file — document to attach" while empty, swapping to a `FileThumbnail` +
+  filename + remove (×) `IconButton` once a file is picked. Same
+  `accept: { 'image/*': [], 'application/pdf': [] }` via `react-dropzone`
+  as `CompactDropzone`. Each field has its own bold static label above it
+  (`fontSize: 13, fontWeight: 700, color: '#14172A', mb: 0.75`) rather than
+  relying on `TextField`'s floating label, and the two field groups sit at
+  `spacing={2.5}` — the same label treatment and spacing rhythm
+  `EmploymentBusinessCard`'s `RadioRow` fields use. **Add** stays disabled
+  until both the label and file are present; **Cancel** collapses the form
+  back to the trigger button and clears the draft. `addCreditInvestigationDocument`
+  (`src/auth/admin-context.tsx`) takes the label, the officer's name, and the
+  picked file's `{ fileName, fileUrl }` (an object URL, same
+  `URL.createObjectURL` convention as every other upload in this app), and
+  creates a `CreditInvestigationDoc` with `isCustom: true`, that real
+  `fileName`/`fileUrl`, `status: 'verified'`, `uploadedAt: now`,
+  `uploadedBy: officerName`, and `aiNote: 'Reviewed, no issues found.'` — it
+  previously hardcoded a canned `sample-local-pdf.pdf` regardless of officer
+  intent, so a document could read as "on file" without the officer ever
+  actually attaching anything; the form now makes a real attachment part of
+  adding the row instead of a separate step after. Upload (to replace the
+  file) and Delete (via the row's "…" menu) remain available afterward, same
+  as any other non-missing row.
 
 The page action **"Fill with Sample Data"/"Remove Sample Data"** (its label
 toggles based on whether every fixed document is received) only fills or
@@ -148,47 +223,86 @@ action available on this page.
 
 ## CI Fee
 
+`CiFeeCard` has no separate "CI Fee" title row — every `STATUS_COPY` title
+already leads with "CI Fee" context ("CI Fee not yet requested", "CI Fee
+awaiting approval", "CI Fee approved", "No CI Fee for this application"), so
+a standalone title above it was a redundant near-empty line. Instead the
+card opens directly with a **full-width tinted status banner** (`p: 2`,
+`borderRadius: '12px'`, tone `bg`) — the status icon (`copy.icon`, e.g.
+wallet/hourglass/check/forbidden-circle) beside the title + body
+(`STATUS_COPY[ciFeeStatus]`), with the current action(s) right-aligned on
+the same row on `sm`+ screens (stacks below on `xs`): **"Yes, Request CI
+Fee"** + **"No CI Fee"** while `not-requested`; **"Actually, this has a CI
+Fee"** while `not-applicable`; no actions while `pending-approval`/`approved`
+(those states have no self-serve action, so the banner is status-only). This
+gives the banner the same visual weight as the "AI review, summary &
+recommendation" card's own tinted recommendation banner directly above it on
+the page, instead of a thin single-line status row that read as an
+afterthought next to it.
+
+Each status maps to a `SemanticTone` — matching the same
+status→tone convention `RequirementDocRow` already uses for document status
+chips (`missing` → neutral, `needs-review` → warning, `verified` → success):
+`not-requested` → **neutral** (nothing has happened yet, same as a missing
+document), `pending-approval` → **warning**, `approved` → **success**,
+`not-applicable` → **info** (a deliberate "this doesn't apply" marker,
+distinct from neutral's "nothing yet") — resolved through the shared
+`TONE_COLORS` palette (`admin-tokens.ts`) rather than the banner
+hard-coding its own hex per status. While `pending-approval`/`approved`,
+the request-amount detail box below (`REQUEST AMOUNT` + a navy
+`#1C2A6E`-filled money-icon badge, side-by-side with Description/Remarks on
+`sm`+, stacked with a divider on `xs`) sits directly beneath the banner with
+tight spacing, reading as one connected "here's the fee, and here's its
+status" block rather than disconnected pieces. The "No CI Fee"/"Actually,
+this has a CI Fee" buttons use the shared `outlinedNavyButtonSx`, the same
+palette/button-style convention used everywhere else in the admin app
+instead of each card picking its own near-identical values.
+
 `review.creditInvestigation.ciFeeStatus: 'not-requested' | 'pending-approval'
 | 'approved' | 'not-applicable'`. On `'not-requested'`, the officer picks
 **"Yes, Request CI Fee"** (opens a form for Request Amount, Request Amount
 Description, and Remarks, then moves the status to `'pending-approval'`) or
 **"No CI Fee"** (moves straight to `'not-applicable'`). There is no separate
-approver role or login in this prototype, so approval can't be self-served
-inline — while `ciFeeStatus === 'pending-approval'`, the page registers a
-**"Simulate: Another Officer Approves CI Fee"** action (via
+approver role or login in this prototype, so approval/decline can't be
+self-served by the same officer who made the request — while `ciFeeStatus
+=== 'pending-approval'`, the page registers two actions (via
 `useRegisterPageActions`) into the floating settings popover (bottom-right
 gear icon → Page actions), same convention as "Force Clean/Negative Bureau
-Finding" elsewhere in this app. Clicking it sets `ciFeeStatus: 'approved'`.
+Finding" elsewhere in this app:
+
+- **"Simulate: Another Officer Approves CI Fee"** — sets
+  `ciFeeStatus: 'approved'` directly, no confirmation dialog.
+- **"Simulate: Another Officer Declines CI Fee"** — opens a `ConfirmDialog`
+  ("Reason for declining CI Fee") requiring a typed reason before its
+  Confirm button enables (same confirm-before-mutating,
+  reason-required convention as Disapprove/Return to AMD elsewhere on this
+  page); confirming resets `ciFeeStatus: 'not-requested'`, clears the
+  amount/description/remarks fields, and records the typed reason in
+  `ciFeeDeclineReason` — the same re-entry point as an application that
+  never requested a fee, so the officer can re-request from the CI Fee card
+  with corrected terms.
+
 The CI Report card is locked (shown as a dashed placeholder) until
 `ciFeeStatus === 'approved'` or `'not-applicable'`.
 
 **Dedicated CI Fee Approval screen** (`/admin/ci-fee-approval`,
-`src/sections/admin/ci-fee-approval-view.tsx`) offers a second way to
-trigger the same approval — a standalone top-level nav item (placed last in
-`adminNavData`, `config-nav-admin.tsx`, flat/no `children` like
-"Dashboard") rather than a page action buried in the settings popover. It
-reads the same single live `review.creditInvestigation` state and, while
-`ciFeeStatus === 'pending-approval'`, shows the applicant identity, the
-same request amount/description/remarks detail box as `ci-fee-card.tsx`,
-and — matching how a real decision looks elsewhere on this page (Credit
-Investigation's own "Proceed application?" always offers Proceed +
-Disapprove + Return to AMD, never a single lone action) — **two**
-outcomes: **"Approve CI Fee"** and **"Decline CI Fee"**. Both open a
-`ConfirmDialog` first rather than mutating on click — same
-confirm-before-mutating convention as Disapprove/Return to AMD elsewhere
-on this page. Approve's dialog ("Approve CI Fee?") just names the
-applicant/amount; Decline's ("Reason for declining") requires a typed
-reason before its Confirm button enables, mirroring
-`credit-investigation-view.tsx`'s `confirmReturnToAmd` exactly.
+`src/sections/admin/ci-fee-approval-view.tsx`) offers a second, fuller-review
+way to trigger the same two outcomes — a standalone top-level nav item
+(placed last in `adminNavData`, `config-nav-admin.tsx`, flat/no `children`
+like "Dashboard") rather than a page action buried in the settings popover.
+It reads the same single live `review.creditInvestigation` state and, while
+`ciFeeStatus === 'pending-approval'`, shows the applicant identity, the same
+request amount/description/remarks detail box as `ci-fee-card.tsx`, and the
+same **"Approve CI Fee"** / **"Decline CI Fee"** pair, each behind its own
+`ConfirmDialog` — Approve's ("Approve CI Fee?") just names the
+applicant/amount; Decline's ("Reason for declining") requires the same typed
+reason as the inline page action above. An officer can act from whichever
+surface they're already on; both write the same
+`review.creditInvestigation` fields.
 
-Confirming **Approve** sets `ciFeeStatus: 'approved'`. Confirming
-**Decline** resets the request back to `ciFeeStatus: 'not-requested'`
-(clearing `ciFeeAmount`/`ciFeeAmountDescription`/`ciFeeRemarks` — same
-re-entry point as an application that never requested a fee, so the
-officer can re-request with corrected terms from the CI Fee card) while
-recording the typed reason in a new **`ciFeeDeclineReason: string`** field
-on `CreditInvestigation` (`admin-context.tsx`), the same
-per-decision-reason convention as `decisionReason`/`returnToAmdReason`.
+`ciFeeDeclineReason: string` on `CreditInvestigation` (`admin-context.tsx`)
+follows the same per-decision-reason convention as
+`decisionReason`/`returnToAmdReason`.
 
 Either action — instead of redirecting away — flips a local `justApproved`
 or `justDeclined` flag that swaps the whole screen to a one-time

@@ -5,6 +5,8 @@
 // hex. See docs/UI_UX_AUDIT.md for the audit that produced this list.
 // ----------------------------------------------------------------------
 
+import type { ReviewStep } from 'src/auth/admin-context';
+
 export type SemanticTone = 'success' | 'warning' | 'error' | 'neutral' | 'info';
 
 export const TONE_COLORS: Record<SemanticTone, { bg: string; text: string; border: string; solid: string; solidHover: string }> = {
@@ -42,3 +44,19 @@ export const iconButtonBorderedSx = {
   borderRadius: '9px',
   '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
 } as const;
+
+// Which semantic tone each pipeline step's status pill renders in — shared
+// by the Application List table's Status column and
+// ApplicationReviewHeader's step pill, so a step reads the same color
+// whichever screen it's viewed from. Keyed by step (not by
+// review.creditChecking.decision) since the pill shows which stage an
+// application is at, not its decision.
+export const STEP_TONE: Record<ReviewStep, SemanticTone> = {
+  creditChecking: 'warning',
+  reconsideration: 'error',
+  callReport: 'info',
+  requirementChecklist: 'success',
+  creditInvestigation: 'info',
+  appraisal: 'info',
+  financialEvaluation: 'info',
+};

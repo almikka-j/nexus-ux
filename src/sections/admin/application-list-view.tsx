@@ -28,7 +28,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx, type SemanticTone } from 'src/components/admin-ui';
+import { adminCardSx, TONE_COLORS, STEP_TONE, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { AGING_LEVEL_COLORS, formatAging, getAgingLevel } from 'src/utils/format-aging';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 import { fCurrency } from 'src/utils/format-number';
@@ -59,20 +59,6 @@ const STEP_LABELS: Record<ReviewStep, string> = {
   creditInvestigation: 'Credit Investigation',
   appraisal: 'Appraisal',
   financialEvaluation: 'Financial Evaluation',
-};
-
-// The Status column shows which stage an application is at, not its
-// decision (Pending/Approved/Rejected) — so its pill color is keyed by
-// step, not by review.creditChecking.decision, to stay accurate once the
-// label itself is the stage name.
-const STEP_TONE: Record<ReviewStep, SemanticTone> = {
-  creditChecking: 'warning',
-  reconsideration: 'error',
-  callReport: 'info',
-  requirementChecklist: 'success',
-  creditInvestigation: 'info',
-  appraisal: 'info',
-  financialEvaluation: 'info',
 };
 
 // Account Solicitation groups these 3 forward-moving intake steps into one
@@ -323,16 +309,21 @@ export function ApplicationListView({ accountSolicitation = false }: Application
   const handleRowClick = (row: ListRow) => {
     if (!row.isActionable) return;
 
-    if (row.isLive) {
-      // Route to whichever step the live application is actually at — not
-      // always Initial Credit Checking — so clicking its row from a Call
-      // Report/Reconsideration/etc. filtered list opens the right screen.
-      const id = encodeURIComponent(row.registration.signUpData!.email);
-      const stepPath = STEP_TO_PATH[row.step];
-      if (stepPath) router.push(stepPath(id));
-    } else {
-      router.push(paths.admin.sampleApplication(encodeURIComponent(row.registration.signUpData!.email)));
-    }
+    // Route to whichever step the live application is actually at — not
+    // always Initial Credit Checking — so clicking its row from a Call
+    // Report/Reconsideration/etc. filtered list opens the right screen.
+    const id = encodeURIComponent(row.registration.signUpData!.email);
+    const stepPath = STEP_TO_PATH[row.step];
+    if (stepPath) router.push(stepPath(id));
+  };
+
+  // The applicant's name is its own click target — independent of the
+  // row's own click-through (which goes to the current review step, and is
+  // only wired up for live/actionable rows) — so a profile with the full
+  // application history is reachable for every row, live or sample alike.
+  const handleNameClick = (row: ListRow, event: React.MouseEvent) => {
+    event.stopPropagation();
+    router.push(paths.admin.applicantProfile(encodeURIComponent(row.registration.signUpData!.email)));
   };
 
   const handleAssignSampleOfficer = (officer: string) => {
@@ -646,6 +637,7 @@ export function ApplicationListView({ accountSolicitation = false }: Application
                             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" rowGap={0.5}>
                               <Typography
                                 title={fullName}
+                                onClick={(event) => handleNameClick(row, event)}
                                 sx={{
                                   fontSize: 13.5,
                                   fontWeight: 600,
@@ -654,6 +646,8 @@ export function ApplicationListView({ accountSolicitation = false }: Application
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   maxWidth: 220,
+                                  cursor: 'pointer',
+                                  '&:hover': { color: '#1C2A6E', textDecoration: 'underline' },
                                 }}
                               >
                                 {fullName}

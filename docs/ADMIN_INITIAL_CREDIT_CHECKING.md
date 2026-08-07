@@ -97,11 +97,14 @@ continuous scroll of dividers.
 **Personal & ID information** includes a separately labeled, conditional
 **Spouse information** block — shown only when
 `personalInfo.civilStatus === 'Married'` — covering
-Spouse's name (First/Middle/Last/Extension, composed into one display string),
-Spouse's birthday, and Spouse's address (Address/Barangay/City/Province/Zip
-code — mirrors the borrower's own address field structure). This was added to
-surface fields that existed in `PersonalInfo` but weren't shown anywhere
-admin-side; still no admin action reads these values (display-only, same as
+Name (First/Middle/Last/Extension, composed into one display string),
+Birthday, and Address (Address/Barangay/City/Province/Zip code — mirrors the
+borrower's own address field structure). The field labels inside this block
+drop the "Spouse's" prefix (`Name`, not `Spouse's name`) since the section
+header already reads "Spouse information" — the `DetailSection` wrapper
+makes the prefix redundant. This was added to surface fields that existed in
+`PersonalInfo` but weren't shown anywhere admin-side; still no admin action
+reads these values (display-only, same as
 `businessType`/`businessDocument`).
 
 ## Officer notes

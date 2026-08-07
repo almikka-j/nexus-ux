@@ -132,6 +132,53 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
   );
 }
 
+// Compact label-over-value chip used in the collapsible summary header —
+// a bordered strip of these replaces the old fixed 6-column grid so long
+// free-text values (e.g. Purpose) don't fight fixed column widths and the
+// strip wraps cleanly at any width.
+function FactChip({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <Stack
+      spacing={0.35}
+      sx={{
+        px: 1.75,
+        py: 1,
+        minWidth: 0,
+        flex: '1 1 128px',
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: '#9AA2B4',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+        title={label}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: 13.5,
+          fontWeight: 700,
+          color: '#14172A',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+        title={typeof value === 'string' ? value : undefined}
+      >
+        {value || '—'}
+      </Typography>
+    </Stack>
+  );
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <Typography
@@ -306,15 +353,15 @@ export function ApplicationDetailsCard({
             <DetailSection icon="solar:heart-bold-duotone" title="Spouse information">
               <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
                 <DetailField
-                  label="Spouse's name"
+                  label="Name"
                   value={`${personalInfo.spouseFirstName ?? ''}${personalInfo.spouseMiddleName ? ` ${personalInfo.spouseMiddleName}` : ''} ${personalInfo.spouseLastName ?? ''}${personalInfo.spouseExtensionName ? ` ${personalInfo.spouseExtensionName}` : ''}`.trim()}
                 />
-                <DetailField label="Spouse's birthday" value={personalInfo.spouseBirthday} />
-                <DetailField label="Spouse's address" value={personalInfo.spouseAddress} />
-                <DetailField label="Spouse's barangay" value={personalInfo.spouseBarangay} />
-                <DetailField label="Spouse's city" value={personalInfo.spouseCity} />
-                <DetailField label="Spouse's province" value={personalInfo.spouseProvince} />
-                <DetailField label="Spouse's zip code" value={personalInfo.spouseZipCode} />
+                <DetailField label="Birthday" value={personalInfo.spouseBirthday} />
+                <DetailField label="Address" value={personalInfo.spouseAddress} />
+                <DetailField label="Barangay" value={personalInfo.spouseBarangay} />
+                <DetailField label="City" value={personalInfo.spouseCity} />
+                <DetailField label="Province" value={personalInfo.spouseProvince} />
+                <DetailField label="Zip code" value={personalInfo.spouseZipCode} />
               </Stack>
             </DetailSection>
           )}
@@ -355,12 +402,12 @@ export function ApplicationDetailsCard({
     return (
       <>
         <Box sx={{ ...adminCardSx, p: { xs: 2.5, md: 3 } }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} alignItems={{ sm: 'center' }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'flex-start' }}>
             <Box
               sx={{
-                width: 56,
-                height: 56,
-                borderRadius: '16px',
+                width: 52,
+                height: 52,
+                borderRadius: '14px',
                 bgcolor: '#EEF1FE',
                 display: 'grid',
                 placeItems: 'center',
@@ -369,48 +416,52 @@ export function ApplicationDetailsCard({
             >
               <Iconify
                 icon="solar:clipboard-list-bold-duotone"
-                width={27}
+                width={25}
                 sx={{ color: '#3448B0' }}
               />
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                alignItems={{ md: 'center' }}
-                justifyContent="space-between"
-                spacing={1.5}
-              >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>{fullName}</Typography>
-                  <Typography sx={{ fontSize: 13.5, color: '#8891A6', wordBreak: 'break-word' }}>
-                    {signUpData.email}{signUpData.mobile ? ` · +63 ${signUpData.mobile}` : ''}
-                  </Typography>
-                </Box>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {application.assignedOfficer && (
-                    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ px: 0.75 }}>
-                      <Iconify icon="solar:user-id-bold-duotone" width={15} sx={{ color: '#8891A6' }} />
-                      <Typography sx={{ fontSize: 12.5, color: '#667085' }}>
-                        Officer: <strong>{application.assignedOfficer}</strong>
-                      </Typography>
-                    </Stack>
-                  )}
-                  <StatusBadge tone="info" label={`App No. ${applicationNumber}`} />
-                </Stack>
-              </Stack>
+              <Typography sx={{ fontSize: 16.5, fontWeight: 700, color: '#14172A' }}>{fullName}</Typography>
+              <Typography sx={{ fontSize: 13.5, color: '#8891A6', wordBreak: 'break-word', mt: 0.25 }}>
+                {signUpData.email}{signUpData.mobile ? ` · +63 ${signUpData.mobile}` : ''}
+              </Typography>
             </Box>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ flexShrink: 0 }}>
+              {application.assignedOfficer && (
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  alignItems="center"
+                  sx={{ flexShrink: 0, px: 1.25, py: 0.75, borderRadius: '10px', bgcolor: '#F5F6FA' }}
+                >
+                  <Iconify icon="solar:user-id-bold-duotone" width={15} sx={{ color: '#8891A6' }} />
+                  <Typography sx={{ fontSize: 12.5, color: '#667085', whiteSpace: 'nowrap' }}>
+                    Officer: <strong>{application.assignedOfficer}</strong>
+                  </Typography>
+                </Stack>
+              )}
+              <StatusBadge tone="info" label={`App No. ${applicationNumber}`} />
+            </Stack>
           </Stack>
 
-          <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(6, minmax(0, 1fr))' }, gap: 2 }}>
-            <DetailField label="Loan type" value={loanTypeLabel} />
-            <DetailField label="Amount" value={desiredAmount} />
-            <DetailField label="Term" value={financialInfo ? `${financialInfo.loanTermMonths} months` : '—'} />
-            <DetailField label="Purpose" value={financialInfo?.loanPurpose} />
-            <DetailField label="Gross Monthly Income" value={financialInfo ? `₱${Number(financialInfo.monthlyIncome).toLocaleString()}` : '—'} />
-            <DetailField label="Date filed" value={applicationDate} />
-          </Box>
+          <Stack
+            direction="row"
+            flexWrap="wrap"
+            sx={{
+              mt: 2.5,
+              border: '1px solid #EEF0F5',
+              borderRadius: '12px',
+              bgcolor: '#FAFBFD',
+              '& > div:not(:last-of-type)': { borderRight: { xs: 'none', sm: '1px solid #EEF0F5' } },
+            }}
+          >
+            <FactChip label="Loan type" value={loanTypeLabel} />
+            <FactChip label="Amount" value={desiredAmount} />
+            <FactChip label="Term" value={financialInfo ? `${financialInfo.loanTermMonths} months` : '—'} />
+            <FactChip label="Purpose" value={financialInfo?.loanPurpose} />
+            <FactChip label="Gross monthly income" value={financialInfo ? `₱${Number(financialInfo.monthlyIncome).toLocaleString()}` : '—'} />
+            <FactChip label="Date filed" value={applicationDate} />
+          </Stack>
 
           <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
 

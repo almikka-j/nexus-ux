@@ -112,7 +112,7 @@ function OutcomeScreen({
         </Button>
         <Button
           component={RouterLink}
-          href={paths.admin.applications}
+          href={paths.admin.accountSolicitation}
           variant="outlined"
           sx={{ color: '#5A6273', borderColor: '#C7CCDA', borderRadius: '10px', mt: 0.5 }}
         >
@@ -296,7 +296,7 @@ export function CiFeeApprovalView() {
             </Typography>
             <Button
               component={RouterLink}
-              href={paths.admin.applications}
+              href={paths.admin.accountSolicitation}
               variant="outlined"
               sx={{ ...outlinedNavyButtonSx, px: 2.5 }}
             >

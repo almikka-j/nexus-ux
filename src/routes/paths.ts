@@ -63,7 +63,11 @@ export const paths = {
     // unfiltered list, replacing what used to be the expandable "Application
     // List" nav section with its 3 separate sub-items.
     accountSolicitation: '/admin/account-solicitation',
-    sampleApplication: (email: string) => `/admin/applications/sample/${email}`,
+    // Read-only "who is this borrower and where are they in the process"
+    // profile — works for both the live application and any sample row
+    // (see ApplicantProfileView). Was `sampleApplication`/`/sample/` before
+    // being generalized past sample-only rows.
+    applicantProfile: (email: string) => `/admin/applications/profile/${email}`,
     negativeList: '/admin/negative-list',
     ciFeeApproval: '/admin/ci-fee-approval',
     creditChecking: (id: string) => `/admin/applications/${id}/credit-checking`,

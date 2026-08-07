@@ -27,6 +27,8 @@
     "@mui/x-data-grid": "^7.7.0",
     "@mui/x-date-pickers": "^7.7.0",
     "@mui/x-tree-view": "^7.7.0",
+    "@tiptap/react": "^3.29.2",
+    "@tiptap/starter-kit": "^3.29.2",
     "date-fns": "^3.6.0",
     "embla-carousel-autoplay": "8.1.5",
     "embla-carousel-react": "^8.1.5",

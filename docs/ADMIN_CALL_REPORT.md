@@ -30,9 +30,19 @@ existing localStorage behavior.
 
 `CallReportView` renders:
 
+The page `Container` is `maxWidth="md"` (the default before an earlier
+attempt widened it to `"lg"`, which read too wide for a single-column page
+with no sidebar). `ApplicationDetailsCard`'s `FactChip` strip has a tighter
+flex-basis (128px, down from 168px) and both the chip label and value now
+truncate with an ellipsis (`title` tooltip for the full text) instead of
+wrapping, so all 6 loan-fact chips still fit on one row at this narrower
+width.
+
 1. `ApplicationReviewHeader` — back navigation, compact application/step
-   aging, and the amber **Step 2 · Call Report** pill. Its separate applicant
-   card is hidden (`hideApplicationCard`).
+   aging, and the **Step 2 · Call Report** pill (colored via `STEP_TONE`, the
+   same step→tone mapping the Application List table's Status column uses —
+   `info`/blue for `callReport`). Its separate applicant card is hidden
+   (`hideApplicationCard`).
 2. `ApplicationDetailsCard` (`collapsible`) — application context plus **View
    full application**, **Initial Credit Checking Result**
    (`CreditCheckingResultModal`), and **View all officer notes**

@@ -83,7 +83,7 @@ export function ReconsiderationView() {
           </Typography>
           <Button
             component="a"
-            href={paths.admin.applications}
+            href={paths.admin.accountSolicitation}
             variant="outlined"
             sx={{ borderRadius: '10px', mt: 1 }}
           >

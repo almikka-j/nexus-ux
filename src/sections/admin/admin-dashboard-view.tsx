@@ -125,7 +125,7 @@ export function AdminDashboardView() {
 
             <Button
               component={RouterLink}
-              href={paths.admin.applications}
+              href={paths.admin.accountSolicitation}
               variant="contained"
               endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
               sx={{
