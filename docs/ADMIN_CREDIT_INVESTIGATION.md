@@ -168,8 +168,17 @@ The CI Report card is locked (shown as a dashed placeholder) until
 
 The page action **"Fill with Sample Data"/"Remove Sample Data"** is scoped
 to CI Fee + CI Report only — its label toggles on `isSampleFilled`
-(`ciFeeStatus !== 'not-requested'`), not on document completeness. Filling
-sets `ciFeeStatus: 'approved'` with a sample amount/description, then
+(`review.creditInvestigation.report.transcriptFileName ===
+'sample-transcript.pdf'`), not on document completeness and, importantly,
+not on `ciFeeStatus`. `ciFeeStatus` alone can't be used as the signal
+because it also reaches `'pending-approval'`/`'approved'` via the normal,
+real "Yes, Request CI Fee" + approval workflow — unrelated to this dev
+shortcut — which would otherwise mislabel the action "Remove Sample Data"
+after genuine officer work and risk wiping a hand-filled CI Report.
+Instead the toggle keys off the literal `transcriptFileName` value that
+only `handleFillSampleData` itself ever writes (a real transcript upload
+never produces this exact filename). Filling sets `ciFeeStatus: 'approved'`
+with a sample amount/description, then
 populates a subset of `CiReport`: `subjectAsOf`, `residenceLeasedType`,
 `residenceLengthOfStay`, `employmentType`, `lengthOfService`, and
 `negativeRecordFinding` come from `buildTranscriptAutoFill()` (same
