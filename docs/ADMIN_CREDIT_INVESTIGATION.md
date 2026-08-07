@@ -4,7 +4,8 @@
 > or its supporting files (`credit-investigation-docs.ts`,
 > `credit-investigation-risk.ts`, `credit-investigation-transcript.ts`,
 > `credit-investigation/ci-fee-card.tsx`, `credit-investigation/ci-report-card.tsx`,
-> `credit-investigation/credit-investigation-doc-row.tsx`) change. Companion to
+> `credit-investigation/credit-investigation-doc-row.tsx`,
+> `components/rich-text-field/rich-text-field.tsx`) change. Companion to
 > `PROJECT_OVERVIEW.md` and `docs/ADMIN_REQUIREMENT_CHECKLIST.md` (the step
 > immediately before this one in the pipeline).
 
@@ -63,8 +64,9 @@ One card, documents grouped into 5 subgroups
 each rendered with the shared `RequirementDocRow` component, sorted
 outstanding-first within each subgroup:
 
-- **Principal/Consumer**: Primary ID (required). Once filled (via Upload or
-  "Fill with Sample Data"), its AI note dynamically appends the applicant's
+- **Principal/Consumer**: Primary ID (required). Once filled (via Requirement
+  Checklist's own Upload, since this row is read-only here), its AI note
+  dynamically appends the applicant's
   actual `personalInfo.idType`/`idNumber` from onboarding (e.g. "ID on file:
   PhilSys / National ID (1234-5678-9012)."); this is the only row of the four
   "Primary ID"-labeled rows with per-application ID-type data to draw from —
@@ -98,24 +100,26 @@ Plus two groups outside the fixed metadata:
   hoc rows the officer adds via **"+ Add document"** (a label text field);
   each becomes a `CreditInvestigationDoc` with `isCustom: true` and its own
   `label`. Unlike the fixed checklist rows, a newly-added custom document
-  starts pre-filled as already uploaded and verified — `status: 'verified'`,
-  a sample `fileName`/`fileUrl`, `uploadedAt: now`, `uploadedBy: officerName`,
-  and `aiNote: 'Reviewed, no issues found.'` — the same shape as
-  `handleFillSampleData`'s output, so it reads like the Bureau &
-  Verification Checks rows (already on file) rather than starting as
-  "missing" and requiring a manual Upload click. Upload (to replace the
+  starts pre-filled as already uploaded and verified by
+  `addCreditInvestigationDocument` (`admin-context.tsx`) — `status:
+  'verified'`, a sample `fileName`/`fileUrl`, `uploadedAt: now`,
+  `uploadedBy: officerName`, and `aiNote: 'Reviewed, no issues found.'` —
+  so it reads like the Bureau & Verification Checks rows (already on file)
+  rather than starting as "missing" and requiring a manual Upload click.
+  Upload (to replace the
   file) and Delete (via the row's "…" menu) remain available afterward,
   same as any other non-missing row.
 
-The page action **"Fill with Sample Data"/"Remove Sample Data"** (its label
-toggles based on whether every fixed document is received) only fills or
-clears the fixed metadata document list — officer-added custom documents are
-always preserved untouched by both directions of that toggle. This is a
-deliberate contract, not an oversight: a bug where "Remove Sample Data"
-destructively deleted custom documents was caught and fixed earlier in this
-feature's development, so any future change to
-`handleFillSampleData`/`handleClearSampleData` in
-`credit-investigation-view.tsx` must keep skipping `doc.isCustom` documents.
+The page action **"Fill with Sample Data"/"Remove Sample Data"** has no
+effect on this card at all — Document Checklist is fully read-only on this
+page (sourced from Requirement Checklist, see above), so there is nothing
+here for a sample-data action to fill or clear, and officer-added custom
+documents are likewise untouched by either direction of that toggle. This
+action is scoped entirely to CI Fee + CI Report instead (see below); an
+earlier version of this feature had a document-based sample-data fill/clear
+here, but that whole document-list feature was removed and Document
+Checklist's own fill/clear was never rebuilt after it moved to a read-only
+mirror of Requirement Checklist.
 
 **Request Documents** opens `RequestDocumentsDrawer`, reusing the existing
 component but scoped to this page's own
@@ -130,8 +134,8 @@ pure function, recomputed at render time, never stored — same pattern as
 document list's** verified/needs-review/missing documents — deliberately
 excluding officer-added custom documents, so this card's completeness math
 always agrees with `allFixedReceived` in `credit-investigation-view.tsx`
-(the same fixed-list-only check that drives the "Fill with Sample
-Data"/"Remove Sample Data" page action label) — and factors in whether the
+(used only to drive this card's `completeIcon`/badge state; it no longer
+drives any page-action label — see below) — and factors in whether the
 3 Bureau & Verification checks are complete (read from Requirement
 Checklist's state, passed in as a plain boolean) to decide the risk level
 (`'good' | 'watch' | 'high'`) and recommendation text.
@@ -161,6 +165,25 @@ gear icon → Page actions), same convention as "Force Clean/Negative Bureau
 Finding" elsewhere in this app. Clicking it sets `ciFeeStatus: 'approved'`.
 The CI Report card is locked (shown as a dashed placeholder) until
 `ciFeeStatus === 'approved'` or `'not-applicable'`.
+
+The page action **"Fill with Sample Data"/"Remove Sample Data"** is scoped
+to CI Fee + CI Report only — its label toggles on `isSampleFilled`
+(`ciFeeStatus !== 'not-requested'`), not on document completeness. Filling
+sets `ciFeeStatus: 'approved'` with a sample amount/description, then
+populates a subset of `CiReport` by reusing `buildTranscriptAutoFill()`
+(same deterministic helper the real transcript upload uses, seeded with a
+fixed `'sample-transcript.pdf'` filename): `visitDate`, `subjectAsOf`,
+`residenceLeasedType`, `residenceLengthOfStay`, `employmentType`,
+`employerName`, `position`, `salary`, `lengthOfService`,
+`negativeRecordFinding`, `recommendation`, `recommendationNotes`, and the
+`transcriptFileName`/`transcriptUploadedAt` pair (so the CI Report card
+shows the same "transcript uploaded" state and AI Summary block a real
+upload would produce). Clearing resets exactly those same fields back to
+blank plus `ciFeeStatus: 'not-requested'`. Both directions deliberately
+leave `employmentStatus`, `loanPurposeNotes`, and
+`residencePermanentAddress` untouched — those are owned by `CiReportCard`'s
+own one-time pre-fill effect (see CI Report below), not by this page
+action, so toggling sample data on and off can never fight that effect.
 
 **Dedicated CI Fee Approval screen** (`/admin/ci-fee-approval`,
 `src/sections/admin/ci-fee-approval-view.tsx`) offers a second way to
@@ -278,18 +301,94 @@ applicant data to render anything at all.
 
 ## CI Report
 
-`review.creditInvestigation.report: CiReport`
-(`src/auth/admin-context.tsx`). Structured, Call-Report-style sections, all
-directly editable regardless of transcript state:
+`review.creditInvestigation.report: CiReport` (`src/auth/admin-context.tsx`),
+rendered by `CiReportCard`
+(`src/sections/admin/credit-investigation/ci-report-card.tsx`). This card
+was substantially redesigned from an earlier 5-section version (Site Visit
+Details, Borrower/Residence Verification, Neighborhood Check, Findings &
+Assessment, Recommendation) into a much fuller ~15-section report, matching
+a reference CI Report layout. Full rationale and section-by-section spec:
+`docs/superpowers/specs/2026-08-06-ci-report-redesign-design.md`. In order:
 
-- **Site Visit Details** — visit date, visit time, location visited,
-  visiting officer.
-- **Borrower/Residence Verification** — identity confirmed, residence
-  confirmed, business confirmed (each `'yes' | 'no' | ...`).
-- **Neighborhood Check** — neighbor/community feedback (free text) +
-  standing select.
-- **Findings & Assessment** — free text.
-- **Recommendation** — preliminary recommendation select + notes.
+- **Header** — read-only Residence Address + Business/Work Address, shown
+  side by side in a two-column block. Sourced entirely from
+  `application.personalInfo`/`financialInfo`, never edited on this card;
+  Business/Work Address reads "Not applicable" whenever
+  `financialInfo.employmentStatus !== 'Business Owner'`.
+- **Date Inspected** — single date field (`report.visitDate`).
+- **Subject As Of** — `RichTextField`, blank until the officer types or a
+  transcript is uploaded.
+- **Spouse** — `RichTextField`, pre-filled once with a plain-text scaffold
+  (name + birthday) built from `personalInfo.spouse*` fields when
+  `civilStatus === 'Married'`; blank otherwise. Free-text afterward, not a
+  locked value.
+- **Children** — repeatable `CiChildEntry` array (Name, Age,
+  Occupation/School), same add/remove-per-entry pattern as Call Report's
+  Collateral Information.
+- **Residence/Neighborhood** — structured fields in a bordered box:
+  Permanent address (read-only, from `personalInfo`), Leased type, Length
+  of stay, Landmark, Remarks, followed by a **"PRESENT ADDRESS (if
+  different)"** sub-block mirroring the same five fields for when the
+  applicant's current residence differs from the address on file.
+- **Employment** — structured fields in a bordered box. Employment Status
+  is pre-filled read-only from `financialInfo.employmentStatus`; Employment
+  Type, Employer/Business Name, Position, Address, Tel./Email, Salary,
+  Annual Income, Length of Service, employee counts, Unionized, SEC/DTI
+  registration, and Remarks are officer-entered or transcript-filled. The
+  Business/Employer Name and Address labels switch to "Business"
+  terminology when `financialInfo.employmentStatus === 'Business Owner'`.
+- **Trade Checking** — two independent repeatable `CiTradeEntry` arrays,
+  **Suppliers** and **Customers**, each with its own "Add Supplier"/"Add
+  Customer" trigger (Name, Address, Contact Number, Nature of Dealing,
+  Years of Dealing).
+- **Assets** — `RichTextField`, blank by default.
+- **Other Source of Income** — repeatable `CiIncomeSourceEntry` array
+  (Source, Monthly Amount, Remarks).
+- **Loan Purpose (Required)** — `RichTextField`, pre-filled once from
+  `financialInfo.loanPurpose` if present. Labeled required to match the
+  reference layout, but nothing on this page currently blocks "Proceed" on
+  CI Report field completeness — same permissive-gate convention as the
+  rest of this page's decision flow.
+- **Bank Verification** — repeatable `CiBankAccountEntry` array (Bank Name,
+  Account Type, Account Number, Average Monthly Balance).
+- **Negative Record** — a fixed, non-editable disclosure line
+  (`negativeRecordSourceNote`, naming BAP/CMAP as the source and the visit
+  date), a `RadioRow` finding ("No negative findings both CMAP & NFIS" /
+  "Negative findings found") next to the applicant's own name, and a
+  `RichTextField` for Remarks.
+- **Comaker** — **read-only**, sourced directly from
+  `review.callReport.comakers` (no local `CiReport` fields of its own).
+  Renders each comaker as a compact row (name, relationship, address,
+  contact); shows "No data found. Please add comaker information on Call
+  Report." when the array is empty. The write side of this data lives on
+  Call Report's own Comaker card — see
+  `docs/ADMIN_CALL_REPORT.md`'s "The 12 section cards" table, section 12.
+- **Health and Habits** — `RichTextField`, blank by default.
+- **Comments** — `RichTextField`, blank by default.
+- **Recommendation** — kept unchanged from the original CI Report:
+  preliminary recommendation select (`'proceed-as-requested' |
+  'proceed-with-conditions' | 'needs-additional-verification'`) + notes,
+  placed last. This is the only CI Report field
+  `credit-investigation-risk.ts` doesn't read at all — `report` isn't
+  consulted by `buildCreditInvestigationSummary` in the first place, which
+  reads solely from the Document Checklist.
+
+**Pre-fill vs. blank on first open:** only fields with a clear existing
+source pre-fill automatically — header address, Employment Status, Loan
+Purpose, and the Spouse scaffold — each via a one-time `useEffect` in
+`CiReportCard` that patches a field only while it's still at its untouched
+default, so it can never clobber an officer's own edit on a later render
+(same "default once" convention as `loan-discussion-card.tsx`'s Final Loan
+Purpose default). Every other field starts genuinely blank (or an empty
+array) until the officer types something or uploads a transcript.
+
+**`RichTextField`** (`src/components/rich-text-field/rich-text-field.tsx`,
+exported via `src/components/rich-text-field/index.ts`) is a new shared
+component — a bordered box matching this app's `fieldSx` look, with a small
+Bold/Italic/bulleted-list/numbered-list toolbar over a Tiptap
+(`@tiptap/react` + `@tiptap/starter-kit`) editor area, storing its value as
+an HTML string. It backs six narrative sections above: Subject As Of,
+Spouse, Assets, Negative Record's Remarks, Health and Habits, and Comments.
 
 ### Transcript upload → auto-fill
 
@@ -299,11 +398,16 @@ never read file contents" convention as every other upload in this app.
 Uploading triggers `buildTranscriptAutoFill()`
 (`credit-investigation-transcript.ts`) — a deterministic, hash-seeded
 function (same technique as `simulateBureauFinding`) keyed on the
-applicant's email + transcript filename — which fills every CI Report field
-above with fixed template content and produces a read-only **AI Summary**
-block. Auto-fill is a convenience, not a lock: every field stays editable
-before and after upload, and re-uploading a new transcript re-runs auto-fill
-and overwrites current values.
+applicant's email + transcript filename — which produces fixed template
+content and a read-only **AI Summary** block. Auto-fill only ever touches
+the fields a transcript could plausibly attest to: residence lease
+type/length of stay, employment type/length of service, negative-record
+finding, and the Subject As Of narrative. It never touches the header
+block, Loan Purpose, or Comaker — those are sourced from application data
+or Call Report, and a transcript re-upload must not clobber them. Auto-fill
+is a convenience, not a lock: every field stays editable before and after
+upload, and re-uploading a new transcript re-runs auto-fill and overwrites
+the fields it covers.
 
 ## Proceed application?
 
