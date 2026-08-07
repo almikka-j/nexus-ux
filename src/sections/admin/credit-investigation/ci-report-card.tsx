@@ -13,13 +13,21 @@ import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
-import type { CiChildEntry, CiTradeEntry, CiIncomeSourceEntry, CiBankAccountEntry } from 'src/auth/admin-context';
+import type {
+  CiReport,
+  CiChildEntry,
+  CiTradeEntry,
+  CiIncomeSourceEntry,
+  CiBankAccountEntry,
+  CiComakerEntry,
+} from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
 import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { RichTextField } from 'src/components/rich-text-field';
 
 import { buildTranscriptAutoFill } from '../credit-investigation-transcript';
+import { RadioRow } from '../call-report/call-details-card';
 
 // ----------------------------------------------------------------------
 // The ~15-section CI Report. Replaces the old 5-section version
@@ -55,6 +63,7 @@ export function CiReportCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { signUpData, application } = useRegistration();
   const { review, setCiReport } = useAdmin();
+  const comakers = review.callReport.comakers;
   const { report } = review.creditInvestigation;
   const { personalInfo, financialInfo } = application;
 
@@ -219,6 +228,90 @@ export function CiReportCard() {
           entries={report.children}
           onChange={(children) => setCiReport({ children })}
         />
+
+        <ResidenceNeighborhoodSection report={report} onChange={setCiReport} />
+
+        <EmploymentSection report={report} onChange={setCiReport} isBusinessOwner={isBusinessOwner} />
+
+        <TradeCheckingSection
+          title="Suppliers"
+          entries={report.suppliers}
+          onChange={(suppliers) => setCiReport({ suppliers })}
+        />
+        <TradeCheckingSection
+          title="Customers"
+          entries={report.customers}
+          onChange={(customers) => setCiReport({ customers })}
+        />
+
+        <RichTextField
+          label="Assets"
+          value={report.assetsNotes}
+          onChange={(html) => setCiReport({ assetsNotes: html })}
+          placeholder="Real property, vehicles, and other notable assets…"
+        />
+
+        <OtherIncomeSection
+          entries={report.otherIncomeSources}
+          onChange={(otherIncomeSources) => setCiReport({ otherIncomeSources })}
+        />
+
+        <RichTextField
+          label="Loan Purpose (Required)"
+          value={report.loanPurposeNotes}
+          onChange={(html) => setCiReport({ loanPurposeNotes: html })}
+          placeholder="What the loan proceeds will be used for…"
+        />
+
+        <BankVerificationSection
+          entries={report.bankAccounts}
+          onChange={(bankAccounts) => setCiReport({ bankAccounts })}
+        />
+
+        <NegativeRecordSection report={report} applicantName={applicantName} onChange={setCiReport} />
+
+        <ComakerSection comakers={comakers} />
+
+        <RichTextField
+          label="Health and Habits"
+          value={report.healthAndHabitsNotes}
+          onChange={(html) => setCiReport({ healthAndHabitsNotes: html })}
+          placeholder="Lifestyle, health, or habit observations relevant to the investigation…"
+        />
+
+        <RichTextField
+          label="Comments"
+          value={report.commentsNotes}
+          onChange={(html) => setCiReport({ commentsNotes: html })}
+          placeholder="Any additional remarks…"
+        />
+
+        <Stack spacing={1.25}>
+          <SectionLabel>Recommendation</SectionLabel>
+          <TextField
+            fullWidth
+            select
+            label="Preliminary recommendation"
+            value={report.recommendation}
+            onChange={(event) =>
+              setCiReport({ recommendation: event.target.value as typeof report.recommendation })
+            }
+            sx={fieldSx}
+          >
+            <MenuItem value="proceed-as-requested">Proceed as requested</MenuItem>
+            <MenuItem value="proceed-with-conditions">Proceed with conditions</MenuItem>
+            <MenuItem value="needs-additional-verification">Needs additional verification</MenuItem>
+          </TextField>
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            label="Notes"
+            value={report.recommendationNotes}
+            onChange={(event) => setCiReport({ recommendationNotes: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
       </Stack>
     </Box>
   );
@@ -299,6 +392,573 @@ function ChildrenSection({
           Add Children
         </Button>
       </Stack>
+    </Stack>
+  );
+}
+
+const LEASED_TYPE_OPTIONS: { value: 'owned' | 'leased' | 'rent-free'; label: string }[] = [
+  { value: 'owned', label: 'Owned' },
+  { value: 'leased', label: 'Leased' },
+  { value: 'rent-free', label: 'Rent-free' },
+];
+
+function ResidenceNeighborhoodSection({
+  report,
+  onChange,
+}: {
+  report: CiReport;
+  onChange: (data: Partial<CiReport>) => void;
+}) {
+  return (
+    <Stack spacing={1.5}>
+      <SectionLabel>Residence/Neighborhood</SectionLabel>
+      <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+        <Stack spacing={2}>
+          <TextField
+            label="Permanent address"
+            value={report.residencePermanentAddress}
+            InputProps={{ readOnly: true }}
+            sx={fieldSx}
+          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <RadioRow
+              label="Leased type"
+              value={report.residenceLeasedType}
+              options={LEASED_TYPE_OPTIONS}
+              onChange={(value) => onChange({ residenceLeasedType: value })}
+            />
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              label="Length of stay"
+              value={report.residenceLengthOfStay}
+              onChange={(event) => onChange({ residenceLengthOfStay: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="Landmark"
+              value={report.residenceLandmark}
+              onChange={(event) => onChange({ residenceLandmark: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+          </Stack>
+          <TextField
+            label="Remarks"
+            value={report.residenceRemarks}
+            onChange={(event) => onChange({ residenceRemarks: event.target.value })}
+            sx={fieldSx}
+          />
+
+          <Stack sx={{ pt: 1, mt: 1, borderTop: '1px solid #EEF0F5' }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', mb: 1.5 }}>
+              PRESENT ADDRESS (if different)
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                label="Present address"
+                value={report.presentAddress}
+                onChange={(event) => onChange({ presentAddress: event.target.value })}
+                sx={fieldSx}
+              />
+              <RadioRow
+                label="Leased type"
+                value={report.presentLeasedType}
+                options={LEASED_TYPE_OPTIONS}
+                onChange={(value) => onChange({ presentLeasedType: value })}
+              />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField
+                  label="Length of stay"
+                  value={report.presentLengthOfStay}
+                  onChange={(event) => onChange({ presentLengthOfStay: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+                <TextField
+                  label="Landmark"
+                  value={report.presentLandmark}
+                  onChange={(event) => onChange({ presentLandmark: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+              </Stack>
+              <TextField
+                label="Remarks"
+                value={report.presentRemarks}
+                onChange={(event) => onChange({ presentRemarks: event.target.value })}
+                sx={fieldSx}
+              />
+            </Stack>
+          </Stack>
+        </Stack>
+      </Box>
+    </Stack>
+  );
+}
+
+const EMPLOYMENT_TYPE_OPTIONS: { value: 'direct' | 'agency' | 'self-employed'; label: string }[] = [
+  { value: 'direct', label: 'Direct' },
+  { value: 'agency', label: 'Agency' },
+  { value: 'self-employed', label: 'Self-Employed' },
+];
+
+const YES_NO_OPTIONS: { value: 'yes' | 'no'; label: string }[] = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'no', label: 'No' },
+];
+
+function EmploymentSection({
+  report,
+  onChange,
+  isBusinessOwner,
+}: {
+  report: CiReport;
+  onChange: (data: Partial<CiReport>) => void;
+  isBusinessOwner: boolean;
+}) {
+  return (
+    <Stack spacing={1.5}>
+      <SectionLabel>Employment</SectionLabel>
+      <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+        <Stack spacing={2}>
+          <TextField
+            label="Employment Status"
+            value={report.employmentStatus}
+            InputProps={{ readOnly: true }}
+            sx={fieldSx}
+          />
+          <RadioRow
+            label="Employment Type"
+            value={report.employmentType}
+            options={EMPLOYMENT_TYPE_OPTIONS}
+            onChange={(value) => onChange({ employmentType: value })}
+          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              label={isBusinessOwner ? 'Business Name' : 'Employer Name'}
+              value={report.employerName}
+              onChange={(event) => onChange({ employerName: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="Position"
+              value={report.position}
+              onChange={(event) => onChange({ position: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+          </Stack>
+          <TextField
+            label={isBusinessOwner ? 'Business Address' : 'Employer Address'}
+            value={report.employerAddress}
+            onChange={(event) => onChange({ employerAddress: event.target.value })}
+            sx={fieldSx}
+          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              label="Tel. No."
+              value={report.employerTelNo}
+              onChange={(event) => onChange({ employerTelNo: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="Email Address"
+              value={report.employerEmail}
+              onChange={(event) => onChange({ employerEmail: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              label="Salary"
+              type="number"
+              value={report.salary}
+              onChange={(event) => onChange({ salary: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="Annual Income"
+              type="number"
+              value={report.annualIncome}
+              onChange={(event) => onChange({ annualIncome: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="Length of Service"
+              value={report.lengthOfService}
+              onChange={(event) => onChange({ lengthOfService: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              label="No. Reg. Employees"
+              type="number"
+              value={report.numberOfRegEmployees}
+              onChange={(event) => onChange({ numberOfRegEmployees: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="No. Contr. Employees"
+              type="number"
+              value={report.numberOfContrEmployees}
+              onChange={(event) => onChange({ numberOfContrEmployees: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+          </Stack>
+          <RadioRow
+            label="Unionized?"
+            value={report.isUnionized}
+            options={YES_NO_OPTIONS}
+            onChange={(value) => onChange({ isUnionized: value })}
+          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              label="SEC/DTI Reg. No."
+              value={report.secDtiRegNo}
+              onChange={(event) => onChange({ secDtiRegNo: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="SEC/DTI Reg. Date"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={report.secDtiRegDate}
+              onChange={(event) => onChange({ secDtiRegDate: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="SEC/DTI Exp. Date"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={report.secDtiExpDate}
+              onChange={(event) => onChange({ secDtiExpDate: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+          </Stack>
+          <TextField
+            label="Remarks"
+            value={report.employmentRemarks}
+            onChange={(event) => onChange({ employmentRemarks: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
+      </Box>
+    </Stack>
+  );
+}
+
+function TradeCheckingSection({
+  title,
+  entries,
+  onChange,
+}: {
+  title: string;
+  entries: CiTradeEntry[];
+  onChange: (next: CiTradeEntry[]) => void;
+}) {
+  const update = (id: string, data: Partial<CiTradeEntry>) =>
+    onChange(entries.map((entry) => (entry.id === id ? { ...entry, ...data } : entry)));
+  const remove = (id: string) => onChange(entries.filter((entry) => entry.id !== id));
+  const add = () =>
+    onChange([
+      ...entries,
+      { id: crypto.randomUUID(), name: '', address: '', contactNumber: '', natureOfDealing: '', yearsOfDealing: '' },
+    ]);
+
+  return (
+    <Stack spacing={1.5}>
+      <SectionLabel>Trade Checking — {title}</SectionLabel>
+      <Stack spacing={1.5}>
+        {entries.map((entry, index) => (
+          <Box key={entry.id} sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
+              <Chip
+                label={`${title.slice(0, -1)} ${index + 1}`}
+                size="small"
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+              />
+              <Button
+                onClick={() => remove(entry.id)}
+                size="small"
+                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
+                sx={{ color: '#F04438' }}
+              >
+                Remove
+              </Button>
+            </Stack>
+            <Stack spacing={1.5}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField
+                  label="Name"
+                  value={entry.name}
+                  onChange={(event) => update(entry.id, { name: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+                <TextField
+                  label="Contact Number"
+                  value={entry.contactNumber}
+                  onChange={(event) => update(entry.id, { contactNumber: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+              </Stack>
+              <TextField
+                label="Address"
+                value={entry.address}
+                onChange={(event) => update(entry.id, { address: event.target.value })}
+                sx={fieldSx}
+              />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField
+                  label="Nature of Dealing"
+                  value={entry.natureOfDealing}
+                  onChange={(event) => update(entry.id, { natureOfDealing: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+                <TextField
+                  label="Years of Dealing"
+                  value={entry.yearsOfDealing}
+                  onChange={(event) => update(entry.id, { yearsOfDealing: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+              </Stack>
+            </Stack>
+          </Box>
+        ))}
+        <Button
+          onClick={add}
+          variant="outlined"
+          size="small"
+          startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+          sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+        >
+          Add {title.slice(0, -1)}
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
+
+function OtherIncomeSection({
+  entries,
+  onChange,
+}: {
+  entries: CiIncomeSourceEntry[];
+  onChange: (next: CiIncomeSourceEntry[]) => void;
+}) {
+  const update = (id: string, data: Partial<CiIncomeSourceEntry>) =>
+    onChange(entries.map((entry) => (entry.id === id ? { ...entry, ...data } : entry)));
+  const remove = (id: string) => onChange(entries.filter((entry) => entry.id !== id));
+  const add = () =>
+    onChange([...entries, { id: crypto.randomUUID(), source: '', monthlyAmount: '', remarks: '' }]);
+
+  return (
+    <Stack spacing={1.5}>
+      <SectionLabel>Other Source of Income</SectionLabel>
+      <Stack spacing={1.5}>
+        {entries.map((entry, index) => (
+          <Box key={entry.id} sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
+              <Chip
+                label={`Source ${index + 1}`}
+                size="small"
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+              />
+              <Button
+                onClick={() => remove(entry.id)}
+                size="small"
+                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
+                sx={{ color: '#F04438' }}
+              >
+                Remove
+              </Button>
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                label="Source"
+                value={entry.source}
+                onChange={(event) => update(entry.id, { source: event.target.value })}
+                sx={{ ...fieldSx, flex: 2 }}
+              />
+              <TextField
+                label="Monthly Amount"
+                type="number"
+                value={entry.monthlyAmount}
+                onChange={(event) => update(entry.id, { monthlyAmount: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                label="Remarks"
+                value={entry.remarks}
+                onChange={(event) => update(entry.id, { remarks: event.target.value })}
+                sx={{ ...fieldSx, flex: 2 }}
+              />
+            </Stack>
+          </Box>
+        ))}
+        <Button
+          onClick={add}
+          variant="outlined"
+          size="small"
+          startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+          sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+        >
+          Add Source
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
+
+function BankVerificationSection({
+  entries,
+  onChange,
+}: {
+  entries: CiBankAccountEntry[];
+  onChange: (next: CiBankAccountEntry[]) => void;
+}) {
+  const update = (id: string, data: Partial<CiBankAccountEntry>) =>
+    onChange(entries.map((entry) => (entry.id === id ? { ...entry, ...data } : entry)));
+  const remove = (id: string) => onChange(entries.filter((entry) => entry.id !== id));
+  const add = () =>
+    onChange([
+      ...entries,
+      { id: crypto.randomUUID(), bankName: '', accountType: '', accountNumber: '', averageMonthlyBalance: '' },
+    ]);
+
+  return (
+    <Stack spacing={1.5}>
+      <SectionLabel>Bank Verification</SectionLabel>
+      <Stack spacing={1.5}>
+        {entries.map((entry, index) => (
+          <Box key={entry.id} sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
+              <Chip
+                label={`Account ${index + 1}`}
+                size="small"
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+              />
+              <Button
+                onClick={() => remove(entry.id)}
+                size="small"
+                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
+                sx={{ color: '#F04438' }}
+              >
+                Remove
+              </Button>
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                label="Bank Name"
+                value={entry.bankName}
+                onChange={(event) => update(entry.id, { bankName: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                label="Account Type"
+                value={entry.accountType}
+                onChange={(event) => update(entry.id, { accountType: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 1.5 }}>
+              <TextField
+                label="Account Number"
+                value={entry.accountNumber}
+                onChange={(event) => update(entry.id, { accountNumber: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                label="Average Monthly Balance"
+                type="number"
+                value={entry.averageMonthlyBalance}
+                onChange={(event) => update(entry.id, { averageMonthlyBalance: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+            </Stack>
+          </Box>
+        ))}
+        <Button
+          onClick={add}
+          variant="outlined"
+          size="small"
+          startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+          sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+        >
+          Add Bank Account
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
+
+const NEGATIVE_FINDING_OPTIONS: {
+  value: 'no-negative-findings-both-cmap-nfis' | 'negative-findings-found';
+  label: string;
+}[] = [
+  { value: 'no-negative-findings-both-cmap-nfis', label: 'No negative findings both CMAP & NFIS' },
+  { value: 'negative-findings-found', label: 'Negative findings found' },
+];
+
+function NegativeRecordSection({
+  report,
+  applicantName,
+  onChange,
+}: {
+  report: CiReport;
+  applicantName: string;
+  onChange: (data: Partial<CiReport>) => void;
+}) {
+  return (
+    <Stack spacing={1.5}>
+      <SectionLabel>Negative Record</SectionLabel>
+      <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+        <Stack spacing={2}>
+          <Typography sx={{ fontSize: 12.5, color: '#5A6273', lineHeight: 1.6 }}>
+            {report.negativeRecordSourceNote}
+            {report.visitDate || '[visit date pending]'}
+          </Typography>
+          <RadioRow
+            label={`${applicantName} — Borrower`}
+            value={report.negativeRecordFinding}
+            options={NEGATIVE_FINDING_OPTIONS}
+            onChange={(value) => onChange({ negativeRecordFinding: value })}
+          />
+          <RichTextField
+            label="Remarks"
+            value={report.negativeRecordRemarks}
+            onChange={(html) => onChange({ negativeRecordRemarks: html })}
+            placeholder="Details on any negative findings…"
+          />
+        </Stack>
+      </Box>
+    </Stack>
+  );
+}
+
+function ComakerSection({ comakers }: { comakers: CiComakerEntry[] }) {
+  return (
+    <Stack spacing={1.5}>
+      <SectionLabel>Comaker</SectionLabel>
+      {comakers.length === 0 ? (
+        <Box sx={{ p: 2, borderRadius: '11px', border: '1px dashed #DDE1EA', bgcolor: '#FAFBFD' }}>
+          <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
+            No data found. Please add comaker information on Call Report.
+          </Typography>
+        </Box>
+      ) : (
+        <Stack spacing={1.25}>
+          {comakers.map((comaker) => (
+            <Box key={comaker.id} sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+              <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
+                {comaker.name || 'Unnamed comaker'}
+              </Typography>
+              <Typography sx={{ fontSize: 12.5, color: '#5A6273', mt: 0.25 }}>
+                {comaker.relationshipToBorrower && `${comaker.relationshipToBorrower} · `}
+                {comaker.address}
+                {comaker.contactNumber && ` · ${comaker.contactNumber}`}
+              </Typography>
+            </Box>
+          ))}
+        </Stack>
+      )}
     </Stack>
   );
 }
