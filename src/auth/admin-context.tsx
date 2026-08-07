@@ -271,6 +271,16 @@ export type CollateralEntry = {
   requiresAppraisal: RequiresAppraisal | '';
 };
 
+export type CiComakerEntry = {
+  id: string;
+  name: string;
+  relationshipToBorrower: string;
+  address: string;
+  contactNumber: string;
+  occupation: string;
+  monthlyIncome: string;
+};
+
 export type NextStepItem =
   | 'submit-proof-of-income'
   | 'submit-bank-statements'
@@ -438,6 +448,9 @@ export type CallReport = {
   // 9. Collateral Information
   collateralOffered: CollateralOffered | '';
   collateralEntries: CollateralEntry[];
+
+  // 12. Comaker
+  comakers: CiComakerEntry[];
 
   // 10. Agreed Next Steps
   nextSteps: NextStepItem[];
@@ -667,6 +680,9 @@ type AdminContextValue = AdminState & {
   addCollateralEntry: () => void;
   updateCollateralEntry: (id: string, data: Partial<CollateralEntry>) => void;
   removeCollateralEntry: (id: string) => void;
+  addComakerEntry: () => void;
+  updateComakerEntry: (id: string, data: Partial<CiComakerEntry>) => void;
+  removeComakerEntry: (id: string) => void;
   setRequirementChecklist: (data: Partial<RequirementChecklist>) => void;
   addAppraisalGroup: (tctNumber: string) => void;
   removeAppraisalGroup: (groupId: string) => void;
@@ -936,6 +952,7 @@ function createInitialReview(): ApplicationReview {
       observationNotes: '',
       collateralOffered: '',
       collateralEntries: [],
+      comakers: [],
       nextSteps: [],
       responsibleParty: '',
       nextStepsDueDate: '',
@@ -1262,6 +1279,52 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               collateralEntries: prev.review.callReport.collateralEntries.filter(
                 (entry) => entry.id !== id
               ),
+            },
+          },
+        })),
+      addComakerEntry: () =>
+        setState((prev) => {
+          const newEntry: CiComakerEntry = {
+            id: crypto.randomUUID(),
+            name: '',
+            relationshipToBorrower: '',
+            address: '',
+            contactNumber: '',
+            occupation: '',
+            monthlyIncome: '',
+          };
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              callReport: {
+                ...prev.review.callReport,
+                comakers: [...prev.review.callReport.comakers, newEntry],
+              },
+            },
+          };
+        }),
+      updateComakerEntry: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            callReport: {
+              ...prev.review.callReport,
+              comakers: prev.review.callReport.comakers.map((entry) =>
+                entry.id === id ? { ...entry, ...data } : entry
+              ),
+            },
+          },
+        })),
+      removeComakerEntry: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            callReport: {
+              ...prev.review.callReport,
+              comakers: prev.review.callReport.comakers.filter((entry) => entry.id !== id),
             },
           },
         })),
