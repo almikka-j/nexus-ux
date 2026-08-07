@@ -75,7 +75,7 @@ export function RichTextField({
 
   return (
     <Box>
-      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 0.75 }}>
+      <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#14172A', mb: 0.75 }}>
         {label}
       </Typography>
       <Box sx={{ border: '1px solid #DDE1EA', borderRadius: '10px', overflow: 'hidden', bgcolor: 'common.white' }}>
@@ -112,15 +112,17 @@ export function RichTextField({
         <Box
           sx={{
             '& .ProseMirror': { minHeight: 96 },
-            '& .ProseMirror p.is-editor-empty:first-of-type::before': placeholder
-              ? {
-                  content: `"${placeholder}"`,
-                  color: '#A0A7B5',
-                  float: 'left',
-                  height: 0,
-                  pointerEvents: 'none',
-                }
-              : undefined,
+            ...(placeholder && {
+              // NOTE: `placeholder` must not contain double-quote characters — it is
+              // interpolated directly into a CSS `content` string with no escaping.
+              '& .ProseMirror p.is-editor-empty:first-of-type::before': {
+                content: `"${placeholder}"`,
+                color: '#A0A7B5',
+                float: 'left',
+                height: 0,
+                pointerEvents: 'none',
+              },
+            }),
           }}
         >
           <EditorContent editor={editor} />
