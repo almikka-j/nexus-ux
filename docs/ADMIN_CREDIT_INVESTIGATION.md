@@ -170,17 +170,21 @@ The page action **"Fill with Sample Data"/"Remove Sample Data"** is scoped
 to CI Fee + CI Report only — its label toggles on `isSampleFilled`
 (`ciFeeStatus !== 'not-requested'`), not on document completeness. Filling
 sets `ciFeeStatus: 'approved'` with a sample amount/description, then
-populates a subset of `CiReport` by reusing `buildTranscriptAutoFill()`
-(same deterministic helper the real transcript upload uses, seeded with a
-fixed `'sample-transcript.pdf'` filename): `visitDate`, `subjectAsOf`,
-`residenceLeasedType`, `residenceLengthOfStay`, `employmentType`,
-`employerName`, `position`, `salary`, `lengthOfService`,
-`negativeRecordFinding`, `recommendation`, `recommendationNotes`, and the
-`transcriptFileName`/`transcriptUploadedAt` pair (so the CI Report card
-shows the same "transcript uploaded" state and AI Summary block a real
-upload would produce). Clearing resets exactly those same fields back to
-blank plus `ciFeeStatus: 'not-requested'`. Both directions deliberately
-leave `employmentStatus`, `loanPurposeNotes`, and
+populates a subset of `CiReport`: `subjectAsOf`, `residenceLeasedType`,
+`residenceLengthOfStay`, `employmentType`, `lengthOfService`, and
+`negativeRecordFinding` come from `buildTranscriptAutoFill()` (same
+deterministic helper the real transcript upload uses, seeded with a fixed
+`'sample-transcript.pdf'` filename); `employerName` ('Sample Employer
+Corp.'), `position` ('Staff Supervisor'), and `salary` ('35000') are
+hardcoded sample literals directly in `handleFillSampleData` — fields the
+auto-fill simulator doesn't cover; and `visitDate` (today's date),
+`recommendation` ('proceed-as-requested'), `recommendationNotes`, and the
+`transcriptFileName`/`transcriptUploadedAt` pair are also set directly by
+`handleFillSampleData` rather than sourced from `autoFill` (so the CI
+Report card shows the same "transcript uploaded" state and AI Summary
+block a real upload would produce). Clearing resets exactly those same
+fields back to blank plus `ciFeeStatus: 'not-requested'`. Both directions
+deliberately leave `employmentStatus`, `loanPurposeNotes`, and
 `residencePermanentAddress` untouched — those are owned by `CiReportCard`'s
 own one-time pre-fill effect (see CI Report below), not by this page
 action, so toggling sample data on and off can never fight that effect.
@@ -401,11 +405,13 @@ function (same technique as `simulateBureauFinding`) keyed on the
 applicant's email + transcript filename — which produces fixed template
 content and a read-only **AI Summary** block. Auto-fill only ever touches
 the fields a transcript could plausibly attest to: residence lease
-type/length of stay, employment type/length of service, negative-record
-finding, and the Subject As Of narrative. It never touches the header
-block, Loan Purpose, or Comaker — those are sourced from application data
-or Call Report, and a transcript re-upload must not clobber them. Auto-fill
-is a convenience, not a lock: every field stays editable before and after
+type/length of stay, Present Address (mirrored from the permanent address
+when `autoFill.presentAddressSameAsPermanent` is true, otherwise left
+unchanged), employment type/length of service, negative-record finding, and
+the Subject As Of narrative. It never touches the header block, Loan
+Purpose, or Comaker — those are sourced from application data or Call
+Report, and a transcript re-upload must not clobber them. Auto-fill is a
+convenience, not a lock: every field stays editable before and after
 upload, and re-uploading a new transcript re-runs auto-fill and overwrites
 the fields it covers.
 
