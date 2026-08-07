@@ -102,7 +102,7 @@ export function CiReportCard() {
     }
     if (Object.keys(patch).length > 0) setCiReport(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [personalInfo, financialInfo?.employmentStatus, financialInfo?.loanPurpose, isMarried]);
 
   if (!signUpData) return null;
 
