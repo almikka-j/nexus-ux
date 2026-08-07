@@ -281,6 +281,37 @@ export type CiComakerEntry = {
   monthlyIncome: string;
 };
 
+export type CiChildEntry = {
+  id: string;
+  name: string;
+  age: string;
+  occupationOrSchool: string;
+};
+
+export type CiTradeEntry = {
+  id: string;
+  name: string;
+  address: string;
+  contactNumber: string;
+  natureOfDealing: string;
+  yearsOfDealing: string;
+};
+
+export type CiIncomeSourceEntry = {
+  id: string;
+  source: string;
+  monthlyAmount: string;
+  remarks: string;
+};
+
+export type CiBankAccountEntry = {
+  id: string;
+  bankName: string;
+  accountType: string;
+  accountNumber: string;
+  averageMonthlyBalance: string;
+};
+
 export type NextStepItem =
   | 'submit-proof-of-income'
   | 'submit-bank-statements'
@@ -576,20 +607,79 @@ export type CreditInvestigationDoc = RequirementDoc & {
 };
 
 export type CiReport = {
+  // Site visit
   visitDate: string;
-  visitTime: string;
-  visitLocation: string;
-  visitingOfficer: string;
-  identityConfirmed: IdentityConfirmed | '';
-  residenceConfirmed: 'yes' | 'no' | 'for-verification' | '';
-  businessConfirmed: 'yes' | 'no' | 'not-applicable' | '';
-  neighborhoodFeedback: string;
-  neighborhoodStanding: MembershipStanding | '';
-  findings: string;
-  recommendation: PreliminaryRecommendation | '';
+  subjectAsOf: string; // rich text (HTML)
+
+  // Spouse
+  spouseNotes: string; // rich text (HTML)
+
+  // Children
+  children: CiChildEntry[];
+
+  // Residence/Neighborhood
+  residencePermanentAddress: string; // read-only display, sourced from personalInfo
+  residenceLeasedType: 'owned' | 'leased' | 'rent-free' | '';
+  residenceLengthOfStay: string;
+  residenceLandmark: string;
+  residenceRemarks: string;
+  presentAddress: string;
+  presentLeasedType: 'owned' | 'leased' | 'rent-free' | '';
+  presentLengthOfStay: string;
+  presentLandmark: string;
+  presentRemarks: string;
+
+  // Employment
+  employmentStatus: string; // read-only display, sourced from financialInfo
+  employmentType: 'direct' | 'agency' | 'self-employed' | '';
+  employerName: string;
+  position: string;
+  employerAddress: string;
+  employerTelNo: string;
+  employerEmail: string;
+  salary: string;
+  annualIncome: string;
+  lengthOfService: string;
+  numberOfRegEmployees: string;
+  numberOfContrEmployees: string;
+  isUnionized: 'yes' | 'no' | '';
+  secDtiRegNo: string;
+  secDtiRegDate: string;
+  secDtiExpDate: string;
+  employmentRemarks: string;
+
+  // Trade Checking
+  suppliers: CiTradeEntry[];
+  customers: CiTradeEntry[];
+
+  // Assets
+  assetsNotes: string; // rich text (HTML)
+
+  // Other Source of Income
+  otherIncomeSources: CiIncomeSourceEntry[];
+
+  // Loan Purpose (required)
+  loanPurposeNotes: string; // rich text (HTML)
+
+  // Bank Verification
+  bankAccounts: CiBankAccountEntry[];
+
+  // Negative Record
+  negativeRecordSourceNote: string;
+  negativeRecordFinding: 'no-negative-findings-both-cmap-nfis' | 'negative-findings-found' | '';
+  negativeRecordRemarks: string; // rich text (HTML)
+
+  // Health and Habits
+  healthAndHabitsNotes: string; // rich text (HTML)
+
+  // Comments
+  commentsNotes: string; // rich text (HTML)
+
+  // Recommendation
+  recommendation: 'proceed-as-requested' | 'proceed-with-conditions' | 'needs-additional-verification' | '';
   recommendationNotes: string;
-  // Filename-only, same "never read file contents" convention as every
-  // other upload in this app — stands in for a PLAUD.ai transcript export.
+
+  // Transcript
   transcriptFileName: string | null;
   transcriptUploadedAt: string | null;
 };
@@ -766,15 +856,48 @@ function createInitialCreditInvestigationDocuments(): CreditInvestigationDoc[] {
 function createInitialCiReport(): CiReport {
   return {
     visitDate: '',
-    visitTime: '',
-    visitLocation: '',
-    visitingOfficer: '',
-    identityConfirmed: '',
-    residenceConfirmed: '',
-    businessConfirmed: '',
-    neighborhoodFeedback: '',
-    neighborhoodStanding: '',
-    findings: '',
+    subjectAsOf: '',
+    spouseNotes: '',
+    children: [],
+    residencePermanentAddress: '',
+    residenceLeasedType: '',
+    residenceLengthOfStay: '',
+    residenceLandmark: '',
+    residenceRemarks: '',
+    presentAddress: '',
+    presentLeasedType: '',
+    presentLengthOfStay: '',
+    presentLandmark: '',
+    presentRemarks: '',
+    employmentStatus: '',
+    employmentType: '',
+    employerName: '',
+    position: '',
+    employerAddress: '',
+    employerTelNo: '',
+    employerEmail: '',
+    salary: '',
+    annualIncome: '',
+    lengthOfService: '',
+    numberOfRegEmployees: '',
+    numberOfContrEmployees: '',
+    isUnionized: '',
+    secDtiRegNo: '',
+    secDtiRegDate: '',
+    secDtiExpDate: '',
+    employmentRemarks: '',
+    suppliers: [],
+    customers: [],
+    assetsNotes: '',
+    otherIncomeSources: [],
+    loanPurposeNotes: '',
+    bankAccounts: [],
+    negativeRecordSourceNote:
+      'Source of information: BAP Credit Bureau / CMAP report on accounts under watch lists, cancelled credit cards, adverse classified loan file, closed current account and court case file as of ',
+    negativeRecordFinding: '',
+    negativeRecordRemarks: '',
+    healthAndHabitsNotes: '',
+    commentsNotes: '',
     recommendation: '',
     recommendationNotes: '',
     transcriptFileName: null,
