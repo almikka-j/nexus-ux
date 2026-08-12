@@ -75,5 +75,7 @@ export const paths = {
     callReport: (id: string) => `/admin/applications/${id}/call-report`,
     requirementChecklist: (id: string) => `/admin/applications/${id}/requirement-checklist`,
     creditInvestigation: (id: string) => `/admin/applications/${id}/credit-investigation`,
+    appraisal: (id: string) => `/admin/applications/${id}/appraisal`,
+    creditScoring: (id: string) => `/admin/applications/${id}/credit-scoring`,
   },
 };
