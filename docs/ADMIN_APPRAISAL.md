@@ -46,16 +46,19 @@ comparison.
 1. `ApplicationReviewHeader` (`step="Step 5 · Appraisal"`,
    `reviewStep="appraisal"`, `hideApplicationCard`).
 2. `ApplicationDetailsCard` (collapsible, `officerNotesProcess="Appraisal"`).
-3. **Pledged Properties** card (read-only).
+3. **Pledged Properties** table — a checkbox row per TCT/CCT, used to select
+   properties and assign an appraiser.
 4. **Appraisal Fee** card.
-5. **Appraiser Assignment** card — rendered once the fee is resolved,
-   otherwise a locked dashed placeholder in its place.
-6. **Head Approval** card — rendered once the fee is resolved *and* a
-   report has been submitted, otherwise a locked dashed placeholder (and
-   nothing at all until the fee is resolved).
+5. **Appraisal Report** cards — one per report bundle created from the
+   table above, rendered once the fee is resolved, otherwise a single
+   locked dashed placeholder in their place.
+6. **Head Approval** card — rendered once the fee is resolved *and* every
+   pledged property is covered by a submitted report bundle, otherwise a
+   locked dashed placeholder (and nothing at all until the fee is
+   resolved).
 7. **Passed?** (Pass/Fail) card — rendered once Head Approval has approved,
    otherwise a locked dashed placeholder (and nothing at all until the fee
-   is resolved and a report is submitted).
+   is resolved and every bundle's report is submitted).
 
 Unlike Credit Investigation's page, there's no separate Document Checklist
 or "AI review, summary & recommendation" card here — the gating logic
@@ -67,21 +70,46 @@ rendering any of the cards above.
 
 ## Pledged Properties
 
-Read-only. Sourced from `review.requirementChecklist.appraisalGroups` — an
-array of `AppraisalTctGroup` (`{ id, tctNumber, documents }`), one group per
-pledged property (TCT/CCT), each carrying its own copy of the appraisal
-document set collected during Requirement Checklist. Rendered here purely
-for reference (grouped by TCT number, each document row using the shared
-`ReadOnlyRequirementDocRow`), with no upload/edit controls on this page —
-the write side of this data lives entirely on Requirement Checklist.
+A table of every `review.requirementChecklist.appraisalGroups` entry
+(`AppraisalTctGroup`, `{ id, tctNumber, documents, reportId }`), one row per
+pledged property (TCT/CCT), rendered by
+`src/sections/admin/appraisal/appraisal-tct-table.tsx`. Each row has a
+checkbox, the TCT number, an expand toggle revealing that property's 8
+appraisal documents (`ReadOnlyRequirementDocRow`, read-only, same as before —
+the write side of this data still lives entirely on Requirement Checklist),
+and a Status pill: **Unassigned** (`reportId === null`), **Pending appraiser
+type** (belongs to a bundle whose `appraiserType` hasn't been picked yet —
+not reachable through the normal "Assign Appraiser" flow, which always sets a
+type immediately, but kept as a defensive label), or **In Report —
+In-house/External**.
+
+Checking one or more `Unassigned` rows (or rows already in an *unsubmitted*
+bundle) reveals a selection action bar above the table:
+
+- If every checked row is `Unassigned`, the bar shows **"Assign
+  Appraiser"**, opening an inline In-house/External picker. Confirming
+  (**"Create Report"**) calls `createAppraisalReportBundle(tctGroupIds,
+  appraiserType)`, creating a new `AppraisalReportBundle` and stamping every
+  selected group's `reportId`.
+- If the checked rows all belong to the same single unsubmitted bundle
+  (plus optionally some `Unassigned` rows), the bar shows **"Add to
+  Report"** instead — no appraiser-type picker, since the bundle's type is
+  already set — calling `addTctGroupsToReportBundle(bundleId, newGroupIds)`.
+- If the checked rows span two or more different bundles, the bar disables
+  its action with "Select properties from only one report at a time" —
+  merging two bundles isn't supported.
+
+A row's checkbox is disabled once its bundle's report has been submitted
+(`report.uploadedAt` set) — same lock convention as the old single-report
+card, now per bundle.
 
 When `review.requirementChecklist.appraisalNotApplicable` is `true` — an
 officer's manual "this application has no real-estate collateral"
 declaration made on Requirement Checklist, not something derived from loan
-type or any other field — this card instead shows a single line: "This
-application has no pledged real-estate collateral." No appraisal fee or
-appraiser-assignment logic downstream depends on this flag; it only affects
-what this card displays.
+type or any other field — this table is replaced entirely by a single line,
+"This application has no pledged real-estate collateral." No appraisal fee
+or appraiser-assignment logic downstream depends on this flag; it only
+affects what this section displays.
 
 ## Appraisal Fee
 
@@ -118,25 +146,39 @@ three things at once, matching the source diagram's swimlanes: it sets
 `clientNotifiedAt` and `sentToOdooAt` together (a client email notification
 and a request sent to Odoo — neither a real integration), which unlocks a
 second button, **"Simulate: Payment Received (Sendit)"**, setting
-`paymentReceivedAt`. The Appraiser Assignment card below only unlocks once
+`paymentReceivedAt`. The Appraisal Report cards below only unlock once
 the fee path is fully resolved — `feeStatus === 'not-applicable'`, or
 `feeStatus === 'approved'` *and* `paymentReceivedAt` is set (this is the
 `feeResolved` gate computed in `appraisal-view.tsx`, not something
-`AppraisalFeeCard` decides on its own).
+`AppraisalFeeCard` decides on its own). The Pledged Properties table's
+selection and bundle-creation flow itself is not gated on the fee — an
+officer can group TCTs and pick an appraiser type before the fee is
+resolved; only the report-creation form/dropzone inside each bundle's card
+waits for `feeResolved`.
 
-## Appraiser Assignment
+## Appraisal Report (per bundle)
 
-Rendered by `appraisal-view.tsx` only when `feeResolved` is true; otherwise
-a locked dashed placeholder ("Resolve the Appraisal Fee above to unlock
-appraiser assignment.") takes its place.
+`review.appraisal.reportBundles: AppraisalReportBundle[]` — each entry is
+`{ id, tctGroupIds, appraiserType, report }`, created by selecting TCT rows
+in the Pledged Properties table above and assigning an appraiser (see
+above). `appraisal-view.tsx` renders one **"Appraisal Report"** card per
+bundle (`AppraiserAssignmentCard`, taking `{ bundleId, tctNumbers }` props
+instead of reading a single whole-application `review.appraisal` field, as
+it did before this page tracked multiple bundles), only once `feeResolved`
+is true — otherwise the same locked dashed placeholder as before takes
+their place, and no bundle cards render at all regardless of how many
+bundles exist (assignment itself, via the table above, is not gated on the
+fee — only the report-creation cards are).
 
-`review.appraisal.appraiserType: 'inhouse' | 'external' | null`
-(`AppraiserType`). A `ButtonGroup` toggle picks between the two, mutually
-exclusive — switching type before Head Approval clears the other path's
+Each card's subtitle lists which TCT numbers it covers ("Covers
+TCT-2024-00981, TCT-2024-00982"). A `ButtonGroup` toggle picks between
+`'inhouse'`/`'external'` (`AppraiserType`), mutually exclusive — switching a
+bundle's type before its report is submitted clears the other path's
 partial `AppraisalReport` data (`propertyDetails`, `appraisedValue`,
-`remarks`, `recommendation`, `fileName`, `fileUrl`, `uploadedAt` all reset).
-Both paths write into the same `review.appraisal.report: AppraisalReport`
-object (`setAppraisalReport`).
+`remarks`, `recommendation`, `fileName`, `fileUrl`, `uploadedAt` all reset),
+scoped to that one bundle via `setAppraisalBundleAppraiserType`. Both paths
+write into that bundle's own `report: AppraisalReport` object via
+`setAppraisalBundleReport`.
 
 - **In-house** — a structured inline form (Property Details, Appraised
   Value, Remarks, Recommendation), plus a fixed dashed-border note
@@ -149,27 +191,30 @@ object (`setAppraisalReport`).
   finished report (image or PDF). Picking a file sets
   `fileName`/`fileUrl`/`uploadedAt` directly (no separate submit step).
 
-Once `headApprovalStatus !== 'pending'` **or** a report has already been
-submitted (`report.uploadedAt` is set), the whole card locks: the inactive
-appraiser-type button disables, and form fields/dropzone become read-only.
-This keeps the assignment from being silently swapped out from under an
-in-flight or already-approved report. The card reconstructs a stand-in
-`File` object from `report.fileName` (`new File([], report.fileName)`)
-purely so the shared `FileThumbnail`/dropzone display can show a filename —
-this is a display-only stand-in with no real bytes behind it, not something
-that can be re-downloaded or re-inspected. The external dropzone's own
-`disabled` prop (derived from the same locked/`editable` flag) also hides
-its delete (×) button once locked — a locked report's file cannot be
-cleared via that button, which would otherwise desync the page (Head
-Approval's card would revert to its "locked" placeholder while Pass/Fail,
-gated separately, stayed open).
+Once `headApprovalStatus !== 'pending'` **or** that bundle's report has
+already been submitted (`report.uploadedAt` is set), the card locks: the
+inactive appraiser-type button disables, and form fields/dropzone become
+read-only. This keeps the assignment from being silently swapped out from
+under an in-flight or already-approved report. The card reconstructs a
+stand-in `File` object from `report.fileName` (`new File([],
+report.fileName)`) purely so the shared `FileThumbnail`/dropzone display can
+show a filename — this is a display-only stand-in with no real bytes
+behind it, not something that can be re-downloaded or re-inspected. The
+external dropzone's own `disabled` prop (derived from the same
+locked/`editable` flag) also hides its delete (×) button once locked — a
+locked report's file cannot be cleared via that button, which would
+otherwise desync the page.
 
 ## Head Approval
 
-Rendered by `appraisal-view.tsx` only when `feeResolved && reportSubmitted`
-(`reportSubmitted = !!report.uploadedAt`); otherwise a locked dashed
-placeholder ("Submit the appraisal report above to unlock Head Approval.")
-appears once the fee is resolved, and nothing at all before that.
+Rendered by `appraisal-view.tsx` only when `feeResolved && reportSubmitted`,
+where `reportSubmitted` now means every pledged property is covered by some
+report bundle **and** every bundle's report has been submitted:
+`appraisalNotApplicable || (appraisalGroups.every(g => g.reportId !== null)
+&& reportBundles.length > 0 && reportBundles.every(b =>
+!!b.report.uploadedAt))`. Otherwise a locked dashed placeholder ("Submit the
+appraisal report above to unlock Head Approval.") appears once the fee is
+resolved, and nothing at all before that.
 
 `review.appraisal.headApprovalStatus: 'pending' | 'approved' | 'declined'`
 (`HeadApprovalStatus`). As with `feeStatus`'s `'declined'`, `'declined'` is
@@ -184,10 +229,11 @@ separate Head login in this prototype:
   directly.
 - **"Simulate: Head Declines"** — `ConfirmDialog` requiring a typed reason;
   confirming resets `headApprovalStatus: 'pending'`, records the reason in
-  `headApprovalDeclineReason`, and clears the submitted report
-  (`uploadedAt`/`fileName`/`fileUrl` all reset to `null`) so the assigned
-  appraiser resubmits. The `appraiserType` choice itself is preserved — only
-  the report contents are cleared, not the in-house/external selection.
+  `headApprovalDeclineReason`, and calls `clearAllAppraisalBundleReports()`,
+  clearing the submitted report (`uploadedAt`/`fileName`/`fileUrl` all reset
+  to `null`) on **every** bundle so each assigned appraiser resubmits. Each
+  bundle's `appraiserType` and TCT membership are preserved — only report
+  contents are cleared.
 
 While `headApprovalStatus === 'pending'` and a decline reason exists from a
 previous round, the card shows "Last decline reason: …" beneath the
@@ -249,10 +295,16 @@ yet).
   sent to Odoo when advising the client to settle the fee are both
   simulated button clicks, not real integrations with either service.
 - **No real photo capture or lot-plotting** for in-house appraiser reports —
-  flagged directly on the Appraiser Assignment card's dashed note as future
+  flagged directly on each Appraisal Report card's dashed note as future
   integration work, not built here.
 - **Credit Scoring remains unbuilt** beyond its existing stub page — Pass
   routes there, but there is no real Credit Scoring workspace yet.
 - **Pass/Fail is a manual officer judgment call**, not an automated
   appraised-value-vs-loan-amount comparison — this app has no such
   calculation anywhere in the appraisal flow.
+- **No named-appraiser roster** — assigning an appraiser to a report bundle
+  only ever picks between In-house and External, never a specific person,
+  matching the source process diagram.
+- **No merging two existing report bundles** — if a selection spans TCTs
+  from two different bundles, the Pledged Properties table blocks the
+  action rather than combining them.
