@@ -59,8 +59,8 @@ to breathe without wrapping awkwardly.
 6. **CI Report** card (visible once CI Fee is approved; otherwise a locked
    placeholder).
 7. **Proceed application?** decision card.
-8. Dialogs mounted outside the stack: Disapprove reason, Return to AMD
-   reason, `RequestDocumentsDrawer`.
+8. Dialogs mounted outside the stack: Disapprove reason,
+   `RequestDocumentsDrawer`.
 
 ## Document Checklist
 
@@ -251,7 +251,7 @@ Finding" elsewhere in this app:
 - **"Simulate: Another Officer Declines CI Fee"** — opens a `ConfirmDialog`
   ("Reason for declining CI Fee") requiring a typed reason before its
   Confirm button enables (same confirm-before-mutating,
-  reason-required convention as Disapprove/Return to AMD elsewhere on this
+  reason-required convention as Disapprove elsewhere on this
   page); confirming resets `ciFeeStatus: 'not-requested'`, clears the
   amount/description/remarks fields, and records the typed reason in
   `ciFeeDeclineReason` — the same re-entry point as an application that
@@ -309,8 +309,7 @@ surface they're already on; both write the same
 `review.creditInvestigation` fields.
 
 `ciFeeDeclineReason: string` on `CreditInvestigation` (`admin-context.tsx`)
-follows the same per-decision-reason convention as
-`decisionReason`/`returnToAmdReason`.
+follows the same per-decision-reason convention as `decisionReason`.
 
 Either action — instead of redirecting away — flips a local `justApproved`
 or `justDeclined` flag that swaps the whole screen to a one-time
@@ -512,17 +511,14 @@ the fields it covers.
 
 ## Proceed application?
 
-Three actions, all requiring no document/report completeness gate (matching
+Two actions, both requiring no document/report completeness gate (matching
 this app's generally permissive decision-gate style elsewhere):
 
 - **Proceed** — records `creditInvestigation.decision: 'approved'`, routes
-  to the Application List. *(Placeholder routing — see Non-goals below.)*
+  to Appraisal (`paths.admin.appraisal`).
 - **Disapprove** — `ConfirmDialog` with a required typed reason, records
   `decision: 'rejected'` + `decisionReason`, routes to Reconsideration.
   *(Placeholder routing.)*
-- **Return to AMD** — `ConfirmDialog` with a required typed reason, records
-  `returnedToAmd: true` + `returnToAmdReason`, routes back to Requirement
-  Checklist. *(Placeholder routing.)*
 
 ## Queue unlocking
 
@@ -545,10 +541,10 @@ applicant" success screen is unaffected.
 
 ## Non-goals / Open items
 
-- **Exact post-decision routing for Proceed/Disapprove/Return to AMD is a
-  placeholder**, chosen for a functionally complete first build (Proceed →
-  Application List, Disapprove → Reconsideration, Return to AMD →
-  Requirement Checklist). Revisit before considering this feature fully
+- **Exact post-decision routing for Disapprove is a
+  placeholder** (Disapprove → Reconsideration), chosen for a functionally
+  complete first build. Proceed now routes to the real Appraisal page.
+  Revisit Disapprove's routing before considering this feature fully
   settled.
 - **Appraisal and Financial Evaluation** remain scaffolded-only, unbuilt.
 - **No real file parsing, real AI/LLM, or real transcription anywhere** —

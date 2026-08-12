@@ -583,9 +583,10 @@ rather than blocking the flow. Sets `application.selfieVerified = true` and call
        ├─ Approved → /admin/applications/[id]/call-report
        │              → Proceed → /admin/applications/[id]/requirement-checklist
        │                 → Endorse → /admin/applications/[id]/credit-investigation
-       │                    ├─ Proceed → Application List
-       │                    ├─ Disapprove → /admin/applications/[id]/reconsideration
-       │                    └─ Return to AMD → /admin/applications/[id]/requirement-checklist
+       │                    ├─ Proceed → /admin/applications/[id]/appraisal
+       │                    │              ├─ Passed → /admin/applications/[id]/credit-scoring (stub)
+       │                    │              └─ Failed → process halted (CI + Financial Evaluation)
+       │                    └─ Disapprove → /admin/applications/[id]/reconsideration
        └─ No → /admin/applications/[id]/reconsideration
                  ├─ Approve → rejoins at call-report
                  └─ No → "Client notified" terminal state
