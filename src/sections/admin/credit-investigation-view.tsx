@@ -152,8 +152,6 @@ export function CreditInvestigationView() {
   const [disapproveReason, setDisapproveReason] = useState('');
   const [declineCiFeeOpen, setDeclineCiFeeOpen] = useState(false);
   const [declineCiFeeReason, setDeclineCiFeeReason] = useState('');
-  const [returnToAmdOpen, setReturnToAmdOpen] = useState(false);
-  const [returnToAmdReason, setReturnToAmdReason] = useState('');
   const { documents: customDocuments, ciFeeStatus } = review.creditInvestigation;
 
   // Document Checklist and the AI review card start collapsed whenever the
@@ -403,17 +401,6 @@ export function CreditInvestigationView() {
     setDeclineCiFeeReason('');
   };
 
-  const closeReturnToAmd = () => {
-    setReturnToAmdOpen(false);
-    setReturnToAmdReason('');
-  };
-
-  const confirmReturnToAmd = () => {
-    if (!returnToAmdReason.trim()) return;
-    setCreditInvestigation({ returnedToAmd: true, returnToAmdReason: returnToAmdReason.trim() });
-    router.push(paths.admin.requirementChecklist(encodeURIComponent(signUpData.email)));
-  };
-
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
       <ApplicationReviewHeader
@@ -635,8 +622,7 @@ export function CreditInvestigationView() {
             Proceed application?
           </Typography>
           <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-            Decide whether to proceed, disapprove, or return this application to AMD for
-            reconsideration.
+            Decide whether to proceed or disapprove this application.
           </Typography>
           <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
             <Button
@@ -654,14 +640,6 @@ export function CreditInvestigationView() {
               sx={{ color: '#5A6273', borderColor: '#C7CCDA', borderRadius: '10px', px: 2.5, '&:hover': { color: '#1C2A6E', borderColor: '#1C2A6E', bgcolor: '#F5F7FF' } }}
             >
               Disapprove
-            </Button>
-            <Button
-              onClick={() => setReturnToAmdOpen(true)}
-              variant="outlined"
-              startIcon={<Iconify icon="solar:undo-left-round-bold" width={18} />}
-              sx={{ color: '#5A6273', borderColor: '#C7CCDA', borderRadius: '10px', px: 2.5, '&:hover': { color: '#1C2A6E', borderColor: '#1C2A6E', bgcolor: '#F5F7FF' } }}
-            >
-              Return to AMD
             </Button>
           </Stack>
         </Box>
@@ -717,34 +695,6 @@ export function CreditInvestigationView() {
             disabled={!declineCiFeeReason.trim()}
             onClick={confirmDeclineCiFee}
             sx={confirmDialogActionToneSx.destructive}
-          >
-            Confirm
-          </Button>
-        }
-      />
-
-      <ConfirmDialog
-        open={returnToAmdOpen}
-        onClose={closeReturnToAmd}
-        title="Reason for returning to AMD"
-        content={
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={3}
-            placeholder="Explain what needs reconsideration…"
-            value={returnToAmdReason}
-            onChange={(event) => setReturnToAmdReason(event.target.value)}
-            sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
-          />
-        }
-        action={
-          <Button
-            variant="contained"
-            disabled={!returnToAmdReason.trim()}
-            onClick={confirmReturnToAmd}
-            sx={{ ...confirmDialogActionToneSx.default, borderRadius: '10px' }}
           >
             Confirm
           </Button>

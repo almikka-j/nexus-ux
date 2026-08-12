@@ -735,13 +735,11 @@ export type CreditInvestigation = {
   // screen (src/sections/admin/ci-fee-approval-view.tsx) — declining resets
   // ciFeeStatus back to 'not-requested' (same re-entry point as a fresh
   // application) but keeps this reason on record, same convention as
-  // decisionReason/returnToAmdReason below.
+  // decisionReason below.
   ciFeeDeclineReason: string;
   report: CiReport;
   decision: CreditCheckDecision;
   decisionReason: string;
-  returnedToAmd: boolean;
-  returnToAmdReason: string;
 };
 
 export type ReviewStep =
@@ -962,8 +960,6 @@ function createInitialCreditInvestigation(): CreditInvestigation {
     report: createInitialCiReport(),
     decision: 'pending',
     decisionReason: '',
-    returnedToAmd: false,
-    returnToAmdReason: '',
   };
 }
 

@@ -222,10 +222,10 @@ export function CiFeeApprovalView() {
     setDeclineReason('');
   };
 
-  // Mirrors credit-investigation-view.tsx's confirmReturnToAmd: a typed
-  // reason is required, then the request is reset back to 'not-requested'
-  // (same re-entry point as an application that never requested a fee) —
-  // the officer can re-request from the CI Fee card with corrected terms.
+  // A typed reason is required, then the request is reset back to
+  // 'not-requested' (same re-entry point as an application that never
+  // requested a fee) — the officer can re-request from the CI Fee card
+  // with corrected terms.
   const confirmDecline = () => {
     if (!signUpData || !declineReason.trim()) return;
     setCreditInvestigation({
