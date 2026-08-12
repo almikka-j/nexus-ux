@@ -23,7 +23,7 @@ import { adminCardSx, outlinedNavyButtonSx, TONE_COLORS } from 'src/components/a
 // ----------------------------------------------------------------------
 
 export function HeadApprovalCard() {
-  const { review, setAppraisal, setAppraisalReport } = useAdmin();
+  const { review, setAppraisal, clearAllAppraisalBundleReports } = useAdmin();
   const { headApprovalStatus, headApprovalDeclineReason } = review.appraisal;
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
@@ -33,7 +33,7 @@ export function HeadApprovalCard() {
   const confirmDecline = () => {
     if (!declineReason.trim()) return;
     setAppraisal({ headApprovalStatus: 'pending', headApprovalDeclineReason: declineReason.trim() });
-    setAppraisalReport({ uploadedAt: null, fileName: null, fileUrl: null });
+    clearAllAppraisalBundleReports();
     setDeclineOpen(false);
     setDeclineReason('');
   };
