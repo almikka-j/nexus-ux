@@ -836,7 +836,12 @@ type AdminContextValue = AdminState & {
   setCreditInvestigation: (data: Partial<CreditInvestigation>) => void;
   setCiReport: (data: Partial<CiReport>) => void;
   setAppraisal: (data: Partial<Appraisal>) => void;
-  setAppraisalReport: (data: Partial<AppraisalReport>) => void;
+  createAppraisalReportBundle: (tctGroupIds: string[], appraiserType: AppraiserType) => void;
+  addTctGroupsToReportBundle: (bundleId: string, tctGroupIds: string[]) => void;
+  setAppraisalBundleAppraiserType: (bundleId: string, appraiserType: AppraiserType) => void;
+  setAppraisalBundleReport: (bundleId: string, data: Partial<AppraisalReport>) => void;
+  deleteAppraisalReportBundle: (bundleId: string) => void;
+  clearAllAppraisalBundleReports: () => void;
   addCreditInvestigationDocument: (
     label: string,
     uploadedBy: string,
@@ -1668,14 +1673,115 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             appraisal: { ...prev.review.appraisal, ...data },
           },
         })),
-      setAppraisalReport: (data) =>
+      createAppraisalReportBundle: (tctGroupIds, appraiserType) =>
+        setState((prev) => {
+          const bundle = createAppraisalReportBundle(tctGroupIds, appraiserType);
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              appraisal: {
+                ...prev.review.appraisal,
+                reportBundles: [...prev.review.appraisal.reportBundles, bundle],
+              },
+              requirementChecklist: {
+                ...prev.review.requirementChecklist,
+                appraisalGroups: prev.review.requirementChecklist.appraisalGroups.map((group) =>
+                  tctGroupIds.includes(group.id) ? { ...group, reportId: bundle.id } : group
+                ),
+              },
+            },
+          };
+        }),
+      addTctGroupsToReportBundle: (bundleId, tctGroupIds) =>
         setState((prev) => ({
           ...prev,
           review: {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              report: { ...prev.review.appraisal.report, ...data },
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : { ...bundle, tctGroupIds: [...bundle.tctGroupIds, ...tctGroupIds] }
+              ),
+            },
+            requirementChecklist: {
+              ...prev.review.requirementChecklist,
+              appraisalGroups: prev.review.requirementChecklist.appraisalGroups.map((group) =>
+                tctGroupIds.includes(group.id) ? { ...group, reportId: bundleId } : group
+              ),
+            },
+          },
+        })),
+      setAppraisalBundleAppraiserType: (bundleId, appraiserType) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      appraiserType,
+                      report: {
+                        propertyDetails: '',
+                        appraisedValue: '',
+                        remarks: '',
+                        recommendation: '',
+                        fileName: null,
+                        fileUrl: null,
+                        uploadedAt: null,
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      setAppraisalBundleReport: (bundleId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId ? bundle : { ...bundle, report: { ...bundle.report, ...data } }
+              ),
+            },
+          },
+        })),
+      deleteAppraisalReportBundle: (bundleId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.filter((bundle) => bundle.id !== bundleId),
+            },
+            requirementChecklist: {
+              ...prev.review.requirementChecklist,
+              appraisalGroups: prev.review.requirementChecklist.appraisalGroups.map((group) =>
+                group.reportId === bundleId ? { ...group, reportId: null } : group
+              ),
+            },
+          },
+        })),
+      clearAllAppraisalBundleReports: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) => ({
+                ...bundle,
+                report: { ...bundle.report, uploadedAt: null, fileName: null, fileUrl: null },
+              })),
             },
           },
         })),
