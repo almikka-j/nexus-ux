@@ -92,32 +92,32 @@ function ReportFileDropzone({
   );
 }
 
-export function AppraiserAssignmentCard() {
-  const { review, setAppraisal, setAppraisalReport } = useAdmin();
-  const { appraiserType, report, headApprovalStatus } = review.appraisal;
+export function AppraiserAssignmentCard({
+  bundleId,
+  tctNumbers,
+}: {
+  bundleId: string;
+  tctNumbers: string[];
+}) {
+  const { review, setAppraisalBundleAppraiserType, setAppraisalBundleReport } = useAdmin();
+  const { headApprovalStatus } = review.appraisal;
+  const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
+  if (!bundle) return null;
+  const { appraiserType, report } = bundle;
   const locked = headApprovalStatus !== 'pending' || !!report.uploadedAt;
   const editable = !locked;
 
   const selectType = (type: AppraiserType) => {
     if (type === appraiserType) return;
-    setAppraisal({ appraiserType: type });
-    setAppraisalReport({
-      propertyDetails: '',
-      appraisedValue: '',
-      remarks: '',
-      recommendation: '',
-      fileName: null,
-      fileUrl: null,
-      uploadedAt: null,
-    });
+    setAppraisalBundleAppraiserType(bundleId, type);
   };
 
   const handleExternalFile = (file: File | null) => {
     if (!file) {
-      setAppraisalReport({ fileName: null, fileUrl: null, uploadedAt: null });
+      setAppraisalBundleReport(bundleId, { fileName: null, fileUrl: null, uploadedAt: null });
       return;
     }
-    setAppraisalReport({
+    setAppraisalBundleReport(bundleId, {
       fileName: file.name,
       fileUrl: URL.createObjectURL(file),
       uploadedAt: new Date().toISOString(),
@@ -126,7 +126,7 @@ export function AppraiserAssignmentCard() {
 
   const submitInhouseReport = () => {
     if (!report.propertyDetails.trim() || !report.appraisedValue.trim()) return;
-    setAppraisalReport({ uploadedAt: new Date().toISOString() });
+    setAppraisalBundleReport(bundleId, { uploadedAt: new Date().toISOString() });
   };
 
   const externalFile = report.fileName
@@ -136,10 +136,11 @@ export function AppraiserAssignmentCard() {
   return (
     <Box sx={adminCardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        Appraiser Assignment
+        Appraisal Report
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-        Assign an in-house appraiser or upload an external appraiser&apos;s finished report.
+        Covers {tctNumbers.join(', ')}. Assign an in-house appraiser or upload an external
+        appraiser&apos;s finished report.
       </Typography>
 
       <ButtonGroup sx={{ mb: 2.5 }}>
@@ -171,7 +172,7 @@ export function AppraiserAssignmentCard() {
             minRows={2}
             value={report.propertyDetails}
             disabled={!editable}
-            onChange={(event) => setAppraisalReport({ propertyDetails: event.target.value })}
+            onChange={(event) => setAppraisalBundleReport(bundleId, { propertyDetails: event.target.value })}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
           />
           <TextField
@@ -180,7 +181,7 @@ export function AppraiserAssignmentCard() {
             placeholder="0.00"
             value={report.appraisedValue}
             disabled={!editable}
-            onChange={(event) => setAppraisalReport({ appraisedValue: event.target.value })}
+            onChange={(event) => setAppraisalBundleReport(bundleId, { appraisedValue: event.target.value })}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
           />
           <TextField
@@ -190,7 +191,7 @@ export function AppraiserAssignmentCard() {
             minRows={2}
             value={report.remarks}
             disabled={!editable}
-            onChange={(event) => setAppraisalReport({ remarks: event.target.value })}
+            onChange={(event) => setAppraisalBundleReport(bundleId, { remarks: event.target.value })}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
           />
           <TextField
@@ -200,7 +201,7 @@ export function AppraiserAssignmentCard() {
             minRows={2}
             value={report.recommendation}
             disabled={!editable}
-            onChange={(event) => setAppraisalReport({ recommendation: event.target.value })}
+            onChange={(event) => setAppraisalBundleReport(bundleId, { recommendation: event.target.value })}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
           />
 
