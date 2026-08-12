@@ -22,6 +22,7 @@ import { AppraisalFeeCard } from './appraisal/appraisal-fee-card';
 import { HeadApprovalCard } from './appraisal/head-approval-card';
 import { PassFailCard } from './appraisal/pass-fail-card';
 import { AppraiserAssignmentCard } from './appraisal/appraiser-assignment-card';
+import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 
 // ----------------------------------------------------------------------
@@ -115,14 +116,18 @@ export function AppraisalView() {
                     {group.tctNumber}
                   </Typography>
                   <Stack spacing={1.25}>
-                    {group.documents.map((doc) => (
-                      <ReadOnlyRequirementDocRow
-                        key={doc.key}
-                        label={doc.key}
-                        doc={doc}
-                        applicantName={applicantName}
-                      />
-                    ))}
+                    {APPRAISAL_DOC_META.map((meta) => {
+                      const doc = group.documents.find((groupDoc) => groupDoc.key === meta.key);
+                      if (!doc) return null;
+                      return (
+                        <ReadOnlyRequirementDocRow
+                          key={meta.key}
+                          label={meta.label}
+                          doc={doc}
+                          applicantName={applicantName}
+                        />
+                      );
+                    })}
                   </Stack>
                 </Stack>
               ))}
@@ -154,7 +159,7 @@ export function AppraisalView() {
           </Box>
         ) : null}
 
-        {headApproved ? (
+        {headApproved && reportSubmitted ? (
           <PassFailCard onFailed={() => {}} />
         ) : feeResolved && reportSubmitted ? (
           <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>

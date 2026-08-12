@@ -157,7 +157,12 @@ in-flight or already-approved report. The card reconstructs a stand-in
 `File` object from `report.fileName` (`new File([], report.fileName)`)
 purely so the shared `FileThumbnail`/dropzone display can show a filename —
 this is a display-only stand-in with no real bytes behind it, not something
-that can be re-downloaded or re-inspected.
+that can be re-downloaded or re-inspected. The external dropzone's own
+`disabled` prop (derived from the same locked/`editable` flag) also hides
+its delete (×) button once locked — a locked report's file cannot be
+cleared via that button, which would otherwise desync the page (Head
+Approval's card would revert to its "locked" placeholder while Pass/Fail,
+gated separately, stayed open).
 
 ## Head Approval
 
@@ -191,10 +196,14 @@ can see why the last one was declined.
 
 ## Pass/Fail
 
-Rendered by `appraisal-view.tsx` only once `headApprovalStatus === 'approved'`;
-otherwise a locked dashed placeholder ("Head Approval must approve the
-report above to unlock the Pass/Fail decision.") appears once the fee is
-resolved and a report is submitted, and nothing at all before that.
+Rendered by `appraisal-view.tsx` only once `headApprovalStatus === 'approved'`
+**and** a report is still submitted (`headApproved && reportSubmitted`) —
+the `reportSubmitted` half is a belt-and-suspenders re-lock so Pass/Fail
+can't stay open if a report is ever cleared after approval through some
+other path. Otherwise a locked dashed placeholder ("Head Approval must
+approve the report above to unlock the Pass/Fail decision.") appears once
+the fee is resolved and a report is submitted, and nothing at all before
+that.
 
 `review.appraisal.passed: boolean | null`. This is a manual officer judgment
 call — the app has no automated appraised-value-vs-loan-amount comparison

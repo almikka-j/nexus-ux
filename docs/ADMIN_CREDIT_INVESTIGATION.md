@@ -21,8 +21,8 @@ ahead of their workspace (see `PROJECT_OVERVIEW.md`'s admin flow section);
 this page is that workspace.
 
 Pipeline position: Initial Credit Checking → Call Report → Requirement
-Checklist → **Credit Investigation** → *(next step not yet built — Appraisal
-and Financial Evaluation remain non-actionable placeholders)*. The live
+Checklist → **Credit Investigation** → Appraisal → *(next step not yet
+built — Financial Evaluation remains a non-actionable placeholder)*. The live
 application's Credit Investigation queue row is always actionable, same as
 every other built step in this pipeline (Initial Credit Checking through
 Requirement Checklist) — an admin can inspect/act on the live application at
@@ -536,7 +536,8 @@ row behind `review.requirementChecklist.endorsed`, but that broke the
 established "the live application's row is always actionable on every
 step" convention every other step in this list follows — reverted so an
 admin can reach this page directly at any time, same as any other step.
-Appraisal and Financial Evaluation remain always non-actionable (unbuilt).
+Financial Evaluation remains always non-actionable (unbuilt); Appraisal is
+now built and actionable like every other step in the pipeline.
 
 Requirement Checklist's "Endorsed for comprehensive process" success screen
 gains a **"Continue to Credit Investigation"** button (above the existing

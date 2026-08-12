@@ -226,9 +226,9 @@ export function ApplicationListView({ accountSolicitation = false }: Application
         // same as every other step in this pipeline (creditChecking through
         // requirementChecklist) — letting an admin inspect/act on her
         // application at any step at will, not gating access behind
-        // completing an earlier step first. Appraisal and Financial
-        // Evaluation remain informational-only since their detailed
-        // workspace pages don't exist yet.
+        // completing an earlier step first. Financial Evaluation remains
+        // informational-only since its detailed workspace page doesn't
+        // exist yet.
         isActionable: step !== 'financialEvaluation',
       }))
     : [];

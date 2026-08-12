@@ -31,16 +31,27 @@ import type { AppraiserType } from 'src/auth/admin-context';
 // built here.
 // ----------------------------------------------------------------------
 
-function ReportFileDropzone({ value, onChange }: { value: File | null; onChange: (file: File | null) => void }) {
+function ReportFileDropzone({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: File | null;
+  onChange: (file: File | null) => void;
+  disabled?: boolean;
+}) {
   const { getRootProps, getInputProps } = useDropzone({
     multiple: false,
     accept: { 'image/*': [], 'application/pdf': [] },
     onDrop: (acceptedFiles) => onChange(acceptedFiles[0] ?? null),
+    disabled,
   });
+
+  const interactive = !value && !disabled;
 
   return (
     <Box
-      {...(value ? {} : getRootProps())}
+      {...(interactive ? getRootProps() : {})}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -49,23 +60,25 @@ function ReportFileDropzone({ value, onChange }: { value: File | null; onChange:
         px: 1.5,
         py: value ? 1 : 0,
         borderRadius: '10px',
-        cursor: value ? 'default' : 'pointer',
+        cursor: interactive ? 'pointer' : 'default',
         border: '1.5px dashed',
         borderColor: '#B0B8CC',
         bgcolor: 'common.white',
-        '&:hover': value ? undefined : { borderColor: '#1C2A6E', bgcolor: '#F5F7FF' },
+        '&:hover': interactive ? { borderColor: '#1C2A6E', bgcolor: '#F5F7FF' } : undefined,
       }}
     >
-      {!value && <input {...getInputProps()} />}
+      {interactive && <input {...getInputProps()} />}
       {value ? (
         <>
           <FileThumbnail file={value} sx={{ width: 30, height: 30 }} />
           <Typography noWrap sx={{ fontSize: 13, fontWeight: 600, color: '#344054', flex: 1, minWidth: 0 }}>
             {value.name}
           </Typography>
-          <IconButton size="small" onClick={() => onChange(null)}>
-            <Iconify icon="mingcute:close-line" width={16} />
-          </IconButton>
+          {!disabled && (
+            <IconButton size="small" onClick={() => onChange(null)}>
+              <Iconify icon="mingcute:close-line" width={16} />
+            </IconButton>
+          )}
         </>
       ) : (
         <>
@@ -225,7 +238,7 @@ export function AppraiserAssignmentCard() {
 
       {appraiserType === 'external' && (
         <Stack spacing={1.5}>
-          <ReportFileDropzone value={editable ? externalFile : externalFile} onChange={handleExternalFile} />
+          <ReportFileDropzone value={externalFile} onChange={handleExternalFile} disabled={!editable} />
           {report.uploadedAt && (
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#0C8A4F' }}>
               Uploaded {new Date(report.uploadedAt).toLocaleString()}
