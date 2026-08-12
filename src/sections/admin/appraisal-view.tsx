@@ -21,9 +21,8 @@ import { ApplicationDetailsCard } from './application-details-card';
 import { AppraisalFeeCard } from './appraisal/appraisal-fee-card';
 import { HeadApprovalCard } from './appraisal/head-approval-card';
 import { PassFailCard } from './appraisal/pass-fail-card';
+import { AppraisalTctTable } from './appraisal/appraisal-tct-table';
 import { AppraiserAssignmentCard } from './appraisal/appraiser-assignment-card';
-import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
-import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 
 // ----------------------------------------------------------------------
 
@@ -73,7 +72,7 @@ export function AppraisalView() {
   const { signUpData } = useRegistration();
   const { review } = useAdmin();
   const { appraisalGroups, appraisalNotApplicable } = review.requirementChecklist;
-  const { feeStatus, paymentReceivedAt, headApprovalStatus, report, passed, failReason } =
+  const { feeStatus, paymentReceivedAt, headApprovalStatus, reportBundles, passed, failReason } =
     review.appraisal;
 
   if (!signUpData) return null;
@@ -85,7 +84,10 @@ export function AppraisalView() {
   const applicantName = `${signUpData.firstName} ${signUpData.lastName}`;
 
   const feeResolved = feeStatus === 'not-applicable' || (feeStatus === 'approved' && !!paymentReceivedAt);
-  const reportSubmitted = !!report.uploadedAt;
+  const allGroupsAssigned = appraisalGroups.every((group) => group.reportId !== null);
+  const allBundlesSubmitted = reportBundles.every((bundle) => !!bundle.report.uploadedAt);
+  const reportSubmitted =
+    appraisalNotApplicable || (allGroupsAssigned && reportBundles.length > 0 && allBundlesSubmitted);
   const headApproved = headApprovalStatus === 'approved';
 
   return (
@@ -95,58 +97,39 @@ export function AppraisalView() {
       <Stack spacing={2.5}>
         <ApplicationDetailsCard collapsible officerNotesProcess="Appraisal" />
 
-        <Box sx={adminCardSx}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-            Pledged Properties
-          </Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-            Endorsed documents collected during Requirement Checklist, for reference during
-            appraisal.
-          </Typography>
-
-          {appraisalNotApplicable ? (
+        {appraisalNotApplicable ? (
+          <Box sx={adminCardSx}>
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+              Pledged Properties
+            </Typography>
             <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
               This application has no pledged real-estate collateral.
             </Typography>
-          ) : (
-            <Stack spacing={3}>
-              {appraisalGroups.map((group) => (
-                <Stack key={group.id} spacing={1.25}>
-                  <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6' }}>
-                    {group.tctNumber}
-                  </Typography>
-                  <Stack spacing={1.25}>
-                    {APPRAISAL_DOC_META.map((meta) => {
-                      const doc = group.documents.find((groupDoc) => groupDoc.key === meta.key);
-                      if (!doc) return null;
-                      return (
-                        <ReadOnlyRequirementDocRow
-                          key={meta.key}
-                          label={meta.label}
-                          doc={doc}
-                          applicantName={applicantName}
-                        />
-                      );
-                    })}
-                  </Stack>
-                </Stack>
-              ))}
-            </Stack>
-          )}
-        </Box>
+          </Box>
+        ) : (
+          <AppraisalTctTable applicantName={applicantName} />
+        )}
 
         <AppraisalFeeCard />
 
-        {feeResolved ? (
-          <AppraiserAssignmentCard />
-        ) : (
+        {!appraisalNotApplicable && feeResolved ? (
+          reportBundles.map((bundle) => (
+            <AppraiserAssignmentCard
+              key={bundle.id}
+              bundleId={bundle.id}
+              tctNumbers={appraisalGroups
+                .filter((group) => bundle.tctGroupIds.includes(group.id))
+                .map((group) => group.tctNumber)}
+            />
+          ))
+        ) : !appraisalNotApplicable ? (
           <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
             <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
             <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
               Resolve the Appraisal Fee above to unlock appraiser assignment.
             </Typography>
           </Box>
-        )}
+        ) : null}
 
         {feeResolved && reportSubmitted ? (
           <HeadApprovalCard />
