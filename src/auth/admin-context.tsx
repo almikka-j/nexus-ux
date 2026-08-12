@@ -719,8 +719,25 @@ export type AppraisalReportBundle = {
   id: string;
   tctGroupIds: string[];
   appraiserType: AppraiserType | null;
+  // The specific person/company doing the appraisal, chosen from
+  // APPRAISER_ROSTER — distinct from appraiserType (in-house/external),
+  // which only says which path's form/dropzone renders below. null until
+  // the officer picks one in the Assign Appraiser modal.
+  appraiserName: string | null;
+  targetCompletionDate: string | null;
   report: AppraisalReport;
 };
+
+// Sample roster for the "Assign to" picker in the Assign Appraiser modal —
+// deliberately separate from application-list-view.tsx's OFFICER_ROSTER
+// (loan officers), since an appraiser is a different role entirely.
+export const APPRAISER_ROSTER = [
+  'Ramon Dela Cruz (In-house)',
+  'Liza Fernandez (In-house)',
+  'Norte Appraisal Services',
+  'PhilValue Appraisers Inc.',
+  'Metro Realty Appraisal Group',
+];
 
 export type HeadApprovalStatus = 'pending' | 'approved' | 'declined';
 
@@ -836,7 +853,12 @@ type AdminContextValue = AdminState & {
   setCreditInvestigation: (data: Partial<CreditInvestigation>) => void;
   setCiReport: (data: Partial<CiReport>) => void;
   setAppraisal: (data: Partial<Appraisal>) => void;
-  createAppraisalReportBundle: (tctGroupIds: string[], appraiserType: AppraiserType) => void;
+  createAppraisalReportBundle: (
+    tctGroupIds: string[],
+    appraiserType: AppraiserType,
+    appraiserName: string | null,
+    targetCompletionDate: string | null
+  ) => void;
   addTctGroupsToReportBundle: (bundleId: string, tctGroupIds: string[]) => void;
   setAppraisalBundleAppraiserType: (bundleId: string, appraiserType: AppraiserType) => void;
   setAppraisalBundleReport: (bundleId: string, data: Partial<AppraisalReport>) => void;
@@ -1050,11 +1072,18 @@ function createAppraisalGroup(tctNumber: string, seeded = false): AppraisalTctGr
   };
 }
 
-function createAppraisalReportBundle(tctGroupIds: string[], appraiserType: AppraiserType): AppraisalReportBundle {
+function createAppraisalReportBundle(
+  tctGroupIds: string[],
+  appraiserType: AppraiserType,
+  appraiserName: string | null,
+  targetCompletionDate: string | null
+): AppraisalReportBundle {
   return {
     id: crypto.randomUUID(),
     tctGroupIds,
     appraiserType,
+    appraiserName,
+    targetCompletionDate,
     report: {
       propertyDetails: '',
       appraisedValue: '',
@@ -1350,6 +1379,8 @@ function readStoredState(): AdminState {
             id: bundle.id,
             tctGroupIds: bundle.tctGroupIds ?? [],
             appraiserType: bundle.appraiserType ?? null,
+            appraiserName: bundle.appraiserName ?? null,
+            targetCompletionDate: bundle.targetCompletionDate ?? null,
             report: {
               propertyDetails: '',
               appraisedValue: '',
@@ -1673,9 +1704,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             appraisal: { ...prev.review.appraisal, ...data },
           },
         })),
-      createAppraisalReportBundle: (tctGroupIds, appraiserType) =>
+      createAppraisalReportBundle: (tctGroupIds, appraiserType, appraiserName, targetCompletionDate) =>
         setState((prev) => {
-          const bundle = createAppraisalReportBundle(tctGroupIds, appraiserType);
+          const bundle = createAppraisalReportBundle(tctGroupIds, appraiserType, appraiserName, targetCompletionDate);
           return {
             ...prev,
             review: {

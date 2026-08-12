@@ -46,8 +46,8 @@ comparison.
 1. `ApplicationReviewHeader` (`step="Step 5 · Appraisal"`,
    `reviewStep="appraisal"`, `hideApplicationCard`).
 2. `ApplicationDetailsCard` (collapsible, `officerNotesProcess="Appraisal"`).
-3. **Pledged Properties** table — a checkbox row per TCT/CCT, used to select
-   properties and assign an appraiser.
+3. **Collateral titles** table — a checkbox row per TCT/CCT, used to select
+   properties and assign an appraiser via a modal.
 4. **Appraisal Fee** card.
 5. **Appraisal Report** cards — one per report bundle created from the
    table above, rendered once the fee is resolved, otherwise a single
@@ -68,58 +68,77 @@ If `review.appraisal.passed === false`, the entire page is replaced by a
 terminal **"Process stopped"** screen (see "Pass/Fail" below) instead of
 rendering any of the cards above.
 
-## Pledged Properties
+## Collateral titles
 
 A table of every `review.requirementChecklist.appraisalGroups` entry
 (`AppraisalTctGroup`, `{ id, tctNumber, documents, reportId }`), one row per
 pledged property (TCT/CCT), rendered by
-`src/sections/admin/appraisal/appraisal-tct-table.tsx`. Each row has a
-checkbox, the TCT number, an expand toggle revealing that property's 8
-appraisal documents (`ReadOnlyRequirementDocRow`, read-only — this page has
-no upload/edit controls for document contents, only for adding new TCT
-rows, see below), and a Status pill: **Unassigned** (`reportId === null`),
-**Pending appraiser type** (belongs to a bundle whose `appraiserType`
-hasn't been picked yet — not reachable through the normal "Assign
-Appraiser" flow, which always sets a type immediately, but kept as a
-defensive label), or **In Report — In-house/External**.
+`src/sections/admin/appraisal/appraisal-tct-table.tsx`. The card header
+shows an **"X of Y assigned"** pill (`assignedCount` = groups with
+`reportId !== null`) next to the title, and a small **"Add TCT"** button
+that expands an inline field (`addAppraisalGroup(tctNumber)`, same
+duplicate-number validation as Requirement Checklist's own "Add collateral
+property" control — it appends to the same `appraisalGroups` array, so a
+TCT added here also appears on Requirement Checklist and vice versa). On
+add, the table auto-scrolls to the new row and briefly highlights it (green
+background + "NEW" badge, fading after ~2s).
 
-Below the table, an **"Add another pledged property"** panel (icon + heading
-+ description, visually matching Requirement Checklist's own "Add
-collateral property" block) holds a **"TCT/CCT number"** field and **"Add
-Property"** button — same `addAppraisalGroup(tctNumber)` setter and
-duplicate-number validation as Requirement Checklist's control. It appends
-to the same `appraisalGroups` array, so a TCT added here also appears on
-Requirement Checklist and vice versa. New rows start `reportId: null`
-(Unassigned) with a fresh, unpopulated 8-document set, same as any newly
-added property. On submit, the table auto-scrolls to the new row and briefly
-highlights it (green background + "NEW" badge, fading after ~2s) so it
-doesn't go unnoticed at the bottom of a table that can grow past a
-screenful.
+Each row has a checkbox, the TCT number, a **"X/8 docs"** count (verified
+documents out of `APPRAISAL_DOC_META.length`) with an expand toggle
+revealing the full read-only document list (`ReadOnlyRequirementDocRow` —
+this page has no upload/edit controls for document contents), and a Status
+pill: **Unassigned** (`reportId === null`), **Pending appraiser type**
+(belongs to a bundle whose `appraiserType` hasn't been picked yet — not
+reachable through the normal assign flow, which always sets a type
+immediately, but kept as a defensive label), or **In Report —
+In-house/External**. A row's checkbox is disabled once its bundle's report
+has been submitted (`report.uploadedAt` set).
 
 Checking one or more `Unassigned` rows (or rows already in an *unsubmitted*
-bundle) reveals a selection action bar above the table:
+bundle) reveals a selection bar **below** the table — "N titles selected",
+plus a note ("Assigning together creates one consolidated report" for 2+
+titles, or a warning if the selection spans two different bundles) — with
+**"Clear"** and an assign action:
 
-- If every checked row is `Unassigned`, the bar shows **"Assign
-  Appraiser"**, opening an inline In-house/External picker. Confirming
-  (**"Create Report"**) calls `createAppraisalReportBundle(tctGroupIds,
-  appraiserType)`, creating a new `AppraisalReportBundle` and stamping every
-  selected group's `reportId`.
+- If every checked row is `Unassigned`, the button reads **"Assign
+  appraiser"** and opens the Assign Appraiser modal (see below).
 - If the checked rows all belong to the same single unsubmitted bundle
-  (plus optionally some `Unassigned` rows), the bar shows **"Add to
-  Report"** instead — no appraiser-type picker, since the bundle's type is
+  (plus optionally some `Unassigned` rows), the button reads **"Add to
+  Report"** instead — no modal, since the bundle's type/appraiser are
   already set — calling `addTctGroupsToReportBundle(bundleId, newGroupIds)`.
-- If the checked rows span two or more different bundles, the bar disables
-  its action with "Select properties from only one report at a time" —
+- If the checked rows span two or more different bundles, the button
+  disables with "Select properties from only one report at a time" —
   merging two bundles isn't supported.
 
-A row's checkbox is disabled once its bundle's report has been submitted
-(`report.uploadedAt` set) — same lock convention as the old single-report
-card, now per bundle.
+### Assign Appraiser modal
+
+A `Dialog` (not an inline panel) listing the selected TCT numbers, then:
+
+- **Appraiser type** — two large selectable cards, In-house ("Fills report
+  in system") / External ("Uploads their report"), same meaning as the
+  existing `AppraiserType` — only which form/dropzone the resulting
+  Appraisal Report card renders.
+- **Assign to** — a `Select` populated from `APPRAISER_ROSTER`
+  (`src/auth/admin-context.tsx`), a fixed sample list of specific
+  appraiser/company names, stored on the bundle as `appraiserName: string |
+  null`. Deliberately a separate roster from Application List's officer
+  roster — an appraiser is a different role from a loan officer, and this
+  prototype has no real backend to look either up from.
+- **Target completion date** — a plain date input, stored as
+  `targetCompletionDate: string | null` on the bundle. Informational only;
+  no reminder/overdue logic reads it anywhere yet.
+
+Confirming calls `createAppraisalReportBundle(tctGroupIds, appraiserType,
+appraiserName, targetCompletionDate)`, creating a new
+`AppraisalReportBundle` and stamping every selected group's `reportId`.
+There is no Appraisal Fee toggle inside this modal — fee decisions stay on
+the existing **Appraisal Fee** card below (see next section); adding it
+here would create two competing places to decide the same thing.
 
 When `review.requirementChecklist.appraisalNotApplicable` is `true` — an
 officer's manual "this application has no real-estate collateral"
 declaration made on Requirement Checklist, not something derived from loan
-type or any other field — this table is replaced entirely by a single line,
+type or any other field — this whole card is replaced by a single line,
 "This application has no pledged real-estate collateral." No appraisal fee
 or appraiser-assignment logic downstream depends on this flag; it only
 affects what this section displays.
@@ -163,18 +182,19 @@ second button, **"Simulate: Payment Received (Sendit)"**, setting
 the fee path is fully resolved — `feeStatus === 'not-applicable'`, or
 `feeStatus === 'approved'` *and* `paymentReceivedAt` is set (this is the
 `feeResolved` gate computed in `appraisal-view.tsx`, not something
-`AppraisalFeeCard` decides on its own). The Pledged Properties table's
+`AppraisalFeeCard` decides on its own). The Collateral titles table's
 selection and bundle-creation flow itself is not gated on the fee — an
-officer can group TCTs and pick an appraiser type before the fee is
-resolved; only the report-creation form/dropzone inside each bundle's card
-waits for `feeResolved`.
+officer can group TCTs and assign an appraiser via the modal before the
+fee is resolved; only the report-creation form/dropzone inside each
+bundle's card waits for `feeResolved`.
 
 ## Appraisal Report (per bundle)
 
 `review.appraisal.reportBundles: AppraisalReportBundle[]` — each entry is
-`{ id, tctGroupIds, appraiserType, report }`, created by selecting TCT rows
-in the Pledged Properties table above and assigning an appraiser (see
-above). `appraisal-view.tsx` renders one **"Appraisal Report"** card per
+`{ id, tctGroupIds, appraiserType, appraiserName, targetCompletionDate,
+report }`, created by selecting TCT rows in the Collateral titles table
+above and assigning an appraiser via its modal (see above).
+`appraisal-view.tsx` renders one **"Appraisal Report"** card per
 bundle (`AppraiserAssignmentCard`, taking `{ bundleId, tctNumbers }` props
 instead of reading a single whole-application `review.appraisal` field, as
 it did before this page tracked multiple bundles), only once `feeResolved`
@@ -315,9 +335,12 @@ yet).
 - **Pass/Fail is a manual officer judgment call**, not an automated
   appraised-value-vs-loan-amount comparison — this app has no such
   calculation anywhere in the appraisal flow.
-- **No named-appraiser roster** — assigning an appraiser to a report bundle
-  only ever picks between In-house and External, never a specific person,
-  matching the source process diagram.
+- **`APPRAISER_ROSTER` is a fixed sample list**, not a real appraiser
+  directory — there is no backend anywhere in this app, so "Assign to"
+  choices are hardcoded names/companies, not looked up from any system.
+- **`targetCompletionDate` is informational only** — nothing reads it for
+  reminders, overdue flags, or sorting; it is simply stored and never
+  surfaced elsewhere on this page.
 - **No merging two existing report bundles** — if a selection spans TCTs
-  from two different bundles, the Pledged Properties table blocks the
+  from two different bundles, the Collateral titles table blocks the
   action rather than combining them.

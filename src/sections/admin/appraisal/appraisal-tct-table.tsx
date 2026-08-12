@@ -5,8 +5,11 @@ import { Fragment, useRef, useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
+import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
+import Select from '@mui/material/Select';
 import Checkbox from '@mui/material/Checkbox';
+import MenuItem from '@mui/material/MenuItem';
 import Collapse from '@mui/material/Collapse';
 import TextField from '@mui/material/TextField';
 import TableRow from '@mui/material/TableRow';
@@ -15,11 +18,13 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import ButtonGroup from '@mui/material/ButtonGroup';
-import InputAdornment from '@mui/material/InputAdornment';
+import InputLabel from '@mui/material/InputLabel';
+import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
+import DialogContent from '@mui/material/DialogContent';
 import TableContainer from '@mui/material/TableContainer';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
 import { adminCardSx, outlinedNavyButtonSx, TONE_COLORS } from 'src/components/admin-ui';
@@ -36,8 +41,66 @@ import type { AppraiserType } from 'src/auth/admin-context';
 // yet. A selection spanning two different existing bundles is blocked
 // (merging bundles isn't supported); see the source process diagram's
 // "Prepare/upload document for Single/consolidated appraisal report" step,
-// which this table implements the selection side of.
+// which this table implements the selection side of. Assigning happens
+// through a modal (not an inline panel) so the In-house/External choice,
+// named appraiser, and target completion date all live in one focused
+// step, matching this page's design reference.
 // ----------------------------------------------------------------------
+
+function AppraiserTypeOption({
+  type,
+  selected,
+  onSelect,
+}: {
+  type: AppraiserType;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const label = type === 'inhouse' ? 'In-house' : 'External';
+  const abbrev = type === 'inhouse' ? 'IN' : 'EX';
+  const description = type === 'inhouse' ? 'Fills report in system' : 'Uploads their report';
+
+  return (
+    <Box
+      onClick={onSelect}
+      role="button"
+      sx={{
+        flex: 1,
+        p: 1.5,
+        borderRadius: '12px',
+        border: '1.5px solid',
+        borderColor: selected ? '#1C2A6E' : '#E1E4ED',
+        bgcolor: selected ? '#EEF1FE' : 'common.white',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.25,
+        transition: 'border-color 0.15s ease, background-color 0.15s ease',
+      }}
+    >
+      <Box
+        sx={{
+          width: 34,
+          height: 34,
+          borderRadius: '9px',
+          flexShrink: 0,
+          display: 'grid',
+          placeItems: 'center',
+          bgcolor: selected ? '#1C2A6E' : '#F5F6FA',
+          color: selected ? 'common.white' : '#5A6273',
+          fontSize: 11.5,
+          fontWeight: 700,
+        }}
+      >
+        {abbrev}
+      </Box>
+      <Box>
+        <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{label}</Typography>
+        <Typography sx={{ fontSize: 12, color: '#8891A6' }}>{description}</Typography>
+      </Box>
+    </Box>
+  );
+}
 
 export function AppraisalTctTable({ applicantName }: { applicantName: string }) {
   const { review, addAppraisalGroup, createAppraisalReportBundle, addTctGroupsToReportBundle } = useAdmin();
@@ -48,6 +111,9 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignType, setAssignType] = useState<AppraiserType>('inhouse');
+  const [assignAppraiserName, setAssignAppraiserName] = useState('');
+  const [assignTargetDate, setAssignTargetDate] = useState('');
+  const [addTctOpen, setAddTctOpen] = useState(false);
   const [newTctNumber, setNewTctNumber] = useState('');
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
@@ -62,6 +128,7 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
     if (!trimmed || isDuplicateTctNumber) return;
     addAppraisalGroup(trimmed);
     setNewTctNumber('');
+    setAddTctOpen(false);
     pendingScrollRef.current = true;
   };
 
@@ -87,6 +154,16 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
     return !!bundle?.report.uploadedAt;
   };
 
+  const docsCompleteCount = (groupId: string) => {
+    const group = appraisalGroups.find((entry) => entry.id === groupId);
+    if (!group) return { done: 0, total: APPRAISAL_DOC_META.length };
+    const done = APPRAISAL_DOC_META.filter((meta) => {
+      const doc = group.documents.find((groupDoc) => groupDoc.key === meta.key);
+      return doc?.status === 'verified';
+    }).length;
+    return { done, total: APPRAISAL_DOC_META.length };
+  };
+
   const toggleRow = (groupId: string) => {
     setSelectedIds((prev) =>
       prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
@@ -105,8 +182,20 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
 
   const clearSelection = () => setSelectedIds([]);
 
+  const openAssignModal = () => {
+    setAssignType('inhouse');
+    setAssignAppraiserName('');
+    setAssignTargetDate('');
+    setAssignOpen(true);
+  };
+
   const confirmAssign = () => {
-    createAppraisalReportBundle(selectedIds, assignType);
+    createAppraisalReportBundle(
+      selectedIds,
+      assignType,
+      assignAppraiserName.trim() || null,
+      assignTargetDate || null
+    );
     clearSelection();
     setAssignOpen(false);
   };
@@ -120,7 +209,7 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
 
   const statusFor = (groupId: string) => {
     const bundle = bundleForGroup(groupId);
-    if (!bundle) return { label: 'Unassigned', tone: 'neutral' as const };
+    if (!bundle) return { label: 'Unassigned', tone: 'warning' as const };
     if (!bundle.appraiserType) return { label: 'Pending appraiser type', tone: 'warning' as const };
     return {
       label: bundle.appraiserType === 'inhouse' ? 'In Report — In-house' : 'In Report — External',
@@ -128,56 +217,96 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
     };
   };
 
+  const assignedCount = appraisalGroups.filter((group) => group.reportId !== null).length;
+  const selectedGroups = appraisalGroups.filter((group) => selectedIds.includes(group.id));
+
   return (
     <Box sx={adminCardSx}>
-      <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        Pledged Properties
-      </Typography>
+      <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" spacing={1} sx={{ mb: 0.5 }}>
+        <Stack direction="row" alignItems="center" spacing={1.25}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+            Collateral titles
+          </Typography>
+          <Button
+            size="small"
+            onClick={() => setAddTctOpen((open) => !open)}
+            startIcon={<Iconify icon="solar:add-circle-linear" width={15} />}
+            sx={{ ...outlinedNavyButtonSx, minHeight: 28, px: 1.25, fontSize: 12, fontWeight: 700 }}
+          >
+            Add TCT
+          </Button>
+        </Stack>
+        <Box
+          sx={{
+            display: 'inline-flex',
+            px: 1.25,
+            py: 0.5,
+            borderRadius: '999px',
+            bgcolor: TONE_COLORS.warning.bg,
+            color: TONE_COLORS.warning.text,
+            fontSize: 12,
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {assignedCount} of {appraisalGroups.length} assigned
+        </Box>
+      </Stack>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-        Select one or more TCT/CCT numbers to assign an appraiser — a report can cover a single
-        property or several bundled together.
+        Select one or more TCT numbers, then assign an appraiser.
       </Typography>
 
-      {selectedIds.length > 0 && (
+      <Collapse in={addTctOpen} unmountOnExit>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          justifyContent="space-between"
-          spacing={1.5}
-          sx={{ mb: 2, p: 1.5, borderRadius: '12px', bgcolor: TONE_COLORS.info.bg }}
+          alignItems={{ xs: 'stretch', sm: 'flex-start' }}
+          spacing={1}
+          sx={{ mb: 2, p: 1.5, borderRadius: '10px', bgcolor: '#F8F9FC', border: '1px solid #E3E7F0' }}
         >
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: TONE_COLORS.info.text }}>
-            {selectedIds.length} propert{selectedIds.length === 1 ? 'y' : 'ies'} selected
-          </Typography>
-          {spansMultipleBundles ? (
-            <Typography sx={{ fontSize: 12.5, color: '#B36A05' }}>
-              Select properties from only one report at a time.
-            </Typography>
-          ) : targetExistingBundleId ? (
+          <TextField
+            fullWidth
+            autoFocus
+            size="small"
+            placeholder="e.g. TCT-2024-00991"
+            value={newTctNumber}
+            onChange={(event) => setNewTctNumber(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') handleAddTctGroup();
+              if (event.key === 'Escape') setAddTctOpen(false);
+            }}
+            error={isDuplicateTctNumber}
+            helperText={isDuplicateTctNumber ? 'This property is already included.' : ' '}
+            sx={{
+              flex: 1,
+              maxWidth: { sm: 320 },
+              '& .MuiOutlinedInput-root': { minHeight: 38, borderRadius: '9px', bgcolor: 'common.white', fontSize: 13.5 },
+              '& .MuiFormHelperText-root': { mx: 0, fontSize: 11 },
+            }}
+          />
+          <Stack direction="row" spacing={0.75} flexShrink={0}>
             <Button
-              onClick={confirmAddToExisting}
+              onClick={handleAddTctGroup}
+              disabled={!newTctNumber.trim() || isDuplicateTctNumber}
               variant="contained"
               size="small"
-              sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2, boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
+              sx={{ minHeight: 38, borderRadius: '9px', px: 1.75, bgcolor: '#1C2A6E', boxShadow: 'none', fontWeight: 700, '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
             >
-              Add to Report
+              Add
             </Button>
-          ) : (
             <Button
               onClick={() => {
-                setAssignType('inhouse');
-                setAssignOpen(true);
+                setAddTctOpen(false);
+                setNewTctNumber('');
               }}
-              variant="contained"
+              variant="outlined"
               size="small"
-              startIcon={<Iconify icon="solar:user-plus-rounded-bold-duotone" width={16} />}
-              sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2, boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
+              sx={{ ...outlinedNavyButtonSx, minHeight: 38 }}
             >
-              Assign Appraiser
+              Cancel
             </Button>
-          )}
+          </Stack>
         </Stack>
-      )}
+      </Collapse>
 
       <TableContainer>
         <Table size="small">
@@ -195,6 +324,7 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
               const locked = isRowLocked(group.id);
               const expanded = expandedId === group.id;
               const justAdded = justAddedId === group.id;
+              const docs = docsCompleteCount(group.id);
               return (
                 <Fragment key={group.id}>
                   <TableRow
@@ -240,12 +370,29 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      <IconButton size="small" onClick={() => setExpandedId(expanded ? null : group.id)}>
-                        <Iconify
-                          icon={expanded ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
-                          width={18}
-                        />
-                      </IconButton>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            px: 1,
+                            py: 0.4,
+                            borderRadius: '999px',
+                            bgcolor: docs.done === docs.total ? TONE_COLORS.success.bg : TONE_COLORS.neutral.bg,
+                            color: docs.done === docs.total ? TONE_COLORS.success.text : TONE_COLORS.neutral.text,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {docs.done}/{docs.total} docs
+                        </Box>
+                        <IconButton size="small" onClick={() => setExpandedId(expanded ? null : group.id)}>
+                          <Iconify
+                            icon={expanded ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
+                            width={18}
+                          />
+                        </IconButton>
+                      </Stack>
                     </TableCell>
                     <TableCell>
                       <Box
@@ -292,137 +439,160 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
         </Table>
       </TableContainer>
 
-      <Box
-        sx={{
-          mt: 2.5,
-          p: 2,
-          borderRadius: '13px',
-          bgcolor: '#F8F9FC',
-          border: '1px solid #E3E7F0',
-        }}
-      >
-        <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 1.75 }}>
-          <Box
-            sx={{
-              width: 36,
-              height: 36,
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: '#EEF1FE',
-              flexShrink: 0,
-            }}
-          >
-            <Iconify icon="solar:home-add-bold-duotone" width={19} sx={{ color: '#1C2A6E' }} />
-          </Box>
-          <Box>
-            <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
-              Add another pledged property
-            </Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
-              Enter the title number to add a new TCT/CCT row to the table above.
-            </Typography>
-          </Box>
-        </Stack>
-
+      {selectedIds.length > 0 && (
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
-          alignItems={{ xs: 'stretch', sm: 'flex-start' }}
-          spacing={{ xs: 1, sm: 1.25 }}
-        >
-          <TextField
-            fullWidth
-            size="small"
-            label="TCT/CCT number"
-            placeholder="e.g. TCT-2024-00991"
-            value={newTctNumber}
-            onChange={(event) => setNewTctNumber(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') handleAddTctGroup();
-            }}
-            error={isDuplicateTctNumber}
-            helperText={isDuplicateTctNumber ? 'This property is already included.' : ' '}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Iconify icon="solar:document-text-bold-duotone" width={17} sx={{ color: '#8891A6' }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              flex: 1,
-              maxWidth: { sm: 460 },
-              '& .MuiOutlinedInput-root': {
-                minHeight: 42,
-                borderRadius: '10px',
-                bgcolor: 'common.white',
-                fontSize: 14,
-              },
-              '& .MuiFormHelperText-root': { mx: 0, fontSize: 11.5 },
-            }}
-          />
-          <Button
-            onClick={handleAddTctGroup}
-            disabled={!newTctNumber.trim() || isDuplicateTctNumber}
-            variant="contained"
-            startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
-            sx={{
-              minHeight: 42,
-              minWidth: { sm: 148 },
-              borderRadius: '10px',
-              px: 2.25,
-              flexShrink: 0,
-              bgcolor: '#1C2A6E',
-              boxShadow: 'none',
-              fontWeight: 700,
-              '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
-            }}
-          >
-            Add Property
-          </Button>
-        </Stack>
-      </Box>
-
-      {assignOpen && (
-        <Stack
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          justifyContent="space-between"
           spacing={1.5}
-          sx={{ mt: 2, p: 2, borderRadius: '12px', border: '1px solid #EEF0F5', bgcolor: '#F9FAFC' }}
+          sx={{ mt: 2, p: 1.5, borderRadius: '12px', bgcolor: '#F5F6FA' }}
         >
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
-            Assign appraiser to {selectedIds.length} propert{selectedIds.length === 1 ? 'y' : 'ies'}
-          </Typography>
-          <ButtonGroup>
-            <Button
-              onClick={() => setAssignType('inhouse')}
-              variant={assignType === 'inhouse' ? 'contained' : 'outlined'}
-              sx={assignType === 'inhouse' ? { bgcolor: '#1C2A6E', '&:hover': { bgcolor: '#14205A' } } : outlinedNavyButtonSx}
-            >
-              In-house
+          <Box>
+            <Typography component="span" sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
+              {selectedIds.length} title{selectedIds.length === 1 ? '' : 's'} selected
+            </Typography>
+            {!spansMultipleBundles && !targetExistingBundleId && selectedIds.length > 1 && (
+              <Typography component="span" sx={{ fontSize: 12.5, color: '#3448B0', ml: 1 }}>
+                Assigning together creates one consolidated report
+              </Typography>
+            )}
+            {spansMultipleBundles && (
+              <Typography component="span" sx={{ fontSize: 12.5, color: '#B36A05', ml: 1 }}>
+                Select properties from only one report at a time.
+              </Typography>
+            )}
+          </Box>
+          <Stack direction="row" spacing={1.25} flexShrink={0}>
+            <Button onClick={clearSelection} variant="outlined" size="small" sx={outlinedNavyButtonSx}>
+              Clear
             </Button>
-            <Button
-              onClick={() => setAssignType('external')}
-              variant={assignType === 'external' ? 'contained' : 'outlined'}
-              sx={assignType === 'external' ? { bgcolor: '#1C2A6E', '&:hover': { bgcolor: '#14205A' } } : outlinedNavyButtonSx}
-            >
-              External
-            </Button>
-          </ButtonGroup>
-          <Stack direction="row" spacing={1.25}>
-            <Button
-              onClick={confirmAssign}
-              variant="contained"
-              size="small"
-              sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2, boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
-            >
-              Create Report
-            </Button>
-            <Button onClick={() => setAssignOpen(false)} variant="outlined" size="small" sx={outlinedNavyButtonSx}>
-              Cancel
-            </Button>
+            {targetExistingBundleId && !spansMultipleBundles ? (
+              <Button
+                onClick={confirmAddToExisting}
+                variant="contained"
+                size="small"
+                sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2, boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
+              >
+                Add to Report
+              </Button>
+            ) : (
+              <Button
+                onClick={openAssignModal}
+                disabled={spansMultipleBundles}
+                variant="contained"
+                size="small"
+                startIcon={<Iconify icon="solar:user-plus-rounded-bold-duotone" width={16} />}
+                sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2, boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
+              >
+                Assign appraiser
+              </Button>
+            )}
           </Stack>
         </Stack>
       )}
+
+      <Dialog
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ pb: 0.5 }}>
+          <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
+            <Box>
+              <Typography sx={{ fontSize: 17, fontWeight: 800, color: '#14172A' }}>
+                Assign appraiser
+              </Typography>
+              <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
+                {selectedIds.length} title{selectedIds.length === 1 ? '' : 's'}
+                {selectedIds.length > 1 ? ' · consolidated report' : ''}
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setAssignOpen(false)} sx={{ mt: -0.5 }}>
+              <Iconify icon="mingcute:close-line" width={18} />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 2 }}>
+          <Stack spacing={1} sx={{ mb: 2.5 }}>
+            {selectedGroups.map((group) => (
+              <Stack
+                key={group.id}
+                direction="row"
+                alignItems="center"
+                spacing={1.25}
+                sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}
+              >
+                <Iconify icon="solar:home-2-bold-duotone" width={18} sx={{ color: '#1C2A6E', flexShrink: 0 }} />
+                <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
+                  TCT No. {group.tctNumber}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+
+          <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6', mb: 1 }}>
+            Appraiser
+          </Typography>
+          <Stack direction="row" spacing={1.25} sx={{ mb: 2.5 }}>
+            <AppraiserTypeOption type="inhouse" selected={assignType === 'inhouse'} onSelect={() => setAssignType('inhouse')} />
+            <AppraiserTypeOption type="external" selected={assignType === 'external'} onSelect={() => setAssignType('external')} />
+          </Stack>
+
+          <Stack spacing={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="assign-appraiser-name-label" shrink>
+                Assign to
+              </InputLabel>
+              <Select
+                labelId="assign-appraiser-name-label"
+                label="Assign to"
+                value={assignAppraiserName}
+                onChange={(event) => setAssignAppraiserName(event.target.value)}
+                displayEmpty
+                notched
+                sx={{ borderRadius: '10px', fontSize: 14 }}
+              >
+                <MenuItem value="">
+                  <Typography sx={{ fontSize: 14, color: '#8891A6' }}>Select appraiser…</Typography>
+                </MenuItem>
+                {APPRAISER_ROSTER.map((name) => (
+                  <MenuItem key={name} value={name}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              size="small"
+              type="date"
+              label="Target completion date"
+              value={assignTargetDate}
+              onChange={(event) => setAssignTargetDate(event.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+            />
+          </Stack>
+        </DialogContent>
+
+        <Stack direction="row" spacing={1.25} sx={{ p: 2.5, pt: 1.5 }}>
+          <Button
+            onClick={confirmAssign}
+            fullWidth
+            variant="contained"
+            sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
+          >
+            Assign appraiser
+          </Button>
+          <Button onClick={() => setAssignOpen(false)} variant="outlined" sx={outlinedNavyButtonSx}>
+            Cancel
+          </Button>
+        </Stack>
+      </Dialog>
     </Box>
   );
 }
