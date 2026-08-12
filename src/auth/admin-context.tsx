@@ -557,6 +557,11 @@ export type AppraisalTctGroup = {
   id: string;
   tctNumber: string;
   documents: RequirementDoc[];
+  // Points at the AppraisalReportBundle (below) this property has been
+  // folded into, if any. null = not yet selected into any report — the
+  // TCT table's checkbox is only selectable while this is null or while
+  // it points at a bundle whose report is not yet submitted.
+  reportId: string | null;
 };
 
 export type OutreachChannel = 'email' | 'whatsapp' | 'viber';
@@ -703,6 +708,20 @@ export type AppraisalReport = {
   uploadedAt: string | null;
 };
 
+// One "Appraisal Report" the officer creates by selecting one or more
+// pledged properties (AppraisalTctGroup) from the TCT table and assigning
+// a single appraiser to that selection — tctGroupIds.length === 1 is a
+// "single" report, 2+ is "consolidated", matching the source process
+// diagram's "Prepare/upload document for Single/consolidated appraisal
+// report" step. Replaces the old single whole-application
+// Appraisal.appraiserType/Appraisal.report fields below.
+export type AppraisalReportBundle = {
+  id: string;
+  tctGroupIds: string[];
+  appraiserType: AppraiserType | null;
+  report: AppraisalReport;
+};
+
 export type HeadApprovalStatus = 'pending' | 'approved' | 'declined';
 
 export type Appraisal = {
@@ -714,8 +733,7 @@ export type Appraisal = {
   clientNotifiedAt: string | null;
   sentToOdooAt: string | null;
   paymentReceivedAt: string | null;
-  appraiserType: AppraiserType | null;
-  report: AppraisalReport;
+  reportBundles: AppraisalReportBundle[];
   headApprovalStatus: HeadApprovalStatus;
   headApprovalDeclineReason: string;
   passed: boolean | null;
@@ -973,16 +991,7 @@ function createInitialAppraisal(): Appraisal {
     clientNotifiedAt: null,
     sentToOdooAt: null,
     paymentReceivedAt: null,
-    appraiserType: null,
-    report: {
-      propertyDetails: '',
-      appraisedValue: '',
-      remarks: '',
-      recommendation: '',
-      fileName: null,
-      fileUrl: null,
-      uploadedAt: null,
-    },
+    reportBundles: [],
     headApprovalStatus: 'pending',
     headApprovalDeclineReason: '',
     passed: null,
@@ -1032,6 +1041,24 @@ function createAppraisalGroup(tctNumber: string, seeded = false): AppraisalTctGr
     id: crypto.randomUUID(),
     tctNumber,
     documents: createAppraisalGroupDocuments(seeded),
+    reportId: null,
+  };
+}
+
+function createAppraisalReportBundle(tctGroupIds: string[], appraiserType: AppraiserType): AppraisalReportBundle {
+  return {
+    id: crypto.randomUUID(),
+    tctGroupIds,
+    appraiserType,
+    report: {
+      propertyDetails: '',
+      appraisedValue: '',
+      remarks: '',
+      recommendation: '',
+      fileName: null,
+      fileUrl: null,
+      uploadedAt: null,
+    },
   };
 }
 
@@ -1188,7 +1215,13 @@ function createInitialReview(): ApplicationReview {
       // array is a valid "no real estate collateral yet" state the officer
       // can still reach via "Remove Property", but a fresh session
       // shouldn't start there.
-      appraisalGroups: [createAppraisalGroup('TCT-2024-00981', true)],
+      appraisalGroups: [
+        createAppraisalGroup('TCT-2024-00981', true),
+        createAppraisalGroup('TCT-2024-00982', true),
+        createAppraisalGroup('TCT-2024-00983', true),
+        createAppraisalGroup('TCT-2024-00984', true),
+        createAppraisalGroup('TCT-2024-00985', true),
+      ],
       appraisalNotApplicable: false,
       collateralNotes: '',
       outreachMessages: [],
@@ -1308,10 +1341,21 @@ function readStoredState(): AdminState {
         appraisal: {
           ...initialState.review.appraisal,
           ...storedReview.appraisal,
-          report: {
-            ...initialState.review.appraisal.report,
-            ...storedReview.appraisal?.report,
-          },
+          reportBundles: (storedReview.appraisal?.reportBundles ?? []).map((bundle: Partial<AppraisalReportBundle>) => ({
+            id: bundle.id,
+            tctGroupIds: bundle.tctGroupIds ?? [],
+            appraiserType: bundle.appraiserType ?? null,
+            report: {
+              propertyDetails: '',
+              appraisedValue: '',
+              remarks: '',
+              recommendation: '',
+              fileName: null,
+              fileUrl: null,
+              uploadedAt: null,
+              ...bundle.report,
+            },
+          })),
         },
       },
     };
