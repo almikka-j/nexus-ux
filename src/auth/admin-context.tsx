@@ -684,6 +684,44 @@ export type CiReport = {
   transcriptUploadedAt: string | null;
 };
 
+export type AppraisalFeeStatus =
+  | 'not-requested'
+  | 'pending-approval'
+  | 'approved'
+  | 'declined'
+  | 'not-applicable';
+
+export type AppraiserType = 'inhouse' | 'external';
+
+export type AppraisalReport = {
+  propertyDetails: string;
+  appraisedValue: string;
+  remarks: string;
+  recommendation: string;
+  fileName: string | null;
+  fileUrl: string | null;
+  uploadedAt: string | null;
+};
+
+export type HeadApprovalStatus = 'pending' | 'approved' | 'declined';
+
+export type Appraisal = {
+  feeStatus: AppraisalFeeStatus;
+  feeAmount: string;
+  feeDescription: string;
+  feeRemarks: string;
+  feeDeclineReason: string;
+  clientNotifiedAt: string | null;
+  sentToOdooAt: string | null;
+  paymentReceivedAt: string | null;
+  appraiserType: AppraiserType | null;
+  report: AppraisalReport;
+  headApprovalStatus: HeadApprovalStatus;
+  headApprovalDeclineReason: string;
+  passed: boolean | null;
+  failReason: string;
+};
+
 export type CreditInvestigation = {
   documents: CreditInvestigationDoc[];
   // Independent outreach history from Requirement Checklist's — this page
@@ -697,13 +735,11 @@ export type CreditInvestigation = {
   // screen (src/sections/admin/ci-fee-approval-view.tsx) — declining resets
   // ciFeeStatus back to 'not-requested' (same re-entry point as a fresh
   // application) but keeps this reason on record, same convention as
-  // decisionReason/returnToAmdReason below.
+  // decisionReason below.
   ciFeeDeclineReason: string;
   report: CiReport;
   decision: CreditCheckDecision;
   decisionReason: string;
-  returnedToAmd: boolean;
-  returnToAmdReason: string;
 };
 
 export type ReviewStep =
@@ -736,6 +772,7 @@ export type ApplicationReview = {
   callReport: CallReport;
   requirementChecklist: RequirementChecklist;
   creditInvestigation: CreditInvestigation;
+  appraisal: Appraisal;
   stepTimestamps: StepTimestamps;
 };
 
@@ -780,6 +817,8 @@ type AdminContextValue = AdminState & {
   addOutreachMessage: (message: { channel: OutreachChannel; text: string }) => void;
   setCreditInvestigation: (data: Partial<CreditInvestigation>) => void;
   setCiReport: (data: Partial<CiReport>) => void;
+  setAppraisal: (data: Partial<Appraisal>) => void;
+  setAppraisalReport: (data: Partial<AppraisalReport>) => void;
   addCreditInvestigationDocument: (
     label: string,
     uploadedBy: string,
@@ -921,8 +960,33 @@ function createInitialCreditInvestigation(): CreditInvestigation {
     report: createInitialCiReport(),
     decision: 'pending',
     decisionReason: '',
-    returnedToAmd: false,
-    returnToAmdReason: '',
+  };
+}
+
+function createInitialAppraisal(): Appraisal {
+  return {
+    feeStatus: 'not-requested',
+    feeAmount: '',
+    feeDescription: '',
+    feeRemarks: '',
+    feeDeclineReason: '',
+    clientNotifiedAt: null,
+    sentToOdooAt: null,
+    paymentReceivedAt: null,
+    appraiserType: null,
+    report: {
+      propertyDetails: '',
+      appraisedValue: '',
+      remarks: '',
+      recommendation: '',
+      fileName: null,
+      fileUrl: null,
+      uploadedAt: null,
+    },
+    headApprovalStatus: 'pending',
+    headApprovalDeclineReason: '',
+    passed: null,
+    failReason: '',
   };
 }
 
@@ -1133,6 +1197,7 @@ function createInitialReview(): ApplicationReview {
       decisionReason: '',
     },
     creditInvestigation: createInitialCreditInvestigation(),
+    appraisal: createInitialAppraisal(),
     stepTimestamps: {},
   };
 }
@@ -1238,6 +1303,14 @@ function readStoredState(): AdminState {
           report: {
             ...initialState.review.creditInvestigation.report,
             ...storedReview.creditInvestigation?.report,
+          },
+        },
+        appraisal: {
+          ...initialState.review.appraisal,
+          ...storedReview.appraisal,
+          report: {
+            ...initialState.review.appraisal.report,
+            ...storedReview.appraisal?.report,
           },
         },
       },
@@ -1540,6 +1613,25 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             creditInvestigation: {
               ...prev.review.creditInvestigation,
               report: { ...prev.review.creditInvestigation.report, ...data },
+            },
+          },
+        })),
+      setAppraisal: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: { ...prev.review.appraisal, ...data },
+          },
+        })),
+      setAppraisalReport: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              report: { ...prev.review.appraisal.report, ...data },
             },
           },
         })),
