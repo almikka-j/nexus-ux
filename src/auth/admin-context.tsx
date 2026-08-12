@@ -1231,6 +1231,7 @@ function createInitialReview(): ApplicationReview {
         createAppraisalGroup('TCT-2024-00988', true),
         createAppraisalGroup('TCT-2024-00989', true),
         createAppraisalGroup('TCT-2024-00990', true),
+        createAppraisalGroup('TCT-2024-00991', true),
       ],
       appraisalNotApplicable: false,
       collateralNotes: '',
