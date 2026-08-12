@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -49,6 +49,9 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignType, setAssignType] = useState<AppraiserType>('inhouse');
   const [newTctNumber, setNewTctNumber] = useState('');
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const pendingScrollRef = useRef(false);
 
   const isDuplicateTctNumber = appraisalGroups.some(
     (group) => group.tctNumber.trim().toLowerCase() === newTctNumber.trim().toLowerCase()
@@ -59,7 +62,22 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
     if (!trimmed || isDuplicateTctNumber) return;
     addAppraisalGroup(trimmed);
     setNewTctNumber('');
+    pendingScrollRef.current = true;
   };
+
+  // addAppraisalGroup always appends, so once the array grows, its last
+  // entry is the one just added — flash and scroll to it, since a table
+  // that can grow past a screenful otherwise gives no feedback that
+  // anything happened.
+  useEffect(() => {
+    if (!pendingScrollRef.current || appraisalGroups.length === 0) return;
+    pendingScrollRef.current = false;
+    const added = appraisalGroups[appraisalGroups.length - 1];
+    setJustAddedId(added.id);
+    rowRefs.current.get(added.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timeout = setTimeout(() => setJustAddedId((current) => (current === added.id ? null : current)), 2000);
+    return () => clearTimeout(timeout);
+  }, [appraisalGroups]);
 
   const bundleForGroup = (groupId: string) =>
     reportBundles.find((bundle) => bundle.tctGroupIds.includes(groupId)) ?? null;
@@ -176,9 +194,20 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
               const status = statusFor(group.id);
               const locked = isRowLocked(group.id);
               const expanded = expandedId === group.id;
+              const justAdded = justAddedId === group.id;
               return (
                 <Fragment key={group.id}>
-                  <TableRow hover>
+                  <TableRow
+                    hover
+                    ref={(el: HTMLTableRowElement | null) => {
+                      if (el) rowRefs.current.set(group.id, el);
+                      else rowRefs.current.delete(group.id);
+                    }}
+                    sx={{
+                      transition: 'background-color 0.4s ease',
+                      bgcolor: justAdded ? TONE_COLORS.success.bg : undefined,
+                    }}
+                  >
                     <TableCell padding="checkbox">
                       <Checkbox
                         checked={selectedIds.includes(group.id)}
@@ -187,9 +216,28 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
                       />
                     </TableCell>
                     <TableCell>
-                      <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
-                        {group.tctNumber}
-                      </Typography>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
+                          {group.tctNumber}
+                        </Typography>
+                        {justAdded && (
+                          <Box
+                            sx={{
+                              display: 'inline-flex',
+                              px: 0.85,
+                              py: 0.2,
+                              borderRadius: '999px',
+                              bgcolor: TONE_COLORS.success.solid,
+                              color: 'common.white',
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              letterSpacing: '0.04em',
+                            }}
+                          >
+                            NEW
+                          </Box>
+                        )}
+                      </Stack>
                     </TableCell>
                     <TableCell>
                       <IconButton size="small" onClick={() => setExpandedId(expanded ? null : group.id)}>
@@ -244,67 +292,97 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
         </Table>
       </TableContainer>
 
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'stretch', sm: 'flex-start' }}
-        spacing={{ xs: 1, sm: 1.25 }}
-        sx={{ mt: 2.5 }}
+      <Box
+        sx={{
+          mt: 2.5,
+          p: 2,
+          borderRadius: '13px',
+          bgcolor: '#F8F9FC',
+          border: '1px solid #E3E7F0',
+        }}
       >
-        <TextField
-          fullWidth
-          size="small"
-          label="TCT/CCT number"
-          placeholder="e.g. TCT-2024-00991"
-          value={newTctNumber}
-          onChange={(event) => setNewTctNumber(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') handleAddTctGroup();
-          }}
-          error={isDuplicateTctNumber}
-          helperText={
-            isDuplicateTctNumber
-              ? 'This property is already included.'
-              : 'Adds a new pledged property row to the table above.'
-          }
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Iconify icon="solar:document-text-bold-duotone" width={17} sx={{ color: '#8891A6' }} />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            flex: 1,
-            maxWidth: { sm: 460 },
-            '& .MuiOutlinedInput-root': {
-              minHeight: 42,
+        <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 1.75 }}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
               borderRadius: '10px',
-              bgcolor: 'common.white',
-              fontSize: 14,
-            },
-            '& .MuiFormHelperText-root': { mx: 0, fontSize: 11.5 },
-          }}
-        />
-        <Button
-          onClick={handleAddTctGroup}
-          disabled={!newTctNumber.trim() || isDuplicateTctNumber}
-          variant="contained"
-          startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
-          sx={{
-            minHeight: 42,
-            minWidth: { sm: 148 },
-            borderRadius: '10px',
-            px: 2.25,
-            flexShrink: 0,
-            bgcolor: '#1C2A6E',
-            boxShadow: 'none',
-            fontWeight: 700,
-            '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
-          }}
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: '#EEF1FE',
+              flexShrink: 0,
+            }}
+          >
+            <Iconify icon="solar:home-add-bold-duotone" width={19} sx={{ color: '#1C2A6E' }} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
+              Add another pledged property
+            </Typography>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
+              Enter the title number to add a new TCT/CCT row to the table above.
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'stretch', sm: 'flex-start' }}
+          spacing={{ xs: 1, sm: 1.25 }}
         >
-          Add TCT
-        </Button>
-      </Stack>
+          <TextField
+            fullWidth
+            size="small"
+            label="TCT/CCT number"
+            placeholder="e.g. TCT-2024-00991"
+            value={newTctNumber}
+            onChange={(event) => setNewTctNumber(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') handleAddTctGroup();
+            }}
+            error={isDuplicateTctNumber}
+            helperText={isDuplicateTctNumber ? 'This property is already included.' : ' '}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Iconify icon="solar:document-text-bold-duotone" width={17} sx={{ color: '#8891A6' }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              flex: 1,
+              maxWidth: { sm: 460 },
+              '& .MuiOutlinedInput-root': {
+                minHeight: 42,
+                borderRadius: '10px',
+                bgcolor: 'common.white',
+                fontSize: 14,
+              },
+              '& .MuiFormHelperText-root': { mx: 0, fontSize: 11.5 },
+            }}
+          />
+          <Button
+            onClick={handleAddTctGroup}
+            disabled={!newTctNumber.trim() || isDuplicateTctNumber}
+            variant="contained"
+            startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
+            sx={{
+              minHeight: 42,
+              minWidth: { sm: 148 },
+              borderRadius: '10px',
+              px: 2.25,
+              flexShrink: 0,
+              bgcolor: '#1C2A6E',
+              boxShadow: 'none',
+              fontWeight: 700,
+              '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+            }}
+          >
+            Add Property
+          </Button>
+        </Stack>
+      </Box>
 
       {assignOpen && (
         <Stack

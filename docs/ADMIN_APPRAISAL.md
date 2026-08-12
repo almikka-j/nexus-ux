@@ -75,13 +75,26 @@ A table of every `review.requirementChecklist.appraisalGroups` entry
 pledged property (TCT/CCT), rendered by
 `src/sections/admin/appraisal/appraisal-tct-table.tsx`. Each row has a
 checkbox, the TCT number, an expand toggle revealing that property's 8
-appraisal documents (`ReadOnlyRequirementDocRow`, read-only, same as before —
-the write side of this data still lives entirely on Requirement Checklist),
-and a Status pill: **Unassigned** (`reportId === null`), **Pending appraiser
-type** (belongs to a bundle whose `appraiserType` hasn't been picked yet —
-not reachable through the normal "Assign Appraiser" flow, which always sets a
-type immediately, but kept as a defensive label), or **In Report —
-In-house/External**.
+appraisal documents (`ReadOnlyRequirementDocRow`, read-only — this page has
+no upload/edit controls for document contents, only for adding new TCT
+rows, see below), and a Status pill: **Unassigned** (`reportId === null`),
+**Pending appraiser type** (belongs to a bundle whose `appraiserType`
+hasn't been picked yet — not reachable through the normal "Assign
+Appraiser" flow, which always sets a type immediately, but kept as a
+defensive label), or **In Report — In-house/External**.
+
+Below the table, an **"Add another pledged property"** panel (icon + heading
++ description, visually matching Requirement Checklist's own "Add
+collateral property" block) holds a **"TCT/CCT number"** field and **"Add
+Property"** button — same `addAppraisalGroup(tctNumber)` setter and
+duplicate-number validation as Requirement Checklist's control. It appends
+to the same `appraisalGroups` array, so a TCT added here also appears on
+Requirement Checklist and vice versa. New rows start `reportId: null`
+(Unassigned) with a fresh, unpopulated 8-document set, same as any newly
+added property. On submit, the table auto-scrolls to the new row and briefly
+highlights it (green background + "NEW" badge, fading after ~2s) so it
+doesn't go unnoticed at the bottom of a table that can grow past a
+screenful.
 
 Checking one or more `Unassigned` rows (or rows already in an *unsubmitted*
 bundle) reveals a selection action bar above the table:
