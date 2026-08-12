@@ -8,6 +8,7 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import Collapse from '@mui/material/Collapse';
+import TextField from '@mui/material/TextField';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -15,6 +16,7 @@ import TableHead from '@mui/material/TableHead';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import ButtonGroup from '@mui/material/ButtonGroup';
+import InputAdornment from '@mui/material/InputAdornment';
 import TableContainer from '@mui/material/TableContainer';
 
 import { useAdmin } from 'src/auth/admin-context';
@@ -38,7 +40,7 @@ import type { AppraiserType } from 'src/auth/admin-context';
 // ----------------------------------------------------------------------
 
 export function AppraisalTctTable({ applicantName }: { applicantName: string }) {
-  const { review, createAppraisalReportBundle, addTctGroupsToReportBundle } = useAdmin();
+  const { review, addAppraisalGroup, createAppraisalReportBundle, addTctGroupsToReportBundle } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
   const { reportBundles } = review.appraisal;
 
@@ -46,6 +48,18 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignType, setAssignType] = useState<AppraiserType>('inhouse');
+  const [newTctNumber, setNewTctNumber] = useState('');
+
+  const isDuplicateTctNumber = appraisalGroups.some(
+    (group) => group.tctNumber.trim().toLowerCase() === newTctNumber.trim().toLowerCase()
+  );
+
+  const handleAddTctGroup = () => {
+    const trimmed = newTctNumber.trim();
+    if (!trimmed || isDuplicateTctNumber) return;
+    addAppraisalGroup(trimmed);
+    setNewTctNumber('');
+  };
 
   const bundleForGroup = (groupId: string) =>
     reportBundles.find((bundle) => bundle.tctGroupIds.includes(groupId)) ?? null;
@@ -229,6 +243,68 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'stretch', sm: 'flex-start' }}
+        spacing={{ xs: 1, sm: 1.25 }}
+        sx={{ mt: 2.5 }}
+      >
+        <TextField
+          fullWidth
+          size="small"
+          label="TCT/CCT number"
+          placeholder="e.g. TCT-2024-00991"
+          value={newTctNumber}
+          onChange={(event) => setNewTctNumber(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') handleAddTctGroup();
+          }}
+          error={isDuplicateTctNumber}
+          helperText={
+            isDuplicateTctNumber
+              ? 'This property is already included.'
+              : 'Adds a new pledged property row to the table above.'
+          }
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Iconify icon="solar:document-text-bold-duotone" width={17} sx={{ color: '#8891A6' }} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            flex: 1,
+            maxWidth: { sm: 460 },
+            '& .MuiOutlinedInput-root': {
+              minHeight: 42,
+              borderRadius: '10px',
+              bgcolor: 'common.white',
+              fontSize: 14,
+            },
+            '& .MuiFormHelperText-root': { mx: 0, fontSize: 11.5 },
+          }}
+        />
+        <Button
+          onClick={handleAddTctGroup}
+          disabled={!newTctNumber.trim() || isDuplicateTctNumber}
+          variant="contained"
+          startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
+          sx={{
+            minHeight: 42,
+            minWidth: { sm: 148 },
+            borderRadius: '10px',
+            px: 2.25,
+            flexShrink: 0,
+            bgcolor: '#1C2A6E',
+            boxShadow: 'none',
+            fontWeight: 700,
+            '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+          }}
+        >
+          Add TCT
+        </Button>
+      </Stack>
 
       {assignOpen && (
         <Stack
