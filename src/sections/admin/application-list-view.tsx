@@ -229,7 +229,7 @@ export function ApplicationListView({ accountSolicitation = false }: Application
         // completing an earlier step first. Appraisal and Financial
         // Evaluation remain informational-only since their detailed
         // workspace pages don't exist yet.
-        isActionable: !['appraisal', 'financialEvaluation'].includes(step),
+        isActionable: step !== 'financialEvaluation',
       }))
     : [];
 
@@ -304,6 +304,7 @@ export function ApplicationListView({ accountSolicitation = false }: Application
     callReport: paths.admin.callReport,
     requirementChecklist: paths.admin.requirementChecklist,
     creditInvestigation: paths.admin.creditInvestigation,
+    appraisal: paths.admin.appraisal,
   };
 
   const handleRowClick = (row: ListRow) => {

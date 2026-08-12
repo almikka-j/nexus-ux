@@ -367,7 +367,7 @@ export function CreditInvestigationView() {
 
   const handleProceed = () => {
     setCreditInvestigation({ decision: 'approved' });
-    router.push(paths.admin.applications);
+    router.push(paths.admin.appraisal(encodeURIComponent(signUpData.email)));
   };
 
   const closeDisapprove = () => {
