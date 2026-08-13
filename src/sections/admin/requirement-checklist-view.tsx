@@ -42,7 +42,7 @@ import {
 } from './requirement-checklist-docs';
 
 import type { RequirementDoc, OutreachChannel } from 'src/auth/admin-context';
-import type { AppraisalDocMeta, RequirementDocMeta } from './requirement-checklist-docs';
+import type { AppraisalDocMeta, RequirementDocMeta, RequirementDocStatus } from './requirement-checklist-docs';
 import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk';
 
 // ----------------------------------------------------------------------
@@ -177,6 +177,40 @@ function SuccessState({
       </Stack>
     </Container>
   );
+}
+
+// Same 5 sample TCT numbers seeded in admin-context.tsx's initialState —
+// kept in sync manually since "Fill Sample Data" rebuilds this array from
+// scratch rather than reusing the existing appraisalGroups.
+const SAMPLE_TCT_NUMBERS = [
+  'TCT-2024-00981',
+  'TCT-2024-00982',
+  'TCT-2024-00983',
+  'TCT-2024-00984',
+  'TCT-2024-00985',
+];
+
+function buildSampleAppraisalGroups(
+  statusFor: (meta: AppraisalDocMeta) => RequirementDocStatus,
+  uploadedAt: string,
+  officerName: string
+) {
+  return SAMPLE_TCT_NUMBERS.map((tctNumber) => ({
+    id: crypto.randomUUID(),
+    tctNumber,
+    documents: APPRAISAL_DOC_META.map((meta) => ({
+      key: meta.key,
+      status: statusFor(meta),
+      aiNote: meta.freshNote,
+      fileName: 'sample-local-pdf.pdf',
+      fileUrl: '/assets/documents/sample-local-pdf.pdf',
+      uploadedAt,
+      uploadedBy: officerName,
+      remarks: '',
+      reviewed: true,
+    })),
+    reportId: null,
+  }));
 }
 
 export function RequirementChecklistView() {
@@ -338,12 +372,13 @@ export function RequirementChecklistView() {
     updateAppraisalGroupDoc(groupId, key, { remarks });
   };
 
-  // Fills every fixed document plus a single fresh Appraisal group with
-  // representative sample data in one click, mirroring Initial Credit
-  // Checking's/Call Report's floating-button-turned-page-action toggle —
-  // same button relabels to "Remove Sample Data" and clears everything back
-  // to blank (including clearing appraisalGroups entirely, not just
-  // resetting their documents) once filled.
+  // Fills every fixed document plus 5 fresh Appraisal groups (matching the
+  // sample TCTs seeded in admin-context.tsx) with representative sample
+  // data in one click, mirroring Initial Credit Checking's/Call Report's
+  // floating-button-turned-page-action toggle — same button relabels to
+  // "Remove Sample Data" and clears everything back to blank (including
+  // clearing appraisalGroups entirely, not just resetting their documents)
+  // once filled.
   const handleFillSampleData = () => {
     const uploadedAt = new Date().toISOString();
     setRequirementChecklist({
@@ -361,30 +396,13 @@ export function RequirementChecklistView() {
           reviewed: true,
         };
       }),
-      appraisalGroups: [
-        {
-          id: crypto.randomUUID(),
-          tctNumber: 'TCT-2024-00981',
-          documents: APPRAISAL_DOC_META.map((meta) => ({
-            key: meta.key,
-            status: meta.freshStatus,
-            aiNote: meta.freshNote,
-            fileName: 'sample-local-pdf.pdf',
-            fileUrl: '/assets/documents/sample-local-pdf.pdf',
-            uploadedAt,
-            uploadedBy: officerName,
-            remarks: '',
-            reviewed: true,
-          })),
-          reportId: null,
-        },
-      ],
+      appraisalGroups: buildSampleAppraisalGroups((meta) => meta.freshStatus, uploadedAt, officerName),
       appraisalNotApplicable: false,
     });
   };
 
   // Same shape as handleFillSampleData, but every document (fixed list and
-  // the one fresh Appraisal group) is forced to 'verified' regardless of its
+  // all 5 fresh Appraisal groups) is forced to 'verified' regardless of its
   // meta.freshStatus — unlike the realistic-mix "Fill with Sample Data"
   // above, this leaves nothing at 'needs-review' or 'missing', so a single
   // click reaches an immediately-endorsable state.
@@ -405,24 +423,7 @@ export function RequirementChecklistView() {
           reviewed: true,
         };
       }),
-      appraisalGroups: [
-        {
-          id: crypto.randomUUID(),
-          tctNumber: 'TCT-2024-00981',
-          documents: APPRAISAL_DOC_META.map((meta) => ({
-            key: meta.key,
-            status: 'verified',
-            aiNote: meta.freshNote,
-            fileName: 'sample-local-pdf.pdf',
-            fileUrl: '/assets/documents/sample-local-pdf.pdf',
-            uploadedAt,
-            uploadedBy: officerName,
-            remarks: '',
-            reviewed: true,
-          })),
-          reportId: null,
-        },
-      ],
+      appraisalGroups: buildSampleAppraisalGroups(() => 'verified', uploadedAt, officerName),
       appraisalNotApplicable: false,
     });
   };
