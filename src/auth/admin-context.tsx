@@ -1340,23 +1340,36 @@ function readStoredState(): AdminState {
                 }
               : mergedDoc;
           }),
-          appraisalGroups: (
-            storedReview.requirementChecklist?.appraisalGroups ??
-            initialState.review.requirementChecklist.appraisalGroups
-          ).map((group: AppraisalTctGroup) => ({
-            ...group,
-            documents: group.documents.map((doc) => {
-              const isSeededSample =
-                doc.fileName === 'sample-local-pdf.pdf' || doc.fileName?.endsWith('-sample.pdf');
-              return isSeededSample
-                ? {
-                    ...doc,
-                    fileName: 'sample-local-pdf.pdf',
-                    fileUrl: '/assets/documents/sample-local-pdf.pdf',
-                  }
-                : doc;
-            }),
-          })),
+          appraisalGroups: (() => {
+            const storedGroups: AppraisalTctGroup[] =
+              storedReview.requirementChecklist?.appraisalGroups ?? initialState.review.requirementChecklist.appraisalGroups;
+            // A session saved before more sample TCTs were added to the
+            // default seed would otherwise be stuck at whatever smaller
+            // count it started with forever — the plain ?? above only
+            // covers "no appraisalGroups key at all", not "fewer groups
+            // than today's default seed". Top up any seed TCT numbers
+            // missing from the stored array (by tctNumber, so an officer's
+            // own renamed/removed rows are left alone) rather than
+            // discarding what's stored.
+            const storedTctNumbers = new Set(storedGroups.map((group) => group.tctNumber));
+            const missingSeedGroups = initialState.review.requirementChecklist.appraisalGroups.filter(
+              (seedGroup) => !storedTctNumbers.has(seedGroup.tctNumber)
+            );
+            return [...storedGroups, ...missingSeedGroups].map((group: AppraisalTctGroup) => ({
+              ...group,
+              documents: group.documents.map((doc) => {
+                const isSeededSample =
+                  doc.fileName === 'sample-local-pdf.pdf' || doc.fileName?.endsWith('-sample.pdf');
+                return isSeededSample
+                  ? {
+                      ...doc,
+                      fileName: 'sample-local-pdf.pdf',
+                      fileUrl: '/assets/documents/sample-local-pdf.pdf',
+                    }
+                  : doc;
+              }),
+            }));
+          })(),
         },
         creditInvestigation: {
           ...initialState.review.creditInvestigation,
