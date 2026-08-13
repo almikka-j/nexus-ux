@@ -18,7 +18,6 @@ import { adminCardSx } from 'src/components/admin-ui';
 
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
-import { AppraisalFeeCard } from './appraisal/appraisal-fee-card';
 import { HeadApprovalCard } from './appraisal/head-approval-card';
 import { PassFailCard } from './appraisal/pass-fail-card';
 import { AppraisalTctTable } from './appraisal/appraisal-tct-table';
@@ -72,8 +71,7 @@ export function AppraisalView() {
   const { signUpData } = useRegistration();
   const { review } = useAdmin();
   const { appraisalGroups, appraisalNotApplicable } = review.requirementChecklist;
-  const { feeStatus, paymentReceivedAt, headApprovalStatus, reportBundles, passed, failReason } =
-    review.appraisal;
+  const { headApprovalStatus, reportBundles, passed, failReason } = review.appraisal;
 
   if (!signUpData) return null;
 
@@ -83,7 +81,6 @@ export function AppraisalView() {
 
   const applicantName = `${signUpData.firstName} ${signUpData.lastName}`;
 
-  const feeResolved = feeStatus === 'not-applicable' || (feeStatus === 'approved' && !!paymentReceivedAt);
   const allGroupsAssigned = appraisalGroups.every((group) => group.reportId !== null);
   const allBundlesSubmitted = reportBundles.every((bundle) => !!bundle.report.uploadedAt);
   const reportSubmitted =
@@ -110,9 +107,7 @@ export function AppraisalView() {
           <AppraisalTctTable applicantName={applicantName} />
         )}
 
-        <AppraisalFeeCard />
-
-        {!appraisalNotApplicable && feeResolved ? (
+        {!appraisalNotApplicable &&
           reportBundles.map((bundle) => (
             <AppraiserAssignmentCard
               key={bundle.id}
@@ -121,30 +116,22 @@ export function AppraisalView() {
                 .filter((group) => bundle.tctGroupIds.includes(group.id))
                 .map((group) => group.tctNumber)}
             />
-          ))
-        ) : !appraisalNotApplicable ? (
-          <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
-            <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
-            <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-              Resolve the Appraisal Fee above to unlock appraiser assignment.
-            </Typography>
-          </Box>
-        ) : null}
+          ))}
 
-        {feeResolved && reportSubmitted ? (
+        {reportSubmitted ? (
           <HeadApprovalCard />
-        ) : feeResolved ? (
+        ) : (
           <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
             <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
             <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
               Submit the appraisal report above to unlock Head Approval.
             </Typography>
           </Box>
-        ) : null}
+        )}
 
         {headApproved && reportSubmitted ? (
           <PassFailCard onFailed={() => {}} />
-        ) : feeResolved && reportSubmitted ? (
+        ) : reportSubmitted ? (
           <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
             <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
             <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>

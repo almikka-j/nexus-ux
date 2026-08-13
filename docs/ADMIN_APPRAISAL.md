@@ -6,6 +6,12 @@
 > `appraisal/pass-fail-card.tsx`) change. Companion to `PROJECT_OVERVIEW.md`
 > and `docs/ADMIN_CREDIT_INVESTIGATION.md` (the step immediately before this
 > one in the pipeline).
+>
+> **Temporary:** `AppraisalFeeCard` is not currently rendered on this page —
+> see "Appraisal Fee (temporarily removed from this page)" below. The
+> component and its data model are untouched; only its render call and the
+> `feeResolved` gate were removed, pending a dedicated Request Appraisal Fee
+> page.
 
 ## What this is
 
@@ -48,17 +54,15 @@ comparison.
 2. `ApplicationDetailsCard` (collapsible, `officerNotesProcess="Appraisal"`).
 3. **Collateral titles** table — a checkbox row per TCT/CCT, used to select
    properties and assign an appraiser via a modal.
-4. **Appraisal Fee** card.
-5. **Appraisal Report** cards — one per report bundle created from the
-   table above, rendered once the fee is resolved, otherwise a single
-   locked dashed placeholder in their place.
-6. **Head Approval** card — rendered once the fee is resolved *and* every
-   pledged property is covered by a submitted report bundle, otherwise a
-   locked dashed placeholder (and nothing at all until the fee is
-   resolved).
-7. **Passed?** (Pass/Fail) card — rendered once Head Approval has approved,
-   otherwise a locked dashed placeholder (and nothing at all until the fee
-   is resolved and every bundle's report is submitted).
+4. **Appraisal Report** cards — one per report bundle created from the
+   table above, rendered immediately (no fee gate currently — see
+   "Appraisal Fee (temporarily removed from this page)" below).
+5. **Head Approval** card — rendered once every pledged property is
+   covered by a submitted report bundle, otherwise a locked dashed
+   placeholder.
+6. **Passed?** (Pass/Fail) card — rendered once Head Approval has approved,
+   otherwise a locked dashed placeholder (and nothing at all until every
+   bundle's report is submitted).
 
 Unlike Credit Investigation's page, there's no separate Document Checklist
 or "AI review, summary & recommendation" card here — the gating logic
@@ -143,50 +147,26 @@ type or any other field — this whole card is replaced by a single line,
 or appraiser-assignment logic downstream depends on this flag; it only
 affects what this section displays.
 
-## Appraisal Fee
+## Appraisal Fee (temporarily removed from this page)
 
-`review.appraisal.feeStatus: 'not-requested' | 'pending-approval' |
-'approved' | 'declined' | 'not-applicable'` (`AppraisalFeeStatus`,
-`src/auth/admin-context.tsx`). `'declined'` is a type-level member that is
-never actually observed in the UI — `AppraisalFeeCard`'s decline confirm
-handler resets straight back to `'not-requested'` in the same action (same
-"decline re-enters at the request step" convention as CI Fee), recording the
-reason in `feeDeclineReason` rather than surfacing a distinct "declined"
-state on screen. Only four of the five type values ever render:
-`not-requested`, `pending-approval`, `approved`, `not-applicable`.
+`AppraisalFeeCard` (`src/sections/admin/appraisal/appraisal-fee-card.tsx`)
+and its full state machine — `review.appraisal.feeStatus:
+'not-requested' | 'pending-approval' | 'approved' | 'declined' |
+'not-applicable'`, request amount/description/remarks, the simulated
+approve/decline page actions, "Advise Client"/Sendit/Odoo, "Payment
+Received" — all still exist unchanged in `admin-context.tsx` and the
+component file. Only `appraisal-view.tsx`'s render call
+(`<AppraisalFeeCard />`) and its `feeResolved` gate were removed; this page
+no longer shows a fee card or waits on one before unlocking appraiser
+assignment/Head Approval. This is a deliberate, temporary step ahead of
+moving the fee request/approval flow to its own dedicated page — when that
+page exists, re-wire its resolution back into this page's gating (or
+decide it no longer needs to gate this page at all) rather than reverting
+this removal blindly.
 
-Same state-machine shape as CI Fee (`docs/ADMIN_CREDIT_INVESTIGATION.md`'s
-CI Fee section): the officer picks **"Yes, Request Appraisal Fee"** (opens a
-form for Request Amount, Request Amount Description, and Remarks, moving the
-status to `pending-approval`) or **"No Fee Needed"** (moves straight to
-`not-applicable`, reversible via "Actually, this needs a fee"). There's no
-separate approver role or login in this prototype, so — unlike CI Fee, whose
-two simulated page actions are registered by the *parent* view
-(`credit-investigation-view.tsx`) — **`AppraisalFeeCard` registers its own
-page actions internally**, appearing in the floating settings popover
-(bottom-right gear icon → Page actions) while `feeStatus === 'pending-approval'`:
-
-- **"Simulate: Another Officer Approves Appraisal Fee"** — sets
-  `feeStatus: 'approved'` directly, no confirmation dialog.
-- **"Simulate: Another Officer Declines Appraisal Fee"** — opens a
-  `ConfirmDialog` requiring a typed reason; confirming resets
-  `feeStatus: 'not-requested'`, clears amount/description/remarks, and
-  records the reason in `feeDeclineReason`.
-
-Once `feeStatus === 'approved'`, an **"Advise Client"** button simulates
-three things at once, matching the source diagram's swimlanes: it sets
-`clientNotifiedAt` and `sentToOdooAt` together (a client email notification
-and a request sent to Odoo — neither a real integration), which unlocks a
-second button, **"Simulate: Payment Received (Sendit)"**, setting
-`paymentReceivedAt`. The Appraisal Report cards below only unlock once
-the fee path is fully resolved — `feeStatus === 'not-applicable'`, or
-`feeStatus === 'approved'` *and* `paymentReceivedAt` is set (this is the
-`feeResolved` gate computed in `appraisal-view.tsx`, not something
-`AppraisalFeeCard` decides on its own). The Collateral titles table's
-selection and bundle-creation flow itself is not gated on the fee — an
-officer can group TCTs and assign an appraiser via the modal before the
-fee is resolved; only the report-creation form/dropzone inside each
-bundle's card waits for `feeResolved`.
+The Collateral titles table's selection and bundle-creation flow, and every
+Appraisal Report card, now render and unlock unconditionally — nothing on
+this page currently reads `feeStatus`/`paymentReceivedAt` at all.
 
 ## Appraisal Report (per bundle)
 
@@ -197,11 +177,8 @@ above and assigning an appraiser via its modal (see above).
 `appraisal-view.tsx` renders one **"Appraisal Report"** card per
 bundle (`AppraiserAssignmentCard`, taking `{ bundleId, tctNumbers }` props
 instead of reading a single whole-application `review.appraisal` field, as
-it did before this page tracked multiple bundles), only once `feeResolved`
-is true — otherwise the same locked dashed placeholder as before takes
-their place, and no bundle cards render at all regardless of how many
-bundles exist (assignment itself, via the table above, is not gated on the
-fee — only the report-creation cards are).
+it did before this page tracked multiple bundles), unconditionally — see
+"Appraisal Fee (temporarily removed from this page)" above.
 
 Each card's subtitle lists which TCT numbers it covers ("Covers
 TCT-2024-00981, TCT-2024-00982"). A `ButtonGroup` toggle picks between
@@ -240,14 +217,13 @@ otherwise desync the page.
 
 ## Head Approval
 
-Rendered by `appraisal-view.tsx` only when `feeResolved && reportSubmitted`,
-where `reportSubmitted` now means every pledged property is covered by some
-report bundle **and** every bundle's report has been submitted:
-`appraisalNotApplicable || (appraisalGroups.every(g => g.reportId !== null)
-&& reportBundles.length > 0 && reportBundles.every(b =>
-!!b.report.uploadedAt))`. Otherwise a locked dashed placeholder ("Submit the
-appraisal report above to unlock Head Approval.") appears once the fee is
-resolved, and nothing at all before that.
+Rendered by `appraisal-view.tsx` only when `reportSubmitted`, meaning every
+pledged property is covered by some report bundle **and** every bundle's
+report has been submitted: `appraisalNotApplicable ||
+(appraisalGroups.every(g => g.reportId !== null) && reportBundles.length
+> 0 && reportBundles.every(b => !!b.report.uploadedAt))`. Otherwise a
+locked dashed placeholder ("Submit the appraisal report above to unlock
+Head Approval.") appears.
 
 `review.appraisal.headApprovalStatus: 'pending' | 'approved' | 'declined'`
 (`HeadApprovalStatus`). As with `feeStatus`'s `'declined'`, `'declined'` is
@@ -327,6 +303,8 @@ yet).
 - **Simulated Sendit/Odoo integrations** — the payment link and the request
   sent to Odoo when advising the client to settle the fee are both
   simulated button clicks, not real integrations with either service.
+  Currently unreachable from this page at all — see "Appraisal Fee
+  (temporarily removed from this page)" above.
 - **No real photo capture or lot-plotting** for in-house appraiser reports —
   flagged directly on each Appraisal Report card's dashed note as future
   integration work, not built here.
