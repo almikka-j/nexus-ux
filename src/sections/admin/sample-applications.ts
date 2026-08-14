@@ -67,6 +67,19 @@ export type SampleApplicationEntry = {
     amountDescription: string;
     remarks?: string;
   };
+  // Fake, read-only filler rows for the three Appraisal-role Approval
+  // screens (appraisal-appraiser-view.tsx, appraisal-fee-approval-view.tsx,
+  // appraisal-approver-view.tsx) — same convention as `ciFee` above: the
+  // real live application's appraisal state lives entirely on
+  // review.appraisal/review.requirementChecklist (AdminContext), so these
+  // fields are each screen's only source of additional, non-actionable
+  // sample rows.
+  /** Shown on the Appraisal Appraiser screen — has at least one TCT with no appraiser assigned yet. */
+  appraisalNeedsAppraiser?: { tctNumbers: string[] };
+  /** Shown on the Appraisal Fee Approval screen — an appraiser has requested a fee, awaiting Head approval. */
+  appraisalFeePending?: { amount: string; appraiserName: string };
+  /** Shown on the Appraisal Approver screen — every report is submitted, awaiting Head Approval. */
+  appraisalAwaitingHeadApproval?: { appraiserName: string };
 };
 
 // ----------------------------------------------------------------------
@@ -74,6 +87,7 @@ export type SampleApplicationEntry = {
 export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
   {
     step: 'creditChecking',
+    appraisalNeedsAppraiser: { tctNumbers: ['TCT-2024-01123'] },
     registration: {
       signUpData: {
         firstName: 'Arvin',
@@ -229,6 +243,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
       amount: '2500',
       amountDescription: 'Site visit + verification fee',
     },
+    appraisalFeePending: { amount: '4500', appraiserName: 'Norte Appraisal Services' },
     registration: {
       signUpData: {
         firstName: 'Ramil',
@@ -390,6 +405,7 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
   },
   {
     step: 'requirementChecklist',
+    appraisalAwaitingHeadApproval: { appraiserName: 'Ramon Dela Cruz (In-house)' },
     registration: {
       signUpData: {
         firstName: 'Noel',

@@ -3,9 +3,12 @@
 > **Maintenance rule:** update this file whenever `appraisal-view.tsx` or its
 > supporting files (`appraisal/appraisal-fee-card.tsx`,
 > `appraisal/appraiser-assignment-card.tsx`, `appraisal/head-approval-card.tsx`,
-> `appraisal/pass-fail-card.tsx`) change. Companion to `PROJECT_OVERVIEW.md`
-> and `docs/ADMIN_CREDIT_INVESTIGATION.md` (the step immediately before this
-> one in the pipeline).
+> `appraisal/pass-fail-card.tsx`, `appraisal-appraiser-view.tsx`,
+> `appraisal-fee-approval-view.tsx`, `appraisal-approver-view.tsx`) change.
+> Companion to `PROJECT_OVERVIEW.md` and `docs/ADMIN_CREDIT_INVESTIGATION.md`
+> (the step immediately before this one in the pipeline, and where "CI Fee
+> Approval" — nested alongside these three under the same "Approval" nav
+> dropdown — is documented).
 >
 > **Temporary:** `AppraisalFeeCard` is not currently rendered on this page —
 > see "Appraisal Fee (temporarily removed from this page)" below. The
@@ -297,6 +300,63 @@ this page directly from the queue at any time, regardless of where the live
 application actually is in the pipeline. `financialEvaluation` remains the
 only always-non-actionable step (unbuilt, no workspace page exists for it
 yet).
+
+## Approval-role screens (Appraisal Appraiser / Fee Approval / Approver)
+
+Three dedicated queue screens, nested under the **"Approval"** nav dropdown
+(`approvalItems`, `src/layouts/admin/config-nav-admin.tsx`) alongside "CI
+Fee Approval" (which moved into this same dropdown as its first entry —
+see `docs/ADMIN_CREDIT_INVESTIGATION.md`). All three follow
+`ci-fee-approval-view.tsx`'s exact shape: a `QueueRow`-style list (live
+application + read-only sample filler rows), and — for the live
+application only — a detail card with real working actions below the
+list. None of these are `application-list-view.tsx`'s `?step=` queue;
+each is a standalone view filtering on a derived condition, since none of
+"needs an appraiser"/"fee pending"/"awaiting Head Approval" is a
+`ReviewStep`.
+
+There is no role/permission system in this app (`AdminUser` has no role
+field — every session is one undifferentiated admin), so nothing gates
+who can open which of these three screens; they exist as distinct
+workflow-framing destinations, not access-controlled ones.
+
+- **Appraisal Appraiser** (`/admin/appraisal-appraiser`,
+  `appraisal-appraiser-view.tsx`) — lists applications with at least one
+  pledged property whose `AppraisalTctGroup.reportId` is still `null`
+  (`appraisalGroups.filter(g => g.reportId === null)`, live application
+  only; skipped entirely if `appraisalNotApplicable`). The live row is a
+  link straight into `paths.admin.appraisal(email)` — the actual
+  Collateral titles table/Assign Appraiser modal still live entirely on
+  the Appraisal page itself; this screen only surfaces which applications
+  need that work done, it doesn't duplicate the assignment UI. Sample rows
+  come from `SampleApplicationEntry.appraisalNeedsAppraiser: {
+  tctNumbers: string[] }`.
+- **Appraisal Fee Approval** (`/admin/appraisal-fee-approval`,
+  `appraisal-fee-approval-view.tsx`) — lists applications where
+  `review.appraisal.feeStatus === 'pending-approval'`. Same
+  Approve/Decline shape as CI Fee Approval, writing directly to
+  `review.appraisal` via `setAppraisal` (`feeStatus: 'approved'` on
+  approve; reset to `'not-requested'` plus a typed `feeDeclineReason` on
+  decline). Sample rows come from `SampleApplicationEntry.
+  appraisalFeePending: { amount: string; appraiserName: string }`.
+- **Appraisal Approver** (`/admin/appraisal-approver`,
+  `appraisal-approver-view.tsx`) — lists applications where every pledged
+  property is covered by a submitted report bundle and
+  `headApprovalStatus === 'pending'` (the same `reportSubmitted`
+  computation `appraisal-view.tsx` uses to unlock its own Head Approval
+  card, duplicated here rather than shared since the two files don't
+  currently import from each other). Approve/Decline reuse the exact same
+  `setAppraisal`/`clearAllAppraisalBundleReports` setters
+  `head-approval-card.tsx` calls — declining clears every bundle's
+  submitted report the same way. Sample rows come from
+  `SampleApplicationEntry.appraisalAwaitingHeadApproval: { appraiserName:
+  string }`.
+
+None of these three screens' live-application actions redirect or show a
+one-time outcome screen (unlike CI Fee Approval's `OutcomeScreen`) — they
+stay on the same page and the row/detail card simply update to reflect the
+new state (or disappear from "pending" once resolved), matching how the
+underlying cards on `appraisal-view.tsx` already behave in place.
 
 ## Non-goals / Open items
 

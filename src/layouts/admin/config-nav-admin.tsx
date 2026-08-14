@@ -49,6 +49,21 @@ export const reconsiderationTrackItems = [
   { title: 'Negative List', step: null, path: paths.admin.negativeList },
 ];
 
+// Approval-role screens: each is a dedicated queue for one specific
+// approve/decline decision (CI Fee, appraiser assignment, Appraisal Fee,
+// Head Approval), not a step in the main forward-moving pipeline above —
+// grouped together the same way "For Reconsideration" groups the
+// rejected-track screens. None of these are filtered by `step` (that's
+// `application-list-view.tsx`'s ?step= mechanism); each has its own
+// dedicated view/route with its own row-filtering logic, so `step: null`
+// throughout, same as "Negative List" above.
+export const approvalItems = [
+  { title: 'CI Fee Approval', step: null, path: paths.admin.ciFeeApproval },
+  { title: 'Appraisal Appraiser', step: null, path: paths.admin.appraisalAppraiser },
+  { title: 'Appraisal Fee Approval', step: null, path: paths.admin.appraisalFeeApproval },
+  { title: 'Appraisal Approver', step: null, path: paths.admin.appraisalApprover },
+];
+
 export const adminNavData = [
   {
     title: 'Dashboard',
@@ -77,13 +92,10 @@ export const adminNavData = [
     children: reconsiderationTrackItems,
   },
   {
-    // Flat top-level leaf, same shape as "Dashboard" — a secondary/
-    // occasional-use tool screen (approving the one live application's
-    // pending CI Fee), not part of the main forward-moving pipeline, so it
-    // sits last rather than nested under "Comprehensive Credit Checking".
-    title: 'CI Fee Approval',
-    path: paths.admin.ciFeeApproval,
+    title: 'Approval',
+    path: null,
     icon: <Iconify width={24} icon="solar:wallet-money-bold-duotone" />,
+    children: approvalItems,
   },
 ];
 
@@ -111,7 +123,8 @@ export function getAdminReviewStep(pathname: string, searchStep: string | null) 
 export function isAdminNavChildActive(
   child:
     | (typeof comprehensiveCreditCheckingItems)[number]
-    | (typeof reconsiderationTrackItems)[number],
+    | (typeof reconsiderationTrackItems)[number]
+    | (typeof approvalItems)[number],
   pathname: string,
   searchStep: string | null
 ) {

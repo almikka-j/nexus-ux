@@ -295,10 +295,12 @@ action, so toggling sample data on and off can never fight that effect.
 
 **Dedicated CI Fee Approval screen** (`/admin/ci-fee-approval`,
 `src/sections/admin/ci-fee-approval-view.tsx`) offers a second, fuller-review
-way to trigger the same two outcomes — a standalone top-level nav item
-(placed last in `adminNavData`, `config-nav-admin.tsx`, flat/no `children`
-like "Dashboard") rather than a page action buried in the settings popover.
-It reads the same single live `review.creditInvestigation` state and, while
+way to trigger the same two outcomes — nested as the first entry under the
+**"Approval"** nav dropdown (`approvalItems`, `config-nav-admin.tsx`,
+alongside "Appraisal Appraiser"/"Appraisal Fee Approval"/"Appraisal
+Approver" — see `docs/ADMIN_APPRAISAL.md`) rather than a page action buried
+in the settings popover. It reads the same single live
+`review.creditInvestigation` state and, while
 `ciFeeStatus === 'pending-approval'`, shows the applicant identity, the same
 request amount/description/remarks detail box as `ci-fee-card.tsx`, and the
 same **"Approve CI Fee"** / **"Decline CI Fee"** pair, each behind its own
