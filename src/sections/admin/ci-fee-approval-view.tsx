@@ -16,43 +16,34 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, StatusBadge, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
 import { fCurrency } from 'src/utils/format-number';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
-import { SAMPLE_APPLICATIONS } from './sample-applications';
-
 import type { CiFeeStatus } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
-// Dedicated screen for approving the one live application's pending CI
-// Fee — a second way to trigger the same simulated-second-officer approval
-// the "Simulate: Another Officer Approves CI Fee" page action on
-// credit-investigation-view.tsx already offers; that action is unchanged
-// and still present. This screen exists purely for discoverability/
-// workflow framing (a distinct approver-shaped screen, reachable from the
-// main nav), not a replacement.
+// Personal workspace for the Credit Investigation Head/Approver — framed
+// as "My Approvals," their own inbox of CI Fee requests waiting on a
+// decision, not a generic admin-facing queue. Same role-workspace
+// treatment as appraisal-appraiser-view.tsx's "My Assignments": a
+// "CI HEAD / APPROVER" eyebrow label, first-person copy, and no sample
+// filler rows — a real approver's inbox would never show other people's
+// unrelated requests. `ciFeeStatus` lives on a single flat
+// review.creditInvestigation object in AdminContext (not per-application),
+// so this only ever has the one live application's request to show.
 //
-// Styled as a real per-step queue/list, matching every other queue in this
-// app (application-list-view.tsx's per-step filtered list — Initial Credit
-// Checking, Call Report, Requirement Checklist, Credit Investigation): one
-// row per application currently relevant to this screen, not a single
-// isolated card. Unlike those queues, `ciFeeStatus` lives on a single flat
-// review.creditInvestigation object in AdminContext — not per-application
-// like `ReviewStep` — so only the one live application can ever really be
-// "pending" here. The extra rows below it come from a fake `ciFee` field
-// added to a couple of SAMPLE_APPLICATIONS entries (sample-applications.ts)
-// purely for visual completeness; like every other sample row in this app,
-// they're read-only and never actionable (no working Approve/Decline —
-// there's nowhere real to save an edit to sample data). See
-// docs/ADMIN_CREDIT_INVESTIGATION.md's "CI Fee" section.
+// This is a second way to trigger the same simulated-second-officer
+// approval the "Simulate: Another Officer Approves CI Fee" page action on
+// credit-investigation-view.tsx already offers; that action is unchanged
+// and still present.
 // ----------------------------------------------------------------------
 
 const NOT_PENDING_COPY: Record<Exclude<CiFeeStatus, 'pending-approval'>, string> = {
-  'not-requested': "A CI Fee hasn't been requested for the current application yet.",
-  approved: 'The CI Fee for the current application has already been approved.',
-  'not-applicable': "The current application doesn't require a CI Fee.",
+  'not-requested': "There's no CI Fee request waiting on you right now.",
+  approved: 'You already approved this CI Fee request.',
+  'not-applicable': "This application doesn't require a CI Fee.",
 };
 
 // Same completed-screen shape as Requirement Checklist's local
@@ -123,58 +114,6 @@ function OutcomeScreen({
   );
 }
 
-// One row's worth of markup, shared by the live pending row and the fake
-// sample rows — same visual shape as application-list-view.tsx's queue
-// rows (icon box, name (+ "Sample" badge), App No. subtext, status badge)
-// but never wrapped in a ButtonBase here: the live row's detail/actions
-// render unconditionally below the list (no click needed), and sample
-// rows are non-actionable everywhere else in this app too.
-function QueueRow({
-  name,
-  email,
-  isSample,
-}: {
-  name: string;
-  email: string;
-  isSample: boolean;
-}) {
-  return (
-    <Box sx={{ ...adminCardSx, p: { xs: 2.5, md: 3 } }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Stack direction="row" spacing={1.75} alignItems="center">
-          <Box
-            sx={{
-              width: 42,
-              height: 42,
-              flexShrink: 0,
-              borderRadius: '11px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: '#EEF1FE',
-            }}
-          >
-            <Iconify icon="solar:wallet-money-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
-          </Box>
-          <Stack spacing={0.25}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" rowGap={0.75}>
-              <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#14172A' }}>
-                {name}
-              </Typography>
-              {isSample && <StatusBadge tone="neutral" label="Sample" />}
-            </Stack>
-            <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
-              App No. {getLoanNumber(email)}
-            </Typography>
-          </Stack>
-        </Stack>
-
-        <StatusBadge tone="warning" label="Pending approval" />
-      </Stack>
-    </Box>
-  );
-}
-
 export function CiFeeApprovalView() {
   const { signUpData } = useRegistration();
   const { review, setCreditInvestigation } = useAdmin();
@@ -203,11 +142,9 @@ export function CiFeeApprovalView() {
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
 
-  const isLivePending = !!signUpData && ciFeeStatus === 'pending-approval';
-  const sampleRows = SAMPLE_APPLICATIONS.filter((entry) => !!entry.ciFee);
-  const hasAnyRow = isLivePending || sampleRows.length > 0;
+  const isPending = !!signUpData && ciFeeStatus === 'pending-approval';
 
-  // Stays on this page after approving (no redirect) so the officer sees
+  // Stays on this page after approving (no redirect) so the approver sees
   // the completed result — the success screen below — right here, instead
   // of being sent away before the outcome is visible.
   const confirmApprove = () => {
@@ -272,11 +209,14 @@ export function CiFeeApprovalView() {
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
       <Stack spacing={4}>
         <Box sx={{ px: 1 }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#3448B0', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+            CI Head / Approver
+          </Typography>
           <Typography sx={{ fontSize: 30, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em' }}>
-            CI Fee Approval
+            My Approvals
           </Typography>
           <Typography sx={{ fontSize: 14, color: '#667085', mt: 0.5 }}>
-            Applications with a Credit Investigation fee awaiting approval.
+            Credit Investigation fee requests waiting on your decision.
           </Typography>
         </Box>
 
@@ -288,11 +228,11 @@ export function CiFeeApprovalView() {
               sx={{ color: '#C7CCDA', mb: 2 }}
             />
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              No application in progress
+              Nothing waiting on you yet
             </Typography>
             <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
-              There’s no live application in this session to review a CI Fee for yet. Start one
-              from the Application List, then request a CI Fee on its Credit Investigation page.
+              There’s no live application in this session yet. Start one from the Application List,
+              then request a CI Fee on its Credit Investigation page.
             </Typography>
             <Button
               component={RouterLink}
@@ -303,53 +243,7 @@ export function CiFeeApprovalView() {
               Go to Application List
             </Button>
           </Box>
-        ) : hasAnyRow ? (
-          <Stack spacing={1.5}>
-            {isLivePending && (
-              <QueueRow name={applicantName} email={signUpData.email} isSample={false} />
-            )}
-            {sampleRows.map((entry) => {
-              const { signUpData: sampleSignUp } = entry.registration;
-              if (!sampleSignUp) return null;
-              return (
-                <QueueRow
-                  key={sampleSignUp.email}
-                  name={`${sampleSignUp.firstName} ${sampleSignUp.lastName}`}
-                  email={sampleSignUp.email}
-                  isSample
-                />
-              );
-            })}
-          </Stack>
-        ) : (
-          <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
-            <Iconify
-              icon="solar:wallet-money-bold-duotone"
-              width={48}
-              sx={{ color: '#C7CCDA', mb: 2 }}
-            />
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              No CI Fee pending approval
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
-              {NOT_PENDING_COPY[ciFeeStatus as Exclude<CiFeeStatus, 'pending-approval'>]}
-            </Typography>
-            <Button
-              component={RouterLink}
-              href={paths.admin.creditInvestigation(encodeURIComponent(signUpData.email))}
-              variant="outlined"
-              sx={{ ...outlinedNavyButtonSx, px: 2.5 }}
-            >
-              Go to Credit Investigation
-            </Button>
-          </Box>
-        )}
-
-        {/* Detail card + actions for the live application specifically —
-            rendered directly below the list whenever its row is present,
-            no click/expand needed (the sample rows above have no
-            equivalent detail, since they're not real). */}
-        {isLivePending && signUpData && (
+        ) : isPending ? (
           <Box sx={{ ...adminCardSx, p: { xs: 3, md: 4 } }}>
             <Stack spacing={0.5} sx={{ mb: 2.5 }}>
               <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#14172A' }}>
@@ -409,8 +303,7 @@ export function CiFeeApprovalView() {
             </Stack>
 
             <Typography sx={{ fontSize: 12.5, color: '#5A6273', mt: 2.5 }}>
-              The CI Fee request has been sent. A different officer must approve it before the CI
-              Report can be prepared — this can’t be self-approved.
+              This request is waiting on your decision before the CI Report can be prepared.
             </Typography>
 
             <Stack spacing={1} sx={{ mt: 2.5 }}>
@@ -434,9 +327,31 @@ export function CiFeeApprovalView() {
               </Stack>
               <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
                 There’s no real second-officer login in this prototype — approving or declining
-                here simulates that second step.
+                here simulates your review.
               </Typography>
             </Stack>
+          </Box>
+        ) : (
+          <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
+            <Iconify
+              icon="solar:check-circle-bold-duotone"
+              width={48}
+              sx={{ color: '#C7CCDA', mb: 2 }}
+            />
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+              Nothing waiting on you right now
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
+              {NOT_PENDING_COPY[ciFeeStatus as Exclude<CiFeeStatus, 'pending-approval'>]}
+            </Typography>
+            <Button
+              component={RouterLink}
+              href={paths.admin.creditInvestigation(encodeURIComponent(signUpData.email))}
+              variant="outlined"
+              sx={{ ...outlinedNavyButtonSx, px: 2.5 }}
+            >
+              Go to Credit Investigation
+            </Button>
           </Box>
         )}
       </Stack>

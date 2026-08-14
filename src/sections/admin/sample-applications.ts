@@ -1,4 +1,4 @@
-import type { ReviewStep, CiFeeStatus } from 'src/auth/admin-context';
+import type { ReviewStep } from 'src/auth/admin-context';
 import type { RegistrationState } from 'src/auth/registration-context';
 
 // ----------------------------------------------------------------------
@@ -53,33 +53,6 @@ export type SampleApplicationEntry = {
   registration: RegistrationState;
   /** Which review step this sample is parked at, for the per-step filtered list views. */
   step: ReviewStep;
-  // Fake, read-only CI Fee state for a few samples so the CI Fee Approval
-  // screen (src/sections/admin/ci-fee-approval-view.tsx) has more than the
-  // one live application to list. Filtered on `ciFee` presence, not on
-  // `step` — the real live application's ciFeeStatus lives entirely
-  // separately, on review.creditInvestigation (a single flat AdminContext
-  // object), so this field is CI Fee Approval's only source for additional
-  // rows. Same as every other sample in this app, these never have a
-  // working Approve/Decline (see file header) — purely visual filler.
-  ciFee?: {
-    status: Extract<CiFeeStatus, 'pending-approval'>;
-    amount: string;
-    amountDescription: string;
-    remarks?: string;
-  };
-  // Fake, read-only filler rows for the two admin-facing Approval screens
-  // (appraisal-fee-approval-view.tsx, appraisal-approver-view.tsx) — same
-  // convention as `ciFee` above: the real live application's appraisal
-  // state lives entirely on review.appraisal/review.requirementChecklist
-  // (AdminContext), so these fields are each screen's only source of
-  // additional, non-actionable sample rows. appraisal-appraiser-view.tsx
-  // does NOT use sample filler — it's framed as the signed-in appraiser's
-  // own personal workspace, so it only ever shows the live application's
-  // own work, never other applications' sample data.
-  /** Shown on the Appraisal Fee Approval screen — an appraiser has requested a fee, awaiting Head approval. */
-  appraisalFeePending?: { amount: string; appraiserName: string };
-  /** Shown on the Appraisal Approver screen — every report is submitted, awaiting Head Approval. */
-  appraisalAwaitingHeadApproval?: { appraiserName: string };
 };
 
 // ----------------------------------------------------------------------
@@ -237,12 +210,6 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
   },
   {
     step: 'callReport',
-    ciFee: {
-      status: 'pending-approval',
-      amount: '2500',
-      amountDescription: 'Site visit + verification fee',
-    },
-    appraisalFeePending: { amount: '4500', appraiserName: 'Norte Appraisal Services' },
     registration: {
       signUpData: {
         firstName: 'Ramil',
@@ -293,11 +260,6 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
   },
   {
     step: 'callReport',
-    ciFee: {
-      status: 'pending-approval',
-      amount: '2800',
-      amountDescription: 'Site visit + verification fee',
-    },
     registration: {
       signUpData: {
         firstName: 'Marites',
@@ -348,12 +310,6 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
   },
   {
     step: 'requirementChecklist',
-    ciFee: {
-      status: 'pending-approval',
-      amount: '3200',
-      amountDescription: 'Credit investigation processing fee',
-      remarks: 'Collateral property is out of town — travel cost included.',
-    },
     registration: {
       signUpData: {
         firstName: 'Cristina',
@@ -404,7 +360,6 @@ export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
   },
   {
     step: 'requirementChecklist',
-    appraisalAwaitingHeadApproval: { appraiserName: 'Ramon Dela Cruz (In-house)' },
     registration: {
       signUpData: {
         firstName: 'Noel',

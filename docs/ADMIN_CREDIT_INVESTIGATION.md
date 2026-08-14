@@ -299,7 +299,12 @@ way to trigger the same two outcomes — nested as the first entry under the
 **"Approval"** nav dropdown (`approvalItems`, `config-nav-admin.tsx`,
 alongside "Appraisal Appraiser"/"Appraisal Fee Approval"/"Appraisal
 Approver" — see `docs/ADMIN_APPRAISAL.md`) rather than a page action buried
-in the settings popover. It reads the same single live
+in the settings popover. Framed as **"My Approvals"**, the CI Head/
+Approver's own personal workspace (small "CI HEAD / APPROVER" eyebrow
+label, first-person copy, no sample filler rows — see
+`docs/ADMIN_APPRAISAL.md`'s "Approval-role screens" section for the
+convention shared across all four Approval screens), not a generic
+admin-facing queue. It reads the same single live
 `review.creditInvestigation` state and, while
 `ciFeeStatus === 'pending-approval'`, shows the applicant identity, the same
 request amount/description/remarks detail box as `ci-fee-card.tsx`, and the

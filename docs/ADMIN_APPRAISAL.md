@@ -309,49 +309,51 @@ application actually is in the pipeline. `financialEvaluation` remains the
 only always-non-actionable step (unbuilt, no workspace page exists for it
 yet).
 
-## Approval-role screens (Appraisal Appraiser / Fee Approval / Approver)
+## Approval-role screens (CI Fee / Appraisal Appraiser / Fee Approval / Approver)
 
-Three dedicated queue screens, nested under the **"Approval"** nav dropdown
-(`approvalItems`, `src/layouts/admin/config-nav-admin.tsx`) alongside "CI
-Fee Approval" (which moved into this same dropdown as its first entry —
-see `docs/ADMIN_CREDIT_INVESTIGATION.md`). None of these are
-`application-list-view.tsx`'s `?step=` queue; each is a standalone view
-filtering on a derived condition, since none of "needs an appraiser"/"fee
-pending"/"awaiting Head Approval" is a `ReviewStep`.
+Four dedicated screens nested under the **"Approval"** nav dropdown
+(`approvalItems`, `src/layouts/admin/config-nav-admin.tsx`). None of
+these are `application-list-view.tsx`'s `?step=` queue; each is a
+standalone view filtering on a derived condition, since none of "CI fee
+pending"/"needs an appraiser"/"fee pending"/"awaiting Head Approval" is a
+`ReviewStep`.
 
-**Appraisal Fee Approval** and **Appraisal Approver** render their queue
-as a real table (`Table`/`TableHead`/`TableRow`/`TableCell`, matching
-`application-list-view.tsx`'s main queue table styling — deterministic
-per-borrower avatar palette (`getAvatarPalette`, duplicated locally in
-each view file — not shared/exported from `application-list-view.tsx`),
-uppercase muted column headers, status pill with dot indicator) rather
-than `ci-fee-approval-view.tsx`'s stacked-card `QueueRow` rows, since each
-reads more naturally as a straight applicant list than as cards. Neither
-table is clickable — instead, a detail card with the real working
-Approve/Decline actions renders below the table whenever the live
-application's row is present, same "list above, detail card below" layout
-`ci-fee-approval-view.tsx` uses, just with the list itself now a table.
+**All four are framed as the signed-in role's own personal workspace**
+("My Approvals" for the three Head/Approver-facing screens, "My
+Assignments" for the Appraiser screen), not generic admin-facing queues —
+each has a small uppercase eyebrow label naming the role (e.g. "CI HEAD /
+APPROVER", "APPRAISER WORKSPACE"), first-person copy throughout ("Nothing
+waiting on you yet", "Claim pledged properties…"), and **no sample filler
+rows at all** — unlike every other queue in this app, a real person's
+personal inbox/workspace would never show other unrelated applications'
+sample data. This is why `SampleApplicationEntry` (`sample-applications.ts`)
+carries no `ciFee`/`appraisalFeePending`/`appraisalAwaitingHeadApproval`
+fields (all removed) — these four screens only ever show the one live
+application's own state, sourced entirely from `review.creditInvestigation`
+/`review.appraisal`/`review.requirementChecklist` in `AdminContext`.
 
 There is no role/permission system in this app (`AdminUser` has no role
-field — every session is one undifferentiated admin), so nothing gates
-who can open any of these four screens; they exist as distinct
-workflow-framing destinations, not access-controlled ones. **Appraisal
-Appraiser** is the one exception in spirit, not enforcement: it's
-deliberately framed as the signed-in appraiser's own personal workspace
-(see below) even though, mechanically, any admin session can still open
-it.
+field — every session is one undifferentiated admin), so nothing
+mechanically gates who can open any of these four screens; the personal
+framing is a UI/workflow choice, not access control.
 
+- **CI Fee Approval** (`/admin/ci-fee-approval`, `ci-fee-approval-view.tsx`)
+  — "My Approvals" for the CI Head/Approver. Shows the live application's
+  detail card (request amount/description/remarks) with **"Approve CI
+  Fee"**/**"Decline CI Fee"** whenever `review.creditInvestigation.
+  ciFeeStatus === 'pending-approval'`; otherwise an empty-state card
+  ("Nothing waiting on you yet" / "Nothing waiting on you right now",
+  depending on whether there's a live application at all). This is a
+  second way to trigger the same simulated-second-officer approval the
+  "Simulate: Another Officer Approves CI Fee" page action on
+  `credit-investigation-view.tsx` already offers; that action is
+  unchanged and still present. Approving/declining shows a one-time
+  `OutcomeScreen` (centered icon/heading/body + forward action) — the one
+  screen among these four that does this, unchanged from its original
+  design.
 - **Appraisal Appraiser** (`/admin/appraisal-appraiser`,
-  `appraisal-appraiser-view.tsx`) — framed as "My Assignments," an
-  Appraiser's personal workspace rather than an admin approval queue: an
-  "APPRAISER WORKSPACE" eyebrow label, first-person copy ("Claim pledged
-  properties…", "My Active Assignments"), and **no sample filler rows at
-  all** — unlike every other queue in this app, since a real appraiser's
-  workspace would never show other people's unrelated applications. If
-  there's no live application, or nothing needs attention, each section
-  just reads as empty ("Nothing available right now…" /
-  "No active assignments right now…"), same as a real inbox with nothing
-  pending. Two sections:
+  `appraisal-appraiser-view.tsx`) — "My Assignments" for the Appraiser, in
+  two sections:
   - **"Available for Assignment"** — pledged properties (TCTs) whose
     `AppraisalTctGroup.reportId` is still `null`
     (`appraisalGroups.filter(g => g.reportId === null)`, live application
@@ -377,31 +379,31 @@ it.
     report — same component `appraisal-view.tsx` still renders for
     already-settled bundles).
 - **Appraisal Fee Approval** (`/admin/appraisal-fee-approval`,
-  `appraisal-fee-approval-view.tsx`) — lists applications where
-  `review.appraisal.feeStatus === 'pending-approval'`. Same
+  `appraisal-fee-approval-view.tsx`) — "My Approvals" for the Appraisal
+  Fee Approver. Shows the live application's detail card whenever
+  `review.appraisal.feeStatus === 'pending-approval'`, with the same
   Approve/Decline shape as CI Fee Approval, writing directly to
   `review.appraisal` via `setAppraisal` (`feeStatus: 'approved'` on
   approve; reset to `'not-requested'` plus a typed `feeDeclineReason` on
-  decline). Sample rows come from `SampleApplicationEntry.
-  appraisalFeePending: { amount: string; appraiserName: string }`.
+  decline).
 - **Appraisal Approver** (`/admin/appraisal-approver`,
-  `appraisal-approver-view.tsx`) — lists applications where every pledged
-  property is covered by a submitted report bundle and
-  `headApprovalStatus === 'pending'` (the same `reportSubmitted`
+  `appraisal-approver-view.tsx`) — "My Approvals" for the Head/Approver's
+  "reviewed and noted" step. Shows the live application's detail card
+  whenever every pledged property is covered by a submitted report bundle
+  and `headApprovalStatus === 'pending'` (the same `reportSubmitted`
   computation `appraisal-view.tsx` uses to unlock its own Head Approval
   card, duplicated here rather than shared since the two files don't
   currently import from each other). Approve/Decline reuse the exact same
   `setAppraisal`/`clearAllAppraisalBundleReports` setters
   `head-approval-card.tsx` calls — declining clears every bundle's
-  submitted report the same way. Sample rows come from
-  `SampleApplicationEntry.appraisalAwaitingHeadApproval: { appraiserName:
-  string }`.
+  submitted report the same way.
 
-None of these three screens' live-application actions redirect or show a
-one-time outcome screen (unlike CI Fee Approval's `OutcomeScreen`) — they
-stay on the same page and the row/detail card simply update to reflect the
-new state (or disappear from "pending" once resolved), matching how the
-underlying cards on `appraisal-view.tsx` already behave in place.
+Except for CI Fee Approval's `OutcomeScreen`, none of these screens'
+live-application actions redirect or show a one-time outcome screen —
+they stay on the same page and the detail card simply updates to reflect
+the new state (or the whole card disappears back to the empty state once
+resolved), matching how the underlying cards on `appraisal-view.tsx`
+already behave in place.
 
 ## Non-goals / Open items
 
