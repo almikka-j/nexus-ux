@@ -10,11 +10,13 @@
 > Approval" — nested alongside these three under the same "Approval" nav
 > dropdown — is documented).
 >
-> **Temporary:** `AppraisalFeeCard` is not currently rendered on this page —
-> see "Appraisal Fee (temporarily removed from this page)" below. The
-> component and its data model are untouched; only its render call and the
-> `feeResolved` gate were removed, pending a dedicated Request Appraisal Fee
-> page.
+> **`AppraisalFeeCard`/`AppraiserAssignmentCard` moved off this page** — the
+> fee request/settlement and report creation/upload steps are now the
+> Appraiser's own workflow, living on `/admin/appraisal-appraiser`
+> (`appraisal-appraiser-view.tsx`) instead of here. This page only shows an
+> assigned bundle's report once it's actually submitted (locked with a
+> pointer to that page otherwise) — see "Appraisal Fee & Report (moved to
+> Appraisal Appraiser)" below.
 
 ## What this is
 
@@ -58,8 +60,9 @@ comparison.
 3. **Collateral titles** table — a checkbox row per TCT/CCT, used to select
    properties and assign an appraiser via a modal.
 4. **Appraisal Report** cards — one per report bundle created from the
-   table above, rendered immediately (no fee gate currently — see
-   "Appraisal Fee (temporarily removed from this page)" below).
+   table above, rendered once its fee has been settled (see "Appraisal Fee
+   & Report (moved to Appraisal Appraiser)" below), otherwise a locked
+   dashed placeholder pointing at `/admin/appraisal-appraiser`.
 5. **Head Approval** card — rendered once every pledged property is
    covered by a submitted report bundle, otherwise a locked dashed
    placeholder.
@@ -150,38 +153,43 @@ type or any other field — this whole card is replaced by a single line,
 or appraiser-assignment logic downstream depends on this flag; it only
 affects what this section displays.
 
-## Appraisal Fee (temporarily removed from this page)
+## Appraisal Fee & Report (moved to Appraisal Appraiser)
 
 `AppraisalFeeCard` (`src/sections/admin/appraisal/appraisal-fee-card.tsx`)
-and its full state machine — `review.appraisal.feeStatus:
-'not-requested' | 'pending-approval' | 'approved' | 'declined' |
-'not-applicable'`, request amount/description/remarks, the simulated
-approve/decline page actions, "Advise Client"/Sendit/Odoo, "Payment
-Received" — all still exist unchanged in `admin-context.tsx` and the
-component file. Only `appraisal-view.tsx`'s render call
-(`<AppraisalFeeCard />`) and its `feeResolved` gate were removed; this page
-no longer shows a fee card or waits on one before unlocking appraiser
-assignment/Head Approval. This is a deliberate, temporary step ahead of
-moving the fee request/approval flow to its own dedicated page — when that
-page exists, re-wire its resolution back into this page's gating (or
-decide it no longer needs to gate this page at all) rather than reverting
-this removal blindly.
+and `AppraiserAssignmentCard`
+(`src/sections/admin/appraisal/appraiser-assignment-card.tsx`) are no
+longer rendered on this page at all — the Appraiser's own post-assignment
+work (request the fee, wait for it to clear, submit the report once the
+client has paid) now lives entirely on `/admin/appraisal-appraiser`
+(`appraisal-appraiser-view.tsx`, see "Approval-role screens" below). This
+page only renders a bundle's `AppraiserAssignmentCard` once its fee is
+fully settled — `feeStatus === 'not-applicable'`, or `feeStatus ===
+'approved'` *and* `paymentReceivedAt` is set (`feeSettled` computed
+locally in `appraisal-view.tsx`) — otherwise a locked dashed placeholder
+appears pointing the officer at the Appraisal Appraiser page to complete
+that work. The Collateral titles table's selection/bundle-creation flow
+itself is still not gated on the fee — an officer can group TCTs and
+assign an appraiser via the modal at any time; only each bundle's
+*report* card waits for `feeSettled`.
 
-The Collateral titles table's selection and bundle-creation flow, and every
-Appraisal Report card, now render and unlock unconditionally — nothing on
-this page currently reads `feeStatus`/`paymentReceivedAt` at all.
+`review.appraisal.feeStatus`'s full state machine (`'not-requested' |
+'pending-approval' | 'approved' | 'declined' | 'not-applicable'`), the
+request amount/description/remarks, "Advise Client"/Sendit/Odoo, and
+"Payment Received" are unchanged — only *where* they're surfaced moved.
 
 ## Appraisal Report (per bundle)
 
 `review.appraisal.reportBundles: AppraisalReportBundle[]` — each entry is
 `{ id, tctGroupIds, appraiserType, appraiserName, targetCompletionDate,
 report }`, created by selecting TCT rows in the Collateral titles table
-above and assigning an appraiser via its modal (see above).
-`appraisal-view.tsx` renders one **"Appraisal Report"** card per
-bundle (`AppraiserAssignmentCard`, taking `{ bundleId, tctNumbers }` props
-instead of reading a single whole-application `review.appraisal` field, as
-it did before this page tracked multiple bundles), unconditionally — see
-"Appraisal Fee (temporarily removed from this page)" above.
+above and assigning an appraiser via its modal (see above). Once its fee
+is settled (see above), `appraisal-view.tsx` renders one **"Appraisal
+Report"** card per bundle (`AppraiserAssignmentCard`, taking `{ bundleId,
+tctNumbers }` props instead of reading a single whole-application
+`review.appraisal` field, as it did before this page tracked multiple
+bundles) — the exact same component the Appraisal Appraiser page renders
+for its own in-progress bundles, so a report started on one page shows
+correctly on the other.
 
 Each card's subtitle lists which TCT numbers it covers ("Covers
 TCT-2024-00981, TCT-2024-00982"). A `ButtonGroup` toggle picks between
@@ -341,16 +349,34 @@ who can open which of these three screens; they exist as distinct
 workflow-framing destinations, not access-controlled ones.
 
 - **Appraisal Appraiser** (`/admin/appraisal-appraiser`,
-  `appraisal-appraiser-view.tsx`) — lists applications with at least one
-  pledged property whose `AppraisalTctGroup.reportId` is still `null`
-  (`appraisalGroups.filter(g => g.reportId === null)`, live application
-  only; skipped entirely if `appraisalNotApplicable`). The live row is a
-  link straight into `paths.admin.appraisal(email)` — the actual
-  Collateral titles table/Assign Appraiser modal still live entirely on
-  the Appraisal page itself; this screen only surfaces which applications
-  need that work done, it doesn't duplicate the assignment UI. Sample rows
-  come from `SampleApplicationEntry.appraisalNeedsAppraiser: {
-  tctNumbers: string[] }`.
+  `appraisal-appraiser-view.tsx`) — the Appraiser's full workspace, in two
+  tables:
+  - **"Needs Appraiser"** — applications with at least one pledged
+    property whose `AppraisalTctGroup.reportId` is still `null`
+    (`appraisalGroups.filter(g => g.reportId === null)`, live application
+    only; skipped entirely if `appraisalNotApplicable`). The live row is a
+    link straight into `paths.admin.appraisal(email)` — the actual
+    Collateral titles table/Assign Appraiser modal still live entirely on
+    the Appraisal page itself; this table only surfaces which
+    applications need that work done, it doesn't duplicate the assignment
+    UI. Sample rows come from `SampleApplicationEntry.
+    appraisalNeedsAppraiser: { tctNumbers: string[] }`.
+  - **"Appraiser Action Needed"** — applications that already have an
+    appraiser assigned (`reportBundles.length > 0`) but still need the fee
+    requested, cleared, or the report submitted once paid
+    (`!(feeSettled && allBundlesSubmitted)`). The live row's status pill
+    is one of "Request fee" (`feeStatus === 'not-requested'`), "Awaiting
+    fee approval" (`'pending-approval'`), "Awaiting client payment"
+    (`'approved'` with no `paymentReceivedAt`), or "Report pending"
+    (fee settled, report(s) not yet submitted). Clicking the live row
+    toggles an inline detail panel below both tables that renders
+    `AppraisalFeeCard` (request/advise-client/payment-received — the same
+    component `appraisal-view.tsx` used to render directly) and, once
+    `feeSettled`, one `AppraiserAssignmentCard` per bundle (create/upload
+    report — same component `appraisal-view.tsx` still renders for
+    already-settled bundles). Sample rows (read-only, no expand) come from
+    `SampleApplicationEntry.appraisalFeePending`, reusing that same field
+    since both are "an appraiser has outstanding fee/report work" filler.
 - **Appraisal Fee Approval** (`/admin/appraisal-fee-approval`,
   `appraisal-fee-approval-view.tsx`) — lists applications where
   `review.appraisal.feeStatus === 'pending-approval'`. Same
@@ -382,9 +408,9 @@ underlying cards on `appraisal-view.tsx` already behave in place.
 
 - **Simulated Sendit/Odoo integrations** — the payment link and the request
   sent to Odoo when advising the client to settle the fee are both
-  simulated button clicks, not real integrations with either service.
-  Currently unreachable from this page at all — see "Appraisal Fee
-  (temporarily removed from this page)" above.
+  simulated button clicks, not real integrations with either service. Now
+  triggered from the Appraisal Appraiser page (see "Appraisal Fee & Report
+  (moved to Appraisal Appraiser)" above), not this page.
 - **No real photo capture or lot-plotting** for in-house appraiser reports —
   flagged directly on each Appraisal Report card's dashed note as future
   integration work, not built here.

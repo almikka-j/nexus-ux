@@ -71,7 +71,8 @@ export function AppraisalView() {
   const { signUpData } = useRegistration();
   const { review } = useAdmin();
   const { appraisalGroups, appraisalNotApplicable } = review.requirementChecklist;
-  const { headApprovalStatus, reportBundles, passed, failReason } = review.appraisal;
+  const { headApprovalStatus, reportBundles, feeStatus, paymentReceivedAt, passed, failReason } =
+    review.appraisal;
 
   if (!signUpData) return null;
 
@@ -81,6 +82,11 @@ export function AppraisalView() {
 
   const applicantName = `${signUpData.firstName} ${signUpData.lastName}`;
 
+  // Fee request/settlement and report creation/upload now happen on the
+  // Appraisal Appraiser page (appraisal-appraiser-view.tsx) — this page
+  // only shows the assigned bundle's report once it's actually submitted,
+  // so an appraiser can't fill in a report here before the fee is settled.
+  const feeSettled = feeStatus === 'not-applicable' || (feeStatus === 'approved' && !!paymentReceivedAt);
   const allGroupsAssigned = appraisalGroups.every((group) => group.reportId !== null);
   const allBundlesSubmitted = reportBundles.every((bundle) => !!bundle.report.uploadedAt);
   const reportSubmitted =
@@ -107,16 +113,27 @@ export function AppraisalView() {
           <AppraisalTctTable applicantName={applicantName} />
         )}
 
-        {!appraisalNotApplicable &&
-          reportBundles.map((bundle) => (
-            <AppraiserAssignmentCard
-              key={bundle.id}
-              bundleId={bundle.id}
-              tctNumbers={appraisalGroups
-                .filter((group) => bundle.tctGroupIds.includes(group.id))
-                .map((group) => group.tctNumber)}
-            />
-          ))}
+        {!appraisalNotApplicable && reportBundles.length > 0 ? (
+          feeSettled ? (
+            reportBundles.map((bundle) => (
+              <AppraiserAssignmentCard
+                key={bundle.id}
+                bundleId={bundle.id}
+                tctNumbers={appraisalGroups
+                  .filter((group) => bundle.tctGroupIds.includes(group.id))
+                  .map((group) => group.tctNumber)}
+              />
+            ))
+          ) : (
+            <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
+              <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
+              <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+                The assigned appraiser must request and settle the Appraisal fee on the Appraisal
+                Appraiser page before the report can be created or uploaded.
+              </Typography>
+            </Box>
+          )
+        ) : null}
 
         {reportSubmitted ? (
           <HeadApprovalCard />
