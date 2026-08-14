@@ -306,14 +306,28 @@ yet).
 Three dedicated queue screens, nested under the **"Approval"** nav dropdown
 (`approvalItems`, `src/layouts/admin/config-nav-admin.tsx`) alongside "CI
 Fee Approval" (which moved into this same dropdown as its first entry —
-see `docs/ADMIN_CREDIT_INVESTIGATION.md`). All three follow
-`ci-fee-approval-view.tsx`'s exact shape: a `QueueRow`-style list (live
-application + read-only sample filler rows), and — for the live
+see `docs/ADMIN_CREDIT_INVESTIGATION.md`). None of these are
+`application-list-view.tsx`'s `?step=` queue; each is a standalone view
+filtering on a derived condition, since none of "needs an appraiser"/"fee
+pending"/"awaiting Head Approval" is a `ReviewStep`.
+
+**Appraisal Fee Approval** and **Appraisal Approver** follow
+`ci-fee-approval-view.tsx`'s exact shape: a `QueueRow`-style stacked-card
+list (live application + read-only sample filler rows), and — for the live
 application only — a detail card with real working actions below the
-list. None of these are `application-list-view.tsx`'s `?step=` queue;
-each is a standalone view filtering on a derived condition, since none of
-"needs an appraiser"/"fee pending"/"awaiting Head Approval" is a
-`ReviewStep`.
+list.
+
+**Appraisal Appraiser** instead renders as a real table
+(`Table`/`TableHead`/`TableRow`/`TableCell`, matching
+`application-list-view.tsx`'s main queue table styling — deterministic
+per-borrower avatar palette, uppercase muted column headers, hover +
+click-to-navigate on the live row, chevron), since this queue reads more
+naturally as a straight applicant list (Borrower / Pledged Properties /
+Status) than as stacked cards. There is no separate detail card below the
+table — clicking the live application's row navigates directly into
+`paths.admin.appraisal(email)`, where the actual assignment work happens
+(see below); sample rows are non-clickable, same as every other read-only
+sample row in this app.
 
 There is no role/permission system in this app (`AdminUser` has no role
 field — every session is one undifferentiated admin), so nothing gates
