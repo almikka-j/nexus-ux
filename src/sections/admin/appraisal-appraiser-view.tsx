@@ -5,15 +5,9 @@ import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
-import TableRow from '@mui/material/TableRow';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
-import TableContainer from '@mui/material/TableContainer';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -27,158 +21,94 @@ import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { AppraisalFeeCard } from './appraisal/appraisal-fee-card';
 import { AppraiserAssignmentCard } from './appraisal/appraiser-assignment-card';
-import { SAMPLE_APPLICATIONS } from './sample-applications';
 
 // ----------------------------------------------------------------------
-// Appraiser's workspace, in two parts:
+// This is the Appraiser's own workspace — framed as personal work ("My
+// Available Properties" / "My Active Assignments"), not an admin-facing
+// approval queue. Unlike the other three Approval-role screens, this one
+// only shows the signed-in appraiser's own work: no read-only sample
+// filler rows (SAMPLE_APPLICATIONS entries belong to other applications
+// this appraiser isn't assigned to), and no "isSample" framing anywhere.
+// If there's no live application in the session, or nothing currently
+// needs this appraiser's attention, that section simply reads as empty —
+// same as a real appraiser's inbox with nothing pending.
 //
-// 1. "Needs Appraiser" — applications with at least one pledged property
-//    (TCT) that has no appraiser assigned yet. Same table styling as
-//    application-list-view.tsx's main queue. The live application's row
-//    links into the Appraisal page itself, where the actual Collateral
-//    titles table/Assign Appraiser modal live — assignment isn't
-//    duplicated here.
-// 2. "Appraiser Action Needed" — applications that DO have an appraiser
-//    assigned (reportBundles.length > 0) but still need the appraiser to
-//    request the fee, wait for it to clear, or submit the report once the
-//    client has paid. Clicking the live application's row here expands an
-//    inline detail panel reusing AppraisalFeeCard (request fee / advise
-//    client / simulate payment received) and, once paid, one
-//    AppraiserAssignmentCard per bundle (create/upload report) — the same
-//    components appraisal-view.tsx used to render directly, now scoped to
-//    this role's page instead.
-//
-// Neither section is application-list-view.tsx's ?step= queue — "needs an
-// appraiser"/"appraiser has outstanding work" aren't ReviewSteps, they're
-// derived conditions on review.requirementChecklist/review.appraisal.
-// Sample rows in both sections are read-only filler, same convention as
-// every other queue in this app.
+// Two sections:
+// 1. "Available for Assignment" — pledged properties (TCTs) not yet
+//    claimed by any appraiser. Claiming one still routes into the
+//    Appraisal page's Collateral titles table/Assign Appraiser modal — the
+//    actual selection/bundling UI isn't duplicated here — but the framing
+//    is "claim this work," not "review this application."
+// 2. "My Active Assignments" — bundles already assigned to an appraiser
+//    that still need the fee requested, cleared, or the report submitted
+//    once the client has paid. Each assignment expands in place into the
+//    same AppraisalFeeCard/AppraiserAssignmentCard flow
+//    appraisal-view.tsx used to render directly, framed as "your
+//    assignment," with a progress tracker instead of a generic status
+//    pill.
 // ----------------------------------------------------------------------
 
-// Same deterministic per-borrower avatar palette as
-// application-list-view.tsx's getAvatarPalette — not shared/exported from
-// there, so duplicated locally.
-const AVATAR_PALETTES = [
-  { bg: '#EEF1FE', text: '#3448B0' },
-  { bg: '#E7F8F0', text: '#0C8A4F' },
-  { bg: '#FEF0D6', text: '#B36A05' },
-  { bg: '#FDE2DF', text: '#B32C22' },
-  { bg: '#F3E8FD', text: '#7C3AED' },
-  { bg: '#E0F7FA', text: '#0E7490' },
-];
+const PROGRESS_STEPS = ['Assigned', 'Fee requested', 'Fee approved', 'Client paid', 'Report submitted'];
 
-function getAvatarPalette(seed: string) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  }
-  return AVATAR_PALETTES[hash % AVATAR_PALETTES.length];
-}
-
-function BorrowerCell({ name, email, isSample }: { name: string; email: string; isSample: boolean }) {
-  const avatarPalette = getAvatarPalette(email);
-  const initial = name[0]?.toUpperCase() ?? '?';
+function ProgressTracker({ activeIndex }: { activeIndex: number }) {
   return (
-    <Stack direction="row" spacing={1.5} alignItems="center">
-      <Box
-        sx={{
-          width: 30,
-          height: 30,
-          flexShrink: 0,
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: avatarPalette.bg,
-          color: avatarPalette.text,
-          fontSize: 12.5,
-          fontWeight: 700,
-        }}
-      >
-        {initial}
-      </Box>
-      <Stack spacing={0.15} sx={{ minWidth: 0 }}>
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" rowGap={0.5}>
-          <Typography
-            title={name}
-            sx={{
-              fontSize: 13.5,
-              fontWeight: 600,
-              color: '#14172A',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: 200,
-            }}
-          >
-            {name}
-          </Typography>
-          {isSample && (
-            <Box
-              sx={{
-                px: 0.75,
-                py: 0.1,
-                borderRadius: '5px',
-                bgcolor: '#F5F6FA',
-                color: '#8891A6',
-                fontSize: 9.5,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                flexShrink: 0,
-              }}
-            >
-              Sample
-            </Box>
-          )}
-        </Stack>
-        <Typography sx={{ fontSize: 11.5, color: '#98A1B3', fontVariantNumeric: 'tabular-nums' }}>
-          {getLoanNumber(email)}
-        </Typography>
-      </Stack>
+    <Stack direction="row" alignItems="center" spacing={0}>
+      {PROGRESS_STEPS.map((label, index) => {
+        const done = index <= activeIndex;
+        const isLast = index === PROGRESS_STEPS.length - 1;
+        return (
+          <Stack key={label} direction="row" alignItems="center" sx={{ flex: isLast ? 'none' : 1 }}>
+            <Stack alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+              <Box
+                sx={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  display: 'grid',
+                  placeItems: 'center',
+                  bgcolor: done ? '#1C2A6E' : '#EEF0F5',
+                  color: done ? 'common.white' : '#98A1B3',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                {done ? <Iconify icon="mingcute:check-fill" width={13} /> : index + 1}
+              </Box>
+              <Typography
+                sx={{
+                  fontSize: 10.5,
+                  fontWeight: done ? 700 : 500,
+                  color: done ? '#14172A' : '#98A1B3',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+              </Typography>
+            </Stack>
+            {!isLast && (
+              <Box
+                sx={{
+                  flex: 1,
+                  height: 2,
+                  minWidth: 16,
+                  mx: 0.75,
+                  mb: 2,
+                  bgcolor: index < activeIndex ? '#1C2A6E' : '#EEF0F5',
+                }}
+              />
+            )}
+          </Stack>
+        );
+      })}
     </Stack>
   );
 }
 
-function StatusPill({ label, tone }: { label: string; tone: 'warning' | 'info' | 'success' }) {
-  return (
-    <Stack
-      direction="row"
-      alignItems="center"
-      spacing={0.75}
-      sx={{
-        display: 'inline-flex',
-        pl: 0.85,
-        pr: 1.1,
-        py: 0.45,
-        borderRadius: '999px',
-        bgcolor: TONE_COLORS[tone].bg,
-      }}
-    >
-      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: TONE_COLORS[tone].solid, flexShrink: 0 }} />
-      <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: TONE_COLORS[tone].text, whiteSpace: 'nowrap' }}>
-        {label}
-      </Typography>
-    </Stack>
-  );
-}
-
-type NeedsAppraiserRow = {
+type AvailableProperty = {
   key: string;
-  name: string;
-  email: string;
-  tctNumbers: string[];
-  isSample: boolean;
-};
-
-type ActionNeededRow = {
-  key: string;
-  name: string;
-  email: string;
-  statusLabel: string;
-  statusTone: 'warning' | 'info' | 'success';
-  isSample: boolean;
-  isLive: boolean;
+  tctNumber: string;
+  address?: string;
 };
 
 export function AppraisalAppraiserView() {
@@ -188,98 +118,56 @@ export function AppraisalAppraiserView() {
   const { appraisalGroups, appraisalNotApplicable } = review.requirementChecklist;
   const { feeStatus, paymentReceivedAt, reportBundles } = review.appraisal;
 
-  const [liveExpanded, setLiveExpanded] = useState(false);
+  const [assignmentExpanded, setAssignmentExpanded] = useState(true);
 
-  // --- Section 1: Needs Appraiser ---
-  const liveUnassignedTcts = appraisalGroups.filter((group) => group.reportId === null);
-  const isLiveNeedsAppraiser = !!signUpData && !appraisalNotApplicable && liveUnassignedTcts.length > 0;
+  // --- Available for Assignment ---
+  const availableProperties: AvailableProperty[] = signUpData && !appraisalNotApplicable
+    ? appraisalGroups
+        .filter((group) => group.reportId === null)
+        .map((group) => ({ key: group.id, tctNumber: group.tctNumber }))
+    : [];
 
-  const needsAppraiserRows: NeedsAppraiserRow[] = [];
-  if (isLiveNeedsAppraiser && signUpData) {
-    needsAppraiserRows.push({
-      key: signUpData.email,
-      name: `${signUpData.firstName} ${signUpData.lastName}`,
-      email: signUpData.email,
-      tctNumbers: liveUnassignedTcts.map((group) => group.tctNumber),
-      isSample: false,
-    });
-  }
-  SAMPLE_APPLICATIONS.forEach((entry) => {
-    const { signUpData: sampleSignUp } = entry.registration;
-    if (!sampleSignUp || !entry.appraisalNeedsAppraiser) return;
-    needsAppraiserRows.push({
-      key: sampleSignUp.email,
-      name: `${sampleSignUp.firstName} ${sampleSignUp.lastName}`,
-      email: sampleSignUp.email,
-      tctNumbers: entry.appraisalNeedsAppraiser.tctNumbers,
-      isSample: true,
-    });
-  });
-
-  const handleNeedsAppraiserRowClick = (row: NeedsAppraiserRow) => {
-    if (row.isSample) return;
-    router.push(paths.admin.appraisal(encodeURIComponent(row.email)));
+  const handleClaim = () => {
+    if (!signUpData) return;
+    router.push(paths.admin.appraisal(encodeURIComponent(signUpData.email)));
   };
 
-  // --- Section 2: Appraiser Action Needed ---
+  // --- My Active Assignments ---
   const feeSettled = feeStatus === 'not-applicable' || (feeStatus === 'approved' && !!paymentReceivedAt);
   const allBundlesSubmitted = reportBundles.every((bundle) => !!bundle.report.uploadedAt);
-  const isLiveActionNeeded = !!signUpData && reportBundles.length > 0 && !(feeSettled && allBundlesSubmitted);
+  const hasActiveAssignment = !!signUpData && reportBundles.length > 0 && !(feeSettled && allBundlesSubmitted);
 
-  const liveStatus = (): { label: string; tone: 'warning' | 'info' | 'success' } => {
-    if (feeStatus === 'not-requested') return { label: 'Request fee', tone: 'warning' };
-    if (feeStatus === 'pending-approval') return { label: 'Awaiting fee approval', tone: 'info' };
-    if (feeStatus === 'approved' && !paymentReceivedAt) return { label: 'Awaiting client payment', tone: 'info' };
-    return { label: 'Report pending', tone: 'warning' };
-  };
+  const progressIndex = (() => {
+    if (feeStatus === 'not-requested') return 0;
+    if (feeStatus === 'pending-approval') return 1;
+    if (feeStatus === 'approved' && !paymentReceivedAt) return 2;
+    if (feeSettled && !allBundlesSubmitted) return 3;
+    return 4;
+  })();
 
-  const actionNeededRows: ActionNeededRow[] = [];
-  if (isLiveActionNeeded && signUpData) {
-    const status = liveStatus();
-    actionNeededRows.push({
-      key: signUpData.email,
-      name: `${signUpData.firstName} ${signUpData.lastName}`,
-      email: signUpData.email,
-      statusLabel: status.label,
-      statusTone: status.tone,
-      isSample: false,
-      isLive: true,
-    });
-  }
-  SAMPLE_APPLICATIONS.forEach((entry) => {
-    const { signUpData: sampleSignUp } = entry.registration;
-    if (!sampleSignUp || !entry.appraisalFeePending) return;
-    actionNeededRows.push({
-      key: sampleSignUp.email,
-      name: `${sampleSignUp.firstName} ${sampleSignUp.lastName}`,
-      email: sampleSignUp.email,
-      statusLabel: 'Awaiting fee approval',
-      statusTone: 'info',
-      isSample: true,
-      isLive: false,
-    });
-  });
-
-  const noRowsAtAll = needsAppraiserRows.length === 0 && actionNeededRows.length === 0;
+  const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
       <Stack spacing={5}>
         <Box sx={{ px: 1 }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#3448B0', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+            Appraiser Workspace
+          </Typography>
           <Typography sx={{ fontSize: 30, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em' }}>
-            Appraisal Appraiser
+            My Assignments
           </Typography>
           <Typography sx={{ fontSize: 14, color: '#667085', mt: 0.5 }}>
-            Assign appraisers to pledged properties, then request the Appraisal fee and submit
-            the report once the client has paid.
+            Claim pledged properties awaiting an appraiser, then request your fee and submit the
+            report once the client has paid.
           </Typography>
         </Box>
 
-        {!signUpData && noRowsAtAll ? (
+        {!signUpData ? (
           <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
             <Iconify icon="solar:home-2-bold-duotone" width={48} sx={{ color: '#C7CCDA', mb: 2 }} />
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              No application in progress
+              Nothing to work on yet
             </Typography>
             <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
               There’s no live application in this session yet. Start one from the Application List.
@@ -297,78 +185,61 @@ export function AppraisalAppraiserView() {
           <>
             <Stack spacing={2}>
               <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-                Needs Appraiser
+                Available for Assignment
               </Typography>
-              {needsAppraiserRows.length > 0 ? (
-                <TableContainer sx={{ ...adminCardSx, p: 0, overflowX: 'auto' }}>
-                  <Table sx={{ minWidth: 720, tableLayout: 'fixed', borderCollapse: 'separate' }}>
-                    <TableHead>
-                      <TableRow
-                        sx={{
-                          '& th': {
-                            bgcolor: '#FBFBFD',
-                            borderBottom: '1px solid #E1E4ED',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: '#8891A6',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            py: 1.5,
-                            px: 2,
-                          },
-                        }}
+              {availableProperties.length > 0 ? (
+                <Box sx={{ ...adminCardSx, p: 0, overflow: 'hidden' }}>
+                  {availableProperties.map((property, index) => (
+                    <Stack
+                      key={property.key}
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      spacing={2}
+                      sx={{
+                        p: { xs: 2, md: 2.5 },
+                        borderBottom: index < availableProperties.length - 1 ? '1px solid #EEF0F5' : 'none',
+                      }}
+                    >
+                      <Stack direction="row" spacing={1.75} alignItems="center" sx={{ minWidth: 0 }}>
+                        <Box
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            flexShrink: 0,
+                            borderRadius: '11px',
+                            display: 'grid',
+                            placeItems: 'center',
+                            bgcolor: '#EEF1FE',
+                          }}
+                        >
+                          <Iconify icon="solar:home-2-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
+                            {property.tctNumber}
+                          </Typography>
+                          <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
+                            {applicantName} · App No. {getLoanNumber(signUpData.email)}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                      <Button
+                        onClick={handleClaim}
+                        variant="outlined"
+                        size="small"
+                        endIcon={<Iconify icon="eva:arrow-ios-forward-fill" width={16} />}
+                        sx={{ ...outlinedNavyButtonSx, flexShrink: 0, whiteSpace: 'nowrap' }}
                       >
-                        <TableCell sx={{ width: '32%' }}>Borrower</TableCell>
-                        <TableCell sx={{ width: '38%' }}>Pledged Properties</TableCell>
-                        <TableCell sx={{ width: '18%' }}>Status</TableCell>
-                        <TableCell align="right" sx={{ width: '12%' }} />
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {needsAppraiserRows.map((row) => {
-                        const isActionable = !row.isSample;
-                        return (
-                          <TableRow
-                            key={row.key}
-                            hover={isActionable}
-                            onClick={isActionable ? () => handleNeedsAppraiserRowClick(row) : undefined}
-                            sx={{
-                              cursor: isActionable ? 'pointer' : 'default',
-                              transition: 'background-color 0.12s ease',
-                              '&:last-of-type td': { borderBottom: 0 },
-                              '& td': { borderColor: '#EEF0F5', py: 1.375, px: 2 },
-                              '&:hover': isActionable ? { bgcolor: '#FAFBFF' } : undefined,
-                            }}
-                          >
-                            <TableCell>
-                              <BorrowerCell name={row.name} email={row.email} isSample={row.isSample} />
-                            </TableCell>
-                            <TableCell>
-                              <Typography
-                                sx={{ fontSize: 12.5, color: '#5A6273', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                title={row.tctNumbers.join(', ')}
-                              >
-                                {row.tctNumbers.join(', ')}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <StatusPill label="Needs appraiser" tone="warning" />
-                            </TableCell>
-                            <TableCell align="right">
-                              {isActionable && (
-                                <Iconify icon="eva:arrow-ios-forward-fill" width={20} sx={{ color: '#8891A6' }} />
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                        Claim
+                      </Button>
+                    </Stack>
+                  ))}
+                </Box>
               ) : (
                 <Box sx={{ ...adminCardSx, p: { xs: 3, md: 4 }, textAlign: 'center' }}>
                   <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-                    No properties currently need an appraiser assigned.
+                    Nothing available right now — check back once a new property is pledged.
                   </Typography>
                 </Box>
               )}
@@ -376,79 +247,66 @@ export function AppraisalAppraiserView() {
 
             <Stack spacing={2}>
               <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-                Appraiser Action Needed
+                My Active Assignments
               </Typography>
-              {actionNeededRows.length > 0 ? (
-                <TableContainer sx={{ ...adminCardSx, p: 0, overflowX: 'auto' }}>
-                  <Table sx={{ minWidth: 720, tableLayout: 'fixed', borderCollapse: 'separate' }}>
-                    <TableHead>
-                      <TableRow
+              {hasActiveAssignment ? (
+                <Box sx={adminCardSx}>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    alignItems={{ xs: 'flex-start', sm: 'center' }}
+                    justifyContent="space-between"
+                    spacing={2}
+                    onClick={() => setAssignmentExpanded((open) => !open)}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <Stack direction="row" spacing={1.75} alignItems="center" sx={{ minWidth: 0 }}>
+                      <Box
                         sx={{
-                          '& th': {
-                            bgcolor: '#FBFBFD',
-                            borderBottom: '1px solid #E1E4ED',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: '#8891A6',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            py: 1.5,
-                            px: 2,
-                          },
+                          width: 42,
+                          height: 42,
+                          flexShrink: 0,
+                          borderRadius: '11px',
+                          display: 'grid',
+                          placeItems: 'center',
+                          bgcolor: TONE_COLORS.info.bg,
                         }}
                       >
-                        <TableCell sx={{ width: '38%' }}>Borrower</TableCell>
-                        <TableCell sx={{ width: '38%' }}>Status</TableCell>
-                        <TableCell align="right" sx={{ width: '24%' }} />
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {actionNeededRows.map((row) => {
-                        const expanded = row.isLive && liveExpanded;
-                        return (
-                          <TableRow
-                            key={row.key}
-                            hover={row.isLive}
-                            onClick={row.isLive ? () => setLiveExpanded((open) => !open) : undefined}
-                            sx={{
-                              cursor: row.isLive ? 'pointer' : 'default',
-                              transition: 'background-color 0.12s ease',
-                              '&:last-of-type td': { borderBottom: 0 },
-                              '& td': { borderColor: '#EEF0F5', py: 1.375, px: 2 },
-                              '&:hover': row.isLive ? { bgcolor: '#FAFBFF' } : undefined,
-                            }}
-                          >
-                            <TableCell>
-                              <BorrowerCell name={row.name} email={row.email} isSample={row.isSample} />
-                            </TableCell>
-                            <TableCell>
-                              <StatusPill label={row.statusLabel} tone={row.statusTone} />
-                            </TableCell>
-                            <TableCell align="right">
-                              {row.isLive && (
-                                <Iconify
-                                  icon={expanded ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
-                                  width={20}
-                                  sx={{ color: '#8891A6' }}
-                                />
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                        <Iconify icon="solar:clipboard-list-bold-duotone" width={21} sx={{ color: TONE_COLORS.info.text }} />
+                      </Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A' }}>
+                          {applicantName}
+                        </Typography>
+                        <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+                          App No. {getLoanNumber(signUpData.email)}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexShrink: 0 }}>
+                      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                        <ProgressTracker activeIndex={progressIndex} />
+                      </Box>
+                      <Iconify
+                        icon={assignmentExpanded ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
+                        width={20}
+                        sx={{ color: '#8891A6' }}
+                      />
+                    </Stack>
+                  </Stack>
+                  <Box sx={{ display: { xs: 'block', md: 'none' }, mt: 2 }}>
+                    <ProgressTracker activeIndex={progressIndex} />
+                  </Box>
+                </Box>
               ) : (
                 <Box sx={{ ...adminCardSx, p: { xs: 3, md: 4 }, textAlign: 'center' }}>
                   <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-                    No assigned appraisers currently have outstanding fee or report work.
+                    No active assignments right now — claim a property above to get started.
                   </Typography>
                 </Box>
               )}
             </Stack>
 
-            {liveExpanded && isLiveActionNeeded && signUpData && (
+            {assignmentExpanded && hasActiveAssignment && signUpData && (
               <Stack spacing={2.5}>
                 <AppraisalFeeCard />
                 {feeSettled &&

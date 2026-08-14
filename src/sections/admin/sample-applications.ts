@@ -67,15 +67,15 @@ export type SampleApplicationEntry = {
     amountDescription: string;
     remarks?: string;
   };
-  // Fake, read-only filler rows for the three Appraisal-role Approval
-  // screens (appraisal-appraiser-view.tsx, appraisal-fee-approval-view.tsx,
-  // appraisal-approver-view.tsx) — same convention as `ciFee` above: the
-  // real live application's appraisal state lives entirely on
-  // review.appraisal/review.requirementChecklist (AdminContext), so these
-  // fields are each screen's only source of additional, non-actionable
-  // sample rows.
-  /** Shown on the Appraisal Appraiser screen — has at least one TCT with no appraiser assigned yet. */
-  appraisalNeedsAppraiser?: { tctNumbers: string[] };
+  // Fake, read-only filler rows for the two admin-facing Approval screens
+  // (appraisal-fee-approval-view.tsx, appraisal-approver-view.tsx) — same
+  // convention as `ciFee` above: the real live application's appraisal
+  // state lives entirely on review.appraisal/review.requirementChecklist
+  // (AdminContext), so these fields are each screen's only source of
+  // additional, non-actionable sample rows. appraisal-appraiser-view.tsx
+  // does NOT use sample filler — it's framed as the signed-in appraiser's
+  // own personal workspace, so it only ever shows the live application's
+  // own work, never other applications' sample data.
   /** Shown on the Appraisal Fee Approval screen — an appraiser has requested a fee, awaiting Head approval. */
   appraisalFeePending?: { amount: string; appraiserName: string };
   /** Shown on the Appraisal Approver screen — every report is submitted, awaiting Head Approval. */
@@ -87,7 +87,6 @@ export type SampleApplicationEntry = {
 export const SAMPLE_APPLICATIONS: SampleApplicationEntry[] = [
   {
     step: 'creditChecking',
-    appraisalNeedsAppraiser: { tctNumbers: ['TCT-2024-01123'] },
     registration: {
       signUpData: {
         firstName: 'Arvin',

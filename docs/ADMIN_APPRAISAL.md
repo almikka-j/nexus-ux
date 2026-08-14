@@ -319,64 +319,63 @@ see `docs/ADMIN_CREDIT_INVESTIGATION.md`). None of these are
 filtering on a derived condition, since none of "needs an appraiser"/"fee
 pending"/"awaiting Head Approval" is a `ReviewStep`.
 
-All three Appraisal-role screens render their queue as a real table
-(`Table`/`TableHead`/`TableRow`/`TableCell`, matching
+**Appraisal Fee Approval** and **Appraisal Approver** render their queue
+as a real table (`Table`/`TableHead`/`TableRow`/`TableCell`, matching
 `application-list-view.tsx`'s main queue table styling — deterministic
 per-borrower avatar palette (`getAvatarPalette`, duplicated locally in
-each of the three view files — not shared/exported from
-`application-list-view.tsx`), uppercase muted column headers, status pill
-with dot indicator) rather than `ci-fee-approval-view.tsx`'s stacked-card
-`QueueRow` rows, since each of these reads more naturally as a straight
-applicant list than as cards:
-
-- **Appraisal Appraiser**'s table (Borrower / Pledged Properties / Status)
-  has no separate detail card below it — the live application's row is
-  itself clickable (hover + chevron) and navigates directly into
-  `paths.admin.appraisal(email)`, where the actual assignment work
-  happens (see below); sample rows are non-clickable, same as every other
-  read-only sample row in this app.
-- **Appraisal Fee Approval**'s table (Borrower / Appraiser / Amount /
-  Status) and **Appraisal Approver**'s table (Borrower / Appraiser /
-  Status) are not clickable — instead, a detail card with the real
-  working Approve/Decline actions renders below the table whenever the
-  live application's row is present, same "list above, detail card below"
-  layout `ci-fee-approval-view.tsx` uses, just with the list itself now a
-  table.
+each view file — not shared/exported from `application-list-view.tsx`),
+uppercase muted column headers, status pill with dot indicator) rather
+than `ci-fee-approval-view.tsx`'s stacked-card `QueueRow` rows, since each
+reads more naturally as a straight applicant list than as cards. Neither
+table is clickable — instead, a detail card with the real working
+Approve/Decline actions renders below the table whenever the live
+application's row is present, same "list above, detail card below" layout
+`ci-fee-approval-view.tsx` uses, just with the list itself now a table.
 
 There is no role/permission system in this app (`AdminUser` has no role
 field — every session is one undifferentiated admin), so nothing gates
-who can open which of these three screens; they exist as distinct
-workflow-framing destinations, not access-controlled ones.
+who can open any of these four screens; they exist as distinct
+workflow-framing destinations, not access-controlled ones. **Appraisal
+Appraiser** is the one exception in spirit, not enforcement: it's
+deliberately framed as the signed-in appraiser's own personal workspace
+(see below) even though, mechanically, any admin session can still open
+it.
 
 - **Appraisal Appraiser** (`/admin/appraisal-appraiser`,
-  `appraisal-appraiser-view.tsx`) — the Appraiser's full workspace, in two
-  tables:
-  - **"Needs Appraiser"** — applications with at least one pledged
-    property whose `AppraisalTctGroup.reportId` is still `null`
+  `appraisal-appraiser-view.tsx`) — framed as "My Assignments," an
+  Appraiser's personal workspace rather than an admin approval queue: an
+  "APPRAISER WORKSPACE" eyebrow label, first-person copy ("Claim pledged
+  properties…", "My Active Assignments"), and **no sample filler rows at
+  all** — unlike every other queue in this app, since a real appraiser's
+  workspace would never show other people's unrelated applications. If
+  there's no live application, or nothing needs attention, each section
+  just reads as empty ("Nothing available right now…" /
+  "No active assignments right now…"), same as a real inbox with nothing
+  pending. Two sections:
+  - **"Available for Assignment"** — pledged properties (TCTs) whose
+    `AppraisalTctGroup.reportId` is still `null`
     (`appraisalGroups.filter(g => g.reportId === null)`, live application
-    only; skipped entirely if `appraisalNotApplicable`). The live row is a
-    link straight into `paths.admin.appraisal(email)` — the actual
-    Collateral titles table/Assign Appraiser modal still live entirely on
-    the Appraisal page itself; this table only surfaces which
-    applications need that work done, it doesn't duplicate the assignment
-    UI. Sample rows come from `SampleApplicationEntry.
-    appraisalNeedsAppraiser: { tctNumbers: string[] }`.
-  - **"Appraiser Action Needed"** — applications that already have an
-    appraiser assigned (`reportBundles.length > 0`) but still need the fee
-    requested, cleared, or the report submitted once paid
-    (`!(feeSettled && allBundlesSubmitted)`). The live row's status pill
-    is one of "Request fee" (`feeStatus === 'not-requested'`), "Awaiting
-    fee approval" (`'pending-approval'`), "Awaiting client payment"
-    (`'approved'` with no `paymentReceivedAt`), or "Report pending"
-    (fee settled, report(s) not yet submitted). Clicking the live row
-    toggles an inline detail panel below both tables that renders
+    only; empty entirely if `appraisalNotApplicable`), each row rendered
+    as a plain list item (icon, TCT number, applicant name/App No.) with
+    a **"Claim"** button. Claiming still routes into
+    `paths.admin.appraisal(email)` — the actual Collateral titles
+    table/Assign Appraiser modal live entirely on the Appraisal page
+    itself, not duplicated here — but the button reads "Claim," not
+    "Assign appraiser," to match the personal-workspace framing.
+  - **"My Active Assignments"** — one row when the live application has
+    an appraiser assigned (`reportBundles.length > 0`) but still needs
+    the fee requested, cleared, or the report submitted once paid
+    (`!(feeSettled && allBundlesSubmitted)`). Instead of a status pill,
+    each assignment shows a 5-step `ProgressTracker` (Assigned → Fee
+    requested → Fee approved → Client paid → Report submitted, filled
+    icons up to the current step) computed from `feeStatus`/
+    `paymentReceivedAt`/bundle submission state. Clicking the row toggles
+    an inline detail panel below both sections that renders
     `AppraisalFeeCard` (request/advise-client/payment-received — the same
     component `appraisal-view.tsx` used to render directly) and, once
     `feeSettled`, one `AppraiserAssignmentCard` per bundle (create/upload
     report — same component `appraisal-view.tsx` still renders for
-    already-settled bundles). Sample rows (read-only, no expand) come from
-    `SampleApplicationEntry.appraisalFeePending`, reusing that same field
-    since both are "an appraiser has outstanding fee/report work" filler.
+    already-settled bundles).
 - **Appraisal Fee Approval** (`/admin/appraisal-fee-approval`,
   `appraisal-fee-approval-view.tsx`) — lists applications where
   `review.appraisal.feeStatus === 'pending-approval'`. Same
