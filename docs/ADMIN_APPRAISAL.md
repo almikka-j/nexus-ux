@@ -311,23 +311,29 @@ see `docs/ADMIN_CREDIT_INVESTIGATION.md`). None of these are
 filtering on a derived condition, since none of "needs an appraiser"/"fee
 pending"/"awaiting Head Approval" is a `ReviewStep`.
 
-**Appraisal Fee Approval** and **Appraisal Approver** follow
-`ci-fee-approval-view.tsx`'s exact shape: a `QueueRow`-style stacked-card
-list (live application + read-only sample filler rows), and — for the live
-application only — a detail card with real working actions below the
-list.
-
-**Appraisal Appraiser** instead renders as a real table
+All three Appraisal-role screens render their queue as a real table
 (`Table`/`TableHead`/`TableRow`/`TableCell`, matching
 `application-list-view.tsx`'s main queue table styling — deterministic
-per-borrower avatar palette, uppercase muted column headers, hover +
-click-to-navigate on the live row, chevron), since this queue reads more
-naturally as a straight applicant list (Borrower / Pledged Properties /
-Status) than as stacked cards. There is no separate detail card below the
-table — clicking the live application's row navigates directly into
-`paths.admin.appraisal(email)`, where the actual assignment work happens
-(see below); sample rows are non-clickable, same as every other read-only
-sample row in this app.
+per-borrower avatar palette (`getAvatarPalette`, duplicated locally in
+each of the three view files — not shared/exported from
+`application-list-view.tsx`), uppercase muted column headers, status pill
+with dot indicator) rather than `ci-fee-approval-view.tsx`'s stacked-card
+`QueueRow` rows, since each of these reads more naturally as a straight
+applicant list than as cards:
+
+- **Appraisal Appraiser**'s table (Borrower / Pledged Properties / Status)
+  has no separate detail card below it — the live application's row is
+  itself clickable (hover + chevron) and navigates directly into
+  `paths.admin.appraisal(email)`, where the actual assignment work
+  happens (see below); sample rows are non-clickable, same as every other
+  read-only sample row in this app.
+- **Appraisal Fee Approval**'s table (Borrower / Appraiser / Amount /
+  Status) and **Appraisal Approver**'s table (Borrower / Appraiser /
+  Status) are not clickable — instead, a detail card with the real
+  working Approve/Decline actions renders below the table whenever the
+  live application's row is present, same "list above, detail card below"
+  layout `ci-fee-approval-view.tsx` uses, just with the list itself now a
+  table.
 
 There is no role/permission system in this app (`AdminUser` has no role
 field — every session is one undifferentiated admin), so nothing gates
