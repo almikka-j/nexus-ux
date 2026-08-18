@@ -16,10 +16,12 @@ import { adminCardSx, outlinedNavyButtonSx, TONE_COLORS } from 'src/components/a
 
 // ----------------------------------------------------------------------
 // Simulated head-officer review of the submitted appraisal report/file —
-// same "no real second login" convention as CI Fee approval. Declining
-// requires a typed reason and clears the submitted report/file so the
-// assigned appraiser (in-house or external) resubmits; the appraiserType
-// choice itself is preserved.
+// renders directly once reportSubmitted (see appraisal-view.tsx) — same
+// "no real second login" convention as CI Fee approval. Declining
+// requires a typed reason and clears every bundle's submitted report/file
+// (clearAllAppraisalBundleReports) so the assigned appraiser (in-house or
+// external) resubmits; each bundle's appraiserType and TCT membership are
+// preserved — only report contents are cleared.
 // ----------------------------------------------------------------------
 
 export function HeadApprovalCard() {
@@ -50,51 +52,54 @@ export function HeadApprovalCard() {
       </Typography>
 
       <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        justifyContent="space-between"
+        direction="row"
+        alignItems="center"
         spacing={1.5}
         sx={{ p: 2, borderRadius: '12px', bgcolor: tone.bg }}
       >
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Iconify
-            icon={headApprovalStatus === 'approved' ? 'solar:check-circle-bold' : 'solar:hourglass-bold-duotone'}
-            width={20}
-            sx={{ color: tone.text }}
-          />
-          <Box>
-            <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: tone.text }}>
-              {headApprovalStatus === 'approved' ? 'Approved — reviewed and noted' : 'Awaiting Head Approval'}
+        <Iconify
+          icon={headApprovalStatus === 'approved' ? 'solar:check-circle-bold' : 'solar:hourglass-bold-duotone'}
+          width={20}
+          sx={{ color: tone.text, flexShrink: 0 }}
+        />
+        <Box>
+          <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: tone.text }}>
+            {headApprovalStatus === 'approved' ? 'Approved — reviewed and noted' : 'Awaiting Head Approval'}
+          </Typography>
+          {headApprovalDeclineReason && headApprovalStatus === 'pending' && (
+            <Typography sx={{ fontSize: 12, color: '#5A6273', mt: 0.25 }}>
+              Last decline reason: {headApprovalDeclineReason}
             </Typography>
-            {headApprovalDeclineReason && headApprovalStatus === 'pending' && (
-              <Typography sx={{ fontSize: 12, color: '#5A6273', mt: 0.25 }}>
-                Last decline reason: {headApprovalDeclineReason}
-              </Typography>
-            )}
-          </Box>
-        </Stack>
+          )}
+        </Box>
+      </Stack>
 
-        {headApprovalStatus === 'pending' && (
-          <Stack direction="row" spacing={1.25} flexShrink={0}>
+      {headApprovalStatus === 'pending' && (
+        <Stack spacing={1} sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
             <Button
               onClick={approve}
               variant="contained"
-              size="small"
-              sx={{ bgcolor: '#0C8A4F', borderRadius: '10px', px: 2, '&:hover': { bgcolor: '#0A7042' } }}
+              startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
+              sx={{ bgcolor: '#0C8A4F', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#0A7042' } }}
             >
               Simulate: Head Approves
             </Button>
             <Button
               onClick={() => setDeclineOpen(true)}
               variant="outlined"
-              size="small"
-              sx={{ ...outlinedNavyButtonSx, px: 2, bgcolor: 'common.white' }}
+              startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
+              sx={{ color: '#B32C22', borderColor: '#F3C4BE', borderRadius: '10px', px: 2.5, '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(179,44,34,0.04)' } }}
             >
               Simulate: Head Declines
             </Button>
           </Stack>
-        )}
-      </Stack>
+          <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
+            There’s no real Head login in this prototype — approving or declining here simulates
+            your review.
+          </Typography>
+        </Stack>
+      )}
 
       <ConfirmDialog
         open={declineOpen}

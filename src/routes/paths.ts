@@ -71,6 +71,7 @@ export const paths = {
     negativeList: '/admin/negative-list',
     ciFeeApproval: '/admin/ci-fee-approval',
     appraisalAppraiser: '/admin/appraisal-appraiser',
+    appraisalAppraiserBundle: (bundleId: string) => `/admin/appraisal-appraiser/${bundleId}`,
     appraisalFeeApproval: '/admin/appraisal-fee-approval',
     appraisalApprover: '/admin/appraisal-approver',
     creditChecking: (id: string) => `/admin/applications/${id}/credit-checking`,

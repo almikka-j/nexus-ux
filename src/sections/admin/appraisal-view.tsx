@@ -18,10 +18,9 @@ import { adminCardSx } from 'src/components/admin-ui';
 
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
-import { HeadApprovalCard } from './appraisal/head-approval-card';
 import { PassFailCard } from './appraisal/pass-fail-card';
 import { AppraisalTctTable } from './appraisal/appraisal-tct-table';
-import { AppraiserAssignmentCard } from './appraisal/appraiser-assignment-card';
+import { AssignedAppraiserCard } from './appraisal/assigned-appraiser-card';
 
 // ----------------------------------------------------------------------
 
@@ -71,8 +70,7 @@ export function AppraisalView() {
   const { signUpData } = useRegistration();
   const { review } = useAdmin();
   const { appraisalGroups, appraisalNotApplicable } = review.requirementChecklist;
-  const { headApprovalStatus, reportBundles, feeStatus, paymentReceivedAt, passed, failReason } =
-    review.appraisal;
+  const { headApprovalStatus, reportBundles, passed, failReason } = review.appraisal;
 
   if (!signUpData) return null;
 
@@ -82,11 +80,24 @@ export function AppraisalView() {
 
   const applicantName = `${signUpData.firstName} ${signUpData.lastName}`;
 
-  // Fee request/settlement and report creation/upload now happen on the
-  // Appraisal Appraiser page (appraisal-appraiser-view.tsx) — this page
-  // only shows the assigned bundle's report once it's actually submitted,
-  // so an appraiser can't fill in a report here before the fee is settled.
-  const feeSettled = feeStatus === 'not-applicable' || (feeStatus === 'approved' && !!paymentReceivedAt);
+  // The Appraisal Officer proposes each bundle's fee decision inline in
+  // the Assign Appraiser modal, but deciding/submitting the batch fee
+  // request lives entirely on the Appraisal Appraiser page
+  // (appraisal-appraiser-view.tsx) now — it's the Appraiser's job to
+  // actually request the fee, not the Officer's, so this page never
+  // renders that UI. Report creation/upload/viewing is on the same
+  // Appraiser page too; this page never shows a submitted report's
+  // contents inline — AssignedAppraiserCard's "View Report" button opens
+  // it in a modal instead (see assigned-appraiser-card.tsx).
+  //
+  // Head Approval of the submitted report is likewise not this page's
+  // job anymore — that decision is made entirely on the "Appraisal -
+  // Approver Report" page (appraisal-approver-view.tsx, under the
+  // "Request" nav dropdown), so this page never renders HeadApprovalCard.
+  // It still reads headApprovalStatus directly off review.appraisal to
+  // gate Pass/Fail, since both pages share the same underlying state —
+  // once the Approver approves the report there, the Pass/Fail decision
+  // unlocks here immediately with no extra step in between.
   const allGroupsAssigned = appraisalGroups.every((group) => group.reportId !== null);
   const allBundlesSubmitted = reportBundles.every((bundle) => !!bundle.report.uploadedAt);
   const reportSubmitted =
@@ -113,49 +124,9 @@ export function AppraisalView() {
           <AppraisalTctTable applicantName={applicantName} />
         )}
 
-        {!appraisalNotApplicable && reportBundles.length > 0 ? (
-          feeSettled ? (
-            reportBundles.map((bundle) => (
-              <AppraiserAssignmentCard
-                key={bundle.id}
-                bundleId={bundle.id}
-                tctNumbers={appraisalGroups
-                  .filter((group) => bundle.tctGroupIds.includes(group.id))
-                  .map((group) => group.tctNumber)}
-              />
-            ))
-          ) : (
-            <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
-              <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
-              <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-                The assigned appraiser must request and settle the Appraisal fee on the Appraisal
-                Appraiser page before the report can be created or uploaded.
-              </Typography>
-            </Box>
-          )
-        ) : null}
+        {!appraisalNotApplicable && reportBundles.length > 0 && <AssignedAppraiserCard />}
 
-        {reportSubmitted ? (
-          <HeadApprovalCard />
-        ) : (
-          <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
-            <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
-            <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-              Submit the appraisal report above to unlock Head Approval.
-            </Typography>
-          </Box>
-        )}
-
-        {headApproved && reportSubmitted ? (
-          <PassFailCard onFailed={() => {}} />
-        ) : reportSubmitted ? (
-          <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
-            <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
-            <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-              Head Approval must approve the report above to unlock the Pass/Fail decision.
-            </Typography>
-          </Box>
-        ) : null}
+        {headApproved && reportSubmitted && <PassFailCard onFailed={() => {}} />}
       </Stack>
     </Container>
   );

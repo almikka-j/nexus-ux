@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
@@ -29,15 +30,21 @@ import { getLoanNumber } from 'src/utils/get-loan-number';
 // ci-fee-approval-view.tsx's "My Approvals": an "APPRAISAL FEE APPROVER"
 // eyebrow label, first-person copy, and no sample filler rows — a real
 // approver's inbox would never show other people's unrelated requests.
-// `review.appraisal.feeStatus` lives on a single flat AdminContext
-// object, so this only ever has the one live application's request to
-// show.
+//
+// Each pledged property proposes its own fee decision (Yes/No + amount)
+// inline in the Assign Appraiser modal on the Appraisal page — this page
+// never approves one property's fee in isolation. It reviews the whole
+// batch (`review.appraisal.reportBundles`, each with its own
+// feeNeeded/feeAmount/feeDescription/feeRemarks) as one request once the
+// officer has submitted it (`feeApprovalStatus === 'pending-approval'`),
+// and approves or declines all of it in a single action.
 // ----------------------------------------------------------------------
 
 export function AppraisalFeeApprovalView() {
   const { signUpData } = useRegistration();
-  const { review, setAppraisal } = useAdmin();
-  const { feeStatus, feeAmount, feeDescription, feeRemarks } = review.appraisal;
+  const { review, approveAppraisalFees, declineAppraisalFees } = useAdmin();
+  const { appraisalGroups } = review.requirementChecklist;
+  const { feeApprovalStatus, reportBundles } = review.appraisal;
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -45,11 +52,14 @@ export function AppraisalFeeApprovalView() {
   const [justApproved, setJustApproved] = useState(false);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
-  const isPending = !!signUpData && feeStatus === 'pending-approval';
+  const isPending = !!signUpData && feeApprovalStatus === 'pending-approval';
+
+  const feeBundles = reportBundles.filter((bundle) => bundle.feeNeeded === 'yes');
+  const totalFeeAmount = feeBundles.reduce((sum, bundle) => sum + (Number(bundle.feeAmount) || 0), 0);
 
   const confirmApprove = () => {
     setConfirmOpen(false);
-    setAppraisal({ feeStatus: 'approved' });
+    approveAppraisalFees();
     setJustApproved(true);
   };
 
@@ -60,13 +70,7 @@ export function AppraisalFeeApprovalView() {
 
   const confirmDecline = () => {
     if (!declineReason.trim()) return;
-    setAppraisal({
-      feeStatus: 'not-requested',
-      feeAmount: '',
-      feeDescription: '',
-      feeRemarks: '',
-      feeDeclineReason: declineReason.trim(),
-    });
+    declineAppraisalFees(declineReason.trim());
     setDeclineOpen(false);
     setDeclineReason('');
   };
@@ -82,7 +86,7 @@ export function AppraisalFeeApprovalView() {
             My Approvals
           </Typography>
           <Typography sx={{ fontSize: 14, color: '#667085', mt: 0.5 }}>
-            Appraisal fee requests from the appraiser, waiting on your decision.
+            Appraisal fee requests from the officer, waiting on your decision.
           </Typography>
         </Box>
 
@@ -115,57 +119,64 @@ export function AppraisalFeeApprovalView() {
               </Typography>
             </Stack>
 
-            <Stack
-              spacing={1.5}
-              sx={{ p: 2, borderRadius: '12px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}
-            >
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ pb: 1.5, borderBottom: '1px solid #E7EAF1' }}
-              >
-                <Box>
-                  <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#8891A6' }}>
-                    REQUEST AMOUNT
-                  </Typography>
-                  <Typography sx={{ mt: 0.25, fontSize: 21, fontWeight: 800, color: '#1C2A6E' }}>
-                    {fCurrency(feeAmount)}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    width: 38,
-                    height: 38,
-                    display: 'grid',
-                    placeItems: 'center',
-                    borderRadius: '10px',
-                    color: '#1C2A6E',
-                    bgcolor: '#E9EDFF',
-                  }}
-                >
-                  <Iconify icon="solar:wad-of-money-bold-duotone" width={22} />
-                </Box>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Description</Typography>
-                <Typography sx={{ fontSize: 12.5, color: '#3B4256', textAlign: 'right', maxWidth: '65%' }}>
-                  {feeDescription}
-                </Typography>
-              </Stack>
-              {feeRemarks && (
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Remarks</Typography>
-                  <Typography sx={{ fontSize: 12.5, color: '#3B4256', textAlign: 'right', maxWidth: '65%' }}>
-                    {feeRemarks}
-                  </Typography>
-                </Stack>
+            <Stack spacing={1}>
+              {reportBundles.map((bundle) => {
+                const bundleTctNumbers = appraisalGroups
+                  .filter((group) => bundle.tctGroupIds.includes(group.id))
+                  .map((group) => group.tctNumber);
+                return (
+                  <Stack
+                    key={bundle.id}
+                    direction={{ xs: 'column', sm: 'row' }}
+                    alignItems={{ xs: 'flex-start', sm: 'center' }}
+                    justifyContent="space-between"
+                    spacing={1}
+                    sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5', bgcolor: '#F9FAFC' }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
+                        {bundleTctNumbers.join(', ')}
+                      </Typography>
+                      <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
+                        {bundle.appraiserName ?? 'No appraiser assigned'}
+                      </Typography>
+                      {bundle.feeNeeded === 'yes' && bundle.feeDescription && (
+                        <Typography sx={{ fontSize: 12, color: '#8891A6', mt: 0.25 }}>
+                          {bundle.feeDescription}
+                        </Typography>
+                      )}
+                    </Box>
+                    {bundle.feeNeeded === 'yes' ? (
+                      <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#1C2A6E', flexShrink: 0 }}>
+                        {fCurrency(bundle.feeAmount)}
+                      </Typography>
+                    ) : (
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#8891A6', flexShrink: 0 }}>
+                        No fee needed
+                      </Typography>
+                    )}
+                  </Stack>
+                );
+              })}
+
+              {feeBundles.length > 0 && (
+                <>
+                  <Divider sx={{ borderColor: '#EEF0F5' }} />
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5, py: 0.5 }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#5A6273' }}>
+                      Total Appraisal Fees
+                    </Typography>
+                    <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#1C2A6E' }}>
+                      {fCurrency(totalFeeAmount)}
+                    </Typography>
+                  </Stack>
+                </>
               )}
             </Stack>
 
             <Typography sx={{ fontSize: 12.5, color: '#5A6273', mt: 2.5 }}>
-              This request is waiting on your decision before the appraiser can advise the client
-              to settle.
+              This request is waiting on your decision before the officer can advise the client to
+              settle.
             </Typography>
 
             <Stack spacing={1} sx={{ mt: 2.5 }}>
@@ -176,7 +187,7 @@ export function AppraisalFeeApprovalView() {
                   startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
                   sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#14205A' } }}
                 >
-                  Approve Appraisal Fee
+                  Approve Appraisal Fees
                 </Button>
                 <Button
                   onClick={() => setDeclineOpen(true)}
@@ -184,7 +195,7 @@ export function AppraisalFeeApprovalView() {
                   startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
                   sx={{ color: '#B32C22', borderColor: '#F3C4BE', borderRadius: '10px', px: 2.5, '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(179,44,34,0.04)' } }}
                 >
-                  Decline Appraisal Fee
+                  Decline Appraisal Fees
                 </Button>
               </Stack>
               <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
@@ -201,8 +212,8 @@ export function AppraisalFeeApprovalView() {
             </Typography>
             <Typography sx={{ fontSize: 14, color: '#8891A6' }}>
               {justApproved
-                ? `You already approved the Appraisal Fee for ${applicantName}.`
-                : 'No appraiser has requested an Appraisal fee for the current application yet.'}
+                ? `You already approved the Appraisal Fees for ${applicantName}.`
+                : 'No officer has submitted Appraisal Fees for the current application yet.'}
             </Typography>
           </Box>
         )}
@@ -211,12 +222,13 @@ export function AppraisalFeeApprovalView() {
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="Approve Appraisal Fee?"
+        title="Approve Appraisal Fees?"
         content={
           <>
-            Approving lets the appraiser advise the client to settle the fee for{' '}
+            Approving lets the officer advise the client to settle the fees for{' '}
             <strong>{applicantName}</strong>
-            {feeAmount ? <> ({fCurrency(feeAmount)})</> : null}. This can’t be undone from here.
+            {feeBundles.length > 0 ? <> ({fCurrency(totalFeeAmount)} total)</> : null}. This can’t be
+            undone from here.
           </>
         }
         action={

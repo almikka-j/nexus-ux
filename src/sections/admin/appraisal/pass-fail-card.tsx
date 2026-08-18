@@ -19,10 +19,15 @@ import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-
 import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 // ----------------------------------------------------------------------
-// Manual Pass/Fail judgment call, gated on Head Approval. Pass routes
-// forward to the Credit Scoring stub; Fail requires a typed reason and
-// calls `onFailed` so the parent view swaps to a terminal outcome screen —
-// this app has no automated appraised-value-vs-loan-amount comparison.
+// Manual Pass/Fail judgment call, gated on Head Approval
+// (`headApprovalStatus === 'approved'`, decided entirely on the
+// "Appraisal - Approver Report" page now — this card's parent view
+// doesn't render any Head Approval UI of its own). Pass routes forward
+// to the Credit Scoring stub, which is effectively where this
+// appraisal's own page ends — Pass is the terminal action; Fail requires
+// a typed reason and calls `onFailed` so the parent view swaps to a
+// terminal outcome screen instead — this app has no automated
+// appraised-value-vs-loan-amount comparison.
 // ----------------------------------------------------------------------
 
 export function PassFailCard({ onFailed }: { onFailed: (reason: string) => void }) {

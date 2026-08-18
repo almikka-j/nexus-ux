@@ -198,6 +198,7 @@ function buildSampleAppraisalGroups(
   return SAMPLE_TCT_NUMBERS.map((tctNumber) => ({
     id: crypto.randomUUID(),
     tctNumber,
+    collateralType: 'real-estate' as const,
     documents: APPRAISAL_DOC_META.map((meta) => ({
       key: meta.key,
       status: statusFor(meta),

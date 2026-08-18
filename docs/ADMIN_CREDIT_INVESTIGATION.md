@@ -296,14 +296,17 @@ action, so toggling sample data on and off can never fight that effect.
 **Dedicated CI Fee Approval screen** (`/admin/ci-fee-approval`,
 `src/sections/admin/ci-fee-approval-view.tsx`) offers a second, fuller-review
 way to trigger the same two outcomes — nested as the first entry under the
-**"Approval"** nav dropdown (`approvalItems`, `config-nav-admin.tsx`,
-alongside "Appraisal Appraiser"/"Appraisal Fee Approval"/"Appraisal
-Approver" — see `docs/ADMIN_APPRAISAL.md`) rather than a page action buried
-in the settings popover. Framed as **"My Approvals"**, the CI Head/
+**"Request"** nav dropdown (`approvalItems`, `config-nav-admin.tsx` — the
+variable name is unchanged, only the rendered dropdown title moved from
+"Approval" to "Request"), alongside "Appraiser"/"Appraisal - Approver
+Fee"/"Appraisal - Approver Report" (renamed from "Appraisal Appraiser"/
+"Appraisal Fee Approval"/"Appraisal Approver" respectively — see
+`docs/ADMIN_APPRAISAL.md`) rather than a page action buried in the settings
+popover. Framed as **"My Approvals"**, the CI Head/
 Approver's own personal workspace (small "CI HEAD / APPROVER" eyebrow
 label, first-person copy, no sample filler rows — see
 `docs/ADMIN_APPRAISAL.md`'s "Approval-role screens" section for the
-convention shared across all four Approval screens), not a generic
+convention shared across all four Request-dropdown screens), not a generic
 admin-facing queue. It reads the same single live
 `review.creditInvestigation` state and, while
 `ciFeeStatus === 'pending-approval'`, shows the applicant identity, the same

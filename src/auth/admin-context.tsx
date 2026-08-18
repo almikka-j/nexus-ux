@@ -546,16 +546,26 @@ export type RequirementDoc = {
   reviewed: boolean;
 };
 
+// Real estate (TCT/CCT title) or chattel (no title document — e.g. a
+// vehicle or equipment) — the Collateral table/Assign Appraiser flow works
+// the same either way, but the label and appraisal approach differ enough
+// to track explicitly per entry rather than assuming every pledged item is
+// titled real property.
+export type AppraisalCollateralType = 'real-estate' | 'chattel';
+
 // One property/collateral pledged toward this application, identified by
-// its TCT/CCT number. Each carries its own full, independent copy of
-// APPRAISAL_DOC_META's 8 documents — a borrower with multiple pledged
-// properties has one group per property, each tracked separately (see
+// its collateral number (a TCT/CCT number for real estate; a plate/serial
+// number for chattel — the field itself stays freeform text either way).
+// Each carries its own full, independent copy of APPRAISAL_DOC_META's 8
+// documents — a borrower with multiple pledged properties has one group
+// per property, each tracked separately (see
 // requirement-checklist-docs.ts's header comment for why these are NOT
 // shared the way Working Visa/Statement of Account etc. are across Credit
 // Investigation and Financial Evaluation).
 export type AppraisalTctGroup = {
   id: string;
   tctNumber: string;
+  collateralType: AppraisalCollateralType;
   documents: RequirementDoc[];
   // Points at the AppraisalReportBundle (below) this property has been
   // folded into, if any. null = not yet selected into any report — the
@@ -570,6 +580,18 @@ export type OutreachMessage = {
   id: string;
   channel: OutreachChannel;
   text: string;
+  sentAt: string;
+};
+
+// A targeted "Request Document" send from the Collateral titles table —
+// scoped to one TCT/CCT group and a specific subset of its APPRAISAL_DOC_META
+// document keys, distinct from the page-level outreachMessages above (which
+// send a single freeform message, not tied to a property or document list).
+export type DocumentRequestMessage = {
+  id: string;
+  tctGroupId: string;
+  documentKeys: string[];
+  remarks: string;
   sentAt: string;
 };
 
@@ -590,6 +612,10 @@ export type RequirementChecklist = {
   // The Requirement Checklist card's "Documents requested" banner derives
   // from this array's last entry rather than a separate snapshot field.
   outreachMessages: OutreachMessage[];
+  // History of per-TCT "Request Document" sends from the Collateral titles
+  // table (see DocumentRequestMessage above) — independent of
+  // outreachMessages since each entry targets one property + a document list.
+  documentRequests: DocumentRequestMessage[];
   endorsed: boolean;
   /**
    * Set by Sales Reject — same reason-dropdown + optional-remarks pattern as
@@ -689,20 +715,133 @@ export type CiReport = {
   transcriptUploadedAt: string | null;
 };
 
-export type AppraisalFeeStatus =
-  | 'not-requested'
-  | 'pending-approval'
-  | 'approved'
-  | 'declined'
-  | 'not-applicable';
+// Whether a bundle needs an Appraisal Fee at all, and its proposed amount
+// if so — decided per bundle, at assign time (the Assign Appraiser
+// modal's Yes/No question), not as one app-wide decision. `null` means
+// not yet decided (only reachable defensively; the modal always resolves
+// this before the bundle can be created in the normal flow).
+export type FeeNeeded = 'yes' | 'no' | null;
+
+// The single whole-application "batch" a set of per-bundle proposed fees
+// travels through together — every bundle's fee is drafted individually
+// at assign time, but they're only ever sent to the Head/approver as one
+// combined request via "Submit Fees for Approval" once every pledged
+// property has an appraiser (and therefore a fee decision) assigned.
+// Declining resets every bundle's fee draft back to undecided so the
+// officer re-proposes for all of them, not just one.
+export type FeeApprovalStatus = 'not-submitted' | 'pending-approval' | 'approved' | 'declined';
 
 export type AppraiserType = 'inhouse' | 'external';
 
+// Per-title (TCT/OCT) land details inside an in-house Appraisal Report,
+// one entry per AppraisalTctGroup covered by the bundle — mirrors the
+// "LAND" / "BOUNDARIES" / "TECHNICAL SPECIFICATION" tables in the printed
+// Appraisal Report (REM) PDF, which repeat once per title.
+export type AppraisalReportLandTitle = {
+  tctGroupId: string;
+  surveyNo: string;
+  bookPageNo: string;
+  titleRegistrationDate: string;
+  titleRegistrationPlace: string;
+  areaSize: string;
+  lotNo: string;
+  zonalValue: string;
+  boundaries: string;
+  technicalSpecification: string;
+};
+
+function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLandTitle {
+  return {
+    tctGroupId,
+    surveyNo: '',
+    bookPageNo: '',
+    titleRegistrationDate: '',
+    titleRegistrationPlace: '',
+    areaSize: '',
+    lotNo: '',
+    zonalValue: '',
+    boundaries: '',
+    technicalSpecification: '',
+  };
+}
+
+// Full in-house Appraisal Report — matches the printed "Appraisal Report
+// (REM)" PDF section-by-section (LAND, ENCUMBRANCES/REMARKS, BOUNDARIES,
+// TECHNICAL SPECIFICATION, SOURCE OR KIND OF UTILITIES, IMPROVEMENT /
+// GENERAL CONSTRUCTION FEATURES, PARTICULAR DESCRIPTION, BASIS OF
+// VALUATION (LAND), REMARKS/ADDITIONAL INFORMATION, the FMV/RCN valuation
+// table, and the Prepared/Reviewed/Endorsed/Noted by signature chain).
+// `landTitles` holds one entry per pledged property (AppraisalTctGroup)
+// the bundle covers, since those sections repeat per TCT/OCT in the PDF —
+// everything else is one shared set of fields for the whole report.
+// External appraisers skip all of this and just upload a finished file
+// (fileName/fileUrl/uploadedAt), same as before.
 export type AppraisalReport = {
-  propertyDetails: string;
+  dateReport: string;
+  dateInspected: string;
+  requestingOfficer: string;
+  branch: string;
+
+  registeredOwner: string;
+  locationOfProperty: string;
+  landTitles: AppraisalReportLandTitle[];
+  encumbrancesRemarks: string;
+
+  streetFrontage: string;
+  streetWidth: string;
+  surfacing: string;
+  averageDepth: string;
+  approxShape: string;
+  topography: string;
+  neighborhood: string;
+  presentUse: string;
+  highestAndBestUse: string;
+
+  utilityPublicConveyance: string;
+  utilityElectricity: string;
+  utilityWater: string;
+  utilityTelephone: string;
+
+  generalConstructionFeatures: string;
+  floorLevel: string;
+  externalWalls: string;
+  interiorWallsPartitions: string;
+  flooring: string;
+  doorsWindows: string;
+  ceilingRoofing: string;
+
+  basisSource: string;
+  basisLocation: string;
+  basisAreaSize: string;
+  basisPriceType: string;
+  basisSellingPrice: string;
+  fairMarketValuePerSqm: string;
+
+  remarksAdditionalInfo: string;
+
+  itemOfProperty: string;
+  fmvRcn: string;
+  constructionStatusPercent: string;
+  depreciatedValue: string;
+  appraisedValueP: string;
+
   appraisedValue: string;
+  roundedFigures: string;
+  amountInWords: string;
+  loanableAmount: string;
+
+  preparedBy: string;
+  reviewedBy: string;
+  endorsedBy: string;
+  notedBy: string;
+
+  // Legacy free-text fields, kept for the officer-facing summary and the
+  // Recommendation input the source process diagram calls for — distinct
+  // from the structured PDF fields above.
+  propertyDetails: string;
   remarks: string;
   recommendation: string;
+
   fileName: string | null;
   fileUrl: string | null;
   uploadedAt: string | null;
@@ -725,6 +864,14 @@ export type AppraisalReportBundle = {
   // the officer picks one in the Assign Appraiser modal.
   appraiserName: string | null;
   targetCompletionDate: string | null;
+  // Proposed at assign time (Assign Appraiser modal's Yes/No + fields) —
+  // this bundle's own draft fee, independent of every other bundle's.
+  // Locks once the whole batch is submitted (Appraisal.feeApprovalStatus
+  // !== 'not-submitted'); a decline resets these back to undecided.
+  feeNeeded: FeeNeeded;
+  feeAmount: string;
+  feeDescription: string;
+  feeRemarks: string;
   report: AppraisalReport;
 };
 
@@ -742,10 +889,9 @@ export const APPRAISER_ROSTER = [
 export type HeadApprovalStatus = 'pending' | 'approved' | 'declined';
 
 export type Appraisal = {
-  feeStatus: AppraisalFeeStatus;
-  feeAmount: string;
-  feeDescription: string;
-  feeRemarks: string;
+  // Whole-application batch state every bundle's individually-proposed
+  // fee travels through together — see FeeApprovalStatus above.
+  feeApprovalStatus: FeeApprovalStatus;
   feeDeclineReason: string;
   clientNotifiedAt: string | null;
   sentToOdooAt: string | null;
@@ -846,10 +992,11 @@ type AdminContextValue = AdminState & {
   updateComakerEntry: (id: string, data: Partial<CiComakerEntry>) => void;
   removeComakerEntry: (id: string) => void;
   setRequirementChecklist: (data: Partial<RequirementChecklist>) => void;
-  addAppraisalGroup: (tctNumber: string) => void;
+  addAppraisalGroup: (tctNumber: string, collateralType?: AppraisalCollateralType) => void;
   removeAppraisalGroup: (groupId: string) => void;
   updateAppraisalGroupDoc: (groupId: string, docKey: string, data: Partial<RequirementDoc>) => void;
   addOutreachMessage: (message: { channel: OutreachChannel; text: string }) => void;
+  addDocumentRequestMessage: (message: { tctGroupId: string; documentKeys: string[]; remarks: string }) => void;
   setCreditInvestigation: (data: Partial<CreditInvestigation>) => void;
   setCiReport: (data: Partial<CiReport>) => void;
   setAppraisal: (data: Partial<Appraisal>) => void;
@@ -857,13 +1004,28 @@ type AdminContextValue = AdminState & {
     tctGroupIds: string[],
     appraiserType: AppraiserType,
     appraiserName: string | null,
-    targetCompletionDate: string | null
+    targetCompletionDate: string | null,
+    fee?: { feeNeeded: FeeNeeded; feeAmount: string; feeDescription: string; feeRemarks: string }
   ) => void;
-  addTctGroupsToReportBundle: (bundleId: string, tctGroupIds: string[]) => void;
   setAppraisalBundleAppraiserType: (bundleId: string, appraiserType: AppraiserType) => void;
+  setAppraisalBundleFee: (
+    bundleId: string,
+    data: Partial<Pick<AppraisalReportBundle, 'feeNeeded' | 'feeAmount' | 'feeDescription' | 'feeRemarks'>>
+  ) => void;
   setAppraisalBundleReport: (bundleId: string, data: Partial<AppraisalReport>) => void;
+  setAppraisalBundleLandTitle: (
+    bundleId: string,
+    tctGroupId: string,
+    data: Partial<AppraisalReportLandTitle>
+  ) => void;
   deleteAppraisalReportBundle: (bundleId: string) => void;
   clearAllAppraisalBundleReports: () => void;
+  // The "one buong request" batch action — every bundle must already have
+  // an appraiser AND a fee decision (feeNeeded !== null) before this can
+  // fire; see appraisal-tct-table.tsx's gating logic.
+  submitAppraisalFeesForApproval: () => void;
+  approveAppraisalFees: () => void;
+  declineAppraisalFees: (reason: string) => void;
   addCreditInvestigationDocument: (
     label: string,
     uploadedBy: string,
@@ -1010,10 +1172,7 @@ function createInitialCreditInvestigation(): CreditInvestigation {
 
 function createInitialAppraisal(): Appraisal {
   return {
-    feeStatus: 'not-requested',
-    feeAmount: '',
-    feeDescription: '',
-    feeRemarks: '',
+    feeApprovalStatus: 'not-submitted',
     feeDeclineReason: '',
     clientNotifiedAt: null,
     sentToOdooAt: null,
@@ -1063,10 +1222,15 @@ function createAppraisalGroupDocuments(seeded = false): RequirementDoc[] {
   });
 }
 
-function createAppraisalGroup(tctNumber: string, seeded = false): AppraisalTctGroup {
+function createAppraisalGroup(
+  tctNumber: string,
+  collateralType: AppraisalCollateralType = 'real-estate',
+  seeded = false
+): AppraisalTctGroup {
   return {
     id: crypto.randomUUID(),
     tctNumber,
+    collateralType,
     documents: createAppraisalGroupDocuments(seeded),
     reportId: null,
   };
@@ -1076,7 +1240,8 @@ function createAppraisalReportBundle(
   tctGroupIds: string[],
   appraiserType: AppraiserType,
   appraiserName: string | null,
-  targetCompletionDate: string | null
+  targetCompletionDate: string | null,
+  fee?: { feeNeeded: FeeNeeded; feeAmount: string; feeDescription: string; feeRemarks: string }
 ): AppraisalReportBundle {
   return {
     id: crypto.randomUUID(),
@@ -1084,11 +1249,73 @@ function createAppraisalReportBundle(
     appraiserType,
     appraiserName,
     targetCompletionDate,
+    feeNeeded: fee?.feeNeeded ?? null,
+    feeAmount: fee?.feeAmount ?? '',
+    feeDescription: fee?.feeDescription ?? '',
+    feeRemarks: fee?.feeRemarks ?? '',
     report: {
-      propertyDetails: '',
+      dateReport: '',
+      dateInspected: '',
+      requestingOfficer: '',
+      branch: '',
+
+      registeredOwner: '',
+      locationOfProperty: '',
+      landTitles: tctGroupIds.map((tctGroupId) => createAppraisalReportLandTitle(tctGroupId)),
+      encumbrancesRemarks: '',
+
+      streetFrontage: '',
+      streetWidth: '',
+      surfacing: '',
+      averageDepth: '',
+      approxShape: '',
+      topography: '',
+      neighborhood: '',
+      presentUse: '',
+      highestAndBestUse: '',
+
+      utilityPublicConveyance: '',
+      utilityElectricity: '',
+      utilityWater: '',
+      utilityTelephone: '',
+
+      generalConstructionFeatures: '',
+      floorLevel: '',
+      externalWalls: '',
+      interiorWallsPartitions: '',
+      flooring: '',
+      doorsWindows: '',
+      ceilingRoofing: '',
+
+      basisSource: '',
+      basisLocation: '',
+      basisAreaSize: '',
+      basisPriceType: '',
+      basisSellingPrice: '',
+      fairMarketValuePerSqm: '',
+
+      remarksAdditionalInfo: '',
+
+      itemOfProperty: '',
+      fmvRcn: '',
+      constructionStatusPercent: '',
+      depreciatedValue: '',
+      appraisedValueP: '',
+
       appraisedValue: '',
+      roundedFigures: '',
+      amountInWords: '',
+      loanableAmount: '',
+
+      preparedBy: '',
+      reviewedBy: '',
+      endorsedBy: '',
+      notedBy: '',
+
+      propertyDetails: '',
       remarks: '',
       recommendation: '',
+
       fileName: null,
       fileUrl: null,
       uploadedAt: null,
@@ -1250,15 +1477,16 @@ function createInitialReview(): ApplicationReview {
       // can still reach via "Remove Property", but a fresh session
       // shouldn't start there.
       appraisalGroups: [
-        createAppraisalGroup('TCT-2024-00981', true),
-        createAppraisalGroup('TCT-2024-00982', true),
-        createAppraisalGroup('TCT-2024-00983', true),
-        createAppraisalGroup('TCT-2024-00984', true),
-        createAppraisalGroup('TCT-2024-00985', true),
+        createAppraisalGroup('TCT-2024-00981', 'real-estate', true),
+        createAppraisalGroup('TCT-2024-00982', 'real-estate', true),
+        createAppraisalGroup('TCT-2024-00983', 'real-estate', true),
+        createAppraisalGroup('TCT-2024-00984', 'real-estate', true),
+        createAppraisalGroup('TCT-2024-00985', 'real-estate', true),
       ],
       appraisalNotApplicable: false,
       collateralNotes: '',
       outreachMessages: [],
+      documentRequests: [],
       endorsed: false,
       rejected: false,
       decisionReason: '',
@@ -1357,6 +1585,11 @@ function readStoredState(): AdminState {
             );
             return [...storedGroups, ...missingSeedGroups].map((group: AppraisalTctGroup) => ({
               ...group,
+              // Sessions stored before collateralType existed have no such
+              // key at all — default them to 'real-estate' rather than
+              // leaving it undefined, since every seed group before this
+              // change was implicitly real estate.
+              collateralType: group.collateralType ?? 'real-estate',
               documents: group.documents.map((doc) => {
                 const isSeededSample =
                   doc.fileName === 'sample-local-pdf.pdf' || doc.fileName?.endsWith('-sample.pdf');
@@ -1388,23 +1621,88 @@ function readStoredState(): AdminState {
         appraisal: {
           ...initialState.review.appraisal,
           ...storedReview.appraisal,
-          reportBundles: (storedReview.appraisal?.reportBundles ?? []).map((bundle: Partial<AppraisalReportBundle>) => ({
-            id: bundle.id,
-            tctGroupIds: bundle.tctGroupIds ?? [],
-            appraiserType: bundle.appraiserType ?? null,
-            appraiserName: bundle.appraiserName ?? null,
-            targetCompletionDate: bundle.targetCompletionDate ?? null,
-            report: {
-              propertyDetails: '',
-              appraisedValue: '',
-              remarks: '',
-              recommendation: '',
-              fileName: null,
-              fileUrl: null,
-              uploadedAt: null,
-              ...bundle.report,
-            },
-          })),
+          reportBundles: (storedReview.appraisal?.reportBundles ?? []).map((bundle: Partial<AppraisalReportBundle>) => {
+            const tctGroupIds = bundle.tctGroupIds ?? [];
+            // Stored sessions from before the full Appraisal Report form
+            // existed have no landTitles array at all (or one missing
+            // entries for groups added since) — top it up by tctGroupId
+            // the same way requirementChecklist.appraisalGroups is topped
+            // up above, rather than trusting the stored array wholesale.
+            const storedLandTitles = bundle.report?.landTitles ?? [];
+            const landTitles = tctGroupIds.map(
+              (tctGroupId) =>
+                storedLandTitles.find((title) => title.tctGroupId === tctGroupId) ??
+                createAppraisalReportLandTitle(tctGroupId)
+            );
+            return {
+              id: bundle.id,
+              tctGroupIds,
+              appraiserType: bundle.appraiserType ?? null,
+              appraiserName: bundle.appraiserName ?? null,
+              targetCompletionDate: bundle.targetCompletionDate ?? null,
+              feeNeeded: bundle.feeNeeded ?? null,
+              feeAmount: bundle.feeAmount ?? '',
+              feeDescription: bundle.feeDescription ?? '',
+              feeRemarks: bundle.feeRemarks ?? '',
+              report: {
+                dateReport: '',
+                dateInspected: '',
+                requestingOfficer: '',
+                branch: '',
+                registeredOwner: '',
+                locationOfProperty: '',
+                encumbrancesRemarks: '',
+                streetFrontage: '',
+                streetWidth: '',
+                surfacing: '',
+                averageDepth: '',
+                approxShape: '',
+                topography: '',
+                neighborhood: '',
+                presentUse: '',
+                highestAndBestUse: '',
+                utilityPublicConveyance: '',
+                utilityElectricity: '',
+                utilityWater: '',
+                utilityTelephone: '',
+                generalConstructionFeatures: '',
+                floorLevel: '',
+                externalWalls: '',
+                interiorWallsPartitions: '',
+                flooring: '',
+                doorsWindows: '',
+                ceilingRoofing: '',
+                basisSource: '',
+                basisLocation: '',
+                basisAreaSize: '',
+                basisPriceType: '',
+                basisSellingPrice: '',
+                fairMarketValuePerSqm: '',
+                remarksAdditionalInfo: '',
+                itemOfProperty: '',
+                fmvRcn: '',
+                constructionStatusPercent: '',
+                depreciatedValue: '',
+                appraisedValueP: '',
+                appraisedValue: '',
+                roundedFigures: '',
+                amountInWords: '',
+                loanableAmount: '',
+                preparedBy: '',
+                reviewedBy: '',
+                endorsedBy: '',
+                notedBy: '',
+                propertyDetails: '',
+                remarks: '',
+                recommendation: '',
+                fileName: null,
+                fileUrl: null,
+                uploadedAt: null,
+                ...bundle.report,
+                landTitles,
+              },
+            };
+          }),
         },
       },
     };
@@ -1629,7 +1927,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             requirementChecklist: { ...prev.review.requirementChecklist, ...data },
           },
         })),
-      addAppraisalGroup: (tctNumber) =>
+      addAppraisalGroup: (tctNumber, collateralType) =>
         setState((prev) => ({
           ...prev,
           review: {
@@ -1638,7 +1936,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               ...prev.review.requirementChecklist,
               appraisalGroups: [
                 ...prev.review.requirementChecklist.appraisalGroups,
-                createAppraisalGroup(tctNumber),
+                createAppraisalGroup(tctNumber, collateralType),
               ],
             },
           },
@@ -1690,6 +1988,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             },
           },
         })),
+      addDocumentRequestMessage: (message) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            requirementChecklist: {
+              ...prev.review.requirementChecklist,
+              documentRequests: [
+                ...prev.review.requirementChecklist.documentRequests,
+                { id: crypto.randomUUID(), sentAt: new Date().toISOString(), ...message },
+              ],
+            },
+          },
+        })),
       setCreditInvestigation: (data) =>
         setState((prev) => ({
           ...prev,
@@ -1717,9 +2029,15 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             appraisal: { ...prev.review.appraisal, ...data },
           },
         })),
-      createAppraisalReportBundle: (tctGroupIds, appraiserType, appraiserName, targetCompletionDate) =>
+      createAppraisalReportBundle: (tctGroupIds, appraiserType, appraiserName, targetCompletionDate, fee) =>
         setState((prev) => {
-          const bundle = createAppraisalReportBundle(tctGroupIds, appraiserType, appraiserName, targetCompletionDate);
+          const bundle = createAppraisalReportBundle(
+            tctGroupIds,
+            appraiserType,
+            appraiserName,
+            targetCompletionDate,
+            fee
+          );
           return {
             ...prev,
             review: {
@@ -1737,27 +2055,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             },
           };
         }),
-      addTctGroupsToReportBundle: (bundleId, tctGroupIds) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            appraisal: {
-              ...prev.review.appraisal,
-              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
-                bundle.id !== bundleId
-                  ? bundle
-                  : { ...bundle, tctGroupIds: [...bundle.tctGroupIds, ...tctGroupIds] }
-              ),
-            },
-            requirementChecklist: {
-              ...prev.review.requirementChecklist,
-              appraisalGroups: prev.review.requirementChecklist.appraisalGroups.map((group) =>
-                tctGroupIds.includes(group.id) ? { ...group, reportId: bundleId } : group
-              ),
-            },
-          },
-        })),
       setAppraisalBundleAppraiserType: (bundleId, appraiserType) =>
         setState((prev) => ({
           ...prev,
@@ -1771,17 +2068,57 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                   : {
                       ...bundle,
                       appraiserType,
-                      report: {
-                        propertyDetails: '',
-                        appraisedValue: '',
-                        remarks: '',
-                        recommendation: '',
-                        fileName: null,
-                        fileUrl: null,
-                        uploadedAt: null,
-                      },
+                      report: createAppraisalReportBundle(bundle.tctGroupIds, appraiserType, null, null).report,
                     }
               ),
+            },
+          },
+        })),
+      setAppraisalBundleFee: (bundleId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId ? bundle : { ...bundle, ...data }
+              ),
+            },
+          },
+        })),
+      submitAppraisalFeesForApproval: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: { ...prev.review.appraisal, feeApprovalStatus: 'pending-approval' },
+          },
+        })),
+      approveAppraisalFees: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: { ...prev.review.appraisal, feeApprovalStatus: 'approved' },
+          },
+        })),
+      declineAppraisalFees: (reason) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              feeApprovalStatus: 'not-submitted',
+              feeDeclineReason: reason,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) => ({
+                ...bundle,
+                feeNeeded: null,
+                feeAmount: '',
+                feeDescription: '',
+                feeRemarks: '',
+              })),
             },
           },
         })),
@@ -1794,6 +2131,29 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               ...prev.review.appraisal,
               reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
                 bundle.id !== bundleId ? bundle : { ...bundle, report: { ...bundle.report, ...data } }
+              ),
+            },
+          },
+        })),
+      setAppraisalBundleLandTitle: (bundleId, tctGroupId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      report: {
+                        ...bundle.report,
+                        landTitles: bundle.report.landTitles.map((title) =>
+                          title.tctGroupId !== tctGroupId ? title : { ...title, ...data }
+                        ),
+                      },
+                    }
               ),
             },
           },

@@ -24,14 +24,14 @@ import { getLoanNumber } from 'src/utils/get-loan-number';
 // Personal workspace for the Head/Approver's "reviewed and noted" Head
 // Approval step — framed as "My Approvals," their own inbox of
 // appraisals waiting on a decision once every pledged property's report
-// bundle has been submitted (same reportSubmitted condition
-// appraisal-view.tsx computes to unlock its own Head Approval card). Same
-// role-workspace treatment as the other three Approval screens: a
-// "HEAD / APPROVER" eyebrow label, first-person copy, and no sample
-// filler rows — a real approver's inbox would never show other people's
-// unrelated appraisals. Reuses the same setAppraisal/
-// clearAllAppraisalBundleReports setters head-approval-card.tsx already
-// uses.
+// bundle has been submitted (same reportSubmitted computation
+// appraisal-view.tsx uses to unlock its own Head Approval card, duplicated
+// here rather than shared since the two files don't currently import from
+// each other). Same role-workspace treatment as the other three Approval
+// screens: a "HEAD / APPROVER" eyebrow label, first-person copy, and no
+// sample filler rows — a real approver's inbox would never show other
+// people's unrelated appraisals. Reuses the same setAppraisal/
+// clearAllAppraisalBundleReports setters head-approval-card.tsx uses.
 // ----------------------------------------------------------------------
 
 export function AppraisalApproverView() {
