@@ -28,7 +28,6 @@ import { useRegistration } from 'src/auth/registration-context';
 import { Iconify } from 'src/components/iconify';
 import { fCurrency } from 'src/utils/format-number';
 import { TONE_COLORS, adminCardSx } from 'src/components/admin-ui';
-import { formatAging } from 'src/utils/format-aging';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 import { FileThumbnail } from 'src/components/file-thumbnail';
 
@@ -573,47 +572,12 @@ export function ApplicantProfileView({ email }: ApplicantProfileViewProps) {
         </Box>
 
         <Box sx={adminCardSx}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            alignItems={{ xs: 'flex-start', sm: 'center' }}
-            justifyContent="space-between"
-            spacing={1.5}
-            sx={{ mb: 0.5 }}
-          >
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              Loan history
-            </Typography>
-            <Box
-              sx={{
-                fontSize: 11.5,
-                fontWeight: 700,
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-                color: TONE_COLORS.info.text,
-                bgcolor: TONE_COLORS.info.bg,
-                borderRadius: '999px',
-                px: 1.5,
-                py: 0.6,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Currently at {STEP_LABELS[currentStep]}
-            </Box>
-          </Stack>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 1 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+            Loan history
+          </Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
             Every loan this borrower has applied for, current and past.
           </Typography>
-          {(application.assignedOfficer || application.submittedAt) && (
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 2 }}>
-              {application.assignedOfficer && `Officer: ${application.assignedOfficer}`}
-              {application.assignedOfficer && application.submittedAt && ' · '}
-              {application.submittedAt && (
-                <>
-                  In review for <strong>{formatAging(application.submittedAt)}</strong>
-                </>
-              )}
-            </Typography>
-          )}
 
           <LoanHistoryTable rows={loanHistoryRows} />
         </Box>
