@@ -748,6 +748,14 @@ export type AppraisalReportLandTitle = {
   zonalValue: string;
   boundaries: string;
   technicalSpecification: string;
+  // One photo of the collateral itself, per TCT/OCT — same
+  // fileName/fileUrl/uploadedAt triplet every other single-file upload in
+  // this app uses (RequirementDoc, the external-appraiser report file,
+  // etc.), not an array, since exactly one photo per title is all this
+  // needs.
+  photoFileName: string | null;
+  photoFileUrl: string | null;
+  photoUploadedAt: string | null;
 };
 
 function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLandTitle {
@@ -762,6 +770,9 @@ function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLand
     zonalValue: '',
     boundaries: '',
     technicalSpecification: '',
+    photoFileName: null,
+    photoFileUrl: null,
+    photoUploadedAt: null,
   };
 }
 
@@ -893,6 +904,8 @@ export type Appraisal = {
   // fee travels through together — see FeeApprovalStatus above.
   feeApprovalStatus: FeeApprovalStatus;
   feeDeclineReason: string;
+  feeSubmittedAt: string | null;
+  feeApprovedAt: string | null;
   clientNotifiedAt: string | null;
   sentToOdooAt: string | null;
   paymentReceivedAt: string | null;
@@ -1023,9 +1036,23 @@ type AdminContextValue = AdminState & {
   // The "one buong request" batch action — every bundle must already have
   // an appraiser AND a fee decision (feeNeeded !== null) before this can
   // fire; see appraisal-tct-table.tsx's gating logic.
+  // Fires from `'not-submitted'` OR `'declined'` — a decline leaves every
+  // bundle's Yes/No/amount/description/remarks exactly as they were (see
+  // declineAppraisalFees below), so re-submitting after revising them is
+  // the same call as the very first submission, just from a different
+  // starting status.
   submitAppraisalFeesForApproval: () => void;
   approveAppraisalFees: () => void;
   declineAppraisalFees: (reason: string) => void;
+  // Dev/testing shortcut — wipes the whole fee flow back to its very
+  // first state: batch status back to 'not-submitted', every batch-level
+  // date/reason field back to null/'', and every bundle's own
+  // feeNeeded/feeAmount/feeDescription/feeRemarks back to
+  // null/''/''/''. Does NOT touch reportBundles' appraiser
+  // assignment/report content — only the fee decision fields — so a
+  // tester can restart the fee request/approval/settlement cycle without
+  // losing the bundle's assignment or an already-filled-in report.
+  resetAppraisalFees: () => void;
   addCreditInvestigationDocument: (
     label: string,
     uploadedBy: string,
@@ -1174,6 +1201,8 @@ function createInitialAppraisal(): Appraisal {
   return {
     feeApprovalStatus: 'not-submitted',
     feeDeclineReason: '',
+    feeSubmittedAt: null,
+    feeApprovedAt: null,
     clientNotifiedAt: null,
     sentToOdooAt: null,
     paymentReceivedAt: null,
@@ -1188,14 +1217,20 @@ function createInitialAppraisal(): Appraisal {
 // Documents a newly-added TCT/property group starts with — all missing by
 // default, since a group is something the officer explicitly adds for a
 // specific property they're now collecting paperwork for, not a pre-seeded
-// demo state. `seeded: true` (used once, for the one starting group in
+// demo state. `seeded: true` (used for the 5 starting groups in
 // initialState below) instead pre-populates every document as already
-// received, matching createInitialRequirementDocuments()'s demo-data
-// pattern, except `taxMappingAuthorization` which starts missing so there's
-// always at least one outstanding appraisal item on first load too.
+// received AND verified — deliberately overriding
+// `meta.freshStatus`/`meta.freshNote` (which can be `'needs-review'` for
+// some doc keys, since that shared metadata also drives Requirement
+// Checklist/CI's own less-complete "fresh" demo state) rather than reusing
+// them here, since Appraisal now gates TCT-to-appraiser assignment on
+// every one of a group's 8 documents being `'verified'` (see
+// `docsIncomplete()` in appraisal-tct-table.tsx) — the 5 seeded groups
+// need to actually be assignable out of the box, not stuck at 6/8 or 7/8
+// forever.
 function createAppraisalGroupDocuments(seeded = false): RequirementDoc[] {
   return APPRAISAL_DOC_META.map((meta) => {
-    if (!seeded || meta.key === 'taxMappingAuthorization') {
+    if (!seeded) {
       return {
         key: meta.key,
         status: 'missing',
@@ -1210,7 +1245,7 @@ function createAppraisalGroupDocuments(seeded = false): RequirementDoc[] {
     }
     return {
       key: meta.key,
-      status: meta.freshStatus,
+      status: 'verified',
       aiNote: meta.freshNote,
       fileName: 'sample-local-pdf.pdf',
       fileUrl: '/assets/documents/sample-local-pdf.pdf',
@@ -1629,11 +1664,10 @@ function readStoredState(): AdminState {
             // the same way requirementChecklist.appraisalGroups is topped
             // up above, rather than trusting the stored array wholesale.
             const storedLandTitles = bundle.report?.landTitles ?? [];
-            const landTitles = tctGroupIds.map(
-              (tctGroupId) =>
-                storedLandTitles.find((title) => title.tctGroupId === tctGroupId) ??
-                createAppraisalReportLandTitle(tctGroupId)
-            );
+            const landTitles = tctGroupIds.map((tctGroupId) => ({
+              ...createAppraisalReportLandTitle(tctGroupId),
+              ...storedLandTitles.find((title) => title.tctGroupId === tctGroupId),
+            }));
             return {
               id: bundle.id,
               tctGroupIds,
@@ -2092,7 +2126,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           review: {
             ...prev.review,
-            appraisal: { ...prev.review.appraisal, feeApprovalStatus: 'pending-approval' },
+            appraisal: {
+              ...prev.review.appraisal,
+              feeApprovalStatus: 'pending-approval',
+              feeDeclineReason: '',
+              feeSubmittedAt: new Date().toISOString(),
+              feeApprovedAt: null,
+            },
           },
         })),
       approveAppraisalFees: () =>
@@ -2100,7 +2140,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           review: {
             ...prev.review,
-            appraisal: { ...prev.review.appraisal, feeApprovalStatus: 'approved' },
+            appraisal: {
+              ...prev.review.appraisal,
+              feeApprovalStatus: 'approved',
+              feeApprovedAt: new Date().toISOString(),
+            },
           },
         })),
       declineAppraisalFees: (reason) =>
@@ -2110,8 +2154,25 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              feeApprovalStatus: 'not-submitted',
+              feeApprovalStatus: 'declined',
               feeDeclineReason: reason,
+            },
+          },
+        })),
+      resetAppraisalFees: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              feeApprovalStatus: 'not-submitted',
+              feeDeclineReason: '',
+              feeSubmittedAt: null,
+              feeApprovedAt: null,
+              clientNotifiedAt: null,
+              sentToOdooAt: null,
+              paymentReceivedAt: null,
               reportBundles: prev.review.appraisal.reportBundles.map((bundle) => ({
                 ...bundle,
                 feeNeeded: null,

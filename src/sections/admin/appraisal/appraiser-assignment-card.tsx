@@ -9,27 +9,39 @@ import Divider from '@mui/material/Divider';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import ButtonGroup from '@mui/material/ButtonGroup';
 
 import { useAdmin } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
-import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { adminCardSx } from 'src/components/admin-ui';
 
-import type { AppraiserType, AppraisalReportLandTitle } from 'src/auth/admin-context';
+import type { AppraisalReportLandTitle } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
-// In-house vs external appraiser assignment. In-house fills out the full
-// Appraisal Report (REM) form — Land/title details per pledged property,
-// Boundaries, Technical Specification, Utilities, General Construction
-// Features, Particular Description, Basis of Valuation, the FMV/RCN
-// valuation table, and the Prepared/Reviewed/Endorsed/Noted by signature
-// chain — matching the printed Appraisal Report (REM) PDF section by
-// section. External just uploads the appraiser's finished report as a
-// file. Switching type before Head Approval clears the other path's
-// partial data — the two are mutually exclusive, same convention as CI
-// Fee's amount reset on decline.
+// In-house vs external appraiser report. In-house fills out the full
+// Appraisal Report (REM) form — Land/title details per pledged property
+// (now including a per-TCT Collateral Photo upload — see
+// ReportFileDropzone/LandTitleFields below), Boundaries, Technical
+// Specification, Utilities, General Construction Features, Particular
+// Description, Basis of Valuation, the FMV/RCN valuation table, and the
+// Prepared/Reviewed/Endorsed/Noted by signature chain — matching the
+// printed Appraisal Report (REM) PDF section by section. External just
+// uploads the appraiser's finished report as a file. Which of the two
+// applies (`bundle.appraiserType`) is decided once, by the Officer, in
+// the Assign Appraiser modal — this page no longer lets the appraiser
+// switch it (an earlier version had an In-house/External `ButtonGroup`
+// toggle right here that called `setAppraisalBundleAppraiserType`; it
+// was removed since the appraiser already knows which type they were
+// assigned as, and re-deciding it from inside the report form was both
+// redundant and a way to second-guess the Officer's own assignment).
+//
+// Locked (disabled) fields, once a report is submitted, still render
+// dark/readable text — see the `fieldSx` `.Mui-disabled` override below.
+// MUI's default disabled style washes text out to a light gray
+// regardless of whether the field is genuinely empty or holds real
+// content, which made a fully filled-in, submitted report look barely
+// legible; a light gray background is what signals "locked" instead now.
 // ----------------------------------------------------------------------
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -50,21 +62,37 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function ReportFileDropzone({
   value,
+  fileName,
   onChange,
   disabled,
+  label = 'Choose a file — Appraisal Report',
+  accept = { 'image/*': [], 'application/pdf': [] },
+  imageView = false,
 }: {
-  value: File | null;
+  // A freshly-dropped File shows its real bytes; a previously-uploaded
+  // one only has its blob/object URL left (the File itself never
+  // persists across reloads) — passing that URL string straight to
+  // FileThumbnail still renders a real image preview when `imageView` is
+  // on, unlike reconstructing a fake empty File from just the filename.
+  value: File | string | null;
+  // Only needed when `value` is a URL string, since FileThumbnail can't
+  // derive a display name from an opaque blob: URL.
+  fileName?: string | null;
   onChange: (file: File | null) => void;
   disabled?: boolean;
+  label?: string;
+  accept?: Record<string, string[]>;
+  imageView?: boolean;
 }) {
   const { getRootProps, getInputProps } = useDropzone({
     multiple: false,
-    accept: { 'image/*': [], 'application/pdf': [] },
+    accept,
     onDrop: (acceptedFiles) => onChange(acceptedFiles[0] ?? null),
     disabled,
   });
 
   const interactive = !value && !disabled;
+  const displayName = typeof value === 'string' ? fileName ?? '' : value?.name ?? '';
 
   return (
     <Box
@@ -87,9 +115,9 @@ function ReportFileDropzone({
       {interactive && <input {...getInputProps()} />}
       {value ? (
         <>
-          <FileThumbnail file={value} sx={{ width: 30, height: 30 }} />
+          <FileThumbnail file={value} imageView={imageView} sx={{ width: 30, height: 30 }} />
           <Typography noWrap sx={{ fontSize: 13, fontWeight: 600, color: '#344054', flex: 1, minWidth: 0 }}>
-            {value.name}
+            {displayName}
           </Typography>
           {!disabled && (
             <IconButton size="small" onClick={() => onChange(null)}>
@@ -100,9 +128,7 @@ function ReportFileDropzone({
       ) : (
         <>
           <Iconify icon="solar:upload-minimalistic-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
-          <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1C2A6E' }}>
-            Choose a file — Appraisal Report
-          </Typography>
+          <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1C2A6E' }}>{label}</Typography>
         </>
       )}
     </Box>
@@ -120,7 +146,42 @@ function LandTitleFields({
   editable: boolean;
   onChange: (data: Partial<AppraisalReportLandTitle>) => void;
 }) {
-  const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } };
+  // Locked (disabled) fields still need to read clearly once a report is
+  // submitted — MUI's default disabled state washes the text out to a
+  // light gray (#919EAB) regardless of whether it's actually empty or
+  // holds real content, which made a fully filled-in, submitted report
+  // look barely legible. Overriding `.Mui-disabled` keeps the text dark
+  // and readable; the light gray background is what signals "locked" now
+  // instead.
+  const fieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '10px',
+      fontSize: 14,
+      '&.Mui-disabled': {
+        bgcolor: '#F5F6FA',
+        '& .MuiOutlinedInput-notchedOutline': { borderColor: '#E1E4ED' },
+      },
+    },
+    '& .MuiInputBase-input.Mui-disabled': {
+      WebkitTextFillColor: '#14172A',
+      color: '#14172A',
+    },
+  };
+
+  // Storing the blob URL itself (not the File object) means the next
+  // render already has a real, previewable image via this URL — no need
+  // to hold the picked File in local state just to keep it visible.
+  const handlePhotoChange = (file: File | null) => {
+    if (!file) {
+      onChange({ photoFileName: null, photoFileUrl: null, photoUploadedAt: null });
+      return;
+    }
+    onChange({
+      photoFileName: file.name,
+      photoFileUrl: URL.createObjectURL(file),
+      photoUploadedAt: new Date().toISOString(),
+    });
+  };
 
   return (
     <Box sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
@@ -220,6 +281,15 @@ function LandTitleFields({
           onChange={(event) => onChange({ technicalSpecification: event.target.value })}
           sx={fieldSx}
         />
+        <ReportFileDropzone
+          value={title.photoFileUrl}
+          fileName={title.photoFileName}
+          onChange={handlePhotoChange}
+          disabled={!editable}
+          label="Choose a photo — Collateral Photo"
+          accept={{ 'image/*': [] }}
+          imageView
+        />
       </Stack>
     </Box>
   );
@@ -232,28 +302,38 @@ export function AppraiserAssignmentCard({
   bundleId: string;
   tctNumbers: string[];
 }) {
-  const {
-    review,
-    setAppraisalBundleAppraiserType,
-    setAppraisalBundleReport,
-    setAppraisalBundleLandTitle,
-  } = useAdmin();
+  const { review, setAppraisalBundleReport, setAppraisalBundleLandTitle } = useAdmin();
   const { headApprovalStatus } = review.appraisal;
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
   if (!bundle) return null;
   const { appraiserType, report } = bundle;
   const locked = headApprovalStatus !== 'pending' || !!report.uploadedAt;
   const editable = !locked;
-  const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } };
+  // Locked (disabled) fields still need to read clearly once a report is
+  // submitted — MUI's default disabled state washes the text out to a
+  // light gray (#919EAB) regardless of whether it's actually empty or
+  // holds real content, which made a fully filled-in, submitted report
+  // look barely legible. Overriding `.Mui-disabled` keeps the text dark
+  // and readable; the light gray background is what signals "locked" now
+  // instead.
+  const fieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '10px',
+      fontSize: 14,
+      '&.Mui-disabled': {
+        bgcolor: '#F5F6FA',
+        '& .MuiOutlinedInput-notchedOutline': { borderColor: '#E1E4ED' },
+      },
+    },
+    '& .MuiInputBase-input.Mui-disabled': {
+      WebkitTextFillColor: '#14172A',
+      color: '#14172A',
+    },
+  };
 
   const titleGroups = review.requirementChecklist.appraisalGroups.filter((group) =>
     bundle.tctGroupIds.includes(group.id)
   );
-
-  const selectType = (type: AppraiserType) => {
-    if (type === appraiserType) return;
-    setAppraisalBundleAppraiserType(bundleId, type);
-  };
 
   const handleExternalFile = (file: File | null) => {
     if (!file) {
@@ -282,28 +362,8 @@ export function AppraiserAssignmentCard({
         Appraisal Report
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-        Covers {tctNumbers.join(', ')}. Assign an in-house appraiser or upload an external
-        appraiser&apos;s finished report.
+        Covers {tctNumbers.join(', ')}.
       </Typography>
-
-      <ButtonGroup sx={{ mb: 2.5 }}>
-        <Button
-          onClick={() => selectType('inhouse')}
-          variant={appraiserType === 'inhouse' ? 'contained' : 'outlined'}
-          disabled={locked && appraiserType !== 'inhouse'}
-          sx={appraiserType === 'inhouse' ? { bgcolor: '#1C2A6E', '&:hover': { bgcolor: '#14205A' } } : outlinedNavyButtonSx}
-        >
-          In-house
-        </Button>
-        <Button
-          onClick={() => selectType('external')}
-          variant={appraiserType === 'external' ? 'contained' : 'outlined'}
-          disabled={locked && appraiserType !== 'external'}
-          sx={appraiserType === 'external' ? { bgcolor: '#1C2A6E', '&:hover': { bgcolor: '#14205A' } } : outlinedNavyButtonSx}
-        >
-          External
-        </Button>
-      </ButtonGroup>
 
       {appraiserType === 'inhouse' && (
         <Stack spacing={2.5}>
@@ -881,12 +941,12 @@ export function AppraiserAssignmentCard({
               disabled={!report.appraisedValue.trim()}
               sx={{ alignSelf: 'flex-start', bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.5, boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
             >
-              Create Appraisal Report
+              Submit Appraisal Report
             </Button>
           )}
           {report.uploadedAt && (
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#0C8A4F' }}>
-              Report created {new Date(report.uploadedAt).toLocaleString()}
+              Report submitted {new Date(report.uploadedAt).toLocaleString()}
             </Typography>
           )}
         </Stack>

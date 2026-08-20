@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -24,7 +24,7 @@ import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -32,19 +32,39 @@ import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
 import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx, type SemanticTone } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
+import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
+import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
+import { SAMPLE_APPLICATION } from './sample-application';
+import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
+
 // ----------------------------------------------------------------------
 // This is the Appraiser's own workspace — framed as personal work ("My
-// Assignments"), not an admin-facing approval queue. Unlike the other
-// three Approval-role screens, this one only shows the signed-in
-// appraiser's own work: no read-only sample filler rows
-// (SAMPLE_APPLICATIONS entries belong to other applications this
-// appraiser isn't assigned to), and no "isSample" framing anywhere. If
-// there's no live application in the session, or nothing currently needs
-// this appraiser's attention, that section simply reads as empty — same
-// as a real appraiser's inbox with nothing pending.
+// Assignments"), not an admin-facing approval queue. Follows the exact
+// same auto-load convention application-list-view.tsx already uses: once
+// hydrated, if there's no live application in the session yet, this page
+// calls `loadSample(SAMPLE_APPLICATION)` — the same sample dataset
+// Application List loads — so `signUpData` becomes real, active session
+// state (not a disabled placeholder). Since a live application here needs
+// an actual assigned bundle to show anything, this effect also seeds one
+// — covering EVERY still-unassigned, docs-complete `appraisalGroups`
+// entry together as one consolidated bundle (all 5 of the default seed,
+// on a fresh session), same as selecting multiple rows and assigning them
+// as one consolidated bundle via the Officer's Assign Appraiser modal —
+// via `createAppraisalReportBundle`, same call `AppraisalTctTable`'s own
+// "Auto-assign All TCTs" page action makes (see "documents must be
+// verified before assignment" below — this seed only ever picks
+// docs-complete groups, same gate that page action respects). The end
+// result is a genuinely active, clickable first row spanning multiple
+// collateral — not a single-property or static read-only sample row —
+// the same way Application List's auto-loaded sample application is a
+// real, actionable row there, not a disabled one.
+// (An earlier version instead rendered one hardcoded, disabled
+// SAMPLE_ASSIGNMENT row appended after any real bundles; that diverged
+// from how every other page in this app actually handles "no live data
+// yet," so it was replaced with this auto-load-a-real-sample approach.)
 //
 // The table is one row per report bundle assigned to this appraiser,
 // showing its TCT number(s), a per-bundle "Fee" status pill, and an
@@ -57,10 +77,16 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 // directly in the table; that was replaced with real navigation to a
 // dedicated page per bundle instead of an in-place toggle.)
 //
-// The batch-level "Submit Fees for Approval" / "Advise Client" / "Payment
-// Received" actions stay on this list page below the table, since they're
-// single actions covering every bundle at once, not something that
-// belongs on one bundle's own detail page.
+// "Submit Fees for Approval" itself lives ONLY on the per-bundle detail
+// page now (appraisal-appraiser-bundle-view.tsx), not here — an earlier
+// version also had that button (plus its own ConfirmDialog/canSubmit
+// gate) directly below this table, but it was removed once the detail
+// page grew the same action, so the request only ever happens from
+// inside an assignment's own page, not duplicated on the list too. The
+// "Advise Client" / "Payment Received" card, though, still stays here —
+// those only apply once the whole batch is already `approved`, a
+// whole-batch state better surfaced on this list (where every bundle's
+// status is visible at a glance) than from inside one bundle's page.
 //
 // (Removed: an "Available for Assignment" section used to sit above this
 // table, listing every pledged property not yet claimed by any appraiser
@@ -76,48 +102,77 @@ const STATUS_COPY: Record<'on-process' | 'for-approval' | 'for-report' | 'report
   reported: { label: 'Reported', tone: 'success' },
 };
 
-const FEE_STATUS_COPY: Record<'no-fee' | 'not-submitted' | 'pending-approval' | 'approved' | 'settled', { label: string; tone: SemanticTone }> = {
+const FEE_STATUS_COPY: Record<'no-fee' | 'not-submitted' | 'pending-approval' | 'approved' | 'settled' | 'declined', { label: string; tone: SemanticTone }> = {
   'no-fee': { label: 'No Fee', tone: 'neutral' },
   'not-submitted': { label: 'Draft', tone: 'neutral' },
   'pending-approval': { label: 'For Approval', tone: 'warning' },
-  approved: { label: 'Approved', tone: 'info' },
+  approved: { label: 'Approved', tone: 'success' },
   settled: { label: 'Settled', tone: 'success' },
+  declined: { label: 'Declined', tone: 'error' },
 };
 
 export function AppraisalAppraiserView() {
   const router = useRouter();
-  const { signUpData } = useRegistration();
+  const { signUpData, application, hydrated, loadSample } = useRegistration();
   const {
     review,
     setAppraisal,
+    setAppraisalBundleFee,
+    setAppraisalBundleReport,
     setCreditInvestigation,
+    createAppraisalReportBundle,
     submitAppraisalFeesForApproval,
     approveAppraisalFees,
     declineAppraisalFees,
+    resetAppraisalFees,
   } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
   const { feeApprovalStatus, clientNotifiedAt, paymentReceivedAt, reportBundles } = review.appraisal;
-  const { ciFeeStatus } = review.creditInvestigation;
+
+  const hasApplication = !!signUpData && !!application.personalInfo;
+
+  // Same auto-load convention application-list-view.tsx uses: if the
+  // session hydrates with no live application, load the shared sample
+  // dataset so `signUpData` becomes real session state (not a disabled
+  // placeholder). Then, since this page needs an actual assigned bundle
+  // to show anything, seed one — covering EVERY still-unassigned,
+  // docs-complete appraisalGroups entry together in one bundle, same as
+  // selecting every eligible TCT row and assigning them as one
+  // consolidated bundle via the Officer's Assign Appraiser modal — so the
+  // sample assignment shown here demonstrates a real multi-collateral
+  // bundle, not a single-property one.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!hasApplication) {
+      loadSample(SAMPLE_APPLICATION);
+      return;
+    }
+    if (reportBundles.length === 0) {
+      const groupsForSampleBundle = appraisalGroups.filter(
+        (group) =>
+          group.reportId === null &&
+          APPRAISAL_DOC_META.every((meta) => group.documents.find((doc) => doc.key === meta.key)?.status === 'verified')
+      );
+      if (groupsForSampleBundle.length > 0) {
+        createAppraisalReportBundle(
+          groupsForSampleBundle.map((group) => group.id),
+          'inhouse',
+          APPRAISER_ROSTER[0],
+          null
+        );
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, hasApplication, reportBundles.length]);
 
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReasonDraft, setDeclineReasonDraft] = useState('');
-  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
   const [adviseClientOpen, setAdviseClientOpen] = useState(false);
 
   const feeSettled = feeApprovalStatus === 'approved' && !!paymentReceivedAt;
   const hasActiveAssignments = !!signUpData && reportBundles.length > 0;
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
-
-  const allGroupsAssigned = appraisalGroups.length > 0 && appraisalGroups.every((group) => group.reportId !== null);
-  const allBundlesHaveFeeDecision =
-    reportBundles.length > 0 &&
-    reportBundles.every(
-      (bundle) =>
-        bundle.feeNeeded === 'no' ||
-        (bundle.feeNeeded === 'yes' && Number(bundle.feeAmount) > 0 && !!bundle.feeDescription.trim())
-    );
-  const canSubmit = feeApprovalStatus === 'not-submitted' && allGroupsAssigned && allBundlesHaveFeeDecision;
 
   const feeBundles = reportBundles.filter((bundle) => bundle.feeNeeded === 'yes');
   const totalFeeAmount = feeBundles.reduce((sum, bundle) => sum + (Number(bundle.feeAmount) || 0), 0);
@@ -129,41 +184,61 @@ export function AppraisalAppraiserView() {
     setDeclineReasonDraft('');
   };
 
-  const confirmSubmitForApproval = () => {
-    submitAppraisalFeesForApproval();
-    setSubmitConfirmOpen(false);
-  };
-
   const confirmAdviseClient = () => {
     const now = new Date().toISOString();
     setAppraisal({ clientNotifiedAt: now, sentToOdooAt: now });
+  };
+
+  // Every simulate action below is always visible in the Settings
+  // popover, regardless of current state — clicking one "just works" by
+  // auto-completing whatever earlier steps it depends on first, instead
+  // of only appearing once those steps already happened. Fills in any
+  // bundle whose fee decision is still undecided (sample ₱2,500 fee) and
+  // submits the batch if it hasn't been sent yet, so "Approve" (or
+  // anything past it) always has something real to act on.
+  const ensureFeeBatchSubmitted = () => {
+    if (feeApprovalStatus === 'not-submitted' || feeApprovalStatus === 'declined') {
+      reportBundles.forEach((bundle) => {
+        if (bundle.feeNeeded === null) {
+          setAppraisalBundleFee(bundle.id, {
+            feeNeeded: 'yes',
+            feeAmount: '2500',
+            feeDescription: 'Site visit + valuation fee',
+          });
+        }
+      });
+      submitAppraisalFeesForApproval();
+    }
   };
 
   // Simulated second-officer approval/decline, same convention as
   // credit-investigation-view.tsx's CI Fee page actions.
   useRegisterPageActions(
     useMemo(
-      () =>
-        feeApprovalStatus === 'pending-approval'
-          ? [
-              {
-                key: 'simulate-appraisal-fee-approval',
-                label: 'Simulate: Another Officer Approves Appraisal Fees',
-                icon: 'solar:user-check-bold-duotone',
-                color: '#0C8A4F',
-                onClick: () => approveAppraisalFees(),
-              },
-              {
-                key: 'simulate-appraisal-fee-decline',
-                label: 'Simulate: Another Officer Declines Appraisal Fees',
-                icon: 'solar:user-cross-bold-duotone',
-                color: '#B32C22',
-                onClick: () => setDeclineOpen(true),
-              },
-            ]
-          : [],
+      () => [
+        {
+          key: 'simulate-appraisal-fee-approval',
+          label: 'Simulate: Another Officer Approves Appraisal Fees',
+          icon: 'solar:user-check-bold-duotone',
+          color: '#0C8A4F',
+          onClick: () => {
+            ensureFeeBatchSubmitted();
+            approveAppraisalFees();
+          },
+        },
+        {
+          key: 'simulate-appraisal-fee-decline',
+          label: 'Simulate: Another Officer Declines Appraisal Fees',
+          icon: 'solar:user-cross-bold-duotone',
+          color: '#B32C22',
+          onClick: () => {
+            ensureFeeBatchSubmitted();
+            setDeclineOpen(true);
+          },
+        },
+      ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [feeApprovalStatus]
+      [feeApprovalStatus, reportBundles]
     )
   );
 
@@ -172,31 +247,122 @@ export function AppraisalAppraiserView() {
   // pipeline (Credit Investigation's CI Fee request) without navigating
   // back there — same simulated-request convention CiFeeCard's own "Yes,
   // Request CI Fee" uses, just with fixed sample values instead of a
-  // typed-in amount/description. Only offered while it hasn't already
-  // been requested, so it can't be used to stomp on further-along state
-  // (pending-approval/approved/not-applicable).
+  // typed-in amount/description. Always visible and always re-applies
+  // these values regardless of `ciFeeStatus` — clicking it resets CI Fee
+  // back to a fresh pending request even if one was already
+  // approved/declined, rather than only being reachable once and
+  // disappearing.
   useRegisterPageActions(
     useMemo(
-      () =>
-        ciFeeStatus === 'not-requested'
-          ? [
-              {
-                key: 'simulate-request-ci-fee',
-                label: 'Simulate: Request CI Fee',
-                icon: 'solar:wallet-money-bold-duotone',
-                color: '#1C2A6E',
-                onClick: () =>
-                  setCreditInvestigation({
-                    ciFeeStatus: 'pending-approval',
-                    ciFeeAmount: '2500',
-                    ciFeeAmountDescription: 'Credit investigation fee',
-                    ciFeeRemarks: '',
-                  }),
-              },
-            ]
-          : [],
+      () => [
+        {
+          key: 'simulate-request-ci-fee',
+          label: 'Simulate: Request CI Fee',
+          icon: 'solar:wallet-money-bold-duotone',
+          color: '#1C2A6E',
+          onClick: () =>
+            setCreditInvestigation({
+              ciFeeStatus: 'pending-approval',
+              ciFeeAmount: '2500',
+              ciFeeAmountDescription: 'Credit investigation fee',
+              ciFeeRemarks: '',
+            }),
+        },
+      ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [ciFeeStatus]
+      []
+    )
+  );
+
+  // Always visible — cascades through every prerequisite (submit ->
+  // approve -> advise client) before stamping `paymentReceivedAt`, same
+  // "just works from any state" convention every other simulate action
+  // on this page now follows. Same underlying transition the "Simulate:
+  // Payment Received (Sendit)" button in the visible "Advise client to
+  // settle" card below performs — this is the always-available popover
+  // shortcut for it, not a duplicate of the officer-facing card itself.
+  useRegisterPageActions(
+    useMemo(
+      () => [
+        {
+          key: 'simulate-payment-received',
+          label: 'Simulate: Payment Received (Sendit)',
+          icon: 'solar:card-recive-bold-duotone',
+          color: '#0C8A4F',
+          onClick: () => {
+            ensureFeeBatchSubmitted();
+            if (feeApprovalStatus !== 'approved') approveAppraisalFees();
+            const now = new Date().toISOString();
+            setAppraisal({ clientNotifiedAt: now, sentToOdooAt: now, paymentReceivedAt: now });
+          },
+        },
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [feeApprovalStatus, reportBundles]
+    )
+  );
+
+  // Always visible — fills in a full sample report (buildSampleAppraisalReport,
+  // shared with AppraisalTctTable's own "Simulate: Appraiser Submits
+  // Report" and the per-bundle detail page's equivalent) for every
+  // bundle in the batch that doesn't already have one, regardless of fee
+  // status — a report can be filled in independently of where the fee
+  // request stands, since AppraiserAssignmentCard's own form is never
+  // gated on it either. Skips bundles that already have
+  // `report.uploadedAt`, so re-clicking after new bundles are assigned
+  // never clobbers a report an appraiser (or this same action) already
+  // submitted. Passes `submit: false` — fills in the fields only, leaves
+  // `uploadedAt` unset so the form stays editable and the appraiser still
+  // has to click "Submit Appraisal Report" themselves to actually submit
+  // (unlike AppraisalTctTable's own version, which defaults to
+  // `submit: true` since its whole purpose is simulating a report that's
+  // already been fully submitted).
+  useRegisterPageActions(
+    useMemo(
+      () => [
+        {
+          key: 'simulate-fill-sample-report',
+          label: 'Simulate: Fill Sample Report',
+          icon: 'solar:document-add-bold-duotone',
+          color: '#1C2A6E',
+          onClick: () => {
+            reportBundles
+              .filter((bundle) => !bundle.report.uploadedAt)
+              .forEach((bundle) => {
+                const bundleTctNumbers = appraisalGroups
+                  .filter((group) => bundle.tctGroupIds.includes(group.id))
+                  .map((group) => group.tctNumber);
+                setAppraisalBundleReport(
+                  bundle.id,
+                  buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName, false)
+                );
+              });
+          },
+        },
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [reportBundles, appraisalGroups, applicantName]
+    )
+  );
+
+  // Always available — wipes the whole Appraisal Fee flow (batch
+  // status/dates plus every bundle's own fee decision) back to its very
+  // first state, same `resetAppraisalFees()` the bundle detail page also
+  // registers this action from. Does not touch report/assignment data,
+  // only fee fields.
+  useRegisterPageActions(
+    useMemo(
+      () => [
+        {
+          key: 'simulate-reset-appraisal-fees',
+          label: 'Simulate: Reset Appraisal Fees',
+          icon: 'solar:restart-bold-duotone',
+          color: '#5A6273',
+          onClick: () => resetAppraisalFees(),
+        },
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      []
     )
   );
 
@@ -224,194 +390,165 @@ export function AppraisalAppraiserView() {
           </Typography>
         </Stack>
 
-        {!signUpData ? (
-          <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
-            <Iconify icon="solar:home-2-bold-duotone" width={48} sx={{ color: '#C7CCDA', mb: 2 }} />
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              Nothing to work on yet
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
-              There&apos;s no live application in this session yet. Start one from the Application List.
-            </Typography>
-            <Button
-              component={RouterLink}
-              href={paths.admin.accountSolicitation}
-              variant="outlined"
-              sx={{ ...outlinedNavyButtonSx, px: 2.5 }}
-            >
-              Go to Application List
-            </Button>
-          </Box>
-        ) : (
-          <>
-            <Stack spacing={2}>
-              {hasActiveAssignments ? (
-                <Box sx={{ ...adminCardSx, p: 0, overflow: 'hidden' }}>
-                  <TableContainer>
-                    <Table sx={{ tableLayout: 'fixed' }}>
-                      <TableHead>
+        <Stack spacing={2}>
+          {hasActiveAssignments ? (
+            <Box sx={{ ...adminCardSx, p: 0, overflow: 'hidden' }}>
+              <TableContainer>
+                <Table sx={{ tableLayout: 'fixed' }}>
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        '& th': {
+                          bgcolor: '#FBFBFD',
+                          borderBottom: '1px solid #E1E4ED',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: '#8891A6',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          py: 1.5,
+                          px: 2,
+                        },
+                      }}
+                    >
+                      <TableCell sx={{ width: '16%' }}>Appraisal No.</TableCell>
+                      <TableCell sx={{ width: '23%' }}>Collateral No.</TableCell>
+                      <TableCell sx={{ width: '23%' }}>Applicant</TableCell>
+                      <TableCell sx={{ width: '18%' }}>Appraisal Fee</TableCell>
+                      <TableCell sx={{ width: '18%' }}>Status</TableCell>
+                      <TableCell sx={{ width: 44 }} />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {reportBundles.map((bundle) => {
+                      const bundleTctNumbers = appraisalGroups
+                        .filter((group) => bundle.tctGroupIds.includes(group.id))
+                        .map((group) => group.tctNumber);
+                      const status = bundle.report.uploadedAt
+                        ? 'reported'
+                        : bundle.feeNeeded === 'no' || (feeApprovalStatus === 'approved' && feeSettled)
+                          ? 'for-report'
+                          : feeApprovalStatus === 'pending-approval'
+                            ? 'for-approval'
+                            : 'on-process';
+                      const copy = STATUS_COPY[status];
+                      const toneColors = TONE_COLORS[copy.tone];
+
+                      const feeStatusKey =
+                        feeApprovalStatus === 'declined'
+                          ? 'declined'
+                          : bundle.feeNeeded === 'no'
+                            ? 'no-fee'
+                            : feeSettled
+                              ? 'settled'
+                              : feeApprovalStatus === 'approved'
+                                ? 'approved'
+                                : feeApprovalStatus === 'pending-approval'
+                                  ? 'pending-approval'
+                                  : 'not-submitted';
+                      const feeCopy = FEE_STATUS_COPY[feeStatusKey];
+                      const feeToneColors = TONE_COLORS[feeCopy.tone];
+
+                      return (
                         <TableRow
+                          key={bundle.id}
+                          hover
+                          onClick={() => router.push(paths.admin.appraisalAppraiserBundle(bundle.id))}
                           sx={{
-                            '& th': {
-                              bgcolor: '#FBFBFD',
-                              borderBottom: '1px solid #E1E4ED',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              color: '#8891A6',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.05em',
-                              py: 1.5,
+                            cursor: 'pointer',
+                            '& td': {
+                              borderColor: '#EEF0F5',
+                              py: 1.375,
                               px: 2,
                             },
                           }}
                         >
-                          <TableCell sx={{ width: '27%' }}>Collateral No.</TableCell>
-                          <TableCell sx={{ width: '27%' }}>Applicant</TableCell>
-                          <TableCell sx={{ width: '20%' }}>Appraisal Fee</TableCell>
-                          <TableCell sx={{ width: '20%' }}>Status</TableCell>
-                          <TableCell sx={{ width: 44 }} />
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {reportBundles.map((bundle) => {
-                          const bundleTctNumbers = appraisalGroups
-                            .filter((group) => bundle.tctGroupIds.includes(group.id))
-                            .map((group) => group.tctNumber);
-                          const status = bundle.report.uploadedAt
-                            ? 'reported'
-                            : feeApprovalStatus === 'approved' && feeSettled
-                              ? 'for-report'
-                              : feeApprovalStatus === 'pending-approval'
-                                ? 'for-approval'
-                                : 'on-process';
-                          const copy = STATUS_COPY[status];
-                          const toneColors = TONE_COLORS[copy.tone];
-
-                          const feeStatusKey =
-                            bundle.feeNeeded === 'no'
-                              ? 'no-fee'
-                              : feeSettled
-                                ? 'settled'
-                                : feeApprovalStatus === 'approved'
-                                  ? 'approved'
-                                  : feeApprovalStatus === 'pending-approval'
-                                    ? 'pending-approval'
-                                    : 'not-submitted';
-                          const feeCopy = FEE_STATUS_COPY[feeStatusKey];
-                          const feeToneColors = TONE_COLORS[feeCopy.tone];
-
-                          return (
-                            <TableRow
-                              key={bundle.id}
-                              hover
-                              onClick={() => router.push(paths.admin.appraisalAppraiserBundle(bundle.id))}
+                          <TableCell>
+                            <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A' }}>
+                              {getAppraisalNumber(bundle.id)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography
                               sx={{
-                                cursor: 'pointer',
-                                '& td': {
-                                  borderColor: '#EEF0F5',
-                                  py: 1.375,
-                                  px: 2,
-                                },
+                                fontSize: 13.5,
+                                fontWeight: 600,
+                                color: '#14172A',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
                               }}
                             >
-                              <TableCell>
-                                <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A' }}>
-                                  {bundleTctNumbers.join(', ')}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
-                                  {applicantName}
-                                </Typography>
-                                <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>
-                                  App No. {getLoanNumber(signUpData.email)}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Box
-                                  sx={{
-                                    display: 'inline-flex',
-                                    px: 1.1,
-                                    py: 0.4,
-                                    borderRadius: '999px',
-                                    bgcolor: feeToneColors.bg,
-                                    color: feeToneColors.text,
-                                    fontSize: 11.5,
-                                    fontWeight: 700,
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {feeCopy.label}
-                                </Box>
-                              </TableCell>
-                              <TableCell>
-                                <Box
-                                  sx={{
-                                    display: 'inline-flex',
-                                    px: 1.1,
-                                    py: 0.4,
-                                    borderRadius: '999px',
-                                    bgcolor: toneColors.bg,
-                                    color: toneColors.text,
-                                    fontSize: 11.5,
-                                    fontWeight: 700,
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                >
-                                  {copy.label}
-                                </Box>
-                              </TableCell>
-                              <TableCell align="right">
-                                <IconButton size="small">
-                                  <Iconify icon="eva:arrow-ios-forward-fill" width={18} />
-                                </IconButton>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
-              ) : (
-                <Box sx={{ ...adminCardSx, p: { xs: 3, md: 4 }, textAlign: 'center' }}>
-                  <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-                    No active assignments right now — check back once a property is assigned to
-                    you.
-                  </Typography>
-                </Box>
-              )}
-            </Stack>
+                              {bundleTctNumbers.join(', ')}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
+                              {applicantName}
+                            </Typography>
+                            <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>
+                              App No. {getLoanNumber(signUpData!.email)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                display: 'inline-flex',
+                                px: 1.1,
+                                py: 0.4,
+                                borderRadius: '999px',
+                                bgcolor: feeToneColors.bg,
+                                color: feeToneColors.text,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {feeCopy.label}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                display: 'inline-flex',
+                                px: 1.1,
+                                py: 0.4,
+                                borderRadius: '999px',
+                                bgcolor: toneColors.bg,
+                                color: toneColors.text,
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {copy.label}
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton size="small">
+                              <Iconify icon="eva:arrow-ios-forward-fill" width={18} />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          ) : (
+            <Box sx={{ ...adminCardSx, p: { xs: 3, md: 4 }, textAlign: 'center' }}>
+              <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+                No active assignments right now — check back once a property is assigned to
+                you.
+              </Typography>
+            </Box>
+          )}
+        </Stack>
 
-            {hasActiveAssignments && feeApprovalStatus === 'not-submitted' && (
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'center' }}
-                justifyContent="space-between"
-                spacing={1.5}
-                sx={{ ...adminCardSx }}
-              >
-                <Box>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
-                    Submit fees for approval
-                  </Typography>
-                  <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
-                    Decide each property&apos;s fee above, then submit the whole batch at once.
-                  </Typography>
-                </Box>
-                <Button
-                  onClick={() => setSubmitConfirmOpen(true)}
-                  disabled={!canSubmit}
-                  variant="contained"
-                  size="small"
-                  startIcon={<Iconify icon="solar:send-square-bold" width={16} />}
-                  sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2, whiteSpace: 'nowrap', boxShadow: 'none', flexShrink: 0, '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
-                >
-                  Submit Fees for Approval
-                </Button>
-              </Stack>
-            )}
-
+        {signUpData && (
+          <>
             {hasActiveAssignments && feeApprovalStatus === 'approved' && !feeSettled && (
               <Stack spacing={1.25} sx={{ ...adminCardSx }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" spacing={1.5}>
@@ -477,33 +614,6 @@ export function AppraisalAppraiserView() {
             sx={confirmDialogActionToneSx.destructive}
           >
             Confirm
-          </Button>
-        }
-      />
-
-      <ConfirmDialog
-        open={submitConfirmOpen}
-        onClose={() => setSubmitConfirmOpen(false)}
-        title="Send Appraisal Fees for Approval?"
-        content={
-          <>
-            This sends all {reportBundles.length} propert
-            {reportBundles.length === 1 ? 'y' : 'ies'}&apos; appraiser assignment and fee decision to
-            the Appraisal Fee Approver as one request
-            {feeBundles.length > 0 ? (
-              <>
-                {' '}
-                — total <strong>{fCurrency(totalFeeAmount)}</strong> across {feeBundles.length}{' '}
-                propert{feeBundles.length === 1 ? 'y' : 'ies'} needing a fee
-              </>
-            ) : null}
-            . You won&apos;t be able to change any bundle&apos;s appraiser or fee decision while
-            it&apos;s pending approval.
-          </>
-        }
-        action={
-          <Button variant="contained" onClick={confirmSubmitForApproval} sx={confirmDialogActionToneSx.default}>
-            Send for Approval
           </Button>
         }
       />

@@ -58,9 +58,35 @@ function Field({ label, value }: { label: string; value: string }) {
 function LandTitleSummary({ title, tctNumber }: { title: AppraisalReportLandTitle; tctNumber: string }) {
   return (
     <Box sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.25 }}>
-        TCT No. {tctNumber}
-      </Typography>
+      <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 1.25 }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', flex: 1 }}>
+          TCT No. {tctNumber}
+        </Typography>
+        {title.photoFileUrl && (
+          <Box
+            component="a"
+            href={title.photoFileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              display: 'block',
+              width: 56,
+              height: 56,
+              borderRadius: '8px',
+              overflow: 'hidden',
+              border: '1px solid #EBEDF3',
+              flexShrink: 0,
+            }}
+          >
+            <Box
+              component="img"
+              src={title.photoFileUrl}
+              alt={`Collateral photo — TCT No. ${tctNumber}`}
+              sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
+            />
+          </Box>
+        )}
+      </Stack>
       <Stack direction="row" flexWrap="wrap" sx={{ gap: 2, mb: title.boundaries || title.technicalSpecification ? 1.5 : 0 }}>
         <Field label="Survey No." value={title.surveyNo} />
         <Field label="Book No. / Page No." value={title.bookPageNo} />

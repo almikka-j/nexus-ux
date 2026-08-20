@@ -73,6 +73,12 @@ export const paths = {
     appraisalAppraiser: '/admin/appraisal-appraiser',
     appraisalAppraiserBundle: (bundleId: string) => `/admin/appraisal-appraiser/${bundleId}`,
     appraisalFeeApproval: '/admin/appraisal-fee-approval',
+    // There's no real per-application backend in this prototype — one live
+    // session always means one live fee-approval request, so there's no
+    // real bundle/request ID to route on. Uses a fixed placeholder segment
+    // rather than an actual ID purely to keep this page's URL shape
+    // consistent with appraisalAppraiserBundle's own list -> detail split.
+    appraisalFeeApprovalBundle: () => '/admin/appraisal-fee-approval/current',
     appraisalApprover: '/admin/appraisal-approver',
     creditChecking: (id: string) => `/admin/applications/${id}/credit-checking`,
     reconsideration: (id: string) => `/admin/applications/${id}/reconsideration`,

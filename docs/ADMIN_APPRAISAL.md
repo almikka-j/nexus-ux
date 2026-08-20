@@ -5,9 +5,10 @@
 > `appraisal/appraisal-report-view.tsx`,
 > `appraisal/assigned-appraiser-card.tsx`,
 > `appraisal/head-approval-card.tsx`,
-> `appraisal/pass-fail-card.tsx`, `appraisal-appraiser-view.tsx`,
-> `appraisal-appraiser-bundle-view.tsx`,
-> `appraisal-fee-approval-view.tsx`, `appraisal-approver-view.tsx`) change.
+> `appraisal/pass-fail-card.tsx`, `appraisal/sample-appraisal-report.ts`,
+> `appraisal-appraiser-view.tsx`, `appraisal-appraiser-bundle-view.tsx`,
+> `appraisal-fee-approval-view.tsx`, `appraisal-fee-approval-bundle-view.tsx`,
+> `appraisal-approver-view.tsx`) change.
 > Companion to `PROJECT_OVERVIEW.md`
 > and `docs/ADMIN_CREDIT_INVESTIGATION.md` (the step immediately before this
 > one in the pipeline, and where "CI Fee Approval" — nested alongside these
@@ -231,6 +232,31 @@ that capability, `addTctGroupsToReportBundle`, and its selection-bar
 branch were removed, since a TCT should stop being selectable the moment
 it's assigned, full stop.)
 
+**A row's checkbox also disables until every one of its 8 documents is
+verified** (`docsIncomplete(groupId)`, i.e. `docs.done < docs.total`) —
+an appraiser shouldn't be handed a property whose collateral documents
+aren't confirmed complete yet. A disabled-by-incomplete-docs checkbox
+shows a `Tooltip` ("Every document must be verified before this property
+can be assigned to an appraiser.") on hover; an already-assigned row
+(disabled for the pre-existing `isRowLocked` reason above) shows no
+tooltip, since that row isn't a documents problem. **"Auto-assign All
+TCTs"** (see "Dev/testing page actions" below) respects the same gate —
+it now filters to `group.reportId === null && !docsIncomplete(group.id)`
+instead of every still-unassigned group, so it can't be used to bypass
+the rule either. This is also why the 5 default seed
+`AppraisalTctGroup`s (`createInitialReview()` in `admin-context.tsx`)
+were changed to seed **every** document as `'verified'`
+(`createAppraisalGroupDocuments(seeded = true)`) instead of reusing
+`APPRAISAL_DOC_META[key].freshStatus` per key — two of the 8 keys
+(`realtyTaxReceipt`, `appraisalPrimaryIdsMortgagor`) have
+`freshStatus: 'needs-review'` there (shared metadata Requirement
+Checklist/CI also draw from, where a `'needs-review'` fresh state is
+still meaningful), which would have permanently capped every seeded
+group at 6/8 and made none of them assignable out of the box. A freshly
+**added** TCT (via "Add Collateral") still starts fully `'missing'`
+(`seeded = false`, unchanged) and stays unassignable until its documents
+are actually uploaded/verified.
+
 ### Request Document modal
 
 The **"Request Document"** button opens a `Dialog` for asking the borrower
@@ -343,27 +369,119 @@ TCTs"** deletes every bundle and resets every group's `reportId` back to
 `bundle.report` for every bundle that doesn't yet have
 `report.uploadedAt` and stamps `uploadedAt`, simulating the Appraiser
 having already filled in and submitted their report on the Appraisal
-Appraiser page — in-house bundles get a full sample REM (every section
-`AppraisalReportView` renders: Land/title details, Technical
-Specification, Utilities, Construction Features, Basis of Valuation, the
-FMV/RCN valuation table with a ₱2,500,000 Appraised Value, and the
-Prepared/Reviewed/Endorsed/Noted-by chain), external bundles get a fake
-uploaded file (mirroring what `handleExternalFile` actually stores). It
-only ever fills bundles missing a report, so re-clicking after new
-bundles are assigned won't clobber a report an appraiser (or this same
-action) already submitted. All three are dev/testing conveniences for
-reaching downstream states quickly, not user-facing officer actions.
+Appraiser page. The actual sample values (in-house bundles get a full
+sample REM covering every section `AppraisalReportView` renders —
+Land/title details, Technical Specification, Utilities, Construction
+Features, Basis of Valuation, the FMV/RCN valuation table with a
+₱2,500,000 Appraised Value, and the Prepared/Reviewed/Endorsed/Noted-by
+chain; external bundles get a fake uploaded file, mirroring what
+`handleExternalFile` actually stores) live in
+`buildSampleAppraisalReport()`
+(`src/sections/admin/appraisal/sample-appraisal-report.ts`) — pulled out
+of this file so the exact same values are shared with the equivalent
+"Simulate: Fill Sample Report" entries the Appraiser's own list and
+per-bundle detail pages register (see below), instead of three near-copies
+of the same object slowly drifting apart. It only ever fills bundles
+missing a report, so re-clicking after new bundles are assigned won't
+clobber a report an appraiser (or this same action) already submitted.
+All three are dev/testing conveniences for reaching downstream states
+quickly, not user-facing officer actions.
 
-`appraisal-appraiser-view.tsx` itself registers two more entries the
-moment a fee batch is `pending-approval` (see "Appraisal Fee" below) —
-**"Simulate: Another Officer Approves/Declines Appraisal Fees."** These
-show on `/admin/appraisal-appraiser`'s Settings popover only, since
-fee-requesting is exclusively the Appraiser's action and this page is
-where it happens (there is no standalone `AppraisalFeeCard` component any
-more — see "Appraisal Fee" below for where its contents live now).
+**Every Appraisal Fee simulate action on both pages is always visible in
+the Settings popover, regardless of current state** — an earlier version
+gated each one behind the state it was meant to produce (Approve/Decline
+only while `pending-approval`, Payment Received only once advised),
+which meant most of the popover was empty on a freshly-assigned bundle
+and a tester had to click things in a specific order to unlock the next
+one. Every action now calls a shared `ensureFeeBatchSubmitted()` helper
+first: if the batch is still `not-submitted` or `declined`, it fills in
+any bundle whose `feeNeeded` is still `null` (sample "Yes, ₱2,500, Site
+visit + valuation fee") and calls `submitAppraisalFeesForApproval()`
+before doing anything else — so clicking any one simulate button, from
+any starting state, always has something real to act on and "just
+works" in a single click.
 
-The same page also registers **"Simulate: Request CI Fee"** while
-`review.creditInvestigation.ciFeeStatus === 'not-requested'` — a
+`appraisal-appraiser-view.tsx` registers **"Simulate: Another Officer
+Approves/Declines Appraisal Fees"** (see "Appraisal Fee" below).
+`appraisal-appraiser-bundle-view.tsx` (the per-bundle detail page)
+registers the exact same two entries — duplicated rather than shared,
+since the two pages don't share a component for this — so the shortcut
+is reachable whether a tester is on the list or already drilled into a
+single bundle's detail page. Approve ensures the batch is submitted, then
+calls `approveAppraisalFees()`; decline ensures submission too, then
+opens each page's own local decline `ConfirmDialog` (same "Reason for
+declining Appraisal Fees" prompt, same `declineAppraisalFees(reason)`
+call, just two separate `useState` + dialog instances, one per file).
+Since `page-actions-context.tsx` merges every registrant's actions rather
+than having the latest one replace the rest (see below), both pages'
+registrations coexist fine with `AppraisalTctTable`'s own entries — there
+is never a conflict from two different pages registering the identical
+action, because only one of these two pages is ever mounted at a time.
+
+Both pages also register **"Simulate: Payment Received (Sendit)"** —
+the deepest cascade of the set. It ensures submission, approves if not
+already `'approved'`, then stamps `clientNotifiedAt`/`sentToOdooAt`/
+`paymentReceivedAt` all in the same call via `setAppraisal({...})`. This
+means clicking just this one button from a completely fresh, undecided
+bundle takes the whole batch from nothing all the way to "Settled" in a
+single click — request, submit, approve, advise, and pay all folded into
+one. (An earlier version split "Advise Client to Settle" and "Payment
+Received" into two separate popover entries that only appeared one after
+the other, in order; that's gone now — "Payment Received" alone handles
+the whole remaining path.)
+
+Both list and detail pages also always register **"Simulate: Reset
+Appraisal Fees"** (`resetAppraisalFees()`, `src/auth/admin-context.tsx`)
+— this one has no cascade logic and needs none, since a tester might
+want to restart the whole fee flow from any state. It wipes
+`feeApprovalStatus` back to `'not-submitted'`,
+`feeDeclineReason`/`feeSubmittedAt`/`feeApprovedAt`/`clientNotifiedAt`/
+`sentToOdooAt`/`paymentReceivedAt` all back to their blank/null defaults,
+and every bundle's own `feeNeeded`/`feeAmount`/`feeDescription`/
+`feeRemarks` back to undecided — but deliberately leaves
+`reportBundles`' appraiser assignment and report content completely
+untouched, since this is meant to restart just the fee
+request/approval/settlement cycle, not undo an appraiser assignment or a
+filled-in report.
+
+Both pages also register **"Simulate: Fill Sample Report"** — always
+visible, independent of fee status entirely, since a report can be
+filled in whenever (`AppraiserAssignmentCard`'s own form is never gated
+on the fee either). It calls the same `buildSampleAppraisalReport()`
+helper `AppraisalTctTable` uses (see above), just scoped differently per
+page: the list page's version loops every bundle in the batch that
+doesn't yet have `report.uploadedAt`, same as `AppraisalTctTable`'s own
+version; the bundle detail page's version only fills in the one bundle
+currently being viewed. Either way it's a no-op on a bundle that already
+has a report — clicking it again never clobbers one an appraiser (or
+this same action) already submitted.
+
+**Unlike `AppraisalTctTable`'s own version, both of these pass
+`buildSampleAppraisalReport(..., false)`** — the fourth `submit`
+argument. `buildSampleAppraisalReport()` defaults `submit` to `true`
+(matching `AppraisalTctTable`'s own use, whose whole purpose is
+simulating a report the appraiser has already fully submitted — so it
+still stamps `uploadedAt` and immediately locks the form); the
+Appraiser's own two "Simulate: Fill Sample Report" entries pass `false`
+instead, since their purpose is different — auto-filling the fields as a
+starting point to review or tweak, not submitting a report on the
+appraiser's behalf. With `submit: false`, `uploadedAt` stays unset, so
+the form (including each TCT's own Collateral Photo dropzone) remains
+fully editable afterward, exactly as if the appraiser had typed those
+same values in by hand — "Submit Appraisal Report" (or, for an external
+bundle, the file dropzone's own upload) still has to be triggered
+separately to actually submit and lock it. (An earlier version of these
+two page actions used the default `submit: true`, which auto-submitted
+the report the instant the button was clicked — every field locked
+read-only immediately, before a tester ever got a chance to look at or
+adjust the sample values. That's the bug this `submit: false` change
+fixes.)
+
+The same page also registers **"Simulate: Request CI Fee"**, also
+always visible now (an earlier version hid it once
+`review.creditInvestigation.ciFeeStatus` moved past `'not-requested'`,
+matching the "gate every simulate action behind its own precondition"
+pattern that was dropped everywhere else on this page too) — a
 dev/testing shortcut that calls `setCreditInvestigation({ ciFeeStatus:
 'pending-approval', ciFeeAmount: '2500', ciFeeAmountDescription: 'Credit
 investigation fee', ciFeeRemarks: '' })` directly, the same transition
@@ -374,9 +492,9 @@ Appraiser page — several steps downstream of Credit Investigation — can
 fast-forward CI Fee's own request step (the very first fee-gate in the
 whole pipeline) without navigating all the way back to
 `/admin/applications/[id]/credit-investigation` to trigger it manually.
-It disappears once `ciFeeStatus` moves past `'not-requested'`, so it
-can't be used to stomp on a request already pending/approved/declined —
-the actual approve/decline simulation for it still lives on
+Clicking it always re-applies these same values, even if CI Fee is
+already pending/approved/declined, resetting it back to a fresh pending
+request — the actual approve/decline simulation for it still lives on
 `credit-investigation-view.tsx` (**"Simulate: Another Officer
 Approves/Declines CI Fee"**) and on `/admin/ci-fee-approval`
 (`ci-fee-approval-view.tsx`), not here.
@@ -490,126 +608,316 @@ on this page.
 
 ## Appraisal Fee
 
-**Requesting the fee is the Appraiser's job, not the Appraisal Officer's,
-and there is no standalone fee card any more.** All of the fee UI lives
-directly inside `/admin/appraisal-appraiser`
-(`appraisal-appraiser-view.tsx`) — `appraisal-view.tsx` (the Officer's
-page) never shows any fee UI at all, and the Assign Appraiser modal
-doesn't ask "Does this application need an Appraisal fee?" either (see
-"Assign Appraiser modal" above). The Officer's role stops at assigning an
-appraiser to each pledged property; deciding whether that property needs
-a fee, how much, and requesting it is entirely the assigned Appraiser's
-own action on their own page. (There used to be a standalone
-`AppraisalFeeCard` component — `src/sections/admin/appraisal/
-appraisal-fee-card.tsx` — that rendered as one whole-batch card on the
-Appraiser's page; it has been deleted entirely and its contents
-redistributed: the per-bundle fee-decision fields moved into each table
-row's expandable panel, and the batch-level submit/approve/advise/settle
-actions moved to page level, both described below.)
+**Requesting the fee happens inside a modal on the bundle's own detail
+page, not an inline card.** `appraisal-appraiser-bundle-view.tsx` (see
+"Appraiser" under "Approval-role screens" below) renders an "Appraisal
+Fee" summary card between the header card and Documents — a fee-status
+`StatusBadge` (No Fee/Draft/For Approval/Approved/Settled, same
+`FEE_STATUS_COPY` map the list page's table pill uses) sits directly
+beside the "Appraisal Fee" title, plus a single button, **"Request
+Appraisal Fee"** (relabeled **"View Appraisal Fee"**, rendered outlined
+instead of filled, once the batch is no longer `not-submitted`). Clicking
+it opens a `Dialog` — not an inline expand/panel — following the exact
+same modal convention this page's sibling list page
+(`appraisal-appraiser-view.tsx`) already uses for "Advise Client to
+Settle": a `DialogTitle` with a close `IconButton`, a `DialogContent`,
+and (only while editable) a footer action row. If the bundle's fee
+decision is still undecided (`feeNeeded === null`), opening the modal
+defaults it to `'yes'` right then, before the modal even renders — Yes is
+the common case, so it opens pre-selected instead of making the appraiser
+click Yes just to confirm the likely answer; No remains one click away,
+same as ever.
+
+Inside the modal, while `feeApprovalStatus === 'not-submitted'`
+(`feeEditable`): the same Yes/No `FeeNeededOption` pair plus, once "Yes"
+is picked, Request Amount (`NumericFormat` currency field) / Request
+Amount Description (multiline, required) / Remarks (multiline, optional)
+— all wired to `setAppraisalBundleFee(bundle.id, data)`, for *this*
+bundle only. Picking "No" clears any previously-entered
+amount/description/remarks. Below the fields, a **"Submit Fees for
+Approval"** button — gated on `canSubmit` (every pledged property
+assigned + every bundle in the batch has a complete fee decision, the
+same rule described below) — sits in the modal's footer; confirming
+calls `submitAppraisalFeesForApproval()` directly (no separate
+`ConfirmDialog` layered on top — the modal itself already reads as the
+deliberate "review before sending" step) and closes the modal. It still
+submits the **whole batch**, not just the bundle whose modal happens to
+be open. Once submitted, the modal instead shows a read-only summary
+(amount + description + remarks, or "No fee needed") plus a "Requested
+on {date}" line sourced from `Appraisal.feeSubmittedAt` — an ISO string
+`submitAppraisalFeesForApproval()` stamps via `new Date().toISOString()`
+(same convention every other admin-context.tsx timestamp uses) each time
+the batch is actually sent, overwritten on every re-submission (including
+after a decline — see below) so it always reflects the *latest* send, not
+the first — with no footer button at all — editing only happens
+pre-submission, same as always. (An
+earlier version moved that read-only summary out of the modal entirely,
+straight onto the card, dropping the button/modal for that case; that was
+reverted — keeping the fee UI in one consistent place, the modal, reads
+better than splitting it across two different presentations depending on
+whether it's editable.)
+
+Separately, once `!feeEditable` (the batch has actually been submitted —
+pending-approval, approved, or settled), the Appraisal Fee card itself
+gains a subtitle under the title/badge row —
+`"{fCurrency(bundle.feeAmount)} requested"` — so the appraiser can see
+what was actually requested at a glance without opening the modal. It
+only renders when `bundle.feeNeeded === 'yes'`; a no-fee bundle already
+communicates that via its "No Fee" badge alone, with nothing to summarize
+as an amount. It's deliberately absent while still `feeEditable`
+(`not-submitted` OR `declined`) — an in-progress decision that hasn't
+been (re-)sent yet isn't a "request" worth summarizing on the card; a
+declined batch loses the subtitle the moment it's declined, the same way
+it never had one before its first submission, and only earns it back
+once "Submit Fees for Approval" has actually been clicked again.
+
+(This flow went through several homes before landing here: a standalone
+`AppraisalFeeCard` component (`src/sections/admin/appraisal/
+appraisal-fee-card.tsx`, since deleted) rendered one whole-batch card on
+the Appraiser's list page; that was replaced by moving the per-bundle
+fields into each list row's expandable panel; that was replaced by an
+inline card directly on this detail page (fields + a page-level "Submit
+Fees for Approval" button, no modal); that inline card was removed
+entirely with no replacement for a period; it was then rebuilt as this
+modal instead of another bare card, matching the "Advise Client" modal
+convention already established on the sibling list page rather than
+reintroducing a third inline-card variant.)
 
 Each pledged property's fee is still decided **per bundle** — there is no
-app-wide flat fee. The "My Assignments" table (see "Appraiser" under
-"Approval-role screens" below) has one row per bundle; expanding a row
-reveals an **"Appraisal Fee"** panel above that bundle's report form.
-While `feeApprovalStatus === 'not-submitted'`, that panel is **editable**:
-a `FeeNeededOption` Yes/No card pair (plain centered label, selected-state
-border+text color, same convention `AppraiserTypeOption` uses) plus,
-revealed in a `Collapse` once Yes is picked, Request Amount (a
-`NumericFormat` currency field) / Request Amount Description (multiline,
-required) / Remarks (multiline, optional) — all wired directly to
-`setAppraisalBundleFee(bundleId, data)`. Picking **No** also clears any
-previously-entered amount/description/remarks back to empty. Once the
-batch is submitted, the same panel switches to a read-only rendering
-(amount + description, or a muted "No fee needed" label) — editing only
-happens pre-submission.
-
-The table itself also shows an **"Appraisal Fee"** status pill per row
-(distinct from the overall On Process/For Approval/For Report/Reported
-status pill next to it) — **No Fee** (`feeNeeded === 'no'`), **Draft**
-(`not-submitted`), **For Approval** (`pending-approval`), **Approved**
-(`feeApprovalStatus === 'approved'` but not yet settled), or **Settled**
-(`feeSettled`) — so the batch's fee progress is visible at a glance
-without expanding every row.
-
-What lives on `Appraisal` (the data model) is a single **batch** state,
+app-wide flat fee. What lives on `Appraisal` is a single **batch** state,
 `feeApprovalStatus: 'not-submitted' | 'pending-approval' | 'approved' |
-'declined'`, that every bundle's decided fee travels through together
-once the Appraiser explicitly submits it as one request. `AppraisalReportBundle`
-carries the actual per-bundle decision: `feeNeeded: 'yes' | 'no' | null`,
-`feeAmount`, `feeDescription`, `feeRemarks` — freshly-created bundles
-start with `feeNeeded: null` (undecided) now that
-`createAppraisalReportBundle` is never called with a `fee` argument from
-the Assign Appraiser modal.
+'declined'` plus `feeSubmittedAt: string | null` (the ISO timestamp of
+the moment the batch was last submitted, `null` until the first
+submission, overwritten — not cleared — on every subsequent
+re-submission), that every bundle's decided fee travels through together
+once submitted as one request. `AppraisalReportBundle` carries the actual
+per-bundle decision: `feeNeeded: 'yes' | 'no' | null`, `feeAmount`,
+`feeDescription`, `feeRemarks` — freshly-created bundles start with
+`feeNeeded: null` (undecided), since `createAppraisalReportBundle` is
+never called with a `fee` argument from the Assign Appraiser modal (the
+Officer never sets this — see "Assign Appraiser modal" above).
 
-Below the table, a **page-level** action block (not inside any row or
-card) handles the batch actions, since these are single actions covering
-every bundle at once, not a per-TCT action:
-
-- While `feeApprovalStatus === 'not-submitted'`: a **"Submit fees for
-  approval"** block with a **"Submit Fees for Approval"** button, enabled
-  only once **every** pledged property is assigned *and* every bundle has
-  a *complete* fee decision — `feeNeeded === 'no'`, or `feeNeeded ===
-  'yes'` with a valid amount (`> 0`) and a non-empty description —
-  `canSubmit = feeApprovalStatus === 'not-submitted' && allGroupsAssigned
-  && allBundlesHaveFeeDecision`. This is the "one buong request" gate: a
-  partial batch (some TCTs still Unassigned, or an assigned bundle whose
-  fee question was left unanswered or under-filled) can't be submitted —
-  the Head always reviews a complete picture of every pledged property's
-  fee decision at once, TCTs needing no fee included alongside the ones
-  that do, not a trickle of individual requests. Clicking it doesn't
-  submit immediately — it opens a **`ConfirmDialog`** ("Send Appraisal
-  Fees for Approval?") summarizing exactly what's about to be sent
-  (property count, total fee amount across however many need one, a note
-  that bundles lock while pending) with **"Send for Approval"** /
-  **"Cancel"** actions. Only confirming calls
-  `submitAppraisalFeesForApproval()`, which flips `feeApprovalStatus` to
-  `'pending-approval'` — it does not touch any bundle's already-set
-  `feeNeeded`/`feeAmount`.
-- While `feeApprovalStatus === 'approved'` and not yet settled: an
-  **"Advise client to settle the Appraisal fees"** block with an
-  **"Advise Client"** button that opens a `Dialog` — the same
-  summary-before-send / confirmation-after-send pattern as the Collateral
-  titles table's Request Document modal. The dialog's `DialogContent`
-  shows every fee-needing bundle (TCT number + amount) and a running
-  total before sending; confirming ("Send") calls
-  `setAppraisal({ clientNotifiedAt, sentToOdooAt })` (simulated Sendit
-  payment link + Odoo request), then the dialog swaps to a one-time
-  success screen ("Client advised to settle" + sent timestamp) with a
-  "Done" button. Once `clientNotifiedAt` is set, the "Advise Client"
-  button disappears from this block, replaced by **"Simulate: Payment
-  Received"** (sets `paymentReceivedAt`).
+The Appraiser's "My Assignments" table still shows an **"Appraisal Fee"**
+status pill per row (distinct from the overall On Process/For
+Approval/For Report/Reported pill next to it) — **No Fee** (`feeNeeded
+=== 'no'`, unless declined), **Draft** (`not-submitted`), **Declined**
+(`feeApprovalStatus === 'declined'`, `tone: 'error'`, takes priority over
+every other label including "No Fee" — even a no-fee bundle's decision
+was part of the declined batch and needs reconsidering), **For Approval**
+(`pending-approval`), **Approved** (`feeApprovalStatus === 'approved'`
+but not yet settled, `tone: 'success'` — green, same tone as "Settled";
+an earlier version used `tone: 'info'` (blue), changed so "Approved"
+reads as an unambiguous positive outcome rather than a neutral
+in-progress one), or **Settled** (`feeSettled`) — the same pill shape the
+bundle detail page's own Appraisal Fee card trigger button now sits next
+to. Once approved, the fee card also gains an `"Approved on {date}"`
+segment appended to its `"{amount} requested"` subtitle, sourced from the
+new `Appraisal.feeApprovedAt: string | null` field (stamped by
+`approveAppraisalFees()` via `new Date().toISOString()`, the same
+convention `feeSubmittedAt` uses; cleared back to `null` whenever
+`submitAppraisalFeesForApproval()` runs again, since a fresh submission
+means whatever was previously approved no longer applies) — visible both
+on the card itself and inside the modal's read-only summary.
 
 There's no real approver role in this prototype, so approval/decline is
-simulated via page actions `appraisal-appraiser-view.tsx` registers
-itself (same convention as CI Fee's "Simulate: Another Officer
-Approves/Declines CI Fee"): **"Simulate: Another Officer Approves
-Appraisal Fees"** calls `approveAppraisalFees()` (`feeApprovalStatus:
-'approved'`); **"Simulate: Another Officer Declines Appraisal Fees"**
-opens a reason dialog whose confirm calls `declineAppraisalFees(reason)`
-— this resets `feeApprovalStatus` back to `'not-submitted'` **and** every
-bundle's `feeNeeded`/`feeAmount`/`feeDescription`/`feeRemarks` back to
-undecided, so the officer re-proposes fees for the whole batch rather
-than patching just one bundle.
+simulated via page actions both `appraisal-appraiser-view.tsx` (the list
+page) and `appraisal-appraiser-bundle-view.tsx` (the per-bundle detail
+page) register themselves, independently (same convention as CI Fee's
+"Simulate: Another Officer Approves/Declines CI Fee") — **"Simulate:
+Another Officer Approves Appraisal Fees"** calls `approveAppraisalFees()`
+(`feeApprovalStatus: 'approved'`); **"Simulate: Another Officer Declines
+Appraisal Fees"** opens a reason dialog whose confirm calls
+`declineAppraisalFees(reason)`. These page actions are not part of the
+detail page's fee modal itself — they're a separate popover entry,
+reachable from whichever of the two pages happens to be open.
+
+**Decline is a real, visible status, not an instant silent reset.**
+`declineAppraisalFees(reason)` sets `feeApprovalStatus: 'declined'` and
+stores the reason in `feeDeclineReason` — it deliberately does **not**
+touch any bundle's `feeNeeded`/`feeAmount`/`feeDescription`/`feeRemarks`
+(an earlier version wiped every bundle back to blank/undecided on
+decline; that was changed so revising means editing what's already
+there, not re-typing a whole batch from scratch). `feeEditable` — used
+throughout the bundle detail page — is `feeApprovalStatus ===
+'not-submitted' || feeApprovalStatus === 'declined'`, so a declined batch
+behaves exactly like a fresh draft: the fee card shows a red "Declined"
+badge, **plus its own full "Reason for decline" banner row** below the
+title/button row — a warning-triangle `Iconify` icon, an uppercase
+"Reason for decline" label, and the stored `feeDeclineReason` body text,
+all tinted with `TONE_COLORS.error` (`src/components/admin-ui/
+admin-tokens.ts` — the same canonical error-tone bg/border/text values
+every other error surface in the admin app uses, not one-off hex) so the
+reason is visible at a glance without opening anything. Its button reads
+"Request Appraisal Fee" again (not "View"), and Appraisal Documents
+un-collapses back to its always-open editable state (see below). **The
+fee modal itself does not repeat this banner** — an earlier version
+showed the identical banner inside the modal too, above the editable
+fields, but that duplicated what the card sitting right behind it
+already shows, so it was removed; the reason now lives on the card only.
+(An even earlier version crammed a single red `"Declined: {reason}"`
+line directly under the card's title, in a hand-picked hex; that became
+this bordered/tinted banner using the actual design-system tone.) There
+is no separate "Revise" step or button — editing the fields and clicking
+"Submit Fees for Approval" again is exactly the same action as the very
+first submission (same `submitAppraisalFeesForApproval()` call, same
+`canSubmit` gate, now
+written as `feeEditable && allGroupsAssigned && allBundlesHaveFeeDecision`
+rather than checking `'not-submitted'` specifically), just starting from
+the previous values instead of blank ones.
+`submitAppraisalFeesForApproval()` clears `feeDeclineReason` back to `''`
+the instant it's called, so a stale reason never lingers once
+resubmitted.
+
+The "Advise client to settle the Appraisal fees" / "Advise Client" /
+"Simulate: Payment Received" block still lives on the list page
+(`appraisal-appraiser-view.tsx`) at page level, gated on
+`feeApprovalStatus === 'approved' && !feeSettled` — not duplicated on the
+bundle detail page, since advising the client and confirming payment are
+whole-batch actions with no natural "which bundle" framing, unlike the
+fee decision itself which is inherently per-bundle.
 
 `feeSettled` (`feeApprovalStatus === 'approved' && !!paymentReceivedAt`)
-is the UI-only "batch is fully done" flag, computed the same way on this
-page as everywhere else it's used. Once settled, the page-level advise/
-payment action block disappears entirely (nothing left to act on for the
-fee), each row's fee panel shows the read-only summary, the table's fee
-pill reads "Settled," and — the whole reason this state matters — each
-row's report form (`AppraiserAssignmentCard`) unlocks below the fee
-panel. Before settlement, that same spot shows a locked message ("Submit
-and settle the Appraisal Fee above before the report form for this
-property unlocks.") instead of the form.
+is the "batch is fully done" flag, computed the same way everywhere it's
+used. The bundle detail page's report form (`AppraiserAssignmentCard`)
+unlocks on `reportUnlocked = bundle.feeNeeded === 'no' || feeSettled` —
+**not** on `feeSettled` alone. A bundle whose fee decision is "No" has
+nothing to wait on at all: there's no payment to settle, so its report
+form unlocks the instant that Yes/No choice is made in the fee modal,
+independent of whatever the batch's submit→approve→pay cycle is doing
+for *other* bundles in the same batch that do need a fee. Only a bundle
+whose fee is actually needed (`feeNeeded === 'yes'`) waits on
+`feeSettled`; while waiting, it shows a plain locked message ("The
+Appraisal Fee must be settled before the report form for this property
+unlocks."). The same `bundle.feeNeeded === 'no' || (feeApprovalStatus
+=== 'approved' && feeSettled)` check also drives the `'for-report'`
+branch of the On Process/For Approval/For Report/Reported status
+pill — both on this detail page's header `StatusBadge` and on the list
+page's own table pill (`appraisal-appraiser-view.tsx`) — so a no-fee
+bundle reads as "For Report" immediately too, not stuck on "On Process"
+until an unrelated batch-level payment clears.
 
-**`/admin/appraisal-fee-approval`** (`appraisal-fee-approval-view.tsx`,
-the Fee Approver's own "My Approvals" page) mirrors this same batch
-view — every bundle listed with its fee-or-"No fee needed", a running
-total, and single **"Approve Appraisal Fees"** / **"Decline Appraisal
-Fees"** buttons that call the same `approveAppraisalFees()` /
-`declineAppraisalFees(reason)` context methods the Appraiser page's
-page-action shortcuts do. It becomes reachable (`isPending`) once `feeApprovalStatus ===
-'pending-approval'`, same as before.
+**`/admin/appraisal-fee-approval`** (`appraisal-fee-approval-view.tsx`) is
+now a **list page**, "Fee Approvals" — restructured from an earlier
+single flat page (which rendered everything below inline, titled "My
+Approvals") into the same list → detail split
+`appraisal-appraiser-view.tsx` → `appraisal-appraiser-bundle-view.tsx`
+already uses. Same auto-load-and-seed convention as the Appraiser list,
+taken one step further: if the session hydrates with no live application,
+`loadSample(SAMPLE_APPLICATION)` runs; if there are no `reportBundles`
+yet, it seeds one the same way the Appraiser list does, but with a
+ready-made fee decision passed straight into
+`createAppraisalReportBundle`'s `fee` argument and an immediate
+`submitAppraisalFeesForApproval()` call right after — landing the seeded
+batch directly in `pending-approval` (see "Approval-role screens" below
+for the exact seed values). So a fresh session always shows one real,
+active "For Approval" row here, same as every other list page in this
+app, rather than an empty state until someone manually drives the
+Appraiser flow first. Renders a table (same shape AND column order as
+the Appraiser list's own — Appraisal No. leads the row, matching
+`appraisal-appraiser-view.tsx`'s own table) with exactly one row —
+Appraisal No., Applicant, Properties (bundle count), Appraiser, Total
+Appraisal Fee, a "For Approval" `StatusBadge`, and a trailing chevron.
+**"Properties" is every TCT group across every bundle in the request**
+(`reportBundles.reduce((sum, bundle) => sum + bundle.tctGroupIds.length,
+0)`), not the number of bundles — a single `AppraisalReportBundle`
+already covers however many properties were assigned together in one
+Assign Appraiser selection, so a request with one multi-collateral bundle
+covering 5 TCTs is 5 properties, not 1 (an earlier version used
+`reportBundles.length` directly, which undercounted exactly this case).
+Appraisal No. and Appraiser both show the FIRST bundle's own value plus
+a "+N more" suffix when the request bundles more than one property
+(`getAppraisalNumber(firstBundle.id)`; deduplicated `appraiserName`s,
+since a request can list more than one distinct appraiser if its
+bundles were assigned to different people) — rather than cramming every
+bundle's value into one cell. All of this renders whenever
+`feeApprovalStatus === 'pending-approval'`; otherwise an
+empty-state card (`"No requests waiting on a decision"`, or an
+approved/declined confirmation, or a "no live application" prompt to
+start one from Account Solicitation) for the states this auto-seed
+doesn't reach (e.g. right after declining or approving the seeded
+request, since the seed only fires once while `reportBundles.length ===
+0`). There is no real multi-application backend here — like every other
+list page in this app, at most one real
+row ever renders, since one live session only ever holds one live fee
+request.
+
+Clicking the row navigates to
+**`/admin/appraisal-fee-approval/[bundleId]`**
+(`appraisal-fee-approval-bundle-view.tsx`, new — mirrors
+`appraisal-appraiser-bundle-view.tsx`'s own header-card shape) — the
+**detail page**, which now holds everything the old single page used to
+render inline: a header card (42px icon-avatar + applicant name as the
+title + "App No. … · email" subtitle + a `StatusBadge` derived from
+`feeApprovalStatus`, top-right) with a bordered/tinted `FactChip` strip
+below it (Properties — same TCT-group-count fix described above, not
+`reportBundles.length` — Total Appraisal Fee, Requested On — sourced
+from `feeSubmittedAt`).
+
+**Below the FactChip strip: a `Divider`, then a "View Appraisal
+Documents" button** — matching the exact layout of the Call Report
+page's own collapsible summary card (`ApplicationDetailsCard`,
+`application-details-card.tsx`, rendered on `call-report-view.tsx`):
+header row, FactChip strip, `Divider`, then a row of compact outlined
+navy buttons sitting left-aligned at the bottom of the card (that card's
+own row has "View full application" / "Initial credit checking result" /
+"View all officer notes" — same `sx` shape reused here: `color: '#1C2A6E'`,
+`borderColor: '#C7CEEA'`, `borderRadius: '10px'`, not full-width). The
+header card's own outer padding matches that same reference too —
+`p: { xs: 2.5, md: 3 }`, the tighter override `ApplicationDetailsCard`'s
+collapsible variant uses, in place of the plain `adminCardSx` default
+(`p: { xs: 3, md: 4 }`) every other content card on the sibling
+Appraiser pages keeps — since this specific card is what's being
+matched, not just its internal layout; the "Appraisal Fee Details" card
+below it keeps the plain `adminCardSx` default, same as those other
+cards. Clicking the button opens a read-only `Dialog` listing every
+`APPRAISAL_DOC_META` document (same `ReadOnlyRequirementDocRow`
+component `appraisal-appraiser-bundle-view.tsx`'s own Appraisal
+Documents section uses), grouped per TCT group, across every bundle in
+the request — the Fee Approver's only way to see the underlying
+property documents without leaving this page. (Two earlier attempts
+placed this differently: first inline beside the title/StatusBadge in
+the header row; then as a full-width button below the FactChip strip
+with no `Divider` — both were replaced with this `Divider` +
+compact-button layout once it became clear the actual reference was the
+Call Report card, not the Requirement Checklist card's own summary,
+which an earlier pass had mistakenly copied instead.)
+
+Then an **"Appraisal Fee Details"** card holds every bundle's
+fee-or-"No fee needed" row plus the running total — each bundle's
+**appraiser name now renders bold and navy (`#1C2A6E`, `fontSize: 13`)**,
+visually distinct from the muted-gray TCT numbers/fee description around
+it (an earlier version rendered the appraiser name at the same small
+muted weight as the fee description beneath it, making it easy to miss)
+— and finally the **"Approve Appraisal Fees"** / **"Decline Appraisal
+Fees"** buttons (unchanged — still call the same batch-level
+`approveAppraisalFees()` / `declineAppraisalFees(reason)` context
+methods the Appraiser page's own page-action shortcuts do, and still
+apply to the **whole request**, not one property in isolation — see
+"Appraisal Fee" above for why approval stays batch-level even though
+this page is reached per-request). The "There's no real Head login in
+this prototype — approving or declining here simulates your review."
+disclaimer line that used to sit under these buttons has been removed.
+
+**Spacing pass** — each bundle row got slightly more internal padding
+(`p: 1.75` up from `1.5`) and more room between its stacked TCT
+No./appraiser/fee-description lines (`mt: 0.5` up from `0.25`); the
+`Divider` above "Total Appraisal Fees" gained a touch of vertical margin
+(`my: 0.5`) and that row's own padding grew (`py: 0.75` up from `0.5`);
+and the gap before "This request is waiting…" plus the Approve/Decline
+button row widened (`mt: 3`/`0.75` up from `2.5`/`0.5`) — the whole card
+felt visibly cramped before this pass, with almost no breathing room
+between the fee breakdown, the total, and the action buttons.
+
+The `[bundleId]` route segment is a fixed placeholder
+(`paths.admin.appraisalFeeApprovalBundle()` always resolves to
+`/admin/appraisal-fee-approval/current`, no actual ID) — there's no
+per-bundle approval status to route on (`feeApprovalStatus` lives once
+per application, not once per property), so the segment exists purely to
+keep this page's URL shape consistent with `appraisalAppraiserBundle`'s
+own list → detail split, and to leave room for genuine multi-application
+support later without another URL migration. The detail page component
+ignores the param entirely and reads `review.appraisal` directly, the
+same way the old single page did with no bundle lookup by ID at all.
 
 ## Appraisal Report (per bundle)
 
@@ -659,11 +967,17 @@ Value, Remarks, Recommendation) to the full structure of the printed
   plus `landTitles: AppraisalReportLandTitle[]` — one entry per pledged
   property (`AppraisalTctGroup`) the bundle covers (`{ tctGroupId,
   surveyNo, bookPageNo, titleRegistrationDate, titleRegistrationPlace,
-  areaSize, lotNo, zonalValue, boundaries, technicalSpecification }`),
-  since the PDF's LAND/BOUNDARIES/TECHNICAL SPECIFICATION tables repeat
-  once per TCT/OCT. `boundaries` is a single free-text field (matching the
-  PDF, which has no North/South/East/West breakdown), not structured
-  per-direction fields.
+  areaSize, lotNo, zonalValue, boundaries, technicalSpecification,
+  photoFileName, photoFileUrl, photoUploadedAt }`), since the PDF's
+  LAND/BOUNDARIES/TECHNICAL SPECIFICATION tables repeat once per TCT/OCT.
+  `boundaries` is a single free-text field (matching the PDF, which has
+  no North/South/East/West breakdown), not structured per-direction
+  fields. The three `photo*` fields are a later addition — one Collateral
+  Photo upload per TCT/OCT, same `fileName`/`fileUrl`/`uploadedAt`
+  triplet shape every other single-file upload in this app uses, just
+  renamed with a `photo` prefix since they sit alongside the title's own
+  other fields rather than being the report's single file (see
+  "In-house form" below for the upload UI).
 - **Technical specification** (report-wide, not per-title) —
   `streetFrontage`, `streetWidth`, `surfacing`, `averageDepth`,
   `approxShape`, `topography`, `neighborhood`, `presentUse`,
@@ -701,12 +1015,17 @@ to blank rather than trusting a stale/absent array.
 
 ### In-house form (`AppraiserAssignmentCard`)
 
-A `ButtonGroup` toggle picks between `'inhouse'`/`'external'`
-(`AppraiserType`), mutually exclusive — switching a bundle's type before
-its report is submitted resets `report` to a fresh blank `AppraisalReport`
-(via the same factory used on bundle creation, so `landTitles` stays
-seeded correctly) scoped to that one bundle via
-`setAppraisalBundleAppraiserType`.
+Which report path applies — `'inhouse'` or `'external'`
+(`bundle.appraiserType`) — is decided exactly once, by the Officer, in
+the Assign Appraiser modal (see "Assign Appraiser modal" above). This
+page renders whichever one already applies; it no longer lets the
+appraiser switch it. (An earlier version had a `ButtonGroup` toggle right
+on this card — `setAppraisalBundleAppraiserType` — that reset `report`
+to a fresh blank `AppraisalReport` on switch; it was removed since the
+appraiser already knows which type they were assigned as, and re-deciding
+it from inside the report form was both redundant and a way to
+second-guess the Officer's own assignment. There is no read-only label
+in its place either — the type just isn't surfaced here at all anymore.)
 
 - **In-house** — the full sectioned form described above (each section
   under its own uppercase `SectionLabel`, separated by `Divider`s), plus
@@ -714,26 +1033,85 @@ seeded correctly) scoped to that one bundle via
   dashed-border note (verbatim from the source process diagram):
   *"Realtime taking picture, uploading of files anywhere in the system
   (integrate lot plotting and market value)"* — flagged there as future
-  integration work, not built here. **"Create Appraisal Report"** is
-  enabled once Appraised Value is filled (the one required field, same as
-  before), and sets `report.uploadedAt`.
+  integration work, not built here. **"Submit Appraisal Report"** (renamed
+  from "Create Appraisal Report" — the button submits an already
+  filled-in report, it doesn't create one from nothing, so "Submit"
+  describes the action more accurately) is enabled once Appraised Value
+  is filled (the one required field, same as before), and sets
+  `report.uploadedAt`. The confirmation line beneath it once the report
+  is submitted reads "Report submitted {date}" to match (was "Report
+  created {date}").
 - **External** — unchanged: a single dashed file dropzone for the external
   appraiser's finished report (image or PDF). Picking a file sets
   `fileName`/`fileUrl`/`uploadedAt` directly (no separate submit step).
 
+**Each `LandTitleFields` block also has its own "Choose a photo —
+Collateral Photo" dropzone**, one per TCT/OCT, sitting at the END of that
+property's field list — after Survey No./Book No./Boundaries/Technical
+Specification, not before them — since the photo is a supporting
+attachment for the title's other details, not the lead field to fill in
+first. (An earlier version put it first, above Survey No.; moved to last
+per explicit direction.) A real photo of the collateral itself, distinct
+from the title/document fields around it.
+Backed by three new fields on `AppraisalReportLandTitle`:
+`photoFileName: string | null`, `photoFileUrl: string | null`,
+`photoUploadedAt: string | null` (same fileName/fileUrl/uploadedAt
+triplet convention every other single-file upload in this app already
+uses — `RequirementDoc`, the external-appraiser report file — just
+scoped per land title instead of per bundle/document, since exactly one
+photo per title is all this needs; not an array). Picking a file calls
+`onChange({ photoFileName, photoFileUrl: URL.createObjectURL(file),
+photoUploadedAt })` directly through `setAppraisalBundleLandTitle`, no
+separate submit step, same as the external report dropzone.
+
+`ReportFileDropzone` (the shared dashed-border upload control this card
+already used for the external report file) was generalized to support
+this: its `value` prop now accepts `File | string | null` instead of just
+`File | null` — a freshly-dropped photo passes the real `File` for that
+one render, but on every subsequent render (including after a page
+reload within the same session) only the persisted `photoFileUrl` string
+survives, since the `File` object itself never persists. Passing that URL
+string straight through to `FileThumbnail` (which accepts `File | string`
+via its own `imageView` prop) still renders a real photo thumbnail, unlike
+the external-file dropzone's own display, which only ever reconstructs a
+`new File([], fileName)` stand-in with no real bytes and therefore never
+renders as an actual image (see below) — a new `imageView` prop on
+`ReportFileDropzone` (default `false`) opts the photo dropzone into that
+real-thumbnail rendering, while the external-file dropzone keeps its
+existing icon-only look. A new `fileName` prop fills in the display name
+whenever `value` is a bare URL string, since a blob: URL can't be parsed
+back into a filename the way a `File`'s own `.name` can.
+
 Once `headApprovalStatus !== 'pending'` **or** that bundle's report has
-already been submitted (`report.uploadedAt` is set), the form locks: the
-inactive appraiser-type button disables, and every field/dropzone becomes
-read-only. This keeps the assignment from being silently swapped out from
-under an in-flight or already-approved report. The card reconstructs a
-stand-in `File` object from `report.fileName` (`new File([],
-report.fileName)`) purely so the shared `FileThumbnail`/dropzone display can
-show a filename — this is a display-only stand-in with no real bytes
-behind it, not something that can be re-downloaded or re-inspected. The
-external dropzone's own `disabled` prop (derived from the same
-locked/`editable` flag) also hides its delete (×) button once locked — a
-locked report's file cannot be cleared via that button, which would
-otherwise desync the page.
+already been submitted (`report.uploadedAt` is set), the form locks:
+every field/dropzone (including each TCT's own Collateral Photo dropzone)
+becomes read-only. This keeps the assignment from being silently swapped
+out from under an in-flight or already-approved report. The external
+report dropzone still reconstructs a stand-in `File` object from
+`report.fileName` (`new File([], report.fileName)`) purely so the shared
+`FileThumbnail` display can show a filename — this is a display-only
+stand-in with no real bytes behind it, not something that can be
+re-downloaded, re-inspected, or (unlike the Collateral Photo dropzone)
+rendered as an actual image preview. The external dropzone's own
+`disabled` prop (derived from the same locked/`editable` flag) also hides
+its delete (×) button once locked — a locked report's file cannot be
+cleared via that button, which would otherwise desync the page.
+
+**Locked fields still render dark, readable text — they no longer wash
+out to MUI's default disabled gray.** An earlier version left every
+`TextField` at its default disabled appearance, which colors the text a
+light gray (`#919EAB`) regardless of whether the field is genuinely
+empty or holds a fully filled-in, already-submitted report's real
+content — on a completed report, that made the entire form barely
+legible. The shared `fieldSx` both `LandTitleFields` and
+`AppraiserAssignmentCard` build now overrides `.Mui-disabled`: text stays
+`#14172A` (this app's standard dark text color) via both `color` and
+`WebkitTextFillColor` (Safari/Chrome require overriding both for a
+disabled input's text color to actually change), and the field's
+background becomes `#F5F6FA` with a `#E1E4ED` border — `TONE_COLORS.neutral`'s
+own `bg`/`border` values (`src/components/admin-ui/admin-tokens.ts`), not
+one-off hex — so a light gray background is what communicates "locked"
+now, instead of light gray text.
 
 ### Officer's read-only view (`AppraisalReportView`)
 
@@ -756,6 +1134,18 @@ conditionally rendered (`Field` returns `null` for an empty value, section
 blank labels. External-appraiser bundles instead show the uploaded file
 with a **"View"** link (`report.fileUrl`) rather than any of the structured
 fields, since external appraisers only ever upload a finished file.
+
+Each `LandTitleSummary` card (one per TCT/OCT) shows its own Collateral
+Photo, when `title.photoFileUrl` is set — a 56×56 rounded thumbnail
+(`<Box component="img">`, `object-fit: cover`) next to the "TCT No. …"
+title, wrapped in a plain `<a target="_blank">` so clicking it opens the
+full photo in a new tab. Unlike `AppraiserAssignmentCard`'s own dropzone
+display (which can't render a real image once locked, since it only has
+a stand-in `File` reconstructed from just the filename), this view reads
+`photoFileUrl` directly — a real, still-valid blob/object URL — so it
+renders an actual photo, not a placeholder icon. No thumbnail renders at
+all when a title has no photo, same "conditionally rendered, no blank
+placeholder" convention every other field on this card follows.
 
 ## Head Approval
 
@@ -878,18 +1268,93 @@ condition, since none of "CI fee pending"/"needs an appraiser"/"fee
 pending"/"awaiting Head Approval" is a `ReviewStep`.
 
 **All four are framed as the signed-in role's own personal workspace**
-("My Approvals" for the three Head/Approver-facing screens, "My
-Assignments" for the Appraiser screen), not generic admin-facing queues —
+("My Approvals" for CI Fee and Appraisal Report approval, "Fee Approvals"
+for Appraisal Fee approval — see below for why that one's title differs
+now — "My Assignments" for the Appraiser screen), not generic
+admin-facing queues —
 each has a small uppercase eyebrow label naming the role (e.g. "CI HEAD /
 APPROVER", "APPRAISER WORKSPACE"), first-person copy throughout ("Nothing
-waiting on you yet", "Request your fee and submit the report…"), and **no sample filler
-rows at all** — unlike every other queue in this app, a real person's
-personal inbox/workspace would never show other unrelated applications'
-sample data. This is why `SampleApplicationEntry` (`sample-applications.ts`)
-carries no `ciFee`/`appraisalFeePending`/`appraisalAwaitingHeadApproval`
-fields (all removed) — these four screens only ever show the one live
-application's own state, sourced entirely from `review.creditInvestigation`
+waiting on you yet", "Request your fee and submit the report…"), and (with
+one exception, below) **no sample filler rows at all** — unlike every
+other queue in this app, a real person's personal inbox/workspace would
+never show other unrelated applications' sample data. This is why
+`SampleApplicationEntry` (`sample-applications.ts`) carries no
+`ciFee`/`appraisalFeePending`/`appraisalAwaitingHeadApproval` fields (all
+removed) — these four screens only ever show the one live application's
+own state, sourced entirely from `review.creditInvestigation`
 /`review.appraisal`/`review.requirementChecklist` in `AdminContext`.
+
+**Exception: the Appraiser screen (and, as of the Fee Approvals
+restructure, the Appraisal Fee Approver's list page too) auto-loads a
+real sample application and seeds it a real assigned bundle, instead of
+showing an empty/sample placeholder.** This mirrors the exact mechanism
+`application-list-view.tsx` already uses for its own table — once
+hydrated, if there's no live application in the session
+(`!signUpData || !application.personalInfo`), it calls
+`loadSample(SAMPLE_APPLICATION)` (`useRegistration()`, the same shared
+sample dataset Application List loads), which makes `signUpData` genuine
+session state, not a disabled placeholder object. Since this page also
+needs an actual *assigned bundle* to show anything (unlike Application
+List, where the loaded sample application alone is enough), the same
+effect additionally seeds one: it filters `appraisalGroups` to
+**every** still-unassigned entry whose documents are all `'verified'`
+(same completeness gate `docsIncomplete()` enforces on the Officer's
+page — see "Documents must be verified before assignment" below), and
+calls `createAppraisalReportBundle(groupIds, 'inhouse',
+APPRAISER_ROSTER[0], null)` with **all** of those group IDs together in
+one call — the same call selecting every eligible TCT row and assigning
+them as one consolidated bundle via the Officer's Assign Appraiser modal
+makes. This runs the moment `reportBundles.length === 0`. The net
+effect: the very first time this page is visited in a fresh session
+(even navigating to it directly, without ever visiting Application List
+first), the table already shows one genuinely active, clickable
+**multi-collateral** assignment row covering all 5 of the default seed
+TCTs (e.g. "TCT-2024-00981, TCT-2024-00982, TCT-2024-00983,
+TCT-2024-00984, TCT-2024-00985") — not a single-property example, and
+not a static, disabled one either. (Earlier iterations first covered
+just one group, then just the first two, before landing on covering
+every eligible group at once — a single multi-collateral bundle reads
+as a more realistic example of a consolidated assignment than a
+single- or two-property one. Before any of those, an even earlier
+version instead rendered one hardcoded, always-inert
+`SAMPLE_ASSIGNMENT` row — no `onClick`, disabled chevron, no real
+`bundleId` — appended after any real bundles, mirroring
+`application-list-view.tsx`'s `[...liveRows, ...sampleRows]` *shape* but
+not its actual *mechanism*. That diverged from how every other "no live
+data yet" case in this app is handled — real pages there auto-load real
+sample data rather than rendering a disabled stand-in — so it was
+replaced with this auto-load-and-seed approach instead.) Since the seeded
+bundle is a real `AppraisalReportBundle`, it behaves identically to one
+created through the normal Assign Appraiser modal — full fee-request flow,
+report form, batch submit, everything documented under "Appraisal Fee"
+and "Appraisal Report (per bundle)" above works on it exactly the same
+way. The effect only ever fires once per empty state (gated on
+`reportBundles.length === 0`), so it doesn't re-seed a second bundle once
+one exists, and it never overwrites a real application that just hasn't
+finished loading from `localStorage` yet (same `hydrated` gate
+`application-list-view.tsx` uses).
+
+**The Appraisal Fee Approver's list page follows this same convention all
+the way through, one step further than the Appraiser list's own seed.**
+If the session hydrates with no live application, it loads
+`SAMPLE_APPLICATION`; if there are no `reportBundles` yet, it seeds one
+the same way the Appraiser list does (every still-unassigned,
+docs-complete `appraisalGroups` entry, one consolidated bundle) — but
+passes a ready-made fee decision straight into
+`createAppraisalReportBundle`'s optional `fee` argument (`{ feeNeeded:
+'yes', feeAmount: '5000', feeDescription: 'Site visit + valuation fee',
+feeRemarks: '' }`) instead of leaving it undecided, then immediately
+calls `submitAppraisalFeesForApproval()` so the batch lands directly in
+`pending-approval`. The net effect: the very first time this page is
+visited in a fresh session, the list already shows one genuinely active,
+clickable "For Approval" row — not an empty state. (An earlier version
+stopped at loading the sample application and left the fee request
+itself to be driven manually from the Appraiser pages first, reasoning
+that auto-driving a submitted fee request here would duplicate the
+Appraiser's own submit logic; that was changed once it became clear this
+page was the one exception to "every list page here always shows one
+real active example," which reads as inconsistent rather than
+intentional.)
 
 There is no role/permission system in this app (`AdminUser` has no role
 field — every session is one undifferentiated admin), so nothing
@@ -929,13 +1394,24 @@ framing is a UI/workflow choice, not access control.
 
   A single table, one row per `reportBundles` entry actually assigned to
   the signed-in appraiser (real data — `review.appraisal.reportBundles`,
-  not sample/filler rows), columns: **Collateral No.**, **Applicant**,
+  not sample/filler rows), columns: **Appraisal No.** (a deterministic
+  per-bundle reference number, `getAppraisalNumber(bundle.id)` —
+  `src/utils/get-appraisal-number.ts`, same hash-then-format convention
+  as `getLoanNumber()` — `APR-######`, hashed from the bundle's own UUID
+  rather than a persisted counter, so it's stable across reloads without
+  needing its own sequence state), **Collateral No.** (every TCT number
+  this bundle covers, comma-joined — clamped to 2 lines with an ellipsis
+  via `-webkit-line-clamp` so a bundle spanning many properties, e.g. all
+  5 default TCTs, doesn't blow out the row height), **Applicant**,
   **Appraisal Fee** (the per-bundle fee-status pill — see "Appraisal Fee"
   above), **Status** (the same On Process/For Approval/For Report/Reported
   pill convention `AssignedAppraiserCard` uses on the Officer's page,
   computed independently here rather than shared/refactored into one
   utility), and a trailing chevron (`eva:arrow-ios-forward-fill`) signaling
-  navigation, not expand. There is no separate heading above the table (an
+  navigation, not expand. `getAppraisalNumber()` is also shown on the
+  per-bundle detail page's header subtitle (see below), so the same
+  reference number is visible in both places. There is no separate heading
+  above the table (an
   earlier version had a "My Active Assignments" label directly above it;
   removed as redundant with the page's own "My Assignments" title). Empty
   state: a plain message card ("No active assignments right now — check
@@ -948,43 +1424,170 @@ framing is a UI/workflow choice, not access control.
   `paths.admin.appraisalAppraiserBundle(bundleId)`
   (`/admin/appraisal-appraiser/[bundleId]`, a Next.js dynamic route nested
   under the same auth-guarded layout as the list page). That page shows,
-  in order: a "Back to My Assignments" link, the bundle's TCT number(s) +
-  applicant + overall status pill as a header, then that bundle's
-  **Appraisal Fee** panel (editable while `not-submitted`, read-only once
-  submitted — see "Appraisal Fee" above for the fields), then either
-  `AppraiserAssignmentCard` (the report fill-in form, once `feeSettled`)
-  or a locked message telling the appraiser to settle the fee first (from
-  the list page) before the report form unlocks. This is the *only* place
-  either the fee-decision fields or the editable report form ever render
-  — `appraisal-view.tsx` never renders either one, and the list page
-  itself renders neither (see "Appraisal Fee" and "Appraisal Report (per
-  bundle)" above). (Two earlier designs sat between this and the original
-  single-card layout: first a standalone `AppraisalFeeCard` — a separate
-  whole-batch card below the table — alongside a shared
-  `ProgressTracker`-based single-card layout; then a version where each
-  list row expanded in place via a `Collapse` with a click-to-toggle
-  chevron `IconButton`. Both were replaced — the per-row `Collapse` toggle
-  in particular was replaced with real page navigation, since a per-bundle
-  workspace this substantial (fee panel + full report form) reads better
-  as its own page than as an inline row expansion.) The page-level "Submit
-  Fees for Approval"/"Advise Client"/"Simulate: Payment Received" actions
-  stay on the **list** page (not the per-bundle detail page), since
-  they're whole-batch actions covering every bundle at once.
+  in order:
+  1. A "Back to My Assignments" link, then a single header/details
+     card built to match this app's standard summary-card shape (the same
+     one `application-details-card.tsx`/`application-review-header.tsx`
+     use) rather than a one-off design — no separate "Appraisal Details"
+     heading; the header and the read-only fields below it are one
+     continuous card, not two stacked sections. The header row is a 42px
+     icon-avatar (`#EEF1FE` background, `solar:document-text-bold-duotone`
+     in `#1C2A6E`) + **Appraisal No.** (`getAppraisalNumber(bundle.id)`,
+     see "Appraisal No." above) as a **card-level** title
+     (15px/800 — the size every other summary card in this app uses for
+     its title, not a 22-30px page-heading size) + `{applicantName} ·
+     App No. {getLoanNumber(...)}` as the subtitle, with the overall
+     status rendered via the shared `StatusBadge` component
+     (`src/components/admin-ui`) top-right rather than an inlined pill.
+     Below that, still in the same card, a bordered/tinted row of
+     `FactChip`s (a local copy of `application-details-card.tsx`'s own
+     unexported `FactChip` — 11px uppercase micro-label over a 13.5px
+     bold value, `border:'1px solid #EEF0F5', borderRadius:'12px',
+     bgcolor:'#FAFBFD'` wrapping the whole row, vertical dividers between
+     chips) for: **Collateral** (labeled "Collateral (N)" once N > 1,
+     every TCT number this bundle covers comma-joined into one value),
+     **Collateral Type** (`COLLATERAL_TYPE_LABEL[group.collateralType]`,
+     **deduplicated** via `Array.from(new Set(...))` before joining — a
+     bundle whose every property is "Real Estate" shows that once, not
+     "Real Estate, Real Estate, Real Estate..." repeated per TCT; a
+     bundle mixing types would still show each distinct one,
+     comma-joined), **Appraiser Type** (In-house/External), **Assigned
+     To** (`bundle.appraiserName`), and **Target Completion** (formatted
+     via `toLocaleDateString()`, or "—" if unset). Nothing here is
+     editable — reassigning still only happens via the Officer's Assign
+     Appraiser modal, same as `AssignedAppraiserCard`. (Two earlier
+     designs preceded this: first the joined TCT number list itself as a
+     22px/800 giant page-style title with no icon avatar, an inlined
+     status pill instead of `StatusBadge`, and plain floating label/value
+     pairs instead of a `FactChip` strip — for a bundle covering many
+     properties that title was also unreadably long and wrapping; then
+     Appraisal No. replaced the TCT list as the title, with the TCT list
+     moved into its own "Collateral" field rendered as small wrapped
+     chip boxes rather than a `FactChip` value. Both were rebuilt into
+     the current shape once it became clear the card was reinventing a
+     pattern this app already has a standard for, rather than reusing
+     it.)
+  2. **Appraisal Fee** card — a `StatusBadge` (No Fee/Draft/For
+     Approval/Approved/Settled) beside the title, plus a **"Request
+     Appraisal Fee"** button (relabeled **"View Appraisal Fee"**,
+     outlined, once the batch is no longer `not-submitted`) that opens a
+     `Dialog` — see "Appraisal Fee" above for the full modal contents
+     (Yes/No + amount/description/remarks while editable, a "Submit Fees
+     for Approval" footer button gated on `canSubmit`, or a read-only
+     summary once submitted). This is the *only* place an Appraiser can
+     decide or submit a fee at all — there is no fee UI on the list
+     page, and `appraisal-view.tsx` (the Officer's page) never shows any
+     fee UI either.
+  3. **Appraisal Documents** (renamed from "Documents" to disambiguate
+     from every other Document Checklist in this app) — **not collapsible
+     at all while the fee decision is still editable**
+     (`docsCollapsible = !feeEditable`, so both `not-submitted` and
+     `declined` keep it locked open — see "Appraisal Fee" above for why
+     `declined` counts as editable too). Same "not clickable until a
+     condition is met" convention
+     `appraisal-tct-table.tsx`'s own Collateral titles table header uses
+     for its `allGroupsAssigned` gate — while `!docsCollapsible`, this
+     renders as a plain always-open header (title + badge, no chevron, no
+     `onClick`) with no way to collapse it, since document review is
+     still the thing the appraiser needs to be looking at while deciding
+     the fee. Only once `docsCollapsible` is true does it render wrapped
+     in the shared `CollapsibleSection` component
+     (`src/components/collapsible-section`), the single reusable
+     chevron+badge+animated-`Collapse` shell every other collapsible
+     document list in this app already uses (Credit Investigation's own
+     Document Checklist, Requirement Checklist's per-tab groups, etc.).
+     Either way, the header shows a `CollapsibleSectionBadge` ("N/total on
+     file", counting every document across every pledged property this
+     bundle covers whose `status !== 'missing'`, out of
+     `APPRAISAL_DOC_META.length * bundleGroups.length`) — no green
+     completion checkmark next to it (an earlier version showed one once
+     that ratio hit 100%, matching every nested per-TCT group's own
+     checkmark; the outer section's checkmark was removed, so only the
+     per-property groups still show one, not the outer "Appraisal
+     Documents" header itself). The badge renders identically whether or
+     not the section happens to be collapsible yet.
+
+     **Auto-collapses the moment the fee batch is (re-)submitted.** A
+     `wasFeeEditableRef` + `useEffect` (same "collapse on transition, not
+     on every render" convention `credit-investigation-view.tsx` uses for
+     its own `checklistExpanded`) sets `docsExpanded` to `false` the
+     instant `feeEditable` flips from `true` to `false` during this
+     session — covering both the first `not-submitted -> submitted`
+     transition and a later `declined -> resubmitted` one, since either
+     means the document checklist the appraiser was reviewing while
+     deciding the fee is no longer the thing needing attention, so it
+     tucks itself away. It only fires on that specific transition, never
+     on every render, so the appraiser's own manual re-open afterward is
+     never fought by the effect re-collapsing it. Picking Yes/No inside
+     the Appraisal Fee modal alone does **not** trigger this — only the
+     batch-level "Submit Fees for Approval" actually changes
+     `feeApprovalStatus`, so the collapse only happens once that's
+     actually been sent, not per bundle's individual Yes/No decision.
+
+     **When a bundle covers more than one TCT, each property's document
+     list is its OWN nested `CollapsibleSection`** (a "TCT-2024-00981"
+     title + its own `CollapsibleSectionBadge`, "8/8 on file" etc. + its
+     own green checkmark, wrapped in a bordered box), independently
+     collapsible from every other property's list and from the outer
+     Appraisal Documents section — `expandedGroupIds` (a `Set<string>` of
+     group ids *currently expanded*; absent from the set is the default,
+     collapsed, state for every group) tracks each one separately, so
+     expanding TCT-2024-00981's list leaves TCT-2024-00982 through -00985
+     exactly as they were. Unlike the outer section, **these per-property
+     groups are always collapsible, regardless of `docsCollapsible`** —
+     the fee-submission gate only applies to the outer "Appraisal
+     Documents" header; there's no reason to lock away the ability to
+     tuck one already-reviewed property's documents aside just because the
+     batch fee hasn't been submitted yet. A bundle covering only *one* TCT
+     skips the extra nesting entirely (no per-property title, no second
+     collapsible level) — there's nothing to disambiguate between when
+     there's only one property, so the outer Appraisal Documents section
+     alone is enough. Inside each property's list: every
+     `APPRAISAL_DOC_META` entry, rendered read-only via the same
+     `ReadOnlyRequirementDocRow` component `credit-investigation-view.tsx`
+     uses for its own Document Checklist (status chip, reviewer note,
+     filename, "View" button opening `doc.fileUrl`). This is the *only*
+     place an Appraiser can see these documents at all —
+     `AppraisalTctTable`'s own per-row document expansion lives on the
+     Officer's Collateral titles table instead, not duplicated here.
+
+     (An earlier version made this always collapsible regardless of fee
+     status, closed by default from the very first load — no
+     `docsCollapsible` gate, no auto-collapse effect. That was tried and
+     reverted twice in each direction; the fee-gated version above is the
+     current, confirmed behavior.)
+  4. Either `AppraiserAssignmentCard` (the report fill-in form, once
+     `feeSettled`) or a plain locked message ("The Appraisal Fee must be
+     settled before the report form for this property unlocks.") when
+     it isn't.
+
+  "Advise Client"/"Simulate: Payment Received" remain **list-page-only**
+  actions, not duplicated on this detail page — those only make sense
+  once the whole batch is already `approved`, a state better surfaced on
+  the list where every bundle's fee/report status is visible at a glance,
+  and they have no natural "which bundle" framing the way the fee
+  decision itself does.
 - **Appraisal - Approver Fee** (`/admin/appraisal-fee-approval`,
   `appraisal-fee-approval-view.tsx`) — nav label reworded from "Appraisal
   Fee Approval" to lead with "Appraisal" and name the role ("Approver")
   before what they're approving ("Fee"), matching the sibling "Appraisal -
   Approver Report" item below and the dropdown's own move from "Approval"
-  to "Request." "My Approvals" for the Appraisal Fee Approver. Shows the
-  live application's detail card whenever
-  `review.appraisal.feeApprovalStatus === 'pending-approval'`, listing
-  every bundle's fee decision (or "No fee needed") plus a running total,
-  with single **Approve/Decline** buttons for the whole batch calling
+  to "Request." **"Fee Approvals"** — a **list page** now, not a single
+  flat page (see "Appraisal Fee Approver" under "Approval-role screens"
+  above for the full list → detail split). Shows one table row whenever
+  `review.appraisal.feeApprovalStatus === 'pending-approval'`; clicking
+  it navigates to `/admin/appraisal-fee-approval/[bundleId]`
+  (`appraisal-fee-approval-bundle-view.tsx`, a fixed `'current'`
+  placeholder segment, not a real ID), which lists every bundle's fee
+  decision (or "No fee needed") plus a running total, with single
+  **Approve/Decline** buttons for the whole batch calling
   `approveAppraisalFees()` (`feeApprovalStatus: 'approved'`) /
-  `declineAppraisalFees(reason)` (resets `feeApprovalStatus` to
-  `'not-submitted'`, `feeDeclineReason` to the typed reason, and every
-  bundle's fee decision back to undecided) — not a single flat-amount
-  approval like CI Fee Approval's shape used to be.
+  `declineAppraisalFees(reason)` (sets `feeApprovalStatus: 'declined'`
+  and `feeDeclineReason` to the typed reason — every bundle's fee
+  decision is left exactly as submitted, not reset, so the appraiser
+  revises rather than re-typing from scratch; see "Appraisal Fee" above)
+  — not a single flat-amount approval like CI Fee Approval's shape used
+  to be.
 - **Appraisal - Approver Report** (`/admin/appraisal-approver`,
   `appraisal-approver-view.tsx`) — nav label reworded from "Appraisal
   Approver" to "Appraisal - Approver Report," naming this as the report
@@ -1007,7 +1610,12 @@ framing is a UI/workflow choice, not access control.
   introduced one, and had this screen's decline stop clearing reports in
   favor of resetting it; that step has been fully reverted, so this
   screen's decline is back to calling `clearAllAppraisalBundleReports()`
-  exactly like `HeadApprovalCard` does).
+  exactly like `HeadApprovalCard` does). **This page is still a single
+  flat page, unlike its sibling "Appraisal - Approver Fee" above** — it
+  was NOT part of the Fee Approvals list/detail restructure (an earlier
+  pass mistakenly restructured this one too; that was reverted, since the
+  request was specifically about the fee-approval flow, not Head
+  Approval's report review).
 
 Except for CI Fee Approval's `OutcomeScreen`, none of these screens'
 live-application actions redirect or show a one-time outcome screen —

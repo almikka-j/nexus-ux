@@ -9,6 +9,7 @@ import Table from '@mui/material/Table';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
+import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
 import Collapse from '@mui/material/Collapse';
@@ -34,8 +35,9 @@ import { adminCardSx, outlinedNavyButtonSx, TONE_COLORS } from 'src/components/a
 
 import { APPRAISAL_DOC_META } from '../requirement-checklist-docs';
 import { ReadOnlyRequirementDocRow } from '../credit-investigation/credit-investigation-doc-row';
+import { buildSampleAppraisalReport } from './sample-appraisal-report';
 
-import type { AppraiserType, AppraisalReport, AppraisalCollateralType } from 'src/auth/admin-context';
+import type { AppraiserType, AppraisalCollateralType } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Lets an officer select one or more pledged properties (TCT Nos.) and
@@ -184,7 +186,7 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
   // multiple groups don't all land on the same name.
   const handleAutoAssignAll = () => {
     appraisalGroups
-      .filter((group) => group.reportId === null)
+      .filter((group) => group.reportId === null && !docsIncomplete(group.id))
       .forEach((group, index) => {
         createAppraisalReportBundle(
           [group.id],
@@ -208,102 +210,26 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
   // Dev/testing convenience — simulates the Appraiser having already
   // filled in and submitted their report on the Appraisal Appraiser page,
   // for every bundle that has an appraiser assigned but no report yet.
-  // In-house bundles get a full sample REM (matching AppraisalReportView's
-  // sections so nothing renders as an empty label); external bundles get a
-  // fake uploaded file, mirroring what handleExternalFile actually stores.
-  // Skips bundles that already have report.uploadedAt so this can be
-  // clicked again after new bundles are assigned without clobbering
-  // reports an appraiser (or this same action) already submitted.
+  // Sample data now lives in buildSampleAppraisalReport
+  // (sample-appraisal-report.ts), shared with the same "Simulate: Fill
+  // Sample Report" shortcuts on the Appraiser's own list and per-bundle
+  // detail pages, so every entry point produces identical values instead
+  // of three near-copies drifting apart. In-house bundles get a full
+  // sample REM (matching AppraisalReportView's sections so nothing
+  // renders as an empty label); external bundles get a fake uploaded
+  // file, mirroring what handleExternalFile actually stores. Skips
+  // bundles that already have report.uploadedAt so this can be clicked
+  // again after new bundles are assigned without clobbering reports an
+  // appraiser (or this same action) already submitted.
   const handleSimulateReportSubmission = () => {
-    const now = new Date().toISOString();
     reportBundles
       .filter((bundle) => !bundle.report.uploadedAt)
       .forEach((bundle) => {
-        if (bundle.appraiserType === 'external') {
-          setAppraisalBundleReport(bundle.id, {
-            fileName: 'Appraisal-Report-Sample.pdf',
-            fileUrl: '#',
-            uploadedAt: now,
-          });
-          return;
-        }
-
         const bundleTctNumbers = appraisalGroups
           .filter((group) => bundle.tctGroupIds.includes(group.id))
           .map((group) => group.tctNumber);
 
-        const sampleReport: Partial<AppraisalReport> = {
-          dateReport: now.slice(0, 10),
-          dateInspected: now.slice(0, 10),
-          requestingOfficer: 'Ramon Cruz',
-          branch: 'Head Office',
-
-          registeredOwner: applicantName,
-          locationOfProperty: `${bundleTctNumbers.join(', ')}, Quezon City, Metro Manila`,
-          landTitles: bundle.report.landTitles.map((title) => ({
-            ...title,
-            surveyNo: 'Psu-123456',
-            bookPageNo: 'Book 45 / Page 12',
-            titleRegistrationDate: now.slice(0, 10),
-            titleRegistrationPlace: 'Registry of Deeds, Quezon City',
-            areaSize: '250',
-            lotNo: 'Lot 7',
-            zonalValue: '15,000',
-            boundaries: 'N: Lot 6; S: Lot 8; E: Road Lot; W: Lot 5',
-            technicalSpecification: 'Rectangular lot, level with road, residential zone',
-          })),
-          encumbrancesRemarks: 'None noted at time of inspection.',
-
-          streetFrontage: '10',
-          streetWidth: '8',
-          surfacing: 'Concrete',
-          averageDepth: '25',
-          approxShape: 'Rectangular',
-          topography: 'Level',
-          neighborhood: "Res'l",
-          presentUse: 'Residential',
-          highestAndBestUse: 'Residential',
-
-          utilityPublicConveyance: 'Available',
-          utilityElectricity: 'Meralco',
-          utilityWater: 'Maynilad',
-          utilityTelephone: 'PLDT',
-
-          generalConstructionFeatures: 'Single-detached, two-storey residential building',
-          floorLevel: 'Ground + 2nd floor',
-          externalWalls: 'CHB, painted',
-          interiorWallsPartitions: 'Plain cement finish',
-          flooring: 'Ceramic tiles',
-          doorsWindows: 'Wood panel doors, aluminum sliding windows',
-          ceilingRoofing: 'Long-span roofing, gypsum ceiling',
-
-          basisSource: 'Comparable sales within the vicinity',
-          basisLocation: 'Same barangay',
-          basisAreaSize: '250',
-          basisPriceType: 'Selling price',
-          basisSellingPrice: '18,000',
-          fairMarketValuePerSqm: '15,000',
-
-          itemOfProperty: 'Residential lot and improvement',
-          fmvRcn: '3,750,000',
-          constructionStatusPercent: '100',
-          depreciatedValue: '2,500,000',
-          appraisedValueP: '2,500,000',
-
-          appraisedValue: '2500000',
-          roundedFigures: '2,500,000',
-          amountInWords: 'Two Million Five Hundred Thousand Pesos Only',
-          loanableAmount: '2,000,000',
-
-          preparedBy: bundle.appraiserName ?? 'Appraiser',
-          reviewedBy: 'Maria Santos',
-          endorsedBy: 'Jose Reyes',
-          notedBy: 'Ramon Cruz',
-
-          uploadedAt: now,
-        };
-
-        setAppraisalBundleReport(bundle.id, sampleReport);
+        setAppraisalBundleReport(bundle.id, buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName));
       });
   };
 
@@ -380,6 +306,14 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
       return doc?.status === 'verified';
     }).length;
     return { done, total: APPRAISAL_DOC_META.length };
+  };
+
+  // A row can't be selected for assignment until every one of its 8
+  // documents is verified — an appraiser shouldn't be handed a property
+  // whose collateral documents aren't confirmed complete yet.
+  const docsIncomplete = (groupId: string) => {
+    const { done, total } = docsCompleteCount(groupId);
+    return done < total;
   };
 
   const toggleRow = (groupId: string) => {
@@ -599,6 +533,7 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
               const status = statusFor(group.id);
               const appraiserName = appraiserNameForGroup(group.id);
               const locked = isRowLocked(group.id);
+              const incomplete = docsIncomplete(group.id);
               const expanded = expandedId === group.id;
               const justAdded = justAddedId === group.id;
               const docs = docsCompleteCount(group.id);
@@ -623,11 +558,17 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
                     }}
                   >
                     <TableCell padding="checkbox">
-                      <Checkbox
-                        checked={selectedIds.includes(group.id)}
-                        disabled={locked}
-                        onChange={() => toggleRow(group.id)}
-                      />
+                      <Tooltip
+                        title={!locked && incomplete ? 'Every document must be verified before this property can be assigned to an appraiser.' : ''}
+                      >
+                        <span>
+                          <Checkbox
+                            checked={selectedIds.includes(group.id)}
+                            disabled={locked || incomplete}
+                            onChange={() => toggleRow(group.id)}
+                          />
+                        </span>
+                      </Tooltip>
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" alignItems="center" spacing={1}>
