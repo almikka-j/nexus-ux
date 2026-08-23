@@ -1663,18 +1663,30 @@ framing is a UI/workflow choice, not access control.
   for Properties/Appraiser/Requested On) matches the same summary-card
   shape every other detail page here uses. Below it, **every report
   bundle in the request renders its own full Appraisal Report**, reusing
-  `AppraiserAssignmentCard` — the exact same component
-  `appraisal-appraiser-bundle-view.tsx` uses to let the appraiser fill the
-  report in — one per bundle, labeled with that bundle's own Appraisal
-  No. and TCT numbers. This is the reason the restructure exists: the flat
-  version this replaced showed only the applicant summary, with no way to
-  see what the appraiser actually submitted before approving. No separate
-  read-only variant of the card was needed — `AppraiserAssignmentCard`
-  already locks itself (`locked = headApprovalStatus !== 'pending' ||
-  !!report.uploadedAt`) the moment `report.uploadedAt` is set, which it
-  always is by the time a request reaches this page (`isPending` on the
-  list page requires every bundle's report to already be submitted), so it
-  renders fully read-only here with zero extra plumbing.
+  `AppraisalReportView` (`appraisal-report-view.tsx`) — the same read-only
+  summary component the Appraisal Officer's own "View Report" dialog uses
+  on `appraisal-view.tsx` (see "Appraisal Report (per bundle)" above) —
+  one per bundle, labeled with that bundle's own Appraisal No. only when
+  the request spans more than one (a single-bundle request, the common
+  case in this prototype, has nothing to disambiguate). This is the reason
+  the restructure exists: the flat version this replaced showed only the
+  applicant summary, with no way to see what the appraiser actually
+  submitted before approving.
+
+  An earlier pass of this same restructure reused `AppraiserAssignmentCard`
+  directly instead — the Appraiser's own *editable* form, which already
+  locks itself read-only once a report is submitted
+  (`locked = headApprovalStatus !== 'pending' || !!report.uploadedAt`), so
+  it seemed like it needed no separate read-only variant. In practice a
+  disabled form reads as broken on a review page — bare `TextField`s with
+  no section styling, and (see "Land Title Fields" below) a "Choose a
+  photo" dropzone shell sitting around each Collateral Photo instead of an
+  actual photo view. `AppraisalReportView` was built for exactly this
+  read-only case already (label/value `Field` pairs grouped under
+  `SectionLabel` headings with `Divider`s between them — this app's
+  standard read-only-detail shape — and a real 56×56 photo thumbnail per
+  land title that opens the full photo on click via `LandTitleSummary`),
+  so the fix was swapping to it rather than inventing a new component.
 
   Approve/Decline live at the bottom of their own card below every
   bundle's report — Approve reuses the exact same `setAppraisal` call
@@ -1683,11 +1695,10 @@ framing is a UI/workflow choice, not access control.
   behavior `head-approval-card.tsx` itself uses (see "Head Approval"
   above) — clearing every bundle's submitted report/file so each assigned
   appraiser resubmits. Since `clearAllAppraisalBundleReports()` wipes
-  `report.uploadedAt`, every `AppraiserAssignmentCard` on this same page
-  unlocks back to editable the instant a decline is confirmed — visible in
-  place, no navigation away — the same "declined behaves like a draft
-  again" behavior `appraisal-appraiser-bundle-view.tsx` documents for its
-  own fee flow.
+  `report.uploadedAt`, `AppraisalReportView` returns `null` for a bundle
+  the instant a decline is confirmed (it only ever renders a bundle with a
+  submitted report) — the report card disappears from this page in place,
+  no navigation away, until the appraiser resubmits from their own page.
 
 Except for CI Fee Approval's `OutcomeScreen`, none of these screens'
 live-application actions redirect or show a one-time outcome screen —

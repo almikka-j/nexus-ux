@@ -22,7 +22,7 @@ import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-
 import { getLoanNumber } from 'src/utils/get-loan-number';
 import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
 
-import { AppraiserAssignmentCard } from './appraisal/appraiser-assignment-card';
+import { AppraisalReportView } from './appraisal/appraisal-report-view';
 
 // ----------------------------------------------------------------------
 // Detail page for the Head/Approver — reached by clicking the one row on
@@ -50,14 +50,22 @@ import { AppraiserAssignmentCard } from './appraisal/appraiser-assignment-card';
 // one diverge: the Head Approver's whole job is reviewing the actual
 // Appraisal Report content the appraiser submitted, not a fee breakdown —
 // so every bundle in the request renders its own full report via
-// AppraiserAssignmentCard, the exact same component the Appraiser's own
-// per-bundle page uses to fill the report in. It renders read-only here
-// without any extra plumbing: AppraiserAssignmentCard already locks itself
-// (`locked = headApprovalStatus !== 'pending' || !!report.uploadedAt`) the
-// moment `report.uploadedAt` is set, which it always is by the time a
-// request reaches this page (isPending on the list page requires every
-// bundle's report to already be submitted) — so no separate read-only
-// variant of that card was needed.
+// AppraisalReportView, the exact same read-only summary component the
+// Appraisal Officer's own "View Report" dialog uses
+// (appraisal-report-view.tsx). This deliberately is NOT
+// AppraiserAssignmentCard (the Appraiser's own editable form) — an earlier
+// version of this page reused that component directly since it already
+// locks itself read-only once a report is submitted, but a *disabled form*
+// reads as broken/uploader-shaped on a review page (bare TextFields with no
+// section styling, a "Choose a photo" dropzone shell around a photo instead
+// of an actual photo view) rather than matching this app's own read-only
+// summary conventions. AppraisalReportView already solves exactly this —
+// label/value Field pairs grouped under SectionLabel headings with
+// Dividers between them (this app's standard read-only-detail shape, same
+// as the FactChip/Field patterns every other detail page here uses), and
+// each land title's Collateral Photo renders as a real 56×56 thumbnail
+// that opens the full photo on click (LandTitleSummary), not a disabled
+// dropzone control.
 //
 // Approve/Decline live at the bottom of their own card below every
 // bundle's report, unchanged from the old single-page view: both still
@@ -263,10 +271,12 @@ export function AppraisalApproverBundleView() {
             .map((group) => group.tctNumber);
           return (
             <Stack key={bundle.id} spacing={1}>
-              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#5A6273', px: 0.5 }}>
-                {getAppraisalNumber(bundle.tctGroupIds)} · {bundleTctNumbers.join(', ')}
-              </Typography>
-              <AppraiserAssignmentCard bundleId={bundle.id} tctNumbers={bundleTctNumbers} />
+              {reportBundles.length > 1 && (
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#5A6273', px: 0.5 }}>
+                  {getAppraisalNumber(bundle.tctGroupIds)}
+                </Typography>
+              )}
+              <AppraisalReportView bundleId={bundle.id} tctNumbers={bundleTctNumbers} />
             </Stack>
           );
         })}
