@@ -1211,16 +1211,34 @@ is wrapped in the shared `CollapsibleSection` component
 (`src/components/collapsible-section` — the same chevron+`Collapse`
 shell Document Checklist and Requirement Checklist's per-tab groups
 already use elsewhere in this app), collapsed by default via a single
-`expanded: Record<string, boolean>` state keyed per section. The page
-now opens short — header, `AppraisedValueHero`, Land (with every land
-title card and its photo) — with the rest a click away instead of a
-mandatory scroll through every section every time. Land stays
-permanently expanded (not wrapped in a `CollapsibleSection` at all) since
-the pledged properties and their photos are the actual substance of the
-review, not supporting detail to tuck away. The Valuation section's own
-totals (Loanable Amount, Rounded Figures, Appraised Value (P), Item of
-Property, FMV/RCN, Construction Status %, Depreciated Value) and
-Remarks/Recommendation also stay always-visible, same reasoning.
+`expanded: Record<string, boolean>` state keyed per section. The
+Valuation section's own totals (Loanable Amount, Rounded Figures,
+Appraised Value (P), Item of Property, FMV/RCN, Construction Status %,
+Depreciated Value) and Remarks/Recommendation stay always-visible, not
+wrapped in a `CollapsibleSection`, since they're short enough on their
+own not to need tucking away.
+
+**Land titles collapse too, past the first fix's remaining problem.**
+Wrapping only the sections AFTER Land wasn't enough on its own: a bundle
+covering several pledged properties still stacked that many full
+`LandTitleSummary` cards — five near-identical property cards, each with
+its own photo and field grid — in one column, dominating the page before
+a reviewer reached anything else. Same fix
+`appraisal-appraiser-bundle-view.tsx` already applies to its own per-TCT
+document lists: when a bundle covers more than one title
+(`showToggle={titleGroups.length > 1}`), each `LandTitleSummary` renders
+as a compact collapsed row by default — a 40×40 photo thumbnail, "TCT
+No. …", and Zonal Value, right-aligned — expanding in place to the full
+photo + field detail on click. A `Set<string>` of expanded group ids
+(`expandedTitleIds`) tracks which are open, same "present in the set
+means expanded" convention the Appraiser page's own per-TCT nesting
+uses. A bundle covering only one title skips the toggle entirely
+(`showToggle` false) and renders the full detail directly, same as
+before — there's nothing to disambiguate or tuck away when it's the only
+property in the report. The net effect on the 5-property sample data:
+the page that used to require scrolling through ~3800px of stacked
+photo cards before reaching Technical Specification now shows the whole
+report, every property collapsed, in about one screen's height.
 
 ## Head Approval
 

@@ -4,7 +4,9 @@ import { useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Collapse from '@mui/material/Collapse';
 import Divider from '@mui/material/Divider';
+import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
@@ -143,98 +145,169 @@ function AppraisedValueHero({ appraisedValue, amountInWords }: { appraisedValue:
 // large empty gap next to the photo whenever there were fewer than 4
 // fields on a line. A fixed-width photo column keeps every title's photo
 // the same size regardless of how much text sits beside it.
-function LandTitleSummary({ title, tctNumber }: { title: AppraisalReportLandTitle; tctNumber: string }) {
+function LandTitlePhoto({ photoFileUrl, tctNumber }: { photoFileUrl: string; tctNumber: string }) {
   return (
-    <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
-      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
-        TCT No. {tctNumber}
-      </Typography>
+    <Box
+      component="a"
+      href={photoFileUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      sx={{
+        display: 'block',
+        width: { xs: '100%', sm: 200 },
+        flexShrink: 0,
+        aspectRatio: '4 / 3',
+        borderRadius: '10px',
+        overflow: 'hidden',
+        border: '1px solid #EBEDF3',
+        position: 'relative',
+        '&:hover .exhibit-zoom': { opacity: 1 },
+      }}
+    >
+      <Box
+        component="img"
+        src={photoFileUrl}
+        alt={`Collateral photo — TCT No. ${tctNumber}`}
+        sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
+      />
+      <Stack
+        className="exhibit-zoom"
+        direction="row"
+        alignItems="center"
+        spacing={0.75}
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          justifyContent: 'center',
+          bgcolor: 'rgba(20,23,42,0.4)',
+          opacity: 0,
+          transition: 'opacity 0.15s ease',
+        }}
+      >
+        <Iconify icon="solar:magnifer-bold" width={18} sx={{ color: 'common.white' }} />
+        <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'common.white' }}>View full photo</Typography>
+      </Stack>
+    </Box>
+  );
+}
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+// A bundle covering several pledged properties otherwise stacks that many
+// near-identical cards in one column, each demanding the same attention —
+// five property cards in a row dominate the page before a reviewer even
+// reaches the report's other sections. Same fix
+// appraisal-appraiser-bundle-view.tsx already applies to its own per-TCT
+// document lists: when there's more than one title, each one collapses to
+// a compact summary row (photo thumbnail + TCT No. + Zonal Value) by
+// default, expandable to the full detail — so the page's default view
+// shows one line per property instead of one full card per property. A
+// bundle covering only one title skips the collapse entirely (`showToggle`
+// false) — there's nothing to disambiguate or tuck away when it's the
+// only property in the report.
+function LandTitleSummary({
+  title,
+  tctNumber,
+  expanded,
+  onToggle,
+  showToggle,
+}: {
+  title: AppraisalReportLandTitle;
+  tctNumber: string;
+  expanded: boolean;
+  onToggle: () => void;
+  showToggle: boolean;
+}) {
+  const detail = (
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: showToggle ? 2 : 0 }}>
+      {title.photoFileUrl && !showToggle && <LandTitlePhoto photoFileUrl={title.photoFileUrl} tctNumber={tctNumber} />}
+
+      <Stack spacing={1.75} sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 2.5, rowGap: 1.75 }}>
+          <Field label="Area Size (sq.m.)" value={title.areaSize} />
+          <Field label="Zonal Value" value={title.zonalValue} />
+          <Field label="Lot No." value={title.lotNo} />
+          <Field label="Survey No." value={title.surveyNo} />
+          <Field label="Book No. / Page No." value={title.bookPageNo} />
+          <Field label="Title Registration Date" value={title.titleRegistrationDate} />
+          <Field label="Title Registration Place" value={title.titleRegistrationPlace} span={2} />
+        </Box>
+
+        {(title.boundaries || title.technicalSpecification) && (
+          <Stack spacing={1.25}>
+            {title.boundaries && (
+              <Box>
+                <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Boundaries</Typography>
+                <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
+                  {title.boundaries}
+                </Typography>
+              </Box>
+            )}
+            {title.technicalSpecification && (
+              <Box>
+                <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Technical Specification</Typography>
+                <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
+                  {title.technicalSpecification}
+                </Typography>
+              </Box>
+            )}
+          </Stack>
+        )}
+      </Stack>
+    </Stack>
+  );
+
+  if (!showToggle) {
+    return (
+      <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
+          TCT No. {tctNumber}
+        </Typography>
+        {detail}
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD', overflow: 'hidden' }}>
+      <Stack
+        component={ButtonBase}
+        onClick={onToggle}
+        direction="row"
+        alignItems="center"
+        spacing={1.5}
+        sx={{ width: 1, p: 1.5, justifyContent: 'flex-start', textAlign: 'left' }}
+      >
+        <Iconify
+          icon="eva:chevron-down-fill"
+          width={18}
+          sx={{ color: '#8891A6', flexShrink: 0, transition: 'transform 0.15s ease', transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+        />
         {title.photoFileUrl && (
-          <Box
-            component="a"
-            href={title.photoFileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            sx={{
-              display: 'block',
-              width: { xs: '100%', sm: 200 },
-              flexShrink: 0,
-              aspectRatio: '4 / 3',
-              borderRadius: '10px',
-              overflow: 'hidden',
-              border: '1px solid #EBEDF3',
-              position: 'relative',
-              '&:hover .exhibit-zoom': { opacity: 1 },
-            }}
-          >
-            <Box
-              component="img"
-              src={title.photoFileUrl}
-              alt={`Collateral photo — TCT No. ${tctNumber}`}
-              sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
-            />
-            <Stack
-              className="exhibit-zoom"
-              direction="row"
-              alignItems="center"
-              spacing={0.75}
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                justifyContent: 'center',
-                bgcolor: 'rgba(20,23,42,0.4)',
-                opacity: 0,
-                transition: 'opacity 0.15s ease',
-              }}
-            >
-              <Iconify icon="solar:magnifer-bold" width={18} sx={{ color: 'common.white' }} />
-              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'common.white' }}>View full photo</Typography>
-            </Stack>
+          <Box sx={{ width: 40, height: 40, flexShrink: 0, borderRadius: '8px', overflow: 'hidden', border: '1px solid #EBEDF3' }}>
+            <Box component="img" src={title.photoFileUrl} alt="" sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }} />
           </Box>
         )}
-
-        <Stack spacing={1.75} sx={{ flex: 1, minWidth: 0 }}>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              columnGap: 2.5,
-              rowGap: 1.75,
-            }}
-          >
-            <Field label="Area Size (sq.m.)" value={title.areaSize} />
-            <Field label="Zonal Value" value={title.zonalValue} />
-            <Field label="Lot No." value={title.lotNo} />
-            <Field label="Survey No." value={title.surveyNo} />
-            <Field label="Book No. / Page No." value={title.bookPageNo} />
-            <Field label="Title Registration Date" value={title.titleRegistrationDate} />
-            <Field label="Title Registration Place" value={title.titleRegistrationPlace} span={2} />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }} noWrap>
+            TCT No. {tctNumber}
+          </Typography>
+        </Box>
+        {title.zonalValue && (
+          <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+            <Typography sx={{ fontSize: 10.5, color: '#8891A6' }}>Zonal Value</Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>{title.zonalValue}</Typography>
           </Box>
-
-          {(title.boundaries || title.technicalSpecification) && (
-            <Stack spacing={1.25}>
-              {title.boundaries && (
-                <Box>
-                  <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Boundaries</Typography>
-                  <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
-                    {title.boundaries}
-                  </Typography>
-                </Box>
-              )}
-              {title.technicalSpecification && (
-                <Box>
-                  <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Technical Specification</Typography>
-                  <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
-                    {title.technicalSpecification}
-                  </Typography>
-                </Box>
-              )}
-            </Stack>
-          )}
-        </Stack>
+        )}
       </Stack>
+      <Collapse in={expanded}>
+        <Box sx={{ px: 2, pb: 2 }}>
+          {title.photoFileUrl && (
+            <Box sx={{ mb: 2 }}>
+              <LandTitlePhoto photoFileUrl={title.photoFileUrl} tctNumber={tctNumber} />
+            </Box>
+          )}
+          {detail}
+        </Box>
+      </Collapse>
     </Box>
   );
 }
@@ -247,6 +320,20 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
   // short — one shared expand state per section, keyed by section name.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (key: string) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // Per-title expand state for a multi-property bundle's collapsed rows —
+  // same "present in the set means expanded" convention
+  // appraisal-appraiser-bundle-view.tsx uses for its own per-TCT document
+  // lists. Irrelevant (and untouched) when the bundle covers only one
+  // title, since that case skips the collapse entirely.
+  const [expandedTitleIds, setExpandedTitleIds] = useState<Set<string>>(new Set());
+  const toggleTitle = (groupId: string) =>
+    setExpandedTitleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
 
   if (!bundle || !bundle.report.uploadedAt) return null;
   const { appraiserType, appraiserName, report } = bundle;
@@ -337,7 +424,16 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
             {titleGroups.map((group) => {
               const title = report.landTitles.find((entry) => entry.tctGroupId === group.id);
               if (!title) return null;
-              return <LandTitleSummary key={group.id} title={title} tctNumber={group.tctNumber} />;
+              return (
+                <LandTitleSummary
+                  key={group.id}
+                  title={title}
+                  tctNumber={group.tctNumber}
+                  showToggle={titleGroups.length > 1}
+                  expanded={expandedTitleIds.has(group.id)}
+                  onToggle={() => toggleTitle(group.id)}
+                />
+              );
             })}
           </Stack>
           <Field label="Encumbrances / Remarks" value={report.encumbrancesRemarks} span={4} />
