@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
@@ -17,13 +19,17 @@ import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
 import { adminCardSx, StatusBadge, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
+
+import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
+import { SAMPLE_APPLICATION } from './sample-application';
+import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
 
 // ----------------------------------------------------------------------
 // Personal workspace for the Head/Approver's "reviewed and noted" Head
@@ -49,14 +55,83 @@ import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
 // page, with no visibility into the report itself; that content moved
 // wholesale to the new detail page instead, which additionally now shows
 // the report.)
+//
+// Same auto-load-and-seed convention appraisal-appraiser-view.tsx and
+// appraisal-fee-approval-view.tsx use, taken one step further than either:
+// this list only ever shows a row once every pledged property's report is
+// actually submitted (`reportSubmitted`), so a fresh session needs a bundle
+// seeded all the way through fee-settled + report-submitted, not just
+// assigned or just fee-approved. Once hydrated, if there's no live
+// application, loads the shared SAMPLE_APPLICATION; if there are no
+// reportBundles yet, seeds one covering every still-unassigned,
+// docs-complete appraisalGroups entry (same completeness gate the other two
+// pages' seeds use) with the fee already settled
+// (feeApprovalStatus/paymentReceivedAt stamped directly via setAppraisal,
+// skipping the request/approve steps since nothing on this page needs them
+// mid-flight); a second effect then fills in each such bundle's report via
+// buildSampleAppraisalReport(..., true) (submit: true, unlike the
+// Appraiser/Fee list seeds' own report-filling actions, which leave
+// uploadedAt unset for the appraiser to submit by hand) the moment the
+// bundle exists but its report doesn't, so the table always shows one
+// genuinely active "For Approval" row on a fresh session — same "the first
+// application is always the live active one" convention every list page
+// here follows.
 // ----------------------------------------------------------------------
 
 export function AppraisalApproverView() {
   const router = useRouter();
-  const { signUpData } = useRegistration();
-  const { review } = useAdmin();
+  const { signUpData, application, hydrated, loadSample } = useRegistration();
+  const { review, setAppraisal, createAppraisalReportBundle, setAppraisalBundleReport } = useAdmin();
   const { appraisalGroups, appraisalNotApplicable } = review.requirementChecklist;
   const { headApprovalStatus, reportBundles } = review.appraisal;
+
+  const hasApplication = !!signUpData && !!application.personalInfo;
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!hasApplication) {
+      loadSample(SAMPLE_APPLICATION);
+      return;
+    }
+    if (reportBundles.length === 0) {
+      const groupsForSampleBundle = appraisalGroups.filter(
+        (group) =>
+          group.reportId === null &&
+          APPRAISAL_DOC_META.every((meta) => group.documents.find((doc) => doc.key === meta.key)?.status === 'verified')
+      );
+      if (groupsForSampleBundle.length > 0) {
+        createAppraisalReportBundle(
+          groupsForSampleBundle.map((group) => group.id),
+          'inhouse',
+          APPRAISER_ROSTER[0],
+          null,
+          { feeNeeded: 'yes', feeAmount: '5000', feeDescription: 'Site visit + valuation fee', feeRemarks: '' }
+        );
+        const now = new Date().toISOString();
+        setAppraisal({
+          feeApprovalStatus: 'approved',
+          feeSubmittedAt: now,
+          feeApprovedAt: now,
+          clientNotifiedAt: now,
+          sentToOdooAt: now,
+          paymentReceivedAt: now,
+        });
+      }
+      return;
+    }
+    const bundleNeedingReport = reportBundles.find((bundle) => !bundle.report.uploadedAt);
+    if (bundleNeedingReport && signUpData) {
+      const bundleTctNumbers = appraisalGroups
+        .filter((group) => bundleNeedingReport.tctGroupIds.includes(group.id))
+        .map((group) => group.tctNumber);
+      const applicantNameForReport = `${signUpData.firstName} ${signUpData.lastName}`;
+      setAppraisalBundleReport(
+        bundleNeedingReport.id,
+        buildSampleAppraisalReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, hasApplication, reportBundles.length, reportBundles.some((bundle) => !bundle.report.uploadedAt)]);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
 

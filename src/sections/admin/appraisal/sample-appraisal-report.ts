@@ -11,6 +11,57 @@ import type { AppraisalReport, AppraisalReportBundle } from 'src/auth/admin-cont
 // time.
 // ----------------------------------------------------------------------
 
+// Inline SVG placeholder (data URI), same convention sample-application.ts
+// uses for its own ID/selfie photos — stands in for a real captured
+// Collateral Photo per TCT/OCT, so a sample-filled land title's
+// `ReportFileDropzone` renders an actual photo preview instead of the
+// empty "Choose a photo" uploader state once the report is submitted and
+// locked (e.g. on the Head/Approver's read-only report review).
+// `FileThumbnail` decides whether to render the image at all — versus an
+// icon — by naively grepping a "file extension" off the tail of the URL
+// (`fileTypeByUrl`: `url.split('.').pop()`), which fails on a raw
+// `data:image/svg+xml` URI (the last `.` sits deep inside the encoded SVG
+// markup, not before a real extension). A trailing `#.jpg` fragment is
+// inert to the browser when resolving/rendering a `data:` URI, but gives
+// that naive extension check something valid to find, so `FileThumbnail`
+// correctly treats this as an image and actually renders it instead of
+// falling back to a generic file icon.
+const SAMPLE_COLLATERAL_PHOTO =
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#BFD9F2"/>
+          <stop offset="1" stop-color="#E7F0FA"/>
+        </linearGradient>
+        <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#E3C9A3"/>
+          <stop offset="1" stop-color="#C9A876"/>
+        </linearGradient>
+        <linearGradient id="lawn" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#8FBF7A"/>
+          <stop offset="1" stop-color="#6FA35B"/>
+        </linearGradient>
+      </defs>
+      <rect width="480" height="320" fill="url(#sky)"/>
+      <rect x="0" y="235" width="480" height="85" fill="url(#lawn)"/>
+      <rect x="0" y="225" width="480" height="14" fill="#B7C4DB" opacity="0.5"/>
+      <rect x="120" y="110" width="240" height="130" fill="url(#wall)"/>
+      <polygon points="105,110 240,40 375,110" fill="#7A5B44"/>
+      <polygon points="120,110 240,52 360,110" fill="#8C6B52"/>
+      <rect x="145" y="150" width="45" height="45" fill="#5C7A94"/>
+      <rect x="145" y="150" width="45" height="45" fill="none" stroke="#3B4256" stroke-width="2"/>
+      <rect x="290" y="150" width="45" height="45" fill="#5C7A94"/>
+      <rect x="290" y="150" width="45" height="45" fill="none" stroke="#3B4256" stroke-width="2"/>
+      <rect x="218" y="165" width="44" height="65" fill="#5C4630"/>
+      <circle cx="252" cy="197" r="2.5" fill="#D8C29B"/>
+      <rect x="30" y="200" width="55" height="35" rx="16" fill="#5B8A52"/>
+      <rect x="395" y="190" width="50" height="45" rx="18" fill="#5B8A52"/>
+      <rect x="0" y="300" width="480" height="20" fill="#000" opacity="0.28"/>
+      <text x="14" y="314" font-family="sans-serif" font-size="12" fill="#F2F4F8">Sample photo — collateral inspection</text>
+    </svg>`
+  )}#.jpg`;
+
 export function buildSampleAppraisalReport(
   bundle: AppraisalReportBundle,
   bundleTctNumbers: string[],
@@ -56,6 +107,9 @@ export function buildSampleAppraisalReport(
       zonalValue: '15,000',
       boundaries: 'N: Lot 6; S: Lot 8; E: Road Lot; W: Lot 5',
       technicalSpecification: 'Rectangular lot, level with road, residential zone',
+      photoFileName: 'Collateral-Photo-Sample.svg',
+      photoFileUrl: SAMPLE_COLLATERAL_PHOTO,
+      photoUploadedAt: now,
     })),
     encumbrancesRemarks: 'None noted at time of inspection.',
 

@@ -387,6 +387,26 @@ clobber a report an appraiser (or this same action) already submitted.
 All three are dev/testing conveniences for reaching downstream states
 quickly, not user-facing officer actions.
 
+Each `landTitles` entry `buildSampleAppraisalReport()` produces also
+stamps a `photoFileUrl`/`photoFileName`/`photoUploadedAt` — a
+`SAMPLE_COLLATERAL_PHOTO` inline SVG data URI, same
+data-URI-placeholder convention `sample-application.ts` uses for its own
+ID/selfie photos — so a sample-filled land title's Collateral Photo
+dropzone (`ReportFileDropzone`, see "Land Title Fields" below) renders an
+actual photo preview once locked/read-only, instead of the empty "Choose
+a photo" uploader state. This matters most on read-only views of an
+already-submitted report — the Head/Approver's "My Approvals" detail
+page in particular, which has no way to attach a real photo itself and
+would otherwise show every sample bundle's Collateral Photo as
+perpetually unset. Getting `FileThumbnail` to actually render the image
+(rather than fall back to a generic file-type icon) requires a real file
+extension at the tail of the URL — `FileThumbnail`'s format check
+(`fileTypeByUrl`) naively does `url.split('.').pop()`, which fails on a
+raw `data:image/svg+xml` URI (the closest `.` sits deep inside the
+encoded markup); appending an inert `#.jpg` fragment (harmless to how the
+browser resolves a `data:` URI, but present at the very end of the
+string) gives that naive check a real extension to find.
+
 **Every Appraisal Fee simulate action on both pages is always visible in
 the Settings popover, regardless of current state** — an earlier version
 gated each one behind the state it was meant to produce (Approve/Decline
@@ -1285,8 +1305,9 @@ own state, sourced entirely from `review.creditInvestigation`
 /`review.appraisal`/`review.requirementChecklist` in `AdminContext`.
 
 **Exception: the Appraiser screen (and, as of the Fee Approvals
-restructure, the Appraisal Fee Approver's list page too) auto-loads a
-real sample application and seeds it a real assigned bundle, instead of
+restructure and the Appraisal Report Approval restructure, the Appraisal
+Fee Approver's and Appraisal Report Approver's list pages too) auto-loads
+a real sample application and seeds it a real assigned bundle, instead of
 showing an empty/sample placeholder.** This mirrors the exact mechanism
 `application-list-view.tsx` already uses for its own table — once
 hydrated, if there's no live application in the session
@@ -1355,6 +1376,30 @@ Appraiser's own submit logic; that was changed once it became clear this
 page was the one exception to "every list page here always shows one
 real active example," which reads as inconsistent rather than
 intentional.)
+
+**The Appraisal Report Approver's ("My Approvals") list page goes one
+step further still, since it only ever shows a row once every pledged
+property's report is submitted, not merely fee-approved.** If the
+session hydrates with no live application, it loads `SAMPLE_APPLICATION`;
+if there are no `reportBundles` yet, it seeds one the same way (every
+still-unassigned, docs-complete `appraisalGroups` entry, one consolidated
+bundle) with the fee already settled — `feeApprovalStatus: 'approved'`
+plus `feeSubmittedAt`/`feeApprovedAt`/`clientNotifiedAt`/`sentToOdooAt`/
+`paymentReceivedAt` all stamped directly via `setAppraisal()` in the same
+effect, skipping the request/approve steps entirely since nothing on this
+page needs to show them mid-flight. A second effect then finds the first
+bundle still missing a submitted report (`!bundle.report.uploadedAt`) and
+fills it in via `buildSampleAppraisalReport(bundle, tctNumbers,
+applicantName, true)` — `submit: true`, unlike the Appraiser/Fee list
+seeds' own "fill sample report" actions, which pass `false` and leave
+`uploadedAt` unset for a human to submit by hand; this seed needs the
+report to land already-submitted, since that's the only state this page
+renders a row for. The net effect: the very first time this page is
+visited in a fresh session, `signUpData` loads, the bundle is created with
+its fee pre-settled, then (next render) the report gets filled in and
+submitted — the list already shows one genuinely active "For Approval"
+row within two effect passes, without ever having to drive the Appraiser
+page manually first.
 
 There is no role/permission system in this app (`AdminUser` has no role
 field — every session is one undifferentiated admin), so nothing
