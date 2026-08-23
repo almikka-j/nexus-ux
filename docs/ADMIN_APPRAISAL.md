@@ -1176,55 +1176,51 @@ structured fields, since external appraisers only ever upload a finished
 file.
 
 Each `LandTitleSummary` card (one per TCT/OCT) shows its own Collateral
-Photo, when `title.photoFileUrl` is set — a real sample-image-sized block
-(`max-width: 320px`, `aspect-ratio: 4/3`, rounded `10px` corners matching
-the rest of this card) under its own "Collateral Photo" label, above that
-title's field grid, wrapped in a plain `<a target="_blank">` with a
-hover-reveal "View full photo" overlay so clicking it opens the full
-photo in a new tab. (An earlier version rendered this as a small 56×56 —
-then a still-small 84×64 — thumbnail squeezed into the title row next to
-"TCT No. …"; both were too small to read as an actual photo view rather
-than a file-attachment icon, so it was rebuilt as its own labeled,
-properly-sized image block.) Unlike `AppraiserAssignmentCard`'s own
-dropzone display (which can't render a real image once locked, since it
-only has a stand-in `File` reconstructed from just the filename), this
-view reads `photoFileUrl` directly — a real, still-valid blob/object URL
-or data URI — so it renders an actual photo, not a placeholder icon. No
-photo block renders at all when a title has no photo, same "conditionally
-rendered, no blank placeholder" convention every other field on this card
-follows.
+Photo beside its field grid — `Stack direction="row"` with a fixed-width
+(`200px`) photo column on the left and the fields flowing in the
+remaining space, when `title.photoFileUrl` is set — wrapped in a plain
+`<a target="_blank">` with a hover-reveal "View full photo" overlay so
+clicking it opens the full photo in a new tab. (Three earlier layouts
+got this wrong in different ways: first a small 56×56, then a still-small
+84×64, thumbnail squeezed into the title row next to "TCT No. …" — both
+too small to read as an actual photo; then a properly-sized photo
+block stacked ABOVE the field grid instead of beside it, which left a
+large dead gap of empty white space next to the photo whenever the grid
+didn't fill every column on a row. The current side-by-side layout is
+what actually fixed it — the photo's height now roughly matches its
+fields' height instead of leaving unused space.) Unlike
+`AppraiserAssignmentCard`'s own dropzone display (which can't render a
+real image once locked, since it only has a stand-in `File`
+reconstructed from just the filename), this view reads `photoFileUrl`
+directly — a real, still-valid blob/object URL or data URI — so it
+renders an actual photo, not a placeholder icon. No photo block renders
+at all when a title has no photo, same "conditionally rendered, no blank
+placeholder" convention every other field on this card follows.
 
-**Visual hierarchy pass.** A full in-house report has roughly 15 sections
-plus one land-title card per pledged property — every `Field` originally
-rendered at the same 600-weight dark text regardless of whether it's the
-figure a reviewer actually scans for or routine paperwork, so nothing
-stood out in the long scroll. Two changes fixed this without touching the
-document structure: (1) `AppraisedValueHero` — the same tinted
-`TONE_COLORS.info.bg` + navy icon-avatar treatment the Valuation
-section's own callout already used, just larger (48px avatar, 26px
-figure) and moved to render immediately after the letterhead, so the one
-number this whole document exists to produce doesn't require scrolling
-through 15 sections to reach. The Valuation section keeps its own copy of
-the figure for audit completeness, but as a lightweight one-line
-cross-reference row ("This figure carries through as the report's
-Appraised Value, shown above.") instead of a second full-size tinted
-callout — two identical hero-weight boxes on one page would compete with
-each other rather than reinforce. (2) `Field` gained a `muted` prop
-(regular weight + `#5A6273` instead of 600-weight + `#14172A`) applied to
-routine/rarely-differentiating fields — per-title paperwork (Survey No.,
-Book/Page No., Title Registration Date/Place, Lot No.), Technical
-Specification's raw measurements and Source of Utilities (purely
-descriptive, never load-bearing to a decision), and the Valuation
-section's supporting breakdown (FMV/RCN, Construction Status,
-Depreciated Value) — while leaving genuinely decision-relevant figures at
-full weight and reordering them to lead their grid: Area Size and Zonal
-Value lead each `LandTitleSummary`'s field grid (ahead of Survey
-No./Book-Page/registration paperwork), Highest and Best Use/Present Use
-lead Technical Specification, and Loanable Amount leads the Valuation
-section's own breakdown. Sign-off fields (Prepared/Reviewed/Endorsed/Noted
-by) and Recommendation stay full weight throughout — muting was applied
-to routine data, not to anything someone is actually signing their name
-to.
+**Collapsible sections + no muted text.** A full in-house report has
+roughly 15 sections plus one land-title card per pledged property — an
+earlier pass tried fixing the resulting wall-of-text feel by muting
+"routine" fields to a lighter gray weight, but that read as
+disabled/broken text rather than an intentional design choice, so it was
+reverted entirely: every `Field` now renders at the same normal,
+readable weight regardless of section. The actual fix for length: every
+section after Land (Technical Specification, Source or Kind of
+Utilities, Improvement — General Construction Features, Basis of
+Valuation, and the Prepared/Reviewed/Endorsed/Noted By signature block)
+is wrapped in the shared `CollapsibleSection` component
+(`src/components/collapsible-section` — the same chevron+`Collapse`
+shell Document Checklist and Requirement Checklist's per-tab groups
+already use elsewhere in this app), collapsed by default via a single
+`expanded: Record<string, boolean>` state keyed per section. The page
+now opens short — header, `AppraisedValueHero`, Land (with every land
+title card and its photo) — with the rest a click away instead of a
+mandatory scroll through every section every time. Land stays
+permanently expanded (not wrapped in a `CollapsibleSection` at all) since
+the pledged properties and their photos are the actual substance of the
+review, not supporting detail to tuck away. The Valuation section's own
+totals (Loanable Amount, Rounded Figures, Appraised Value (P), Item of
+Property, FMV/RCN, Construction Status %, Depreciated Value) and
+Remarks/Recommendation also stay always-visible, same reasoning.
 
 ## Head Approval
 
