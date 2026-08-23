@@ -53,7 +53,7 @@ import type { AppraisalCollateralType } from 'src/auth/admin-context';
 // Render order matches the appraiser's actual workflow: (1) a single
 // header card matching the system's standard summary-card shape (same as
 // application-details-card.tsx/application-review-header.tsx) — a 42px
-// icon-avatar + Appraisal No. (getAppraisalNumber(bundle.id)) as the
+// icon-avatar + Appraisal No. (getAppraisalNumber(bundle.tctGroupIds)) as the
 // title (15px/800, not a page-heading size) + applicant/App No.
 // subtitle, a `StatusBadge` top-right, then a bordered/tinted `FactChip`
 // strip below (local copy of application-details-card.tsx's own
@@ -724,7 +724,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
               </Box>
               <Box>
                 <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#14172A' }}>
-                  {getAppraisalNumber(bundle.id)}
+                  {getAppraisalNumber(bundle.tctGroupIds)}
                 </Typography>
                 <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
                   {applicantName} · App No. {getLoanNumber(signUpData.email)}

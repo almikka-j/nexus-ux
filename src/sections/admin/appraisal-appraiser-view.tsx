@@ -465,7 +465,7 @@ export function AppraisalAppraiserView() {
                         >
                           <TableCell>
                             <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A' }}>
-                              {getAppraisalNumber(bundle.id)}
+                              {getAppraisalNumber(bundle.tctGroupIds)}
                             </Typography>
                           </TableCell>
                           <TableCell>

@@ -51,7 +51,7 @@ import { SAMPLE_APPLICATION } from './sample-application';
 // since a fee request otherwise had no reference number or appraiser
 // name visible at a glance from the list. Both show the FIRST bundle's
 // own value plus a "+N more" suffix when the request bundles more than
-// one property (`getAppraisalNumber(firstBundle.id)` for the number,
+// one property (`getAppraisalNumber(firstBundle.tctGroupIds)` for the number,
 // deduplicated `appraiserName`s for the appraiser — a request can list
 // more than one distinct appraiser if its bundles were assigned to
 // different people), rather than cramming every bundle's value into one
@@ -162,7 +162,7 @@ export function AppraisalFeeApprovalView() {
   // suffix rather than trying to cram every bundle's values into one cell.
   const firstBundle = reportBundles[0];
   const appraisalNumberDisplay = firstBundle
-    ? `${getAppraisalNumber(firstBundle.id)}${reportBundles.length > 1 ? ` +${reportBundles.length - 1} more` : ''}`
+    ? `${getAppraisalNumber(firstBundle.tctGroupIds)}${reportBundles.length > 1 ? ` +${reportBundles.length - 1} more` : ''}`
     : '—';
   const uniqueAppraiserNames = Array.from(
     new Set(reportBundles.map((bundle) => bundle.appraiserName).filter((name): name is string => !!name))

@@ -8,7 +8,7 @@
 > `appraisal/pass-fail-card.tsx`, `appraisal/sample-appraisal-report.ts`,
 > `appraisal-appraiser-view.tsx`, `appraisal-appraiser-bundle-view.tsx`,
 > `appraisal-fee-approval-view.tsx`, `appraisal-fee-approval-bundle-view.tsx`,
-> `appraisal-approver-view.tsx`) change.
+> `appraisal-approver-view.tsx`, `appraisal-approver-bundle-view.tsx`) change.
 > Companion to `PROJECT_OVERVIEW.md`
 > and `docs/ADMIN_CREDIT_INVESTIGATION.md` (the step immediately before this
 > one in the pipeline, and where "CI Fee Approval" — nested alongside these
@@ -1395,11 +1395,13 @@ framing is a UI/workflow choice, not access control.
   A single table, one row per `reportBundles` entry actually assigned to
   the signed-in appraiser (real data — `review.appraisal.reportBundles`,
   not sample/filler rows), columns: **Appraisal No.** (a deterministic
-  per-bundle reference number, `getAppraisalNumber(bundle.id)` —
+  per-bundle reference number, `getAppraisalNumber(bundle.tctGroupIds)` —
   `src/utils/get-appraisal-number.ts`, same hash-then-format convention
-  as `getLoanNumber()` — `APR-######`, hashed from the bundle's own UUID
-  rather than a persisted counter, so it's stable across reloads without
-  needing its own sequence state), **Collateral No.** (every TCT number
+  as `getLoanNumber()` — `APR-######`, hashed from the bundle's own pledged
+  TCT group ids (stable/user-chosen) rather than the bundle's own
+  `crypto.randomUUID()` id or a persisted counter, so the same set of
+  properties always yields the same number even across a freshly-created
+  bundle, no separate sequence state needed), **Collateral No.** (every TCT number
   this bundle covers, comma-joined — clamped to 2 lines with an ellipsis
   via `-webkit-line-clamp` so a bundle spanning many properties, e.g. all
   5 default TCTs, doesn't blow out the row height), **Applicant**,
@@ -1432,7 +1434,7 @@ framing is a UI/workflow choice, not access control.
      heading; the header and the read-only fields below it are one
      continuous card, not two stacked sections. The header row is a 42px
      icon-avatar (`#EEF1FE` background, `solar:document-text-bold-duotone`
-     in `#1C2A6E`) + **Appraisal No.** (`getAppraisalNumber(bundle.id)`,
+     in `#1C2A6E`) + **Appraisal No.** (`getAppraisalNumber(bundle.tctGroupIds)`,
      see "Appraisal No." above) as a **card-level** title
      (15px/800 — the size every other summary card in this app uses for
      its title, not a 22-30px page-heading size) + `{applicantName} ·
@@ -1594,28 +1596,53 @@ framing is a UI/workflow choice, not access control.
   side of the Approver's two duties (see "Appraisal - Approver Fee" above
   for the fee side) now that both sit side by side under "Request" instead
   of a generic "Approval" grouping. "My Approvals" for the Head/Approver's
-  "reviewed and noted" step. Shows the live application's detail card
+  "reviewed and noted" step. **A list page**, same list → detail split as
+  its sibling "Appraisal - Approver Fee" above (an earlier pass had
+  restructured this one too, then reverted it back to a single flat page
+  with no report content shown at all; it has since been restructured
+  again — this time to stay, since the Head/Approver reviewing a report
+  they can't see defeats the point of a review step). Shows one table row
   whenever every pledged property is covered by a submitted report bundle
   and `headApprovalStatus === 'pending'` (`isPending = !!signUpData &&
   reportSubmitted && headApprovalStatus === 'pending'` — the same
   `reportSubmitted` computation `appraisal-view.tsx` uses to unlock its own
   Head Approval card, duplicated here rather than shared since the two
-  files don't currently import from each other). Approve reuses the exact
-  same `setAppraisal` call `head-approval-card.tsx` makes; Decline resets
-  `headApprovalStatus: 'pending'` and calls `clearAllAppraisalBundleReports()`
-  again — the same behavior `head-approval-card.tsx` itself uses (see
-  "Head Approval" above) — clearing every bundle's submitted
-  report/file so each assigned appraiser resubmits, not touching any
-  forward-to-Head boolean field (a brief intermediate officer-review step
-  introduced one, and had this screen's decline stop clearing reports in
-  favor of resetting it; that step has been fully reverted, so this
-  screen's decline is back to calling `clearAllAppraisalBundleReports()`
-  exactly like `HeadApprovalCard` does). **This page is still a single
-  flat page, unlike its sibling "Appraisal - Approver Fee" above** — it
-  was NOT part of the Fee Approvals list/detail restructure (an earlier
-  pass mistakenly restructured this one too; that was reverted, since the
-  request was specifically about the fee-approval flow, not Head
-  Approval's report review).
+  files don't currently import from each other); clicking it navigates to
+  `/admin/appraisal-approver/[bundleId]`
+  (`appraisal-approver-bundle-view.tsx`, a fixed `'current'` placeholder
+  segment, not a real ID, same convention as
+  `appraisal-fee-approval-bundle-view.tsx` — there's no real
+  multi-application backend, so there's no real request ID to route on).
+
+  The detail page's header card (applicant, `StatusBadge`, FactChip strip
+  for Properties/Appraiser/Requested On) matches the same summary-card
+  shape every other detail page here uses. Below it, **every report
+  bundle in the request renders its own full Appraisal Report**, reusing
+  `AppraiserAssignmentCard` — the exact same component
+  `appraisal-appraiser-bundle-view.tsx` uses to let the appraiser fill the
+  report in — one per bundle, labeled with that bundle's own Appraisal
+  No. and TCT numbers. This is the reason the restructure exists: the flat
+  version this replaced showed only the applicant summary, with no way to
+  see what the appraiser actually submitted before approving. No separate
+  read-only variant of the card was needed — `AppraiserAssignmentCard`
+  already locks itself (`locked = headApprovalStatus !== 'pending' ||
+  !!report.uploadedAt`) the moment `report.uploadedAt` is set, which it
+  always is by the time a request reaches this page (`isPending` on the
+  list page requires every bundle's report to already be submitted), so it
+  renders fully read-only here with zero extra plumbing.
+
+  Approve/Decline live at the bottom of their own card below every
+  bundle's report — Approve reuses the exact same `setAppraisal` call
+  `head-approval-card.tsx` makes; Decline resets `headApprovalStatus:
+  'pending'` and calls `clearAllAppraisalBundleReports()` again — the same
+  behavior `head-approval-card.tsx` itself uses (see "Head Approval"
+  above) — clearing every bundle's submitted report/file so each assigned
+  appraiser resubmits. Since `clearAllAppraisalBundleReports()` wipes
+  `report.uploadedAt`, every `AppraiserAssignmentCard` on this same page
+  unlocks back to editable the instant a decline is confirmed — visible in
+  place, no navigation away — the same "declined behaves like a draft
+  again" behavior `appraisal-appraiser-bundle-view.tsx` documents for its
+  own fee flow.
 
 Except for CI Fee Approval's `OutcomeScreen`, none of these screens'
 live-application actions redirect or show a one-time outcome screen —

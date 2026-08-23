@@ -80,6 +80,11 @@ export const paths = {
     // consistent with appraisalAppraiserBundle's own list -> detail split.
     appraisalFeeApprovalBundle: () => '/admin/appraisal-fee-approval/current',
     appraisalApprover: '/admin/appraisal-approver',
+    // Same fixed-placeholder-segment convention as appraisalFeeApprovalBundle
+    // — no real multi-application backend, so there's no real request ID to
+    // route on; this only keeps the URL shape consistent with the
+    // appraisalAppraiserBundle/appraisalFeeApprovalBundle list -> detail split.
+    appraisalApproverBundle: () => '/admin/appraisal-approver/current',
     creditChecking: (id: string) => `/admin/applications/${id}/credit-checking`,
     reconsideration: (id: string) => `/admin/applications/${id}/reconsideration`,
     callReport: (id: string) => `/admin/applications/${id}/call-report`,
