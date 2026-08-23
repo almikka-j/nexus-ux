@@ -5,7 +5,6 @@ import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
 import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
@@ -316,11 +315,6 @@ export function AppraisalApproverBundleView() {
                     Decline
                   </Button>
                 </Stack>
-                <Divider sx={{ borderColor: '#EEF0F5' }} />
-                <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
-                  There’s no real Head login in this prototype — approving or declining here
-                  simulates your review.
-                </Typography>
               </Stack>
             ) : (
               <Stack direction="row" spacing={1.25} alignItems="center">
