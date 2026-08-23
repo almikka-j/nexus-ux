@@ -1717,9 +1717,20 @@ framing is a UI/workflow choice, not access control.
   (AppraisalReportView)" above for the full visual details), so the fix
   was swapping to it rather than inventing a new component.
 
-  Approve/Decline live at the bottom of their own card below every
-  bundle's report — Approve reuses the exact same `setAppraisal` call
-  `head-approval-card.tsx` makes; Decline resets `headApprovalStatus:
+  Approve/Decline live in their own **"Your Decision"** card, titled the
+  same way `appraisal-fee-approval-bundle-view.tsx` titles its own
+  "Appraisal Fee Details" card — grouped tightly (`spacing={1.5}`, not this
+  page's usual `spacing={3}` gap) directly beneath the report bundle(s)
+  inside one shared inner `Stack`, so the decision reads as attached to
+  what it's deciding on rather than a separate, disconnected card further
+  down the page. (An earlier version put every report in its own card at
+  the page's normal spacing, then Approve/Decline in a further plain card
+  below with no title and generic filler copy about "every pledged
+  property's report" — visually indistinguishable from just another
+  unrelated section, unlike the Fee Approval page's own single-card
+  "content + decision together" shape it was meant to mirror; this was
+  tightened to match instead.) Approve reuses the exact same `setAppraisal`
+  call `head-approval-card.tsx` makes; Decline resets `headApprovalStatus:
   'pending'` and calls `clearAllAppraisalBundleReports()` again — the same
   behavior `head-approval-card.tsx` itself uses (see "Head Approval"
   above) — clearing every bundle's submitted report/file so each assigned

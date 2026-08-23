@@ -47,8 +47,8 @@ import { AppraisalReportView } from './appraisal/appraisal-report-view';
 // "submitted" stamp for reports the way there is for fees).
 //
 // Below the header, this is where the Fee Approval detail page and this
-// one diverge: the Head Approver's whole job is reviewing the actual
-// Appraisal Report content the appraiser submitted, not a fee breakdown —
+// one diverge in CONTENT: the Head Approver's whole job is reviewing the
+// actual Appraisal Report the appraiser submitted, not a fee breakdown —
 // so every bundle in the request renders its own full report via
 // AppraisalReportView, the exact same read-only summary component the
 // Appraisal Officer's own "View Report" dialog uses
@@ -61,18 +61,23 @@ import { AppraisalReportView } from './appraisal/appraisal-report-view';
 // of an actual photo view) rather than matching this app's own read-only
 // summary conventions. AppraisalReportView already solves exactly this —
 // label/value Field pairs grouped under SectionLabel headings with
-// Dividers between them (this app's standard read-only-detail shape, same
-// as the FactChip/Field patterns every other detail page here uses), and
-// each land title's Collateral Photo renders as a real 56×56 thumbnail
-// that opens the full photo on click (LandTitleSummary), not a disabled
-// dropzone control.
+// Dividers between them, and each land title's Collateral Photo rendering
+// as a real, properly-sized photo block, not a disabled dropzone control.
 //
-// Approve/Decline live at the bottom of their own card below every
-// bundle's report, unchanged from the old single-page view: both still
-// call the batch-level setAppraisal({ headApprovalStatus })/
-// clearAllAppraisalBundleReports context calls, and approving/declining
-// still applies to the whole appraisal at once, not just one property's
-// report.
+// STRUCTURALLY though, this follows the exact same "one outer card holds
+// the content plus the decision" shape appraisal-fee-approval-bundle-view.tsx
+// uses for its own "Appraisal Fee Details" card: a titled adminCardSx box
+// wraps every bundle's report AND the Approve/Decline actions together,
+// so the decision reads as attached to what's being decided on, not a
+// separate floating card underneath. (An earlier version put each
+// AppraisalReportView in its own standalone card, then Approve/Decline in
+// a further separate plain card below with generic filler copy — visually
+// disconnected from the fee page's own single-card pattern; this was
+// rebuilt to match it exactly instead.) Approve reuses the exact same
+// setAppraisal({ headApprovalStatus }) call head-approval-card.tsx makes;
+// Decline resets headApprovalStatus back to 'pending' and calls
+// clearAllAppraisalBundleReports() — applying to the whole appraisal at
+// once, not just one property's report, same as before.
 // ----------------------------------------------------------------------
 
 const HEAD_APPROVAL_STATUS_COPY: Record<'pending' | 'approved' | 'declined', { label: string; tone: SemanticTone }> = {
@@ -265,64 +270,70 @@ export function AppraisalApproverBundleView() {
           )}
         </Box>
 
-        {reportBundles.map((bundle) => {
-          const bundleTctNumbers = appraisalGroups
-            .filter((group) => bundle.tctGroupIds.includes(group.id))
-            .map((group) => group.tctNumber);
-          return (
-            <Stack key={bundle.id} spacing={1}>
-              {reportBundles.length > 1 && (
-                <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#5A6273', px: 0.5 }}>
-                  {getAppraisalNumber(bundle.tctGroupIds)}
-                </Typography>
-              )}
-              <AppraisalReportView bundleId={bundle.id} tctNumbers={bundleTctNumbers} />
-            </Stack>
-          );
-        })}
-
-        <Box sx={{ ...adminCardSx }}>
-          {isPending && !justApproved ? (
-            <Stack spacing={1.25}>
-              <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
-                Every pledged property&apos;s appraisal report has been submitted. Review and note this
-                appraisal before it proceeds to Credit Scoring.
-              </Typography>
-              <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
-                <Button
-                  onClick={approve}
-                  variant="contained"
-                  startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
-                  sx={{ bgcolor: '#0C8A4F', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#0A7042' } }}
-                >
-                  Approve (Reviewed and Noted)
-                </Button>
-                <Button
-                  onClick={() => setDeclineOpen(true)}
-                  variant="outlined"
-                  startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
-                  sx={{ color: '#B32C22', borderColor: '#F3C4BE', borderRadius: '10px', px: 2.5, '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(179,44,34,0.04)' } }}
-                >
-                  Decline
-                </Button>
+        <Stack spacing={1.5}>
+          {reportBundles.map((bundle) => {
+            const bundleTctNumbers = appraisalGroups
+              .filter((group) => bundle.tctGroupIds.includes(group.id))
+              .map((group) => group.tctNumber);
+            return (
+              <Stack key={bundle.id} spacing={1}>
+                {reportBundles.length > 1 && (
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#5A6273', px: 0.5 }}>
+                    {getAppraisalNumber(bundle.tctGroupIds)}
+                  </Typography>
+                )}
+                <AppraisalReportView bundleId={bundle.id} tctNumbers={bundleTctNumbers} />
               </Stack>
-              <Divider sx={{ borderColor: '#EEF0F5' }} />
-              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
-                There’s no real Head login in this prototype — approving or declining here simulates
-                your review.
-              </Typography>
-            </Stack>
-          ) : (
-            <Stack direction="row" spacing={1.25} alignItems="center">
-              <Iconify icon="solar:check-circle-bold-duotone" width={20} sx={{ color: '#0C8A4F' }} />
-              <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
-                {headApprovalStatus === 'approved'
-                  ? `You already reviewed and noted the appraisal for ${applicantName}.`
-                  : `Reviewed and noted the appraisal for ${applicantName}.`}
-              </Typography>
-            </Stack>
-          )}
-        </Box>
+            );
+          })}
+
+          <Box sx={{ ...adminCardSx }}>
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 2.5 }}>
+              Your Decision
+            </Typography>
+
+            {isPending && !justApproved ? (
+              <Stack spacing={1.25}>
+                <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
+                  Every pledged property&apos;s appraisal report has been submitted. Review and note
+                  this appraisal before it proceeds to Credit Scoring.
+                </Typography>
+                <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
+                  <Button
+                    onClick={approve}
+                    variant="contained"
+                    startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
+                    sx={{ bgcolor: '#0C8A4F', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#0A7042' } }}
+                  >
+                    Approve (Reviewed and Noted)
+                  </Button>
+                  <Button
+                    onClick={() => setDeclineOpen(true)}
+                    variant="outlined"
+                    startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
+                    sx={{ color: '#B32C22', borderColor: '#F3C4BE', borderRadius: '10px', px: 2.5, '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(179,44,34,0.04)' } }}
+                  >
+                    Decline
+                  </Button>
+                </Stack>
+                <Divider sx={{ borderColor: '#EEF0F5' }} />
+                <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
+                  There’s no real Head login in this prototype — approving or declining here
+                  simulates your review.
+                </Typography>
+              </Stack>
+            ) : (
+              <Stack direction="row" spacing={1.25} alignItems="center">
+                <Iconify icon="solar:check-circle-bold-duotone" width={20} sx={{ color: '#0C8A4F' }} />
+                <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
+                  {headApprovalStatus === 'approved'
+                    ? `You already reviewed and noted the appraisal for ${applicantName}.`
+                    : `Reviewed and noted the appraisal for ${applicantName}.`}
+                </Typography>
+              </Stack>
+            )}
+          </Box>
+        </Stack>
       </Stack>
 
       <ConfirmDialog
