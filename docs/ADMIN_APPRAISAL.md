@@ -1133,39 +1133,66 @@ own `bg`/`border` values (`src/components/admin-ui/admin-tokens.ts`), not
 one-off hex — so a light gray background is what communicates "locked"
 now, instead of light gray text.
 
-### Officer's read-only view (`AppraisalReportView`)
+### Read-only view (`AppraisalReportView`)
 
 Once a bundle's `report.uploadedAt` is set, `AssignedAppraiserCard`
-renders this inside its "View Report" `Dialog` for that bundle —
-`appraisal-view.tsx` itself never renders `AppraiserAssignmentCard` or
-`AppraisalReportView` directly; both only ever appear via the pages that
-own them (`AppraiserAssignmentCard` on the Appraiser's page,
-`AppraisalReportView` inside the Officer's modal). It's a read-only
-rendering of everything the appraiser filled in, so the officer (and,
-implicitly, whoever reviews Head Approval next) can actually see the
-report's content instead of just a "submitted" boolean. Sectioned to
-mirror the printed PDF (Land + per-title cards, Technical Specification,
-Utilities, Construction Features, Basis of Valuation, a highlighted
-Appraised Value card with amount-in-words, Signature chain, Recommendation)
-using this app's own card/`Field`-label conventions rather than
-reproducing the PDF's literal dark-blue section bars. Every field is
-conditionally rendered (`Field` returns `null` for an empty value, section
-`Divider`s always show) so a partially-filled report doesn't show a wall of
+renders this inside its "View Report" `Dialog` for that bundle on the
+Officer's page, and `appraisal-approver-bundle-view.tsx` renders it
+directly (one per bundle, no dialog) on the Head/Approver's "My
+Approvals" detail page — `appraisal-view.tsx` itself never renders
+`AppraiserAssignmentCard` or `AppraisalReportView` directly; both only
+ever appear via the pages that own them. It's a read-only rendering of
+everything the appraiser filled in, so whoever is reviewing (Officer or
+Head/Approver) can actually see the report's content instead of just a
+"submitted" boolean.
+
+Deliberately built from this app's own tokens rather than a one-off
+document look — the outer card is plain `adminCardSx` (16px radius,
+`#EBEDF3` border, same shell every other card here uses), each land title
+is a nested `10px`-radius box matching `LandTitleFields`'s own inner-card
+convention, and the Appraised Value callout reuses the tinted-box +
+icon-avatar pattern (`TONE_COLORS.info.bg`, a navy `#1C2A6E` icon square)
+this app already uses for its other prominent-total summaries. What makes
+it read as a document rather than another admin card: a centered
+"Appraisal Report" title + "Covers … Submitted by … on …" meta line up
+top (a small letterhead, not a page-heading-sized title), a `SectionLabel`
+(small-caps label + a full-width `Divider`) before each of the report's
+sections, and every `Field` value sitting on its own hairline
+bottom-border rather than floating loose in a wrapped paragraph — the way
+values sit on ruled lines in an actual filled-in form. (Two earlier
+passes overcorrected in the opposite direction: the very first version
+used loose flex-wrapped `Field` pairs with no visual distinction from any
+other app card; a second pass fixed that but introduced sharp 4-6px
+corners, a monospace font, and hand-picked ink/border hex values found
+nowhere else in the app, reading as a foreign component instead of this
+app's own take on a document. This version keeps the *document structure*
+— letterhead, section rules, field rules — while rendering it with the
+app's actual card chrome and palette.) Every field is conditionally
+rendered (`Field` returns `null` for an empty value, `SectionLabel`
+dividers always show) so a partially-filled report doesn't show a wall of
 blank labels. External-appraiser bundles instead show the uploaded file
-with a **"View"** link (`report.fileUrl`) rather than any of the structured
-fields, since external appraisers only ever upload a finished file.
+with a **"View"** link (`report.fileUrl`) rather than any of the
+structured fields, since external appraisers only ever upload a finished
+file.
 
 Each `LandTitleSummary` card (one per TCT/OCT) shows its own Collateral
-Photo, when `title.photoFileUrl` is set — a 56×56 rounded thumbnail
-(`<Box component="img">`, `object-fit: cover`) next to the "TCT No. …"
-title, wrapped in a plain `<a target="_blank">` so clicking it opens the
-full photo in a new tab. Unlike `AppraiserAssignmentCard`'s own dropzone
-display (which can't render a real image once locked, since it only has
-a stand-in `File` reconstructed from just the filename), this view reads
-`photoFileUrl` directly — a real, still-valid blob/object URL — so it
-renders an actual photo, not a placeholder icon. No thumbnail renders at
-all when a title has no photo, same "conditionally rendered, no blank
-placeholder" convention every other field on this card follows.
+Photo, when `title.photoFileUrl` is set — a real sample-image-sized block
+(`max-width: 320px`, `aspect-ratio: 4/3`, rounded `10px` corners matching
+the rest of this card) under its own "Collateral Photo" label, above that
+title's field grid, wrapped in a plain `<a target="_blank">` with a
+hover-reveal "View full photo" overlay so clicking it opens the full
+photo in a new tab. (An earlier version rendered this as a small 56×56 —
+then a still-small 84×64 — thumbnail squeezed into the title row next to
+"TCT No. …"; both were too small to read as an actual photo view rather
+than a file-attachment icon, so it was rebuilt as its own labeled,
+properly-sized image block.) Unlike `AppraiserAssignmentCard`'s own
+dropzone display (which can't render a real image once locked, since it
+only has a stand-in `File` reconstructed from just the filename), this
+view reads `photoFileUrl` directly — a real, still-valid blob/object URL
+or data URI — so it renders an actual photo, not a placeholder icon. No
+photo block renders at all when a title has no photo, same "conditionally
+rendered, no blank placeholder" convention every other field on this card
+follows.
 
 ## Head Approval
 
@@ -1684,9 +1711,11 @@ framing is a UI/workflow choice, not access control.
   actual photo view. `AppraisalReportView` was built for exactly this
   read-only case already (label/value `Field` pairs grouped under
   `SectionLabel` headings with `Divider`s between them — this app's
-  standard read-only-detail shape — and a real 56×56 photo thumbnail per
-  land title that opens the full photo on click via `LandTitleSummary`),
-  so the fix was swapping to it rather than inventing a new component.
+  standard read-only-detail shape — and a real, properly-sized Collateral
+  Photo block per land title, not a cramped thumbnail, that opens the full
+  photo on click via `LandTitleSummary`; see "Read-only view
+  (AppraisalReportView)" above for the full visual details), so the fix
+  was swapping to it rather than inventing a new component.
 
   Approve/Decline live at the bottom of their own card below every
   bundle's report — Approve reuses the exact same `setAppraisal` call

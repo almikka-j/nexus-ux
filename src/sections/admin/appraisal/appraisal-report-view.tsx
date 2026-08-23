@@ -9,60 +9,109 @@ import { useAdmin } from 'src/auth/admin-context';
 import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import type { AppraisalReportLandTitle } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Read-only rendering of a submitted in-house Appraisal Report
-// (AppraiserAssignmentCard's form) for the Appraisal Officer — the
-// officer assigns the appraiser and requests the fee, the appraiser fills
-// in the report on the Appraisal Appraiser page, and once submitted the
-// officer needs to actually see what was filled in before Head Approval,
-// not just a "submitted" boolean. Sectioned to match the printed
-// Appraisal Report (REM) PDF (Land, Boundaries, Technical Specification,
-// Utilities, Construction Features, Basis of Valuation, valuation table,
-// signature chain) using this app's own card/table conventions rather
-// than literally reproducing the PDF's dark-blue section bars.
+// (AppraiserAssignmentCard's form) — used by the Appraisal Officer's own
+// "View Report" dialog (assigned-appraiser-card.tsx) and the Head/Approver's
+// "My Approvals" detail page (appraisal-approver-bundle-view.tsx), both of
+// which need to see what the appraiser actually submitted, not just a
+// "submitted" boolean.
+//
+// Reads like the printed Appraisal Report (REM) document — a centered
+// title, small-caps section labels with a full-width rule beneath each
+// (SectionLabel), and every value sitting on its own hairline field rule
+// instead of floating in a loose paragraph — while still built entirely
+// from this app's own tokens (`adminCardSx`'s 16px/#EBEDF3 card shell,
+// `TONE_COLORS.info` for the one navy accent, the same 10-12px inner
+// radii `LandTitleFields`/`FactChip` use elsewhere), not a one-off visual
+// language. (Two earlier versions overshot this: the first was
+// indistinguishable from any other rounded app card — functionally
+// read-only but with no sense that this is a formal document people sign
+// off on; the second corrected that but went too far the other way —
+// sharp 4-6px corners, a monospace font nothing else in the app uses, and
+// hand-picked ink/border hex values instead of this app's own
+// palette — which read as a foreign component bolted onto the page
+// rather than this app's own take on a document layout. This version
+// keeps the document *structure* — letterhead title, field rules, section
+// rules — but renders it with the app's actual card chrome and colors.)
 // External appraiser bundles instead show the uploaded file for download.
 // ----------------------------------------------------------------------
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{
-        fontSize: 11.5,
-        fontWeight: 700,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: '#8891A6',
-      }}
-    >
-      {children}
-    </Typography>
+    <Box>
+      <Typography
+        sx={{
+          fontSize: 11.5,
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: '#8891A6',
+        }}
+      >
+        {children}
+      </Typography>
+      <Divider sx={{ mt: 0.75, borderColor: '#EEF0F5' }} />
+    </Box>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+// A single "form line" — label in small-caps above, value sitting directly
+// on a hairline rule below, the way a filled-in printed form reads.
+function Field({ label, value, span = 1 }: { label: string; value: string; span?: number }) {
   if (!value) return null;
   return (
-    <Box sx={{ minWidth: 0 }}>
+    <Box sx={{ minWidth: 0, gridColumn: `span ${span}` }}>
       <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>{label}</Typography>
-      <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', wordBreak: 'break-word' }}>
+      <Typography
+        sx={{
+          mt: 0.25,
+          pb: 0.6,
+          fontSize: 13.5,
+          fontWeight: 600,
+          color: '#14172A',
+          wordBreak: 'break-word',
+          borderBottom: '1px solid #EEF0F5',
+        }}
+      >
         {value}
       </Typography>
     </Box>
   );
 }
 
+// Responsive field grid — 2 columns on mobile, 4 on desktop, matching a
+// typical printed form's row-of-boxes layout. `Field` itself returns null
+// for an empty value, so an all-empty row collapses to nothing.
+function FieldGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
+        columnGap: 2.5,
+        rowGap: 1.75,
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
 function LandTitleSummary({ title, tctNumber }: { title: AppraisalReportLandTitle; tctNumber: string }) {
   return (
-    <Box sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-      <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 1.25 }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', flex: 1 }}>
-          TCT No. {tctNumber}
-        </Typography>
-        {title.photoFileUrl && (
+    <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
+      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
+        TCT No. {tctNumber}
+      </Typography>
+
+      {title.photoFileUrl && (
+        <Box sx={{ mb: 2 }}>
+          <Typography sx={{ fontSize: 11.5, color: '#8891A6', mb: 0.75 }}>Collateral Photo</Typography>
           <Box
             component="a"
             href={title.photoFileUrl}
@@ -70,12 +119,14 @@ function LandTitleSummary({ title, tctNumber }: { title: AppraisalReportLandTitl
             rel="noopener noreferrer"
             sx={{
               display: 'block',
-              width: 56,
-              height: 56,
-              borderRadius: '8px',
+              width: '100%',
+              maxWidth: 320,
+              aspectRatio: '4 / 3',
+              borderRadius: '10px',
               overflow: 'hidden',
               border: '1px solid #EBEDF3',
-              flexShrink: 0,
+              position: 'relative',
+              '&:hover .exhibit-zoom': { opacity: 1 },
             }}
           >
             <Box
@@ -84,10 +135,28 @@ function LandTitleSummary({ title, tctNumber }: { title: AppraisalReportLandTitl
               alt={`Collateral photo — TCT No. ${tctNumber}`}
               sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
             />
+            <Stack
+              className="exhibit-zoom"
+              direction="row"
+              alignItems="center"
+              spacing={0.75}
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                justifyContent: 'center',
+                bgcolor: 'rgba(20,23,42,0.4)',
+                opacity: 0,
+                transition: 'opacity 0.15s ease',
+              }}
+            >
+              <Iconify icon="solar:magnifer-bold" width={18} sx={{ color: 'common.white' }} />
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'common.white' }}>View full photo</Typography>
+            </Stack>
           </Box>
-        )}
-      </Stack>
-      <Stack direction="row" flexWrap="wrap" sx={{ gap: 2, mb: title.boundaries || title.technicalSpecification ? 1.5 : 0 }}>
+        </Box>
+      )}
+
+      <FieldGrid>
         <Field label="Survey No." value={title.surveyNo} />
         <Field label="Book No. / Page No." value={title.bookPageNo} />
         <Field label="Title Registration Date" value={title.titleRegistrationDate} />
@@ -95,20 +164,27 @@ function LandTitleSummary({ title, tctNumber }: { title: AppraisalReportLandTitl
         <Field label="Area Size (sq.m.)" value={title.areaSize} />
         <Field label="Lot No." value={title.lotNo} />
         <Field label="Zonal Value" value={title.zonalValue} />
-      </Stack>
-      {title.boundaries && (
-        <Box sx={{ mb: 1 }}>
-          <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Boundaries</Typography>
-          <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap' }}>{title.boundaries}</Typography>
-        </Box>
-      )}
-      {title.technicalSpecification && (
-        <Box>
-          <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Technical Specification</Typography>
-          <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
-            {title.technicalSpecification}
-          </Typography>
-        </Box>
+      </FieldGrid>
+
+      {(title.boundaries || title.technicalSpecification) && (
+        <Stack spacing={1.25} sx={{ mt: 1.75 }}>
+          {title.boundaries && (
+            <Box>
+              <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Boundaries</Typography>
+              <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
+                {title.boundaries}
+              </Typography>
+            </Box>
+          )}
+          {title.technicalSpecification && (
+            <Box>
+              <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Technical Specification</Typography>
+              <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
+                {title.technicalSpecification}
+              </Typography>
+            </Box>
+          )}
+        </Stack>
       )}
     </Box>
   );
@@ -177,43 +253,42 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
 
   return (
     <Box sx={adminCardSx}>
-      <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        Appraisal Report
-      </Typography>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-        Covers {tctNumbers.join(', ')}. Submitted by {appraiserName ?? 'the assigned appraiser'} on{' '}
-        {new Date(uploadedAt).toLocaleString()}.
-      </Typography>
+      <Stack alignItems="center" spacing={0.5} sx={{ textAlign: 'center', mb: 3 }}>
+        <Typography sx={{ fontSize: 17, fontWeight: 800, color: '#14172A' }}>Appraisal Report</Typography>
+        <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Covers {tctNumbers.join(', ')}</Typography>
+        <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
+          Submitted by {appraiserName ?? 'the assigned appraiser'} on {new Date(uploadedAt).toLocaleString()}
+        </Typography>
+      </Stack>
+      <Divider sx={{ borderColor: '#EEF0F5', mb: 3 }} />
 
-      <Stack spacing={2.5}>
-        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
+      <Stack spacing={3}>
+        <FieldGrid>
           <Field label="Date Report" value={report.dateReport} />
           <Field label="Date Inspected" value={report.dateInspected} />
           <Field label="Requesting Officer" value={report.requestingOfficer} />
           <Field label="Branch" value={report.branch} />
-        </Stack>
-
-        <Divider sx={{ borderColor: '#EEF0F5' }} />
+        </FieldGrid>
 
         <Stack spacing={1.5}>
           <SectionLabel>Land</SectionLabel>
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
-            <Field label="Registered Owner" value={report.registeredOwner} />
-            <Field label="Location of Property" value={report.locationOfProperty} />
+          <FieldGrid>
+            <Field label="Registered Owner" value={report.registeredOwner} span={2} />
+            <Field label="Location of Property" value={report.locationOfProperty} span={2} />
+          </FieldGrid>
+          <Stack spacing={1.5}>
+            {titleGroups.map((group) => {
+              const title = report.landTitles.find((entry) => entry.tctGroupId === group.id);
+              if (!title) return null;
+              return <LandTitleSummary key={group.id} title={title} tctNumber={group.tctNumber} />;
+            })}
           </Stack>
-          {titleGroups.map((group) => {
-            const title = report.landTitles.find((entry) => entry.tctGroupId === group.id);
-            if (!title) return null;
-            return <LandTitleSummary key={group.id} title={title} tctNumber={group.tctNumber} />;
-          })}
-          <Field label="Encumbrances / Remarks" value={report.encumbrancesRemarks} />
+          <Field label="Encumbrances / Remarks" value={report.encumbrancesRemarks} span={4} />
         </Stack>
-
-        <Divider sx={{ borderColor: '#EEF0F5' }} />
 
         <Stack spacing={1.5}>
           <SectionLabel>Technical specification</SectionLabel>
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
+          <FieldGrid>
             <Field label="Street Frontage (metres)" value={report.streetFrontage} />
             <Field label="Street Width (metres)" value={report.streetWidth} />
             <Field label="Surfacing (Concrete/Asphalt)" value={report.surfacing} />
@@ -222,80 +297,73 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
             <Field label="Topography" value={report.topography} />
             <Field label="Neighborhood (Res'l/Comm'l/Ind'l.)" value={report.neighborhood} />
             <Field label="Present Use" value={report.presentUse} />
-            <Field label="Highest and Best Use" value={report.highestAndBestUse} />
-          </Stack>
+            <Field label="Highest and Best Use" value={report.highestAndBestUse} span={2} />
+          </FieldGrid>
         </Stack>
-
-        <Divider sx={{ borderColor: '#EEF0F5' }} />
 
         <Stack spacing={1.5}>
           <SectionLabel>Source or kind of utilities</SectionLabel>
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
+          <FieldGrid>
             <Field label="Public Conveyance Line" value={report.utilityPublicConveyance} />
             <Field label="Electricity" value={report.utilityElectricity} />
             <Field label="Water" value={report.utilityWater} />
             <Field label="Telephone" value={report.utilityTelephone} />
-          </Stack>
+          </FieldGrid>
         </Stack>
-
-        <Divider sx={{ borderColor: '#EEF0F5' }} />
 
         <Stack spacing={1.5}>
           <SectionLabel>Improvement — general construction features</SectionLabel>
-          <Field label="General Construction Features" value={report.generalConstructionFeatures} />
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
+          <Field label="General Construction Features" value={report.generalConstructionFeatures} span={4} />
+          <FieldGrid>
             <Field label="Floor Level" value={report.floorLevel} />
             <Field label="External Walls" value={report.externalWalls} />
             <Field label="Interior Walls & Partitions" value={report.interiorWallsPartitions} />
             <Field label="Flooring" value={report.flooring} />
             <Field label="Doors & Windows" value={report.doorsWindows} />
             <Field label="Ceiling & Roofing" value={report.ceilingRoofing} />
-          </Stack>
+          </FieldGrid>
         </Stack>
-
-        <Divider sx={{ borderColor: '#EEF0F5' }} />
 
         <Stack spacing={1.5}>
           <SectionLabel>Basis of valuation (land)</SectionLabel>
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
+          <FieldGrid>
             <Field label="Source" value={report.basisSource} />
             <Field label="Location" value={report.basisLocation} />
             <Field label="Area Size" value={report.basisAreaSize} />
             <Field label="Price Type" value={report.basisPriceType} />
             <Field label="Selling Price" value={report.basisSellingPrice} />
-            <Field label="Fair Market Value as per square meter" value={report.fairMarketValuePerSqm} />
-          </Stack>
+            <Field label="Fair Market Value as per square meter" value={report.fairMarketValuePerSqm} span={2} />
+          </FieldGrid>
         </Stack>
 
         {report.remarksAdditionalInfo && (
-          <>
-            <Divider sx={{ borderColor: '#EEF0F5' }} />
-            <Stack spacing={1.5}>
-              <SectionLabel>Remarks / additional information</SectionLabel>
-              <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
-                {report.remarksAdditionalInfo}
-              </Typography>
-            </Stack>
-          </>
+          <Stack spacing={1.5}>
+            <SectionLabel>Remarks / additional information</SectionLabel>
+            <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
+              {report.remarksAdditionalInfo}
+            </Typography>
+          </Stack>
         )}
-
-        <Divider sx={{ borderColor: '#EEF0F5' }} />
 
         <Stack spacing={1.5}>
           <SectionLabel>Valuation</SectionLabel>
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
-            <Field label="Item of Property" value={report.itemOfProperty} />
+          <FieldGrid>
+            <Field label="Item of Property" value={report.itemOfProperty} span={2} />
             <Field label="FMV / RCN (PHP)" value={report.fmvRcn} />
             <Field label="Construction Status %" value={report.constructionStatusPercent} />
+          </FieldGrid>
+          <FieldGrid>
             <Field label="Depreciated Value" value={report.depreciatedValue} />
             <Field label="Appraised Value (P)" value={report.appraisedValueP} />
-          </Stack>
+            <Field label="Rounded Figures" value={report.roundedFigures} />
+            <Field label="Loanable Amount" value={report.loanableAmount} />
+          </FieldGrid>
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             alignItems={{ xs: 'flex-start', sm: 'center' }}
             spacing={1.5}
-            sx={{ p: 2, borderRadius: '12px', bgcolor: '#EEF1FE' }}
+            sx={{ p: 2, borderRadius: '12px', bgcolor: TONE_COLORS.info.bg }}
           >
             <Box
               sx={{ width: 44, height: 44, flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: '10px', bgcolor: '#1C2A6E' }}
@@ -312,35 +380,25 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
               )}
             </Box>
           </Stack>
-
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
-            <Field label="Rounded Figures" value={report.roundedFigures} />
-            <Field label="Loanable Amount" value={report.loanableAmount} />
-          </Stack>
         </Stack>
-
-        <Divider sx={{ borderColor: '#EEF0F5' }} />
 
         <Stack spacing={1.5}>
           <SectionLabel>Prepared / reviewed / endorsed / noted by</SectionLabel>
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
+          <FieldGrid>
             <Field label="Prepared by" value={report.preparedBy} />
             <Field label="Reviewed by" value={report.reviewedBy} />
             <Field label="Endorsed by" value={report.endorsedBy} />
             <Field label="Noted by" value={report.notedBy} />
-          </Stack>
+          </FieldGrid>
         </Stack>
 
         {report.recommendation && (
-          <>
-            <Divider sx={{ borderColor: '#EEF0F5' }} />
-            <Stack spacing={1.5}>
-              <SectionLabel>Recommendation</SectionLabel>
-              <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
-                {report.recommendation}
-              </Typography>
-            </Stack>
-          </>
+          <Stack spacing={1.5}>
+            <SectionLabel>Recommendation</SectionLabel>
+            <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
+              {report.recommendation}
+            </Typography>
+          </Stack>
         )}
       </Stack>
     </Box>
