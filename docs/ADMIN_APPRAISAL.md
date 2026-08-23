@@ -1194,6 +1194,38 @@ photo block renders at all when a title has no photo, same "conditionally
 rendered, no blank placeholder" convention every other field on this card
 follows.
 
+**Visual hierarchy pass.** A full in-house report has roughly 15 sections
+plus one land-title card per pledged property — every `Field` originally
+rendered at the same 600-weight dark text regardless of whether it's the
+figure a reviewer actually scans for or routine paperwork, so nothing
+stood out in the long scroll. Two changes fixed this without touching the
+document structure: (1) `AppraisedValueHero` — the same tinted
+`TONE_COLORS.info.bg` + navy icon-avatar treatment the Valuation
+section's own callout already used, just larger (48px avatar, 26px
+figure) and moved to render immediately after the letterhead, so the one
+number this whole document exists to produce doesn't require scrolling
+through 15 sections to reach. The Valuation section keeps its own copy of
+the figure for audit completeness, but as a lightweight one-line
+cross-reference row ("This figure carries through as the report's
+Appraised Value, shown above.") instead of a second full-size tinted
+callout — two identical hero-weight boxes on one page would compete with
+each other rather than reinforce. (2) `Field` gained a `muted` prop
+(regular weight + `#5A6273` instead of 600-weight + `#14172A`) applied to
+routine/rarely-differentiating fields — per-title paperwork (Survey No.,
+Book/Page No., Title Registration Date/Place, Lot No.), Technical
+Specification's raw measurements and Source of Utilities (purely
+descriptive, never load-bearing to a decision), and the Valuation
+section's supporting breakdown (FMV/RCN, Construction Status,
+Depreciated Value) — while leaving genuinely decision-relevant figures at
+full weight and reordering them to lead their grid: Area Size and Zonal
+Value lead each `LandTitleSummary`'s field grid (ahead of Survey
+No./Book-Page/registration paperwork), Highest and Best Use/Present Use
+lead Technical Specification, and Loanable Amount leads the Valuation
+section's own breakdown. Sign-off fields (Prepared/Reviewed/Endorsed/Noted
+by) and Recommendation stay full weight throughout — muting was applied
+to routine data, not to anything someone is actually signing their name
+to.
+
 ## Head Approval
 
 Rendered by `appraisal-view.tsx` only when `reportSubmitted` —

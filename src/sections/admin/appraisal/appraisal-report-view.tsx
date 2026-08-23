@@ -38,6 +38,24 @@ import type { AppraisalReportLandTitle } from 'src/auth/admin-context';
 // rather than this app's own take on a document layout. This version
 // keeps the document *structure* — letterhead title, field rules, section
 // rules — but renders it with the app's actual card chrome and colors.)
+//
+// Visual hierarchy pass: this is a long document (a full REM has ~15
+// sections plus one land-title card per pledged property), and a flat
+// wall of equally-weighted label/value pairs made every field compete for
+// the same amount of attention regardless of whether it's the number a
+// reviewer is scanning for or routine boilerplate. Fixes: (1) the
+// Appraised Value — the one figure everyone reads this document for —
+// now ALSO appears as a hero right under the letterhead
+// (`AppraisedValueHero`), not only buried at the end of the Valuation
+// section (which still keeps its own full copy for completeness/audit,
+// since that section's the literal source of truth); (2) `Field` takes an
+// optional `muted` flag that renders routine, rarely-differentiating
+// per-title paperwork (Survey No., Book/Page No., Boundaries, Technical
+// Specification — the same values across every TCT in this sample data)
+// at a visibly lower weight than figures that actually move the appraisal
+// (Zonal Value, Area Size, the owner/location identity fields up top),
+// instead of every field defaulting to the same 600-weight dark text
+// regardless of how load-bearing it is.
 // External appraiser bundles instead show the uploaded file for download.
 // ----------------------------------------------------------------------
 
@@ -62,7 +80,21 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 // A single "form line" — label in small-caps above, value sitting directly
 // on a hairline rule below, the way a filled-in printed form reads.
-function Field({ label, value, span = 1 }: { label: string; value: string; span?: number }) {
+// `muted` lowers a routine/boilerplate value's weight (regular instead of
+// 600, lighter ink) so it visually recedes next to the figures that
+// actually matter to a reviewer — see the header comment's "Visual
+// hierarchy pass" note.
+function Field({
+  label,
+  value,
+  span = 1,
+  muted = false,
+}: {
+  label: string;
+  value: string;
+  span?: number;
+  muted?: boolean;
+}) {
   if (!value) return null;
   return (
     <Box sx={{ minWidth: 0, gridColumn: `span ${span}` }}>
@@ -72,8 +104,8 @@ function Field({ label, value, span = 1 }: { label: string; value: string; span?
           mt: 0.25,
           pb: 0.6,
           fontSize: 13.5,
-          fontWeight: 600,
-          color: '#14172A',
+          fontWeight: muted ? 500 : 600,
+          color: muted ? '#5A6273' : '#14172A',
           wordBreak: 'break-word',
           borderBottom: '1px solid #EEF0F5',
         }}
@@ -99,6 +131,38 @@ function FieldGrid({ children }: { children: React.ReactNode }) {
     >
       {children}
     </Box>
+  );
+}
+
+// The hero — the one number this whole document exists to produce,
+// surfaced immediately under the letterhead instead of only appearing
+// after scrolling through ~15 sections to reach Valuation. Visually
+// identical to the tinted callout the Valuation section keeps further
+// down (same TONE_COLORS.info treatment, same icon-avatar shape) — this
+// is a second appearance of the same figure, not a competing style.
+function AppraisedValueHero({ appraisedValue, amountInWords }: { appraisedValue: string; amountInWords: string }) {
+  return (
+    <Stack
+      direction={{ xs: 'column', sm: 'row' }}
+      alignItems={{ xs: 'flex-start', sm: 'center' }}
+      spacing={1.5}
+      sx={{ p: 2.25, borderRadius: '12px', bgcolor: TONE_COLORS.info.bg, mb: 3 }}
+    >
+      <Box sx={{ width: 48, height: 48, flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: '10px', bgcolor: '#1C2A6E' }}>
+        <Iconify icon="solar:banknote-2-bold-duotone" width={26} sx={{ color: 'common.white' }} />
+      </Box>
+      <Box>
+        <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', color: '#8891A6' }}>
+          APPRAISED VALUE
+        </Typography>
+        <Typography sx={{ mt: 0.25, fontSize: 26, fontWeight: 800, color: '#1C2A6E', lineHeight: 1.1 }}>
+          {fCurrency(appraisedValue)}
+        </Typography>
+        {amountInWords && (
+          <Typography sx={{ fontSize: 12.5, color: '#5A6273', mt: 0.25 }}>{amountInWords}</Typography>
+        )}
+      </Box>
+    </Stack>
   );
 }
 
@@ -157,13 +221,13 @@ function LandTitleSummary({ title, tctNumber }: { title: AppraisalReportLandTitl
       )}
 
       <FieldGrid>
-        <Field label="Survey No." value={title.surveyNo} />
-        <Field label="Book No. / Page No." value={title.bookPageNo} />
-        <Field label="Title Registration Date" value={title.titleRegistrationDate} />
-        <Field label="Title Registration Place" value={title.titleRegistrationPlace} />
         <Field label="Area Size (sq.m.)" value={title.areaSize} />
-        <Field label="Lot No." value={title.lotNo} />
         <Field label="Zonal Value" value={title.zonalValue} />
+        <Field label="Lot No." value={title.lotNo} muted />
+        <Field label="Survey No." value={title.surveyNo} muted />
+        <Field label="Book No. / Page No." value={title.bookPageNo} muted />
+        <Field label="Title Registration Date" value={title.titleRegistrationDate} muted />
+        <Field label="Title Registration Place" value={title.titleRegistrationPlace} muted span={2} />
       </FieldGrid>
 
       {(title.boundaries || title.technicalSpecification) && (
@@ -171,7 +235,7 @@ function LandTitleSummary({ title, tctNumber }: { title: AppraisalReportLandTitl
           {title.boundaries && (
             <Box>
               <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Boundaries</Typography>
-              <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
+              <Typography sx={{ fontSize: 12.5, color: '#8891A6', whiteSpace: 'pre-wrap', mt: 0.25 }}>
                 {title.boundaries}
               </Typography>
             </Box>
@@ -179,7 +243,7 @@ function LandTitleSummary({ title, tctNumber }: { title: AppraisalReportLandTitl
           {title.technicalSpecification && (
             <Box>
               <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Technical Specification</Typography>
-              <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
+              <Typography sx={{ fontSize: 12.5, color: '#8891A6', whiteSpace: 'pre-wrap', mt: 0.25 }}>
                 {title.technicalSpecification}
               </Typography>
             </Box>
@@ -262,12 +326,14 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
       </Stack>
       <Divider sx={{ borderColor: '#EEF0F5', mb: 3 }} />
 
+      <AppraisedValueHero appraisedValue={report.appraisedValue} amountInWords={report.amountInWords} />
+
       <Stack spacing={3}>
         <FieldGrid>
-          <Field label="Date Report" value={report.dateReport} />
-          <Field label="Date Inspected" value={report.dateInspected} />
-          <Field label="Requesting Officer" value={report.requestingOfficer} />
-          <Field label="Branch" value={report.branch} />
+          <Field label="Date Report" value={report.dateReport} muted />
+          <Field label="Date Inspected" value={report.dateInspected} muted />
+          <Field label="Requesting Officer" value={report.requestingOfficer} muted />
+          <Field label="Branch" value={report.branch} muted />
         </FieldGrid>
 
         <Stack spacing={1.5}>
@@ -289,25 +355,25 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
         <Stack spacing={1.5}>
           <SectionLabel>Technical specification</SectionLabel>
           <FieldGrid>
-            <Field label="Street Frontage (metres)" value={report.streetFrontage} />
-            <Field label="Street Width (metres)" value={report.streetWidth} />
-            <Field label="Surfacing (Concrete/Asphalt)" value={report.surfacing} />
-            <Field label="Average Depth" value={report.averageDepth} />
-            <Field label="Approx. Shape" value={report.approxShape} />
-            <Field label="Topography" value={report.topography} />
-            <Field label="Neighborhood (Res'l/Comm'l/Ind'l.)" value={report.neighborhood} />
-            <Field label="Present Use" value={report.presentUse} />
             <Field label="Highest and Best Use" value={report.highestAndBestUse} span={2} />
+            <Field label="Present Use" value={report.presentUse} span={2} />
+            <Field label="Street Frontage (metres)" value={report.streetFrontage} muted />
+            <Field label="Street Width (metres)" value={report.streetWidth} muted />
+            <Field label="Surfacing (Concrete/Asphalt)" value={report.surfacing} muted />
+            <Field label="Average Depth" value={report.averageDepth} muted />
+            <Field label="Approx. Shape" value={report.approxShape} muted />
+            <Field label="Topography" value={report.topography} muted />
+            <Field label="Neighborhood (Res'l/Comm'l/Ind'l.)" value={report.neighborhood} muted />
           </FieldGrid>
         </Stack>
 
         <Stack spacing={1.5}>
           <SectionLabel>Source or kind of utilities</SectionLabel>
           <FieldGrid>
-            <Field label="Public Conveyance Line" value={report.utilityPublicConveyance} />
-            <Field label="Electricity" value={report.utilityElectricity} />
-            <Field label="Water" value={report.utilityWater} />
-            <Field label="Telephone" value={report.utilityTelephone} />
+            <Field label="Public Conveyance Line" value={report.utilityPublicConveyance} muted />
+            <Field label="Electricity" value={report.utilityElectricity} muted />
+            <Field label="Water" value={report.utilityWater} muted />
+            <Field label="Telephone" value={report.utilityTelephone} muted />
           </FieldGrid>
         </Stack>
 
@@ -315,24 +381,24 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
           <SectionLabel>Improvement — general construction features</SectionLabel>
           <Field label="General Construction Features" value={report.generalConstructionFeatures} span={4} />
           <FieldGrid>
-            <Field label="Floor Level" value={report.floorLevel} />
-            <Field label="External Walls" value={report.externalWalls} />
-            <Field label="Interior Walls & Partitions" value={report.interiorWallsPartitions} />
-            <Field label="Flooring" value={report.flooring} />
-            <Field label="Doors & Windows" value={report.doorsWindows} />
-            <Field label="Ceiling & Roofing" value={report.ceilingRoofing} />
+            <Field label="Floor Level" value={report.floorLevel} muted />
+            <Field label="External Walls" value={report.externalWalls} muted />
+            <Field label="Interior Walls & Partitions" value={report.interiorWallsPartitions} muted />
+            <Field label="Flooring" value={report.flooring} muted />
+            <Field label="Doors & Windows" value={report.doorsWindows} muted />
+            <Field label="Ceiling & Roofing" value={report.ceilingRoofing} muted />
           </FieldGrid>
         </Stack>
 
         <Stack spacing={1.5}>
           <SectionLabel>Basis of valuation (land)</SectionLabel>
           <FieldGrid>
-            <Field label="Source" value={report.basisSource} />
-            <Field label="Location" value={report.basisLocation} />
-            <Field label="Area Size" value={report.basisAreaSize} />
-            <Field label="Price Type" value={report.basisPriceType} />
-            <Field label="Selling Price" value={report.basisSellingPrice} />
             <Field label="Fair Market Value as per square meter" value={report.fairMarketValuePerSqm} span={2} />
+            <Field label="Selling Price" value={report.basisSellingPrice} />
+            <Field label="Area Size" value={report.basisAreaSize} muted />
+            <Field label="Source" value={report.basisSource} muted />
+            <Field label="Location" value={report.basisLocation} muted />
+            <Field label="Price Type" value={report.basisPriceType} muted />
           </FieldGrid>
         </Stack>
 
@@ -348,37 +414,30 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
         <Stack spacing={1.5}>
           <SectionLabel>Valuation</SectionLabel>
           <FieldGrid>
-            <Field label="Item of Property" value={report.itemOfProperty} span={2} />
-            <Field label="FMV / RCN (PHP)" value={report.fmvRcn} />
-            <Field label="Construction Status %" value={report.constructionStatusPercent} />
+            <Field label="Loanable Amount" value={report.loanableAmount} span={2} />
+            <Field label="Rounded Figures" value={report.roundedFigures} />
+            <Field label="Appraised Value (P)" value={report.appraisedValueP} />
           </FieldGrid>
           <FieldGrid>
-            <Field label="Depreciated Value" value={report.depreciatedValue} />
-            <Field label="Appraised Value (P)" value={report.appraisedValueP} />
-            <Field label="Rounded Figures" value={report.roundedFigures} />
-            <Field label="Loanable Amount" value={report.loanableAmount} />
+            <Field label="Item of Property" value={report.itemOfProperty} span={2} muted />
+            <Field label="FMV / RCN (PHP)" value={report.fmvRcn} muted />
+            <Field label="Construction Status %" value={report.constructionStatusPercent} muted />
+            <Field label="Depreciated Value" value={report.depreciatedValue} muted span={4} />
           </FieldGrid>
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             alignItems={{ xs: 'flex-start', sm: 'center' }}
+            justifyContent="space-between"
             spacing={1.5}
-            sx={{ p: 2, borderRadius: '12px', bgcolor: TONE_COLORS.info.bg }}
+            sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}
           >
-            <Box
-              sx={{ width: 44, height: 44, flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: '10px', bgcolor: '#1C2A6E' }}
-            >
-              <Iconify icon="solar:banknote-2-bold-duotone" width={24} sx={{ color: 'common.white' }} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#8891A6' }}>APPRAISED VALUE</Typography>
-              <Typography sx={{ mt: 0.25, fontSize: 21, fontWeight: 800, color: '#1C2A6E' }}>
-                {fCurrency(report.appraisedValue)}
-              </Typography>
-              {report.amountInWords && (
-                <Typography sx={{ fontSize: 12, color: '#5A6273', mt: 0.25 }}>{report.amountInWords}</Typography>
-              )}
-            </Box>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+              This figure carries through as the report&apos;s Appraised Value, shown above.
+            </Typography>
+            <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#1C2A6E', flexShrink: 0 }}>
+              {fCurrency(report.appraisedValue)}
+            </Typography>
           </Stack>
         </Stack>
 
