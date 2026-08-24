@@ -72,7 +72,22 @@ import { AppraisalReportView } from './appraisal/appraisal-report-view';
 // AppraisalReportView in its own standalone card, then Approve/Decline in
 // a further separate plain card below with generic filler copy — visually
 // disconnected from the fee page's own single-card pattern; this was
-// rebuilt to match it exactly instead.) Approve reuses the exact same
+// rebuilt to match it exactly instead.)
+//
+// The "Your Decision" card's own internal layout matches
+// requirement-checklist-view.tsx's "Ready to endorse?" card: title
+// (`mb: 0.5`) → one subtitle whose text changes by state (`mb: 2.5`) →
+// the action button(s) directly below, no extra margin needed since the
+// subtitle's own bottom margin already provides the gap. An earlier
+// version instead branched into two structurally different layouts —
+// title+subtitle+buttons while pending, then a completely different
+// icon+message row once decided — which read as an inconsistent, bolted-
+// together card rather than one flat shape whose content just updates in
+// place; this was flattened to always render the same title/subtitle/
+// button structure, with the subtitle text and the Approve button's own
+// label/disabled state changing instead of the whole layout swapping.
+// Decline only renders while still pending (nothing to decline once a
+// decision has been made). Approve reuses the exact same
 // setAppraisal({ headApprovalStatus }) call head-approval-card.tsx makes;
 // Decline resets headApprovalStatus back to 'pending' and calls
 // clearAllAppraisalBundleReports() — applying to the whole appraisal at
@@ -287,45 +302,43 @@ export function AppraisalApproverBundleView() {
           })}
 
           <Box sx={{ ...adminCardSx }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 2.5 }}>
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
               Your Decision
             </Typography>
+            <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
+              {isPending && !justApproved
+                ? "Every pledged property's appraisal report has been submitted. Review and note this appraisal before it proceeds to Credit Scoring."
+                : headApprovalStatus === 'approved'
+                  ? `You already reviewed and noted the appraisal for ${applicantName}.`
+                  : `Reviewed and noted the appraisal for ${applicantName}.`}
+            </Typography>
 
-            {isPending && !justApproved ? (
-              <Stack spacing={1.25}>
-                <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
-                  Every pledged property&apos;s appraisal report has been submitted. Review and note
-                  this appraisal before it proceeds to Credit Scoring.
-                </Typography>
-                <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
-                  <Button
-                    onClick={approve}
-                    variant="contained"
-                    startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
-                    sx={{ bgcolor: '#0C8A4F', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#0A7042' } }}
-                  >
-                    Approve (Reviewed and Noted)
-                  </Button>
-                  <Button
-                    onClick={() => setDeclineOpen(true)}
-                    variant="outlined"
-                    startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
-                    sx={{ color: '#B32C22', borderColor: '#F3C4BE', borderRadius: '10px', px: 2.5, '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(179,44,34,0.04)' } }}
-                  >
-                    Decline
-                  </Button>
-                </Stack>
-              </Stack>
-            ) : (
-              <Stack direction="row" spacing={1.25} alignItems="center">
-                <Iconify icon="solar:check-circle-bold-duotone" width={20} sx={{ color: '#0C8A4F' }} />
-                <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
-                  {headApprovalStatus === 'approved'
-                    ? `You already reviewed and noted the appraisal for ${applicantName}.`
-                    : `Reviewed and noted the appraisal for ${applicantName}.`}
-                </Typography>
-              </Stack>
-            )}
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
+              <Button
+                onClick={approve}
+                disabled={!isPending || justApproved}
+                variant="contained"
+                startIcon={
+                  <Iconify
+                    icon={isPending && !justApproved ? 'solar:check-circle-bold' : 'solar:check-circle-bold-duotone'}
+                    width={18}
+                  />
+                }
+                sx={{ bgcolor: '#0C8A4F', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#0A7042' } }}
+              >
+                {isPending && !justApproved ? 'Approve (Reviewed and Noted)' : 'Approved'}
+              </Button>
+              {isPending && !justApproved && (
+                <Button
+                  onClick={() => setDeclineOpen(true)}
+                  variant="outlined"
+                  startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
+                  sx={{ color: '#B32C22', borderColor: '#F3C4BE', borderRadius: '10px', px: 2.5, '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(179,44,34,0.04)' } }}
+                >
+                  Decline
+                </Button>
+              )}
+            </Stack>
           </Box>
         </Stack>
       </Stack>

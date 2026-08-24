@@ -1775,12 +1775,28 @@ framing is a UI/workflow choice, not access control.
   property's report" — visually indistinguishable from just another
   unrelated section, unlike the Fee Approval page's own single-card
   "content + decision together" shape it was meant to mirror; this was
-  tightened to match instead.) Approve reuses the exact same `setAppraisal`
-  call `head-approval-card.tsx` makes; Decline resets `headApprovalStatus:
-  'pending'` and calls `clearAllAppraisalBundleReports()` again — the same
-  behavior `head-approval-card.tsx` itself uses (see "Head Approval"
-  above) — clearing every bundle's submitted report/file so each assigned
-  appraiser resubmits. Since `clearAllAppraisalBundleReports()` wipes
+  tightened to match instead.)
+
+  The card's own internal layout matches `requirement-checklist-view.tsx`'s
+  "Ready to endorse?" card exactly: title (`mb: 0.5`) → one subtitle whose
+  text changes by state (`mb: 2.5`) → the action button(s) directly below
+  with no extra top margin, since the subtitle's own bottom margin already
+  provides the gap. This is a single flat shape used for every state, not
+  two different layouts swapped based on `isPending` — an earlier version
+  branched into a title+subtitle+buttons layout while pending, then an
+  entirely different icon+message row once decided, which read as an
+  inconsistent card bolted together from two designs rather than one
+  consistent shape whose content updates in place. Now the Approve button
+  itself carries the state instead: label and icon read "Approve (Reviewed
+  and Noted)" while pending, "Approved" (disabled, grayed) once decided;
+  Decline only renders at all while still pending, since there's nothing
+  to decline once a decision has been made. Approve reuses the exact same
+  `setAppraisal` call `head-approval-card.tsx` makes; Decline resets
+  `headApprovalStatus: 'pending'` and calls
+  `clearAllAppraisalBundleReports()` again — the same behavior
+  `head-approval-card.tsx` itself uses (see "Head Approval" above) —
+  clearing every bundle's submitted report/file so each assigned appraiser
+  resubmits. Since `clearAllAppraisalBundleReports()` wipes
   `report.uploadedAt`, `AppraisalReportView` returns `null` for a bundle
   the instant a decline is confirmed (it only ever renders a bundle with a
   submitted report) — the report card disappears from this page in place,
