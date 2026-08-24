@@ -149,16 +149,19 @@ export function CiFeeApprovalBundleView() {
     setDeclineReason('');
   };
 
-  // A typed reason is required, then the request is reset back to
-  // 'not-requested' (same re-entry point as an application that never
-  // requested a fee) — the officer can re-request from the Credit
-  // Investigation page with corrected terms.
+  // A typed reason is required. Rather than resetting to 'not-requested'
+  // and leaving this page on a dead-end "nothing to do" state until the
+  // list page's own seed effect re-arms it on next visit, this
+  // immediately re-seeds a fresh pending request right here — this
+  // workspace always shows one live, actionable "For Approval" request,
+  // the same guarantee the list page makes, so staying on this page (or
+  // navigating back/forward) never lands on a dead end either.
   const confirmDecline = () => {
     if (!declineReason.trim()) return;
     setCreditInvestigation({
-      ciFeeStatus: 'not-requested',
-      ciFeeAmount: '',
-      ciFeeAmountDescription: '',
+      ciFeeStatus: 'pending-approval',
+      ciFeeAmount: '3500',
+      ciFeeAmountDescription: 'Field verification + report preparation fee',
       ciFeeRemarks: '',
       ciFeeDeclineReason: declineReason.trim(),
     });

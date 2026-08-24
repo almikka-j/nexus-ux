@@ -63,9 +63,15 @@ import type { CiFeeStatus } from 'src/auth/admin-context';
 // Same auto-load-and-seed convention appraisal-fee-approval-view.tsx uses:
 // if the session hydrates with no live application, load the shared sample
 // dataset so `signUpData` becomes real session state instead of a disabled
-// placeholder, then — if no CI Fee has ever been requested for it yet —
-// seed one directly into `pending-approval` so there's always one real,
-// active example to look at on a fresh session, not an empty list.
+// placeholder. Then, whenever ciFeeStatus isn't 'pending-approval', it
+// re-seeds a fresh pending request — this workspace is meant to always
+// have one real, active "For Approval" request in front of the approver,
+// the same way a real approver's queue keeps refilling rather than
+// permanently emptying out after a single decision. Declining resets
+// ciFeeStatus back to 'not-requested' (CiFeeStatus has no separate
+// 'declined' value — see admin-context.tsx) and 'not-applicable' is a
+// terminal officer decision; both re-arm the seed rather than leaving
+// this screen on a dead-end "nothing to do" state.
 // ----------------------------------------------------------------------
 
 const CI_FEE_ROW_STATUS_COPY: Record<CiFeeStatus, { label: string; tone: SemanticTone }> = {
@@ -79,32 +85,20 @@ export function CiFeeApprovalView() {
   const router = useRouter();
   const { signUpData, application, hydrated, loadSample } = useRegistration();
   const { review, setCreditInvestigation } = useAdmin();
-  const { ciFeeStatus, ciFeeAmount, ciFeeAmountDescription, ciFeeDeclineReason } =
-    review.creditInvestigation;
+  const { ciFeeStatus, ciFeeAmount, ciFeeAmountDescription } = review.creditInvestigation;
 
   const hasApplication = !!signUpData && !!application.personalInfo;
 
   // Same auto-load-and-seed convention appraisal-fee-approval-view.tsx
   // uses: if the session hydrates with no live application, load the
-  // shared sample dataset; then, since this page needs an actual PENDING
-  // fee request to show anything, seed one directly into that state if
-  // none exists yet — this mirrors the Appraisal Fee Approvals list's own
-  // "always show one real, active example" convention rather than leaving
-  // a fresh session's CI Fee Approvals list empty until someone manually
-  // drives the Credit Investigation flow first.
-  //
-  // Guarded on `!ciFeeDeclineReason`, not just `ciFeeStatus ===
-  // 'not-requested'` alone: declining a request (see
-  // ci-fee-approval-bundle-view.tsx) also resets ciFeeStatus back to
-  // 'not-requested' — the same re-entry point a genuinely-never-requested
-  // application starts at, since CiFeeStatus has no separate 'declined'
-  // value. `ciFeeDeclineReason` is the one field decline sets that a
-  // fresh/never-requested application never has, so it's what
-  // distinguishes "never asked yet" (seed a sample) from "the approver
-  // just declined this one" (leave it alone) — without it, returning to
-  // the list right after a decline would immediately regenerate another
-  // pending request every render, making the "nothing waiting" empty
-  // state unreachable.
+  // shared sample dataset; then, whenever ciFeeStatus is 'not-requested'
+  // (a fresh application, or right after a decline — CiFeeStatus has no
+  // separate 'declined' value) or 'not-applicable', re-seed a fresh
+  // pending request — so this workspace always has one real, active "For
+  // Approval" example to act on, never a dead end after a decision.
+  // Deliberately excludes 'approved': that's a real terminal decision and
+  // must stick, not get silently undone the moment the approver navigates
+  // back to this list.
   const didSeedApplication = useRef(false);
   useEffect(() => {
     if (!hydrated) return;
@@ -114,15 +108,16 @@ export function CiFeeApprovalView() {
       loadSample(SAMPLE_APPLICATION);
       return;
     }
-    if (ciFeeStatus === 'not-requested' && !ciFeeDeclineReason) {
+    if (ciFeeStatus === 'not-requested' || ciFeeStatus === 'not-applicable') {
       setCreditInvestigation({
         ciFeeStatus: 'pending-approval',
         ciFeeAmount: '3500',
         ciFeeAmountDescription: 'Field verification + report preparation fee',
+        ciFeeDeclineReason: '',
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, hasApplication, ciFeeStatus, ciFeeDeclineReason]);
+  }, [hydrated, hasApplication, ciFeeStatus]);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
   const rowStatusCopy = CI_FEE_ROW_STATUS_COPY[ciFeeStatus];

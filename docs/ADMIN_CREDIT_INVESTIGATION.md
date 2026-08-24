@@ -337,23 +337,29 @@ fall back to an empty-state card; that gate was removed — only the
 application at all" (`!signUpData`), showing "Nothing waiting on you yet"
 with a **"Go to Application List"** button.
 
-**Auto-seed on the list page**: same convention
-`appraisal-fee-approval-view.tsx` uses — if the session hydrates with no
-live application, `loadSample(SAMPLE_APPLICATION)` loads the shared sample
-dataset; then, if `ciFeeStatus === 'not-requested'` **and**
-`ciFeeDeclineReason` is empty, it seeds a fresh `pending-approval` request
-(₱3,500, "Field verification + report preparation fee") directly into
-state — so a fresh session always has one real, active, clickable request
-to look at instead of a blank "not requested" row, matching every other
-list page in this app. The `!ciFeeDeclineReason` check matters:
-`CiFeeStatus` has no separate `'declined'` value — declining a request
-(see below) resets `ciFeeStatus` back to `'not-requested'`, the same
-status a genuinely never-requested application starts at. Seeding on bare
-`ciFeeStatus === 'not-requested'` alone would immediately regenerate a new
-pending request the moment the list re-renders after a decline, making
-the "just declined, not yet re-requested" row state unreachable; checking
-that `ciFeeDeclineReason` is still blank is what tells a fresh application
-apart from a just-declined one.
+**This workspace always keeps one live, actionable "For Approval" CI Fee
+request in front of the approver — a decision never leaves it on a dead
+end.** Two things enforce this:
+
+- **Auto-seed on the list page**: same convention
+  `appraisal-fee-approval-view.tsx` uses — if the session hydrates with no
+  live application, `loadSample(SAMPLE_APPLICATION)` loads the shared
+  sample dataset; then, whenever `ciFeeStatus` is `'not-requested'` (a
+  fresh application, or right after a decline — `CiFeeStatus` has no
+  separate `'declined'` value) or `'not-applicable'`, it re-seeds a fresh
+  `pending-approval` request (₱3,500, "Field verification + report
+  preparation fee") directly into state, clearing `ciFeeDeclineReason`
+  too. Deliberately **excludes `'approved'`**: that's a real terminal
+  decision and must stick, not get silently undone the moment the
+  approver navigates back to this list.
+- **The detail page's own Decline handler re-seeds in place**, rather
+  than resetting to `'not-requested'` and waiting for the list page's
+  effect to notice on next visit — so declining shows a fresh, fully
+  actionable request immediately, on the same page, even if the approver
+  never navigates away (an earlier version left the detail page on a
+  genuine dead end — "No CI Fee has been requested for {name} yet.", no
+  buttons — until the approver went back to the list and back in). Repeat
+  declines re-arm every time.
 
 **The detail page** (`ci-fee-approval-bundle-view.tsx`) shows a header
 card (applicant name/App No./email, a `StatusBadge` for `ciFeeStatus`,
@@ -373,17 +379,20 @@ page action. Both call plain `setCreditInvestigation({ ciFeeStatus: ...
 })` — CI Fee has no dedicated `approveCiFee()`/`declineCiFee()` context
 methods the way Appraisal does. An officer can act from whichever surface
 they're already on (this screen or the inline page action); both write
-the same `review.creditInvestigation` fields. For any other status
-(`not-requested`, `approved`, `not-applicable`), it shows a status message
-instead of the action buttons (e.g. "No CI Fee has been requested for
-{name} yet.", "You already approved the CI Fee for {name}.", "This
-application doesn't require a CI Fee.") — the detail page only shows
-"Request not found" when there's no live application at all
-(`!signUpData`), not merely because the fee hasn't been requested.
+the same `review.creditInvestigation` fields. `ciFeeStatus === 'approved'`
+shows a status message instead ("You already approved the CI Fee for
+{name}." or, right after acting, "Approved the CI Fee for {name}.") — the
+detail page only shows "Request not found" when there's no live
+application at all (`!signUpData`); `not-requested`/`not-applicable` are
+unreachable here in practice since the Decline handler and the list
+page's seed effect both re-arm past them immediately.
 
 `ciFeeDeclineReason: string` on `CreditInvestigation` (`admin-context.tsx`)
-follows the same per-decision-reason convention as `decisionReason`, and
-also doubles as the auto-seed guard described above.
+follows the same per-decision-reason convention as `decisionReason` — it
+still records the last decline's reason, but no longer gates the
+auto-seed (an earlier version checked `!ciFeeDeclineReason` to avoid
+re-seeding right after a decline; that guard was removed once declining
+was changed to intentionally re-seed immediately instead).
 
 ## CI Report
 
