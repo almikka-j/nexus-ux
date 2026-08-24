@@ -141,134 +141,143 @@ export type NegativeCreditReport = {
   submitted: boolean;
 };
 
-export type CallType = 'in-person' | 'phone' | 'video';
-export type PlaceOfCall = 'branch' | 'residence' | 'business' | 'online' | 'other';
-export type CallStatus = 'in-progress' | 'completed' | 'follow-up-needed' | 'unable-to-reach';
-export type IdentityConfirmed = 'yes' | 'no' | 'for-verification';
+export type InteractionType = 'in-person' | 'phone' | 'video';
+export type IdentityStatus = 'confirmed' | 'for-verification' | 'unable-to-confirm';
+export type IdentityBasisItem = 'app-data-matched' | 'valid-government-id' | 'verification-questions' | 'other';
 
-export type LoanPurposeConfirmation = 'confirmed' | 'changed' | 'needs-clarification';
-export type RepaymentSource = 'salary' | 'business-income' | 'rental-income' | 'pension' | 'other';
+export type ValidationStatus = 'confirmed' | 'changed' | 'unable-to-verify' | '';
 
-export type ClientUnderstandingItem =
-  | 'interest-rate'
-  | 'monthly-amortization'
-  | 'loan-term'
-  | 'processing-fees'
-  | 'collateral-requirements'
-  | 'required-documents';
+export type LoanFacilityType = 'sme-business' | 'clean-loan' | 'sangla-titulo' | 'clubflex-direct' | 'clubflex-financing';
 
-export type ClientConcernItem =
+export type LoanPurposeType =
+  | 'additional-working-capital'
+  | 'new-business-venture'
+  | 'loan-take-out-refinancing'
+  | 'home-renovation-construction'
+  | 'residential-property-acquisition'
+  | 'commercial-property-acquisition'
+  | 'machinery-equipment-acquisition'
+  | 'club-share-acquisition'
+  | 'raw-land-acquisition-development'
+  | 'bridge-financing'
+  | 'other';
+
+export type WorkingCapitalUse =
+  | 'inventory-stock'
+  | 'raw-materials'
+  | 'supplier-payments'
+  | 'payroll-employee-costs'
+  | 'operating-expenses'
+  | 'seasonal-working-capital'
+  | 'contract-project-financing'
+  | 'cash-flow-support'
+  | 'business-expansion'
+  | 'other';
+
+export type RepaymentSourceType =
+  | 'employment-salary'
+  | 'business-income'
+  | 'rental-income'
+  | 'remittance'
+  | 'pension'
+  | 'professional-fees'
+  | 'commission-based'
+  | 'dividend-investment-income'
+  | 'other';
+
+export type EmploymentTenureRange = 'lt-1' | '1-3' | '3-5' | 'gt-5';
+
+export type CollateralDeclarationType =
+  | 'real-estate'
+  | 'club-share'
+  | 'vehicle'
+  | 'equipment'
+  | 'inventory'
+  | 'receivables'
+  | 'unsecured'
+  | 'corporate-guarantee'
+  | 'other';
+
+export type YesNoVerify = 'yes' | 'no' | 'for-verification';
+export type PaymentHistoryDescriptor = 'on-time' | 'minor-delays' | 'major-delays' | 'for-verification';
+
+export type UnderstandingLevel = 'fully-understood' | 'clarification-required' | 'not-yet-discussed';
+export type LoanTermItem =
   | 'interest-rate'
   | 'loan-amount'
   | 'loan-term'
   | 'monthly-amortization'
   | 'processing-fees'
-  | 'collateral'
-  | 'required-documents'
-  | 'processing-time'
-  | 'other';
+  | 'documentary-requirements'
+  | 'collateral-requirements'
+  | 'loan-release-process'
+  | 'pre-termination-prepayment-policy';
 
-export type ResidenceYears = 'lt-1' | '1-2' | '3-5' | 'gt-5';
-export type ResidenceStatus =
-  | 'owned'
-  | 'mortgaged'
-  | 'rented'
-  | 'living-with-relatives'
-  | 'company-provided'
-  | 'other';
-export type YesNoPreferNot = 'yes' | 'no' | 'prefer-not-to-answer';
+export type ProposalInterestRateBasis = 'monthly' | 'annual';
+export type ProposalComputationType = 'diminishing-balance' | 'add-on' | 'other';
 
-export type MainIncomeSource = 'employment' | 'business' | 'both' | 'other';
-export type TenureRange = 'lt-1' | '1-3' | '3-5' | 'gt-5';
-export type IncomeStability = 'stable' | 'seasonal' | 'irregular' | 'undetermined';
-export type IncomeTrend = 'increasing' | 'stable' | 'decreasing' | 'undetermined';
-export type IncomeChange = 'increased' | 'no-change' | 'decreased' | 'not-verified';
+export type RiskDriverItem = 'character' | 'capacity' | 'collateral' | 'kyc' | 'documentation' | 'information-consistency';
+export type CallDispositionType =
+  | 'proceed-to-next-process'
+  | 'proceed-subject-to-requirements'
+  | 'additional-verification'
+  | 'follow-up-call'
+  | 'sales-reject-decline';
 
-export type MembershipType =
-  | 'civic-social'
-  | 'professional'
-  | 'business'
-  | 'cooperative'
-  | 'community'
-  | 'other';
-export type MembershipStanding = 'good-standing' | 'with-concern' | 'not-verified';
+export type SystemVarianceStatus = 'none' | 'noted' | '';
 
-export type SupportingDocItem =
-  | 'payslip'
-  | 'itr'
-  | 'bir-2316'
-  | 'coe'
-  | 'bank-statement'
-  | 'business-records'
-  | 'utility-bills'
-  | 'credit-card-statements'
-  | 'none-yet';
+export type ValidationItemKey =
+  | 'identityAuthorizedRep'
+  | 'loanFacility'
+  | 'loanPurpose'
+  | 'primaryRepaymentSource'
+  | 'businessEmploymentInfo'
+  | 'existingLoansObligations'
+  | 'residenceBusinessAddress'
+  | 'collateralSecurityDeclaration'
+  | 'comakerGuarantee';
 
-export type ElectricityPayment =
-  | 'fully-paid-on-time'
-  | 'occasionally-delayed'
-  | 'frequently-delayed'
-  | 'with-unpaid-balance'
-  | 'not-borrowers-name'
-  | 'not-applicable'
-  | 'for-verification';
-export type CreditCardPayment =
-  | 'fully-paid-on-time'
-  | 'pays-more-than-minimum'
-  | 'minimum-only'
-  | 'occasionally-delayed'
-  | 'frequently-delayed'
-  | 'no-credit-card'
-  | 'for-verification';
-export type OtherLoanRepayment =
-  | 'on-time'
-  | 'minor-delays'
-  | 'major-delays'
-  | 'no-existing-loan'
-  | 'for-verification';
-export type YesNoVerify = 'yes' | 'no' | 'for-verification';
+export type ExistingLoanRow = {
+  id: string;
+  lender: string;
+  loanType: string;
+  outstandingBalance: string;
+  monthlyPayment: string;
+};
 
-export type OfficerObservationItem =
-  | 'cooperative'
-  | 'responsive'
-  | 'transparent'
-  | 'prepared'
-  | 'understands-request'
-  | 'answers-clear'
-  | 'answers-consistent'
-  | 'hesitant'
-  | 'info-incomplete'
-  | 'answers-inconsistent'
-  | 'requires-verification'
-  | 'possible-risk';
+export type LoanTakeOutInfo = {
+  currentLender: string;
+  outstandingBalance: string;
+  estimatedPayoffAmount: string;
+  remainingLoanTerm: string;
+  reasonForTakeOut: string;
+  status: string;
+};
 
-export type CollateralOffered = 'yes' | 'no' | 'tbd';
-export type CollateralType =
-  | 'real-estate'
-  | 'vehicle'
-  | 'equipment'
-  | 'inventory'
-  | 'receivables'
-  | 'deposit'
-  | 'personal-guarantee'
-  | 'corporate-guarantee'
-  | 'other';
-export type DocsAvailable = 'yes' | 'no' | 'pending';
-export type ExistingLien = 'yes' | 'no' | 'unknown';
-export type RequiresAppraisal = 'yes' | 'no' | 'tbd';
+export type CallReportComakerChange = {
+  completeName: string;
+  completeAddress: string;
+  contactNumber: string;
+  relationshipToBorrower: string;
+  occupationEmployerName: string;
+  yearsInEmploymentBusiness: string;
+  primaryIdTypeAndNumber: string;
+  secondaryIdTypeAndNumber: string;
+  remarks: string;
+};
 
 export type CollateralEntry = {
   id: string;
-  type: CollateralType | '';
+  type: 'real-estate' | 'vehicle' | 'equipment' | 'inventory' | 'receivables' | 'deposit' | 'personal-guarantee' | 'corporate-guarantee' | 'other' | '';
   description: string;
   quantity: string;
   registeredOwner: string;
   ownerRelationship: string;
   location: string;
   estimatedValue: string;
-  ownershipDocsAvailable: DocsAvailable | '';
-  existingLien: ExistingLien | '';
-  requiresAppraisal: RequiresAppraisal | '';
+  ownershipDocsAvailable: 'yes' | 'no' | 'pending' | '';
+  existingLien: 'yes' | 'no' | 'unknown' | '';
+  requiresAppraisal: 'yes' | 'no' | 'tbd' | '';
 };
 
 export type CiComakerEntry = {
@@ -386,148 +395,139 @@ export type PreliminaryRecommendation =
   | 'hold'
   | 'do-not-proceed';
 
-export type ClientType = 'new' | 'existing';
-
 export type CallReport = {
   approved: boolean;
-  /**
-   * The reason recorded when using Sales Reject (dropdown reason + optional
-   * remarks, combined into one string) — same pattern and same field role as
-   * `CreditChecking.decisionReason`. Blank when the application was approved
-   * to proceed instead.
-   */
   decisionReason: string;
 
-  // Client Type — was previously shown in a dedicated read-only Application
-  // Summary card (removed from the Call Report page); no other card renders
-  // this field currently, but the data point is kept in state in case a
-  // future screen surfaces it again.
-  clientType: ClientType | '';
-
-  // 1. Call Details
-  callDate: string;
+  // 1. Interaction Record
+  interactionType: InteractionType | '';
+  callVisitDate: string;
   callTime: string;
-  callType: CallType | '';
-  placeOfCall: PlaceOfCall | '';
-  placeOfCallOther: string;
-  clientRepresentative: string;
-  pgRepresentative: string;
-  callStatus: CallStatus | '';
-  identityConfirmed: IdentityConfirmed | '';
+  interviewedPerson: string;
+  relationshipToBorrower: string;
+  identityStatus: IdentityStatus | '';
+  identityBasis: IdentityBasisItem[];
+  identityBasisOther: string;
 
-  // 2. Loan Discussion
-  loanPurposeConfirmation: LoanPurposeConfirmation | '';
-  finalLoanPurpose: string;
-  specificUseOfProceeds: string;
-  targetReleaseDate: string;
-  primaryRepaymentSource: RepaymentSource | '';
-  otherRepaymentSource: string;
-  clientUnderstanding: ClientUnderstandingItem[];
-  clientConcerns: ClientConcernItem[];
-  concernNotes: string;
+  // 2. Application Validation
+  validation: Record<ValidationItemKey, ValidationStatus>;
+  materialChangesNotes: string;
 
-  // 3. Residence and Household Information
-  yearsAtResidence: ResidenceYears | '';
-  residenceStatus: ResidenceStatus | '';
-  residenceStatusOther: string;
-  numberOfDependents: string;
-  numberOfIncomeEarners: string;
-  supportingMultipleFamilies: YesNoPreferNot | '';
+  loanFacilityChangedTo: LoanFacilityType | '';
+  loanFacilityChangeReason: string;
 
-  // 4. Employment or Business Information
-  mainIncomeSource: MainIncomeSource | '';
-  otherIncomeSource: string;
-  employmentTenure: TenureRange | '';
-  incomeStability: IncomeStability | '';
-  incomeTrend: IncomeTrend | '';
-  isRenewal: 'yes' | 'no' | '';
-  incomeChangeSincePrevious: IncomeChange | '';
-  previousMonthlyIncome: string;
-  currentMonthlyIncome: string;
-  incomeChangeEffectiveDate: string;
+  loanPurposeChangedTo: LoanPurposeType | '';
+  loanPurposeOtherText: string;
+  workingCapitalUse: WorkingCapitalUse | '';
+  workingCapitalUseOtherText: string;
+  loanTakeOutInfo: LoanTakeOutInfo;
 
-  // 5. Organization Membership
-  isOrgMember: 'yes' | 'no' | '';
-  membershipType: MembershipType | '';
-  organizationName: string;
-  membershipYears: string;
-  membershipStanding: MembershipStanding | '';
+  primaryRepaymentSourceChangedTo: RepaymentSourceType | '';
+  repaymentSourceOtherText: string;
 
-  // 6. Quick Financial Information
-  declaredGrossMonthlyIncome: string;
-  declaredNetMonthlyIncome: string;
-  otherRecurringMonthlyIncome: string;
-  estimatedMonthlyHouseholdExpenses: string;
-  existingMonthlyLoanPayments: string;
-  monthlyCreditCardPayments: string;
-  otherRecurringMonthlyObligations: string;
-  supportingDocsAvailable: SupportingDocItem[];
+  employerBusinessNameChanged: string;
+  employmentBusinessAddressChanged: string;
+  declaredMonthlyIncomeChanged: string;
+  employmentBusinessTenureChanged: EmploymentTenureRange | '';
+  businessEmploymentOtherChange: string;
 
-  // 7. Payment Behavior
-  electricityPayment: ElectricityPayment | '';
-  creditCardPayment: CreditCardPayment | '';
-  otherLoanRepayment: OtherLoanRepayment | '';
-  hasReturnedChecks: YesNoVerify | '';
-  hasPastDueObligations: YesNoVerify | '';
-  hasPendingCases: YesNoVerify | '';
-  paymentBehaviorExplanation: string;
+  existingLoanRows: ExistingLoanRow[];
 
-  // 8. Officer Observation
-  officerObservations: OfficerObservationItem[];
-  observationNotes: string;
+  residenceBusinessAddressChangedTo: string;
+  residenceBusinessAddressChangeReason: string;
 
-  // 9. Collateral Information
-  collateralOffered: CollateralOffered | '';
-  collateralEntries: CollateralEntry[];
+  collateralDeclarationChangedTo: CollateralDeclarationType[];
+  collateralDeclarationOtherText: string;
 
-  // 12. Comaker
+  comakerChange: CallReportComakerChange;
   comakers: CiComakerEntry[];
 
-  // 10. Agreed Next Steps
-  nextSteps: NextStepItem[];
-  responsibleParty: ResponsibleParty | '';
-  nextStepsDueDate: string;
-  followUpDate: string;
-  nextStepsInstructions: string;
+  // 3. AML / KYC Questions
+  amlIsPep: YesNoVerify | '';
+  amlIsPgfcRelatedParty: YesNoVerify | '';
+  amlHasExistingLoans: YesNoVerify | '';
+  amlPaymentHistory: PaymentHistoryDescriptor | '';
+  amlHasReturnedChecks: YesNoVerify | '';
+  amlHasPastDueObligations: YesNoVerify | '';
 
-  // 11. Loan Package Proposal
+  // 4. Customer Understanding of Loan Terms & Requirements
+  understandingLevel: UnderstandingLevel | '';
+  termsUnderstood: LoanTermItem[];
+  concernsClarifications: string;
+
+  // 6. Proposed Loan Package (PDF's own section number — see source PDF)
+  originalRequestedAmount: string;
+  proposalInterestRate: string;
+  proposalInterestRateBasis: ProposalInterestRateBasis | '';
+  proposedFacilityProduct: string;
+  proposalComputationType: ProposalComputationType | '';
+  proposalComputationTypeOther: string;
   proposedLoanAmount: string;
-  proposedLoanTerm: string;
-  proposedLoanFacility: string;
-  proposedInterestRate: string;
-  interestRateBasis: InterestRateBasis | '';
-  computationType: ComputationType | '';
-  computationTypeOther: string;
-  paymentFrequency: PaymentFrequency | '';
-  paymentFrequencyOther: string;
-  numberOfPayments: string;
-  firstPaymentDate: string;
-  proposedReleaseDate: string;
-  gracePeriod: string;
-  finalUseOfProceeds: string;
-  proposalPrimaryRepaymentSource: RepaymentSource | '';
-  secondaryRepaymentSource: string;
-  estimatedAmortization: string;
-  estimatedTotalInterest: string;
-  estimatedTotalRepayment: string;
-  estimatedMaturityValue: string;
-  preliminaryDti: string;
-  disposableIncomeAfterAmortization: string;
-  adjustmentReason: AdjustmentReason | '';
-  adjustmentReasonOther: string;
-  collateralAssessment:
-    | 'sufficient'
-    | 'additional-required'
-    | 'subject-to-appraisal'
-    | 'tbd'
-    | 'may-proceed-without'
-    | '';
-  requiredDocuments: RequiredDocItem[];
-  conditionsBeforeProceeding: ConditionItem[];
-  preliminaryRecommendation: PreliminaryRecommendation | '';
-  recommendationReason: string;
-  loanPackageNotes: string;
+  estimatedMonthlyAmortization: string;
+  proposedLoanTermMonths: string;
+  otherRequest: string;
+
+  // 7. AO Preliminary Risk & Call Disposition
+  primaryRiskDrivers: RiskDriverItem[];
+  callDisposition: CallDispositionType | '';
+  reasonKeyCondition: string;
+
+  // 8. NEXUS System Validation / Exception Handoff
+  aiSummary: string;
+  aiExceptions: string;
+  aiRecommendation: string;
+  aoVsSystemVariance: SystemVarianceStatus;
+  varianceExplanation: string;
+
+  // Account Officer Endorsement Declaration
+  accountOfficerName: string;
+  accountOfficerDateTime: string;
+  reviewedByHeadName: string;
+  reviewedByHeadDateTime: string;
 };
+
+export function createExistingLoanRow(): ExistingLoanRow {
+  return { id: crypto.randomUUID(), lender: '', loanType: '', outstandingBalance: '', monthlyPayment: '' };
+}
+
+function createEmptyLoanTakeOutInfo(): LoanTakeOutInfo {
+  return {
+    currentLender: '',
+    outstandingBalance: '',
+    estimatedPayoffAmount: '',
+    remainingLoanTerm: '',
+    reasonForTakeOut: '',
+    status: '',
+  };
+}
+
+function createEmptyComakerChange(): CallReportComakerChange {
+  return {
+    completeName: '',
+    completeAddress: '',
+    contactNumber: '',
+    relationshipToBorrower: '',
+    occupationEmployerName: '',
+    yearsInEmploymentBusiness: '',
+    primaryIdTypeAndNumber: '',
+    secondaryIdTypeAndNumber: '',
+    remarks: '',
+  };
+}
+
+function createEmptyValidation(): Record<ValidationItemKey, ValidationStatus> {
+  return {
+    identityAuthorizedRep: '',
+    loanFacility: '',
+    loanPurpose: '',
+    primaryRepaymentSource: '',
+    businessEmploymentInfo: '',
+    existingLoansObligations: '',
+    residenceBusinessAddress: '',
+    collateralSecurityDeclaration: '',
+    comakerGuarantee: '',
+  };
+}
 
 export type RequirementDoc = {
   key: string;
@@ -998,12 +998,10 @@ type AdminContextValue = AdminState & {
   removeNegativeReportEntry: (listKey: NegativeReportEntryListKey, id: string) => void;
   resetNegativeCreditReport: () => void;
   setCallReport: (data: Partial<CallReport>) => void;
-  addCollateralEntry: () => void;
-  updateCollateralEntry: (id: string, data: Partial<CollateralEntry>) => void;
-  removeCollateralEntry: (id: string) => void;
-  addComakerEntry: () => void;
-  updateComakerEntry: (id: string, data: Partial<CiComakerEntry>) => void;
-  removeComakerEntry: (id: string) => void;
+  addExistingLoanRow: () => void;
+  updateExistingLoanRow: (id: string, data: Partial<ExistingLoanRow>) => void;
+  removeExistingLoanRow: (id: string) => void;
+  setCallReportComakerChange: (data: Partial<CallReportComakerChange>) => void;
   setRequirementChecklist: (data: Partial<RequirementChecklist>) => void;
   addAppraisalGroup: (tctNumber: string, collateralType?: AppraisalCollateralType) => void;
   removeAppraisalGroup: (groupId: string) => void;
@@ -1407,101 +1405,84 @@ function createInitialReview(): ApplicationReview {
     callReport: {
       approved: false,
       decisionReason: '',
-      clientType: '',
-      callDate: '',
+
+      interactionType: '',
+      callVisitDate: '',
       callTime: '',
-      callType: '',
-      placeOfCall: '',
-      placeOfCallOther: '',
-      clientRepresentative: '',
-      pgRepresentative: '',
-      callStatus: '',
-      identityConfirmed: '',
-      loanPurposeConfirmation: '',
-      finalLoanPurpose: '',
-      specificUseOfProceeds: '',
-      targetReleaseDate: '',
-      primaryRepaymentSource: '',
-      otherRepaymentSource: '',
-      clientUnderstanding: [],
-      clientConcerns: [],
-      concernNotes: '',
-      yearsAtResidence: '',
-      residenceStatus: '',
-      residenceStatusOther: '',
-      numberOfDependents: '',
-      numberOfIncomeEarners: '',
-      supportingMultipleFamilies: '',
-      mainIncomeSource: '',
-      otherIncomeSource: '',
-      employmentTenure: '',
-      incomeStability: '',
-      incomeTrend: '',
-      isRenewal: '',
-      incomeChangeSincePrevious: '',
-      previousMonthlyIncome: '',
-      currentMonthlyIncome: '',
-      incomeChangeEffectiveDate: '',
-      isOrgMember: '',
-      membershipType: '',
-      organizationName: '',
-      membershipYears: '',
-      membershipStanding: '',
-      declaredGrossMonthlyIncome: '',
-      declaredNetMonthlyIncome: '',
-      otherRecurringMonthlyIncome: '',
-      estimatedMonthlyHouseholdExpenses: '',
-      existingMonthlyLoanPayments: '',
-      monthlyCreditCardPayments: '',
-      otherRecurringMonthlyObligations: '',
-      supportingDocsAvailable: [],
-      electricityPayment: '',
-      creditCardPayment: '',
-      otherLoanRepayment: '',
-      hasReturnedChecks: '',
-      hasPastDueObligations: '',
-      hasPendingCases: '',
-      paymentBehaviorExplanation: '',
-      officerObservations: [],
-      observationNotes: '',
-      collateralOffered: '',
-      collateralEntries: [],
+      interviewedPerson: '',
+      relationshipToBorrower: '',
+      identityStatus: '',
+      identityBasis: [],
+      identityBasisOther: '',
+
+      validation: createEmptyValidation(),
+      materialChangesNotes: '',
+
+      loanFacilityChangedTo: '',
+      loanFacilityChangeReason: '',
+
+      loanPurposeChangedTo: '',
+      loanPurposeOtherText: '',
+      workingCapitalUse: '',
+      workingCapitalUseOtherText: '',
+      loanTakeOutInfo: createEmptyLoanTakeOutInfo(),
+
+      primaryRepaymentSourceChangedTo: '',
+      repaymentSourceOtherText: '',
+
+      employerBusinessNameChanged: '',
+      employmentBusinessAddressChanged: '',
+      declaredMonthlyIncomeChanged: '',
+      employmentBusinessTenureChanged: '',
+      businessEmploymentOtherChange: '',
+
+      existingLoanRows: [],
+
+      residenceBusinessAddressChangedTo: '',
+      residenceBusinessAddressChangeReason: '',
+
+      collateralDeclarationChangedTo: [],
+      collateralDeclarationOtherText: '',
+
+      comakerChange: createEmptyComakerChange(),
       comakers: [],
-      nextSteps: [],
-      responsibleParty: '',
-      nextStepsDueDate: '',
-      followUpDate: '',
-      nextStepsInstructions: '',
+
+      amlIsPep: '',
+      amlIsPgfcRelatedParty: '',
+      amlHasExistingLoans: '',
+      amlPaymentHistory: '',
+      amlHasReturnedChecks: '',
+      amlHasPastDueObligations: '',
+
+      understandingLevel: '',
+      termsUnderstood: [],
+      concernsClarifications: '',
+
+      originalRequestedAmount: '',
+      proposalInterestRate: '',
+      proposalInterestRateBasis: '',
+      proposedFacilityProduct: '',
+      proposalComputationType: '',
+      proposalComputationTypeOther: '',
       proposedLoanAmount: '',
-      proposedLoanTerm: '',
-      proposedLoanFacility: '',
-      proposedInterestRate: '',
-      interestRateBasis: '',
-      computationType: '',
-      computationTypeOther: '',
-      paymentFrequency: '',
-      paymentFrequencyOther: '',
-      numberOfPayments: '',
-      firstPaymentDate: '',
-      proposedReleaseDate: '',
-      gracePeriod: '',
-      finalUseOfProceeds: '',
-      proposalPrimaryRepaymentSource: '',
-      secondaryRepaymentSource: '',
-      estimatedAmortization: '',
-      estimatedTotalInterest: '',
-      estimatedTotalRepayment: '',
-      estimatedMaturityValue: '',
-      preliminaryDti: '',
-      disposableIncomeAfterAmortization: '',
-      adjustmentReason: '',
-      adjustmentReasonOther: '',
-      collateralAssessment: '',
-      requiredDocuments: [],
-      conditionsBeforeProceeding: [],
-      preliminaryRecommendation: '',
-      recommendationReason: '',
-      loanPackageNotes: '',
+      estimatedMonthlyAmortization: '',
+      proposedLoanTermMonths: '',
+      otherRequest: '',
+
+      primaryRiskDrivers: [],
+      callDisposition: '',
+      reasonKeyCondition: '',
+
+      aiSummary: '',
+      aiExceptions: '',
+      aiRecommendation: '',
+      aoVsSystemVariance: '',
+      varianceExplanation: '',
+
+      accountOfficerName: '',
+      accountOfficerDateTime: '',
+      reviewedByHeadName: '',
+      reviewedByHeadDateTime: '',
     },
     requirementChecklist: {
       documents: createInitialRequirementDocuments(),
@@ -1855,104 +1836,73 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           review: { ...prev.review, callReport: { ...prev.review.callReport, ...data } },
         })),
-      addCollateralEntry: () =>
+      addExistingLoanRow: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            callReport: {
+              ...prev.review.callReport,
+              existingLoanRows: [...prev.review.callReport.existingLoanRows, createExistingLoanRow()],
+            },
+          },
+        })),
+      updateExistingLoanRow: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            callReport: {
+              ...prev.review.callReport,
+              existingLoanRows: prev.review.callReport.existingLoanRows.map((row) =>
+                row.id === id ? { ...row, ...data } : row
+              ),
+            },
+          },
+        })),
+      removeExistingLoanRow: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            callReport: {
+              ...prev.review.callReport,
+              existingLoanRows: prev.review.callReport.existingLoanRows.filter((row) => row.id !== id),
+            },
+          },
+        })),
+      setCallReportComakerChange: (data) =>
         setState((prev) => {
-          const newEntry: CollateralEntry = {
-            id: crypto.randomUUID(),
-            type: '',
-            description: '',
-            quantity: '',
-            registeredOwner: '',
-            ownerRelationship: '',
-            location: '',
-            estimatedValue: '',
-            ownershipDocsAvailable: '',
-            existingLien: '',
-            requiresAppraisal: '',
-          };
+          const nextChange = { ...prev.review.callReport.comakerChange, ...data };
+          // Keep the CiComakerEntry array CI's own pre-fill reads in sync —
+          // one entry once a name exists, none before that. Only the fields
+          // that have a direct PDF equivalent are mapped; monthlyIncome has
+          // no equivalent in the new Co-maker/Guarantor block and stays ''.
+          const nextComakers = nextChange.completeName.trim()
+            ? [
+                {
+                  id: prev.review.callReport.comakers[0]?.id ?? crypto.randomUUID(),
+                  name: nextChange.completeName,
+                  relationshipToBorrower: nextChange.relationshipToBorrower,
+                  address: nextChange.completeAddress,
+                  contactNumber: nextChange.contactNumber,
+                  occupation: nextChange.occupationEmployerName,
+                  monthlyIncome: prev.review.callReport.comakers[0]?.monthlyIncome ?? '',
+                },
+              ]
+            : [];
           return {
             ...prev,
             review: {
               ...prev.review,
               callReport: {
                 ...prev.review.callReport,
-                collateralEntries: [...prev.review.callReport.collateralEntries, newEntry],
+                comakerChange: nextChange,
+                comakers: nextComakers,
               },
             },
           };
         }),
-      updateCollateralEntry: (id, data) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            callReport: {
-              ...prev.review.callReport,
-              collateralEntries: prev.review.callReport.collateralEntries.map((entry) =>
-                entry.id === id ? { ...entry, ...data } : entry
-              ),
-            },
-          },
-        })),
-      removeCollateralEntry: (id) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            callReport: {
-              ...prev.review.callReport,
-              collateralEntries: prev.review.callReport.collateralEntries.filter(
-                (entry) => entry.id !== id
-              ),
-            },
-          },
-        })),
-      addComakerEntry: () =>
-        setState((prev) => {
-          const newEntry: CiComakerEntry = {
-            id: crypto.randomUUID(),
-            name: '',
-            relationshipToBorrower: '',
-            address: '',
-            contactNumber: '',
-            occupation: '',
-            monthlyIncome: '',
-          };
-          return {
-            ...prev,
-            review: {
-              ...prev.review,
-              callReport: {
-                ...prev.review.callReport,
-                comakers: [...prev.review.callReport.comakers, newEntry],
-              },
-            },
-          };
-        }),
-      updateComakerEntry: (id, data) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            callReport: {
-              ...prev.review.callReport,
-              comakers: prev.review.callReport.comakers.map((entry) =>
-                entry.id === id ? { ...entry, ...data } : entry
-              ),
-            },
-          },
-        })),
-      removeComakerEntry: (id) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            callReport: {
-              ...prev.review.callReport,
-              comakers: prev.review.callReport.comakers.filter((entry) => entry.id !== id),
-            },
-          },
-        })),
       setRequirementChecklist: (data) =>
         setState((prev) => ({
           ...prev,
