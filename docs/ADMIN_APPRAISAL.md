@@ -1240,6 +1240,43 @@ the page that used to require scrolling through ~3800px of stacked
 photo cards before reaching Technical Specification now shows the whole
 report, every property collapsed, in about one screen's height.
 
+**"At a Glance" restructure — the fourth pass, and the first to change
+the information architecture rather than the document's internals.**
+Every fix above (side-by-side photo layout, no muted text, per-section
+collapse, per-title collapse) still left the same underlying shape: one
+long form read top to bottom, with pieces individually tucked away — a
+reviewer still had to open several separate `CollapsibleSection`s one at
+a time to build a full picture. This version inverts that instead of
+tweaking it further: everything a reviewer actually needs to decide sits
+in one always-visible "At a Glance" summary right after the letterhead —
+`AppraisedValueHero`, then a `FieldGrid` of Registered Owner, Loanable
+Amount, Location of Property, Highest and Best Use, and Properties
+Covered (`titleGroups.length`), then `PhotoChipRow` — a small 72×54
+thumbnail per pledged property (skipping any title with no photo), each
+linking to its full photo, so every property's photo is visible without
+opening anything. Below that, a single full-width "View Full Report" /
+"Hide Full Report" toggle button (chevron rotates 180° when open) reveals
+the ENTIRE itemized report underneath — every field, every section, the
+exact same content and CollapsibleSection/per-title-collapse behavior the
+earlier passes built, unchanged — collapsed by a single `fullReportOpen`
+boolean rather than shown by default.
+
+No tabs and no multi-column layout were introduced for this — grepping
+the codebase for `@mui/material/Tabs` and any two-column detail-page grid
+turns up nothing else in this app, so either would have been a genuinely
+new interaction pattern bolted onto one screen rather than a restructure
+that stays inside the existing design language. A single expand/collapse
+toggle, reusing the same chevron+`Collapse` shell `CollapsibleSection`
+already standardizes elsewhere, was the version of "new layout" that
+actually fit. `Registered Owner`, `Loanable Amount`, `Location of
+Property`, and `Highest and Best Use` each appear twice now — once in
+the At a Glance summary, once again inside the full report's own
+Land/Technical Specification/Valuation sections — which is intentional:
+the full report is meant to read as the complete, unabridged document
+(matching the printed REM section-by-section, as it always has), while
+the summary is a separate "everything important, nothing to expand" view
+layered on top of it, not a replacement for any of its content.
+
 ## Head Approval
 
 Rendered by `appraisal-view.tsx` only when `reportSubmitted` —

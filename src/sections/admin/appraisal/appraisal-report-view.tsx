@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
 import Divider from '@mui/material/Divider';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -26,25 +27,23 @@ import type { AppraisalReportLandTitle } from 'src/auth/admin-context';
 // which need to see what the appraiser actually submitted, not just a
 // "submitted" boolean.
 //
-// Third rebuild of this view's layout, after two passes that tweaked
-// spacing/weight without fixing the actual problem: a long, flat wall of
-// small gray text. What was wrong, specifically: (1) each land title card
-// stacked its photo above a field grid that only ever filled part of the
-// row, leaving a large dead gap of empty white space beside the photo —
-// this version puts the photo and its fields side-by-side in one row
-// instead; (2) a `muted` treatment on "routine" fields (lighter weight,
-// lighter gray) was meant to de-emphasize them but read as disabled/broken
-// text rather than an intentional choice — removed entirely, every field
-// now renders at the same normal, readable weight; (3) the page was long
-// because every section rendered fully open at once — this version wraps
-// every section AFTER Land (Technical Specification, Utilities,
-// Construction Features, Basis of Valuation, Signatures) in the shared
-// `CollapsibleSection` component (the same chevron+Collapse shell
-// Document Checklist and Requirement Checklist already use elsewhere in
-// this app), collapsed by default, so the page opens short — header,
-// Appraised Value, Land — with the rest available a click away instead of
-// a mandatory scroll. Land stays open by default since the pledged
-// property details and photos are the actual substance of the review.
+// Restructured around an "At a Glance" summary instead of a scroll-through
+// document. Earlier passes fixed the document's internal problems (dead
+// space beside photos, broken-looking muted text, per-section collapse)
+// but the information architecture itself was still "one long form read
+// top to bottom, with pieces individually tucked away" — a reviewer still
+// had to open several separate CollapsibleSections just to build a full
+// picture, one field at a time. This version inverts that: everything a
+// reviewer actually needs to decide (owner, location, appraised value,
+// loanable amount, highest & best use, every property's own photo) sits
+// in one always-visible summary at the top, and the ENTIRE itemized
+// report — every section this file used to open individually — sits
+// behind a single "View Full Report" toggle below it. No tabs or
+// multi-column layout was introduced for this — this app has neither
+// anywhere else, so a single expand/collapse toggle (the same
+// chevron+Collapse shell `CollapsibleSection` already standardizes) was
+// the restructure that stayed inside the existing pattern language
+// instead of importing one.
 // ----------------------------------------------------------------------
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -67,10 +66,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 // A single "form line" — label in small-caps above, value sitting directly
-// on a hairline rule below, the way a filled-in printed form reads. Every
-// field renders at the same normal weight — an earlier version muted
-// "routine" fields to a lighter gray, which read as disabled/broken text
-// rather than intentional hierarchy, so that distinction was removed.
+// on a hairline rule below, the way a filled-in printed form reads.
 function Field({ label, value, span = 1 }: { label: string; value: string; span?: number }) {
   if (!value) return null;
   return (
@@ -111,16 +107,15 @@ function FieldGrid({ children }: { children: React.ReactNode }) {
   );
 }
 
-// The hero — the one number this whole document exists to produce,
-// surfaced immediately under the letterhead instead of only appearing
-// after scrolling through every section to reach Valuation.
+// The hero — the one number this whole document exists to produce, first
+// thing in the At a Glance summary.
 function AppraisedValueHero({ appraisedValue, amountInWords }: { appraisedValue: string; amountInWords: string }) {
   return (
     <Stack
       direction={{ xs: 'column', sm: 'row' }}
       alignItems={{ xs: 'flex-start', sm: 'center' }}
       spacing={1.5}
-      sx={{ p: 2.25, borderRadius: '12px', bgcolor: TONE_COLORS.info.bg, mb: 3 }}
+      sx={{ p: 2.25, borderRadius: '12px', bgcolor: TONE_COLORS.info.bg }}
     >
       <Box sx={{ width: 48, height: 48, flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: '10px', bgcolor: '#1C2A6E' }}>
         <Iconify icon="solar:banknote-2-bold-duotone" width={26} sx={{ color: 'common.white' }} />
@@ -140,11 +135,75 @@ function AppraisedValueHero({ appraisedValue, amountInWords }: { appraisedValue:
   );
 }
 
+// A row of small photo chips, one per pledged property, in the At a
+// Glance summary — the fastest way to see every property's own
+// collateral photo without opening the full report. Purely a preview:
+// clicking opens the full photo, same as the full report's own photo
+// blocks.
+function PhotoChipRow({ titles }: { titles: { tctNumber: string; photoFileUrl: string | null }[] }) {
+  const withPhotos = titles.filter((title) => title.photoFileUrl);
+  if (withPhotos.length === 0) return null;
+  return (
+    <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25}>
+      {withPhotos.map((title) => (
+        <Box
+          key={title.tctNumber}
+          component="a"
+          href={title.photoFileUrl!}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{
+            display: 'block',
+            width: 72,
+            flexShrink: 0,
+            position: 'relative',
+            '&:hover .chip-zoom': { opacity: 1 },
+          }}
+        >
+          <Box
+            sx={{
+              width: 72,
+              height: 54,
+              borderRadius: '8px',
+              overflow: 'hidden',
+              border: '1px solid #EBEDF3',
+              position: 'relative',
+            }}
+          >
+            <Box
+              component="img"
+              src={title.photoFileUrl!}
+              alt={`Collateral photo — TCT No. ${title.tctNumber}`}
+              sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
+            />
+            <Box
+              className="chip-zoom"
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: 'rgba(20,23,42,0.35)',
+                opacity: 0,
+                transition: 'opacity 0.15s ease',
+              }}
+            >
+              <Iconify icon="solar:magnifer-bold" width={14} sx={{ color: 'common.white' }} />
+            </Box>
+          </Box>
+          <Typography sx={{ fontSize: 10.5, color: '#8891A6', mt: 0.4, textAlign: 'center' }} noWrap>
+            {title.tctNumber}
+          </Typography>
+        </Box>
+      ))}
+    </Stack>
+  );
+}
+
 // Photo sits beside its fields in one row instead of stacked above a grid
-// that only fills part of the row — the earlier stacked layout left a
-// large empty gap next to the photo whenever there were fewer than 4
-// fields on a line. A fixed-width photo column keeps every title's photo
-// the same size regardless of how much text sits beside it.
+// that only fills part of the row — a fixed-width photo column keeps
+// every title's photo the same size regardless of how much text sits
+// beside it.
 function LandTitlePhoto({ photoFileUrl, tctNumber }: { photoFileUrl: string; tctNumber: string }) {
   return (
     <Box
@@ -191,18 +250,12 @@ function LandTitlePhoto({ photoFileUrl, tctNumber }: { photoFileUrl: string; tct
   );
 }
 
-// A bundle covering several pledged properties otherwise stacks that many
-// near-identical cards in one column, each demanding the same attention —
-// five property cards in a row dominate the page before a reviewer even
-// reaches the report's other sections. Same fix
-// appraisal-appraiser-bundle-view.tsx already applies to its own per-TCT
-// document lists: when there's more than one title, each one collapses to
-// a compact summary row (photo thumbnail + TCT No. + Zonal Value) by
-// default, expandable to the full detail — so the page's default view
-// shows one line per property instead of one full card per property. A
-// bundle covering only one title skips the collapse entirely (`showToggle`
-// false) — there's nothing to disambiguate or tuck away when it's the
-// only property in the report.
+// Inside the full report, a bundle covering several pledged properties
+// still collapses each title to a compact row by default (photo
+// thumbnail + TCT No. + Zonal Value), expandable to the full detail —
+// same fix appraisal-appraiser-bundle-view.tsx applies to its own per-TCT
+// document lists. A bundle covering only one title skips the toggle
+// entirely and renders the full detail directly.
 function LandTitleSummary({
   title,
   tctNumber,
@@ -316,16 +369,20 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
   const { review } = useAdmin();
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
 
-  // Every section after Land is collapsed by default so the page opens
-  // short — one shared expand state per section, keyed by section name.
+  // The entire itemized report sits behind this one toggle, collapsed by
+  // default — the At a Glance summary above it is meant to answer most
+  // reviews on its own.
+  const [fullReportOpen, setFullReportOpen] = useState(false);
+
+  // Every section inside the full report still collapses independently
+  // once it's open — one shared expand state per section, keyed by name.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const toggle = (key: string) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  // Per-title expand state for a multi-property bundle's collapsed rows —
-  // same "present in the set means expanded" convention
-  // appraisal-appraiser-bundle-view.tsx uses for its own per-TCT document
-  // lists. Irrelevant (and untouched) when the bundle covers only one
-  // title, since that case skips the collapse entirely.
+  // Per-title expand state for a multi-property bundle's collapsed rows
+  // inside the full report — same "present in the set means expanded"
+  // convention appraisal-appraiser-bundle-view.tsx uses for its own
+  // per-TCT document lists.
   const [expandedTitleIds, setExpandedTitleIds] = useState<Set<string>>(new Set());
   const toggleTitle = (groupId: string) =>
     setExpandedTitleIds((prev) => {
@@ -393,6 +450,8 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
     );
   }
 
+  const propertyCount = titleGroups.length;
+
   return (
     <Box sx={adminCardSx}>
       <Stack alignItems="center" spacing={0.5} sx={{ textAlign: 'center', mb: 3 }}>
@@ -404,161 +463,195 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
       </Stack>
       <Divider sx={{ borderColor: '#EEF0F5', mb: 3 }} />
 
-      <AppraisedValueHero appraisedValue={report.appraisedValue} amountInWords={report.amountInWords} />
+      {/* At a Glance — everything a reviewer needs, with nothing to expand */}
+      <Stack spacing={2.5}>
+        <AppraisedValueHero appraisedValue={report.appraisedValue} amountInWords={report.amountInWords} />
 
-      <Stack spacing={3}>
         <FieldGrid>
-          <Field label="Date Report" value={report.dateReport} />
-          <Field label="Date Inspected" value={report.dateInspected} />
-          <Field label="Requesting Officer" value={report.requestingOfficer} />
-          <Field label="Branch" value={report.branch} />
+          <Field label="Registered Owner" value={report.registeredOwner} span={2} />
+          <Field label="Loanable Amount" value={report.loanableAmount} span={2} />
+          <Field label="Location of Property" value={report.locationOfProperty} span={2} />
+          <Field label="Highest and Best Use" value={report.highestAndBestUse} />
+          <Field label="Properties Covered" value={String(propertyCount)} />
         </FieldGrid>
 
-        <Stack spacing={1.5}>
-          <SectionLabel>Land</SectionLabel>
-          <FieldGrid>
-            <Field label="Registered Owner" value={report.registeredOwner} span={2} />
-            <Field label="Location of Property" value={report.locationOfProperty} span={2} />
-          </FieldGrid>
-          <Stack spacing={1.5}>
-            {titleGroups.map((group) => {
-              const title = report.landTitles.find((entry) => entry.tctGroupId === group.id);
-              if (!title) return null;
-              return (
-                <LandTitleSummary
-                  key={group.id}
-                  title={title}
-                  tctNumber={group.tctNumber}
-                  showToggle={titleGroups.length > 1}
-                  expanded={expandedTitleIds.has(group.id)}
-                  onToggle={() => toggleTitle(group.id)}
-                />
-              );
-            })}
-          </Stack>
-          <Field label="Encumbrances / Remarks" value={report.encumbrancesRemarks} span={4} />
-        </Stack>
-
-        <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-          <CollapsibleSection
-            title="Technical Specification"
-            expanded={!!expanded.technical}
-            onToggle={() => toggle('technical')}
-          >
-            <FieldGrid>
-              <Field label="Highest and Best Use" value={report.highestAndBestUse} span={2} />
-              <Field label="Present Use" value={report.presentUse} span={2} />
-              <Field label="Street Frontage (metres)" value={report.streetFrontage} />
-              <Field label="Street Width (metres)" value={report.streetWidth} />
-              <Field label="Surfacing (Concrete/Asphalt)" value={report.surfacing} />
-              <Field label="Average Depth" value={report.averageDepth} />
-              <Field label="Approx. Shape" value={report.approxShape} />
-              <Field label="Topography" value={report.topography} />
-              <Field label="Neighborhood (Res'l/Comm'l/Ind'l.)" value={report.neighborhood} />
-            </FieldGrid>
-          </CollapsibleSection>
-        </Box>
-
-        <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-          <CollapsibleSection
-            title="Source or Kind of Utilities"
-            expanded={!!expanded.utilities}
-            onToggle={() => toggle('utilities')}
-          >
-            <FieldGrid>
-              <Field label="Public Conveyance Line" value={report.utilityPublicConveyance} />
-              <Field label="Electricity" value={report.utilityElectricity} />
-              <Field label="Water" value={report.utilityWater} />
-              <Field label="Telephone" value={report.utilityTelephone} />
-            </FieldGrid>
-          </CollapsibleSection>
-        </Box>
-
-        <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-          <CollapsibleSection
-            title="Improvement — General Construction Features"
-            expanded={!!expanded.construction}
-            onToggle={() => toggle('construction')}
-          >
-            <Stack spacing={1.75}>
-              <Field label="General Construction Features" value={report.generalConstructionFeatures} span={4} />
-              <FieldGrid>
-                <Field label="Floor Level" value={report.floorLevel} />
-                <Field label="External Walls" value={report.externalWalls} />
-                <Field label="Interior Walls & Partitions" value={report.interiorWallsPartitions} />
-                <Field label="Flooring" value={report.flooring} />
-                <Field label="Doors & Windows" value={report.doorsWindows} />
-                <Field label="Ceiling & Roofing" value={report.ceilingRoofing} />
-              </FieldGrid>
-            </Stack>
-          </CollapsibleSection>
-        </Box>
-
-        <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-          <CollapsibleSection
-            title="Basis of Valuation (Land)"
-            expanded={!!expanded.basis}
-            onToggle={() => toggle('basis')}
-          >
-            <FieldGrid>
-              <Field label="Fair Market Value as per square meter" value={report.fairMarketValuePerSqm} span={2} />
-              <Field label="Selling Price" value={report.basisSellingPrice} />
-              <Field label="Area Size" value={report.basisAreaSize} />
-              <Field label="Source" value={report.basisSource} />
-              <Field label="Location" value={report.basisLocation} />
-              <Field label="Price Type" value={report.basisPriceType} />
-            </FieldGrid>
-          </CollapsibleSection>
-        </Box>
-
-        {report.remarksAdditionalInfo && (
-          <Stack spacing={1.5}>
-            <SectionLabel>Remarks / additional information</SectionLabel>
-            <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
-              {report.remarksAdditionalInfo}
-            </Typography>
-          </Stack>
-        )}
-
-        <Stack spacing={1.5}>
-          <SectionLabel>Valuation</SectionLabel>
-          <FieldGrid>
-            <Field label="Loanable Amount" value={report.loanableAmount} span={2} />
-            <Field label="Rounded Figures" value={report.roundedFigures} />
-            <Field label="Appraised Value (P)" value={report.appraisedValueP} />
-          </FieldGrid>
-          <FieldGrid>
-            <Field label="Item of Property" value={report.itemOfProperty} span={2} />
-            <Field label="FMV / RCN (PHP)" value={report.fmvRcn} />
-            <Field label="Construction Status %" value={report.constructionStatusPercent} />
-            <Field label="Depreciated Value" value={report.depreciatedValue} span={4} />
-          </FieldGrid>
-        </Stack>
-
-        <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-          <CollapsibleSection
-            title="Prepared / Reviewed / Endorsed / Noted By"
-            expanded={!!expanded.signoff}
-            onToggle={() => toggle('signoff')}
-          >
-            <FieldGrid>
-              <Field label="Prepared by" value={report.preparedBy} />
-              <Field label="Reviewed by" value={report.reviewedBy} />
-              <Field label="Endorsed by" value={report.endorsedBy} />
-              <Field label="Noted by" value={report.notedBy} />
-            </FieldGrid>
-          </CollapsibleSection>
-        </Box>
-
-        {report.recommendation && (
-          <Stack spacing={1.5}>
-            <SectionLabel>Recommendation</SectionLabel>
-            <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
-              {report.recommendation}
-            </Typography>
-          </Stack>
-        )}
+        <PhotoChipRow
+          titles={titleGroups.map((group) => ({
+            tctNumber: group.tctNumber,
+            photoFileUrl: report.landTitles.find((entry) => entry.tctGroupId === group.id)?.photoFileUrl ?? null,
+          }))}
+        />
       </Stack>
+
+      <Divider sx={{ borderColor: '#EEF0F5', my: 2.5 }} />
+
+      <Button
+        onClick={() => setFullReportOpen((prev) => !prev)}
+        fullWidth
+        variant="outlined"
+        endIcon={
+          <Iconify
+            icon="eva:chevron-down-fill"
+            width={18}
+            sx={{ transition: 'transform 0.15s ease', transform: fullReportOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
+        }
+        sx={{ ...outlinedNavyButtonSx, borderRadius: '10px', py: 1.1 }}
+      >
+        {fullReportOpen ? 'Hide Full Report' : 'View Full Report'}
+      </Button>
+
+      <Collapse in={fullReportOpen}>
+        <Stack spacing={3} sx={{ mt: 3 }}>
+          <FieldGrid>
+            <Field label="Date Report" value={report.dateReport} />
+            <Field label="Date Inspected" value={report.dateInspected} />
+            <Field label="Requesting Officer" value={report.requestingOfficer} />
+            <Field label="Branch" value={report.branch} />
+          </FieldGrid>
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Land</SectionLabel>
+            <Stack spacing={1.5}>
+              {titleGroups.map((group) => {
+                const title = report.landTitles.find((entry) => entry.tctGroupId === group.id);
+                if (!title) return null;
+                return (
+                  <LandTitleSummary
+                    key={group.id}
+                    title={title}
+                    tctNumber={group.tctNumber}
+                    showToggle={titleGroups.length > 1}
+                    expanded={expandedTitleIds.has(group.id)}
+                    onToggle={() => toggleTitle(group.id)}
+                  />
+                );
+              })}
+            </Stack>
+            <Field label="Encumbrances / Remarks" value={report.encumbrancesRemarks} span={4} />
+          </Stack>
+
+          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+            <CollapsibleSection
+              title="Technical Specification"
+              expanded={!!expanded.technical}
+              onToggle={() => toggle('technical')}
+            >
+              <FieldGrid>
+                <Field label="Highest and Best Use" value={report.highestAndBestUse} span={2} />
+                <Field label="Present Use" value={report.presentUse} span={2} />
+                <Field label="Street Frontage (metres)" value={report.streetFrontage} />
+                <Field label="Street Width (metres)" value={report.streetWidth} />
+                <Field label="Surfacing (Concrete/Asphalt)" value={report.surfacing} />
+                <Field label="Average Depth" value={report.averageDepth} />
+                <Field label="Approx. Shape" value={report.approxShape} />
+                <Field label="Topography" value={report.topography} />
+                <Field label="Neighborhood (Res'l/Comm'l/Ind'l.)" value={report.neighborhood} />
+              </FieldGrid>
+            </CollapsibleSection>
+          </Box>
+
+          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+            <CollapsibleSection
+              title="Source or Kind of Utilities"
+              expanded={!!expanded.utilities}
+              onToggle={() => toggle('utilities')}
+            >
+              <FieldGrid>
+                <Field label="Public Conveyance Line" value={report.utilityPublicConveyance} />
+                <Field label="Electricity" value={report.utilityElectricity} />
+                <Field label="Water" value={report.utilityWater} />
+                <Field label="Telephone" value={report.utilityTelephone} />
+              </FieldGrid>
+            </CollapsibleSection>
+          </Box>
+
+          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+            <CollapsibleSection
+              title="Improvement — General Construction Features"
+              expanded={!!expanded.construction}
+              onToggle={() => toggle('construction')}
+            >
+              <Stack spacing={1.75}>
+                <Field label="General Construction Features" value={report.generalConstructionFeatures} span={4} />
+                <FieldGrid>
+                  <Field label="Floor Level" value={report.floorLevel} />
+                  <Field label="External Walls" value={report.externalWalls} />
+                  <Field label="Interior Walls & Partitions" value={report.interiorWallsPartitions} />
+                  <Field label="Flooring" value={report.flooring} />
+                  <Field label="Doors & Windows" value={report.doorsWindows} />
+                  <Field label="Ceiling & Roofing" value={report.ceilingRoofing} />
+                </FieldGrid>
+              </Stack>
+            </CollapsibleSection>
+          </Box>
+
+          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+            <CollapsibleSection
+              title="Basis of Valuation (Land)"
+              expanded={!!expanded.basis}
+              onToggle={() => toggle('basis')}
+            >
+              <FieldGrid>
+                <Field label="Fair Market Value as per square meter" value={report.fairMarketValuePerSqm} span={2} />
+                <Field label="Selling Price" value={report.basisSellingPrice} />
+                <Field label="Area Size" value={report.basisAreaSize} />
+                <Field label="Source" value={report.basisSource} />
+                <Field label="Location" value={report.basisLocation} />
+                <Field label="Price Type" value={report.basisPriceType} />
+              </FieldGrid>
+            </CollapsibleSection>
+          </Box>
+
+          {report.remarksAdditionalInfo && (
+            <Stack spacing={1.5}>
+              <SectionLabel>Remarks / additional information</SectionLabel>
+              <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
+                {report.remarksAdditionalInfo}
+              </Typography>
+            </Stack>
+          )}
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Valuation</SectionLabel>
+            <FieldGrid>
+              <Field label="Loanable Amount" value={report.loanableAmount} span={2} />
+              <Field label="Rounded Figures" value={report.roundedFigures} />
+              <Field label="Appraised Value (P)" value={report.appraisedValueP} />
+            </FieldGrid>
+            <FieldGrid>
+              <Field label="Item of Property" value={report.itemOfProperty} span={2} />
+              <Field label="FMV / RCN (PHP)" value={report.fmvRcn} />
+              <Field label="Construction Status %" value={report.constructionStatusPercent} />
+              <Field label="Depreciated Value" value={report.depreciatedValue} span={4} />
+            </FieldGrid>
+          </Stack>
+
+          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+            <CollapsibleSection
+              title="Prepared / Reviewed / Endorsed / Noted By"
+              expanded={!!expanded.signoff}
+              onToggle={() => toggle('signoff')}
+            >
+              <FieldGrid>
+                <Field label="Prepared by" value={report.preparedBy} />
+                <Field label="Reviewed by" value={report.reviewedBy} />
+                <Field label="Endorsed by" value={report.endorsedBy} />
+                <Field label="Noted by" value={report.notedBy} />
+              </FieldGrid>
+            </CollapsibleSection>
+          </Box>
+
+          {report.recommendation && (
+            <Stack spacing={1.5}>
+              <SectionLabel>Recommendation</SectionLabel>
+              <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
+                {report.recommendation}
+              </Typography>
+            </Stack>
+          )}
+        </Stack>
+      </Collapse>
     </Box>
   );
 }
