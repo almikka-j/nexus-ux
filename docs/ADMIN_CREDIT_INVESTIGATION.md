@@ -200,52 +200,51 @@ action available on this page.
 
 ## CI Fee
 
-`CiFeeCard` has no separate "CI Fee" title row — every `STATUS_COPY` title
-already leads with "CI Fee" context ("CI Fee not yet requested", "CI Fee
-awaiting approval", "CI Fee approved", "No CI Fee for this application"), so
-a standalone title above it was a redundant near-empty line. Instead the
-card opens directly with a **full-width tinted status banner** (`p: 2`,
-`borderRadius: '12px'`, tone `bg`) — the status icon (`copy.icon`, e.g.
-wallet/hourglass/check/forbidden-circle) beside the title + body
-(`STATUS_COPY[ciFeeStatus]`), with the current action(s) right-aligned on
-the same row on `sm`+ screens (stacks below on `xs`): **"Yes, Request CI
-Fee"** + **"No CI Fee"** while `not-requested`; **"Actually, this has a CI
-Fee"** while `not-applicable`; no actions while `pending-approval`/`approved`
-(those states have no self-serve action, so the banner is status-only). This
-gives the banner the same visual weight as the "AI review, summary &
-recommendation" card's own tinted recommendation banner directly above it on
-the page, instead of a thin single-line status row that read as an
-afterthought next to it.
+`CiFeeCard`'s layout and decision flow were rebuilt to mirror Appraisal
+Fee's own card exactly (`appraisal-appraiser-bundle-view.tsx`'s "Appraisal
+Fee" section — see `docs/ADMIN_APPRAISAL.md`), replacing this card's
+earlier full-width tinted-status-banner-with-inline-buttons design. The
+card now opens with a compact header row: a **"CI Fee"** title +
+`StatusBadge` pill (`STATUS_BADGE_COPY`, one entry per `CiFeeStatus`
+value — `not-requested` → "Draft"/neutral, `pending-approval` → "For
+Approval"/warning, `approved` → "Approved"/success, `not-applicable` →
+"No Fee"/neutral), a one-line summary underneath once a request exists
+(`{amount} requested` while pending/approved, "No fee needed for this
+application." while not-applicable), and a single button on the right —
+**"Request CI Fee"** (contained, navy) while editable, **"View CI Fee"**
+(outlined) otherwise. Clicking it opens a `Dialog`; the Yes/No decision
+and the amount/description/remarks fields all live inside that modal now,
+not inline on the card itself (same `FeeNeededOption` selectable-pill
+component Appraisal Fee's own modal uses, reimplemented locally here —
+kept in sync manually rather than shared, same convention every other
+admin file that reuses this exact shape follows). Draft state
+(`needsFeeDraft`/`amountDraft`/`descriptionDraft`/`remarksDraft`) only
+commits to `review.creditInvestigation` when "Send Request" is clicked;
+closing the modal without sending discards it.
 
-Each status maps to a `SemanticTone` — matching the same
-status→tone convention `RequirementDocRow` already uses for document status
-chips (`missing` → neutral, `needs-review` → warning, `verified` → success):
-`not-requested` → **neutral** (nothing has happened yet, same as a missing
-document), `pending-approval` → **warning**, `approved` → **success**,
-`not-applicable` → **info** (a deliberate "this doesn't apply" marker,
-distinct from neutral's "nothing yet") — resolved through the shared
-`TONE_COLORS` palette (`admin-tokens.ts`) rather than the banner
-hard-coding its own hex per status. While `pending-approval`/`approved`,
-the request-amount detail box below (`REQUEST AMOUNT` + a navy
-`#1C2A6E`-filled money-icon badge, side-by-side with Description/Remarks on
-`sm`+, stacked with a divider on `xs`) sits directly beneath the banner with
-tight spacing, reading as one connected "here's the fee, and here's its
-status" block rather than disconnected pieces. The "No CI Fee"/"Actually,
-this has a CI Fee" buttons use the shared `outlinedNavyButtonSx`, the same
-palette/button-style convention used everywhere else in the admin app
-instead of each card picking its own near-identical values.
+**`feeEditable` is `ciFeeStatus === 'not-requested' || ciFeeStatus ===
+'not-applicable'`** — not just `'not-requested'` alone. This is the CI
+Fee equivalent of Appraisal Fee's own `feeEditable` set
+(`'not-submitted' | 'declined'`): an officer who marked "No CI Fee" can
+still reopen the modal and decide the application actually needs a fee
+after all, without a separate dedicated "Actually, this has a CI Fee"
+button the way the card's earlier design required — the same "Request CI
+Fee" button and modal handle both the first decision and any later
+reversal. Opening the modal on a `'not-applicable'` request defaults the
+Yes/No selector to "No" (matching its current state), same "default to
+what's already true" convention the fresh `'not-requested'` case uses
+defaulting to "Yes" (the common case).
 
 `review.creditInvestigation.ciFeeStatus: 'not-requested' | 'pending-approval'
-| 'approved' | 'not-applicable'`. On `'not-requested'`, the officer picks
-**"Yes, Request CI Fee"** (opens a form for Request Amount, Request Amount
-Description, and Remarks, then moves the status to `'pending-approval'`) or
-**"No CI Fee"** (moves straight to `'not-applicable'`). There is no separate
-approver role or login in this prototype, so approval/decline can't be
-self-served by the same officer who made the request — while `ciFeeStatus
-=== 'pending-approval'`, the page registers two actions (via
-`useRegisterPageActions`) into the floating settings popover (bottom-right
-gear icon → Page actions), same convention as "Force Clean/Negative Bureau
-Finding" elsewhere in this app:
+| 'approved' | 'not-applicable'`. While editable, the officer picks **Yes**
+(shows Request Amount / Request Amount Description / Remarks fields, then
+"Send Request" moves the status to `'pending-approval'`) or **No** (moves
+straight to `'not-applicable'` on Send). There is no separate approver role
+or login in this prototype, so approval/decline can't be self-served by the
+same officer who made the request — while `ciFeeStatus === 'pending-approval'`,
+the page registers two actions (via `useRegisterPageActions`) into the
+floating settings popover (bottom-right gear icon → Page actions), same
+convention as "Force Clean/Negative Bureau Finding" elsewhere in this app:
 
 - **"Simulate: Another Officer Approves CI Fee"** — sets
   `ciFeeStatus: 'approved'` directly, no confirmation dialog.
