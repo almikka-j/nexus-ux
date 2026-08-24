@@ -1643,12 +1643,14 @@ Run: `npx tsc --noEmit -p . 2>&1 | grep "application-validation-card.tsx"`
 Expected: empty.
 
 Run: `npx eslint src/sections/admin/call-report/application-validation-card.tsx`
-Expected: no output. If it flags the empty `label=""` prop passed to the nested `RadioRow` inside the Working Capital branch, remove that empty label prop entirely (make `label` optional on `RadioRow` — update its type in `call-report-types.ts` to `label?: string` and skip rendering the `Typography` when `label` is falsy) rather than passing an empty string.
+Expected: no output. If it flags the empty `label=""` prop passed to the nested `RadioRow` inside the Working Capital branch, remove that empty label prop entirely (make `label` optional on `RadioRow` — update its type in `call-report-types.tsx` to `label?: string` and skip rendering the `Typography` when `label` is falsy) rather than passing an empty string.
+
+**Note on `call-report-types.ts`:** Task 2 renamed this file to `call-report-types.tsx` (required — the file contains JSX, which `.ts` files cannot compile under this project's `tsconfig`). Every reference to `call-report-types.ts` from Task 3 onward means `call-report-types.tsx`; extensionless `from './call-report-types'` imports are unaffected and need no change. Use the `.tsx` filename in any literal shell command (e.g. `git add`) that touches this file.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/sections/admin/call-report/application-validation-card.tsx src/sections/admin/call-report/call-report-types.ts
+git add src/sections/admin/call-report/application-validation-card.tsx src/sections/admin/call-report/call-report-types.tsx
 git commit -m "$(cat <<'EOF'
 Add ApplicationValidationCard (NEXUS KYC PDF section 2)
 
