@@ -156,6 +156,14 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
               <ResultField label="Collateral / Security Declaration" value={validationLabels[callReport.validation.collateralSecurityDeclaration]} />
               <ResultField label="Co-maker/Guarantee" value={validationLabels[callReport.validation.comakerGuarantee]} />
             </FieldGrid>
+            {callReport.validation.identityAuthorizedRep === 'changed' && (
+              <Box sx={{ mt: 1.5 }}>
+                <NarrativeBlock
+                  label="IDENTITY / AUTHORIZED REPRESENTATIVE CHANGED TO"
+                  value={`${callReport.identityAuthorizedRepChangedTo} — ${callReport.identityAuthorizedRepChangeReason}`}
+                />
+              </Box>
+            )}
             {callReport.validation.loanFacility === 'changed' && (
               <Box sx={{ mt: 1.5 }}>
                 <NarrativeBlock

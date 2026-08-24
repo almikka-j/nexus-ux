@@ -137,7 +137,24 @@ export function ApplicationValidationCard() {
           currentValue={currentIdentity}
           status={callReport.validation.identityAuthorizedRep}
           onStatusChange={(value) => setStatus('identityAuthorizedRep', value)}
-        />
+        >
+          <Stack spacing={1.5}>
+            <TextField
+              fullWidth
+              label="Changed Identity / Authorized Representative To"
+              value={callReport.identityAuthorizedRepChangedTo}
+              onChange={(event) => setCallReport({ identityAuthorizedRepChangedTo: event.target.value })}
+              sx={fieldSx}
+            />
+            <TextField
+              fullWidth
+              label="Reason"
+              value={callReport.identityAuthorizedRepChangeReason}
+              onChange={(event) => setCallReport({ identityAuthorizedRepChangeReason: event.target.value })}
+              sx={fieldSx}
+            />
+          </Stack>
+        </ValidationRow>
 
         <ValidationRow
           label="2. Loan Facility"

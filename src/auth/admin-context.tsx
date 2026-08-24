@@ -399,6 +399,9 @@ export type CallReport = {
   validation: Record<ValidationItemKey, ValidationStatus>;
   materialChangesNotes: string;
 
+  identityAuthorizedRepChangedTo: string;
+  identityAuthorizedRepChangeReason: string;
+
   loanFacilityChangedTo: LoanFacilityType | '';
   loanFacilityChangeReason: string;
 
@@ -1403,6 +1406,9 @@ function createInitialReview(): ApplicationReview {
 
       validation: createEmptyValidation(),
       materialChangesNotes: '',
+
+      identityAuthorizedRepChangedTo: '',
+      identityAuthorizedRepChangeReason: '',
 
       loanFacilityChangedTo: '',
       loanFacilityChangeReason: '',
