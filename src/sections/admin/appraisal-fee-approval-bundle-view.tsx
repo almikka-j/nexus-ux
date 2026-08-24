@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -26,6 +26,8 @@ import { adminCardSx, StatusBadge, type SemanticTone } from 'src/components/admi
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
 import { fCurrency } from 'src/utils/format-number';
 import { getLoanNumber } from 'src/utils/get-loan-number';
+
+import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
@@ -152,7 +154,14 @@ function FactChip({ label, value }: { label: string; value?: string }) {
 
 export function AppraisalFeeApprovalBundleView() {
   const { signUpData } = useRegistration();
-  const { review, approveAppraisalFees, declineAppraisalFees } = useAdmin();
+  const {
+    review,
+    approveAppraisalFees,
+    declineAppraisalFees,
+    submitAppraisalFeesForApproval,
+    resetAppraisalFees,
+    setAppraisalBundleFee,
+  } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
   const { feeApprovalStatus, feeSubmittedAt, reportBundles } = review.appraisal;
 
@@ -161,6 +170,60 @@ export function AppraisalFeeApprovalBundleView() {
   const [declineReason, setDeclineReason] = useState('');
   const [justApproved, setJustApproved] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
+
+  // `justApproved` only exists to distinguish "you just now clicked Approve
+  // this visit" from "this was already approved before you got here" (see
+  // the two approved-copy variants below) — it must never outlive the
+  // 'approved' status itself. Without this, re-arming the request via
+  // "Simulate: Reset Appraisal Fees" while still sitting on THIS page
+  // (rather than navigating away and back, which remounts the component
+  // and resets local state naturally) would flip feeApprovalStatus back to
+  // 'pending-approval' while justApproved stayed stuck true from the
+  // earlier approval — `isPending && !justApproved` would then be false,
+  // hiding the Approve/Decline buttons entirely and falling through to the
+  // 'not-submitted' copy ("No Appraisal Fees have been submitted…") even
+  // though the StatusBadge correctly says "For Approval": a contradictory
+  // dead end reachable only via the reset action fired from this page.
+  useEffect(() => {
+    if (feeApprovalStatus !== 'approved') setJustApproved(false);
+  }, [feeApprovalStatus]);
+
+  // Same dev/testing shortcut as the Appraiser page's own "Simulate:
+  // Reset Appraisal Fees", but re-armed in place immediately afterward —
+  // resetAppraisalFees() alone only blanks each bundle's own fee fields
+  // (feeApprovalStatus: 'not-submitted'), which would otherwise leave
+  // this page on a dead end (no Approve/Decline, no live request) until
+  // the list page's own seed effect happened to run. This workspace
+  // always keeps one live, actionable "For Approval" request in front of
+  // the approver, so the reset button re-populates the same sample fee
+  // decision and resubmits right here, same as the list page's own
+  // 'not-submitted' re-arm branch.
+  useRegisterPageActions(
+    useMemo(
+      () => [
+        {
+          key: 'simulate-reset-appraisal-fees',
+          label: 'Simulate: Reset Appraisal Fees',
+          icon: 'solar:restart-bold-duotone',
+          color: '#5A6273',
+          onClick: () => {
+            resetAppraisalFees();
+            reportBundles.forEach((bundle) => {
+              setAppraisalBundleFee(bundle.id, {
+                feeNeeded: 'yes',
+                feeAmount: '5000',
+                feeDescription: 'Site visit + valuation fee',
+                feeRemarks: '',
+              });
+            });
+            submitAppraisalFeesForApproval();
+          },
+        },
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [reportBundles]
+    )
+  );
 
   if (!signUpData) {
     return (
@@ -203,9 +266,20 @@ export function AppraisalFeeApprovalBundleView() {
     setDeclineReason('');
   };
 
+  // Rather than resetting to 'declined' and leaving this page on a dead
+  // end until the list page's own seed effect re-arms it on next visit,
+  // this immediately re-submits the same bundles for approval right
+  // here — this workspace always shows one live, actionable "For
+  // Approval" request, the same guarantee the list page makes, so
+  // staying on this page (or navigating back/forward) never lands on a
+  // dead end either. declineAppraisalFees only ever touches the
+  // batch-level feeApprovalStatus/feeDeclineReason, never each bundle's
+  // own feeNeeded/feeAmount/feeDescription (see admin-context.tsx), so
+  // re-submitting the same bundles is safe and doesn't invent new data.
   const confirmDecline = () => {
     if (!declineReason.trim()) return;
     declineAppraisalFees(declineReason.trim());
+    submitAppraisalFeesForApproval();
     setDeclineOpen(false);
     setDeclineReason('');
   };

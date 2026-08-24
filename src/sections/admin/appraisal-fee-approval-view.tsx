@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -27,6 +27,8 @@ import { Iconify } from 'src/components/iconify';
 import { adminCardSx, StatusBadge, outlinedNavyButtonSx, type SemanticTone } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
+
+import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { SAMPLE_APPLICATION } from './sample-application';
@@ -112,7 +114,13 @@ const APPRAISAL_FEE_ROW_STATUS_COPY: Record<FeeApprovalStatus, { label: string; 
 export function AppraisalFeeApprovalView() {
   const router = useRouter();
   const { signUpData, application, hydrated, loadSample } = useRegistration();
-  const { review, createAppraisalReportBundle, submitAppraisalFeesForApproval } = useAdmin();
+  const {
+    review,
+    createAppraisalReportBundle,
+    submitAppraisalFeesForApproval,
+    resetAppraisalFees,
+    setAppraisalBundleFee,
+  } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
   const { feeApprovalStatus, reportBundles } = review.appraisal;
 
@@ -133,6 +141,28 @@ export function AppraisalFeeApprovalView() {
   // one real, active example" convention rather than leaving a fresh
   // session's Fee Approvals list empty until someone manually drives the
   // Appraiser flow first.
+  //
+  // Also re-arms whenever there's no live pending request in front of the
+  // approver: this workspace always keeps one, the same guarantee
+  // ci-fee-approval-view.tsx makes — neither a decline nor the
+  // "Simulate: Reset Appraisal Fees" dev action below should ever leave
+  // this screen on a dead end. Deliberately excludes 'approved': that's a
+  // real terminal decision and must stick, not get silently undone the
+  // moment the approver navigates back to this list.
+  //
+  // 'declined': `declineAppraisalFees` only ever touches the batch-level
+  // feeApprovalStatus/feeDeclineReason, never each bundle's own
+  // feeNeeded/feeAmount/feeDescription (see admin-context.tsx), so the
+  // existing bundles still carry real fee data — re-submitting them via
+  // submitAppraisalFeesForApproval() is enough.
+  //
+  // 'not-submitted' with existing bundles: this is what
+  // "Simulate: Reset Appraisal Fees" (resetAppraisalFees()) leaves
+  // behind — the bundles themselves survive, only their own fee fields
+  // are blanked back to null/''/''/''. Re-populate each with the same
+  // sample fee decision the fresh-session branch below uses, then
+  // resubmit — this is what makes the reset action actually useful for a
+  // tester rather than just producing another dead page.
   useEffect(() => {
     if (!hydrated) return;
     if (!hasApplication) {
@@ -155,9 +185,47 @@ export function AppraisalFeeApprovalView() {
         );
         submitAppraisalFeesForApproval();
       }
+      return;
+    }
+    if (feeApprovalStatus === 'declined') {
+      submitAppraisalFeesForApproval();
+      return;
+    }
+    if (feeApprovalStatus === 'not-submitted') {
+      reportBundles.forEach((bundle) => {
+        setAppraisalBundleFee(bundle.id, {
+          feeNeeded: 'yes',
+          feeAmount: '5000',
+          feeDescription: 'Site visit + valuation fee',
+          feeRemarks: '',
+        });
+      });
+      submitAppraisalFeesForApproval();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, hasApplication, reportBundles.length]);
+  }, [hydrated, hasApplication, reportBundles.length, feeApprovalStatus]);
+
+  // Dev/testing shortcut, same convention as the Appraiser page's own
+  // "Simulate: Reset Appraisal Fees" action — lets a tester force a truly
+  // blank scenario on demand (wipes every bundle's fee decision back to
+  // null/''), rather than relying only on the auto re-arm above. The
+  // auto-seed effect picks this back up on its next run and creates a
+  // fresh pending request, same as a genuinely empty session would.
+  useRegisterPageActions(
+    useMemo(
+      () => [
+        {
+          key: 'simulate-reset-appraisal-fees',
+          label: 'Simulate: Reset Appraisal Fees',
+          icon: 'solar:restart-bold-duotone',
+          color: '#5A6273',
+          onClick: () => resetAppraisalFees(),
+        },
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      []
+    )
+  );
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
   const rowStatusCopy = APPRAISAL_FEE_ROW_STATUS_COPY[feeApprovalStatus];

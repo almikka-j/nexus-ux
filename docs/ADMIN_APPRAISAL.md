@@ -1753,6 +1753,47 @@ framing is a UI/workflow choice, not access control.
   revises rather than re-typing from scratch; see "Appraisal Fee" above)
   — not a single flat-amount approval like CI Fee Approval's shape used
   to be.
+
+  **The list row always renders whenever a live application exists**
+  (`hasApplication`), regardless of `feeApprovalStatus` — not gated to
+  `'pending-approval'` only, so approving/declining never makes the row
+  vanish into an empty-list state; only its `StatusBadge` tone/label and
+  the detail page's available actions vary by status. Both the list page
+  and the detail page guarantee this workspace always has one live,
+  actionable **"For Approval"** request in front of the approver, with a
+  single carved-out exception: **`approved` is a real terminal decision
+  and never self-heals.** `declined` does — a decline immediately
+  re-submits the same bundles (`submitAppraisalFeesForApproval()` right
+  after `declineAppraisalFees(reason)`) rather than leaving the page/row
+  on a dead "Declined" end until some other seed effect happens to run
+  later. A dev-only **"Simulate: Reset Appraisal Fees"** page action
+  (gear-icon popover, registered via `useRegisterPageActions` on both the
+  list and detail views) forces `feeApprovalStatus` back to
+  `'not-submitted'` (`resetAppraisalFees()`, blanking every bundle's own
+  fee fields) purely to exercise that scenario on demand — each view
+  re-arms it in place immediately afterward (re-populate a sample fee
+  decision per bundle, then resubmit) rather than leaving either page on
+  a dead "Not Submitted" end.
+
+  Getting this right on the detail page required more than resetting
+  `feeApprovalStatus` alone: `appraisal-fee-approval-bundle-view.tsx`
+  keeps its own local `justApproved` state (`true` once `confirmApprove()`
+  fires) purely to distinguish "you just now approved this, this visit"
+  copy from "you already approved this earlier" copy — and the
+  Approve/Decline buttons render on `isPending && !justApproved`, not
+  `isPending` alone. A first version reset `feeApprovalStatus` back to
+  `'pending-approval'` (via the Simulate action, fired without leaving
+  this page) but never touched `justApproved`, which is local `useState`
+  and outlives that reset — the `StatusBadge` correctly flipped to "For
+  Approval" while the buttons stayed hidden and the body copy fell
+  through to "No Appraisal Fees have been submitted … yet," a
+  self-contradicting dead end reachable only by firing the reset action
+  while already sitting on the detail page (navigating list → detail
+  fresh remounts the component and never showed it, since local state
+  resets to its initial `false` on mount). Fixed with a `useEffect` that
+  clears `justApproved` whenever `feeApprovalStatus` is no longer
+  `'approved'`, so it can never outlive the one status it exists to
+  qualify.
 - **Appraisal - Approver Report** (`/admin/appraisal-approver`,
   `appraisal-approver-view.tsx`) — nav label reworded from "Appraisal
   Approver" to "Appraisal - Approver Report," naming this as the report
