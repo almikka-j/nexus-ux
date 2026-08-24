@@ -15,46 +15,21 @@ import { Iconify } from 'src/components/iconify';
 
 import {
   labelFor,
-  CALL_TYPE_OPTIONS,
-  PLACE_OF_CALL_OPTIONS,
-  CALL_STATUS_OPTIONS,
-  IDENTITY_CONFIRMED_OPTIONS,
-  LOAN_PURPOSE_CONFIRMATION_OPTIONS,
-  REPAYMENT_SOURCE_OPTIONS,
-  CLIENT_UNDERSTANDING_OPTIONS,
-  CLIENT_CONCERN_OPTIONS,
-  RESIDENCE_YEARS_OPTIONS,
-  RESIDENCE_STATUS_OPTIONS,
-  MAIN_INCOME_SOURCE_OPTIONS,
-  TENURE_RANGE_OPTIONS,
-  INCOME_STABILITY_OPTIONS,
-  INCOME_TREND_OPTIONS,
-  MEMBERSHIP_TYPE_OPTIONS,
-  MEMBERSHIP_STANDING_OPTIONS,
-  SUPPORTING_DOC_OPTIONS,
-  ELECTRICITY_PAYMENT_OPTIONS,
-  CREDIT_CARD_PAYMENT_OPTIONS,
-  OTHER_LOAN_REPAYMENT_OPTIONS,
+  INTERACTION_TYPE_OPTIONS,
+  IDENTITY_STATUS_OPTIONS,
+  IDENTITY_BASIS_OPTIONS,
+  LOAN_FACILITY_OPTIONS,
+  LOAN_PURPOSE_OPTIONS,
+  REPAYMENT_SOURCE_TYPE_OPTIONS,
   YES_NO_VERIFY_OPTIONS,
-  OFFICER_OBSERVATION_POSITIVE_OPTIONS,
-  OFFICER_OBSERVATION_ATTENTION_OPTIONS,
-  COLLATERAL_OFFERED_OPTIONS,
-  NEXT_STEP_OPTIONS,
-  RESPONSIBLE_PARTY_OPTIONS,
-  INTEREST_RATE_BASIS_OPTIONS,
-  COMPUTATION_TYPE_OPTIONS,
-  PAYMENT_FREQUENCY_OPTIONS,
-  COLLATERAL_ASSESSMENT_OPTIONS,
-  REQUIRED_DOC_OPTIONS,
-  CONDITION_OPTIONS,
-  PRELIMINARY_RECOMMENDATION_OPTIONS,
+  PAYMENT_HISTORY_DESCRIPTOR_OPTIONS,
+  UNDERSTANDING_LEVEL_OPTIONS,
+  LOAN_TERM_ITEM_OPTIONS,
+  PROPOSAL_INTEREST_RATE_BASIS_OPTIONS,
+  PROPOSAL_COMPUTATION_TYPE_OPTIONS,
+  RISK_DRIVER_OPTIONS,
+  CALL_DISPOSITION_OPTIONS,
 } from './call-report-types';
-import {
-  computeTotalMonthlyIncome,
-  computeTotalMonthlyObligations,
-  computeDisposableIncome,
-  computeDti,
-} from './call-report-computations';
 
 // ----------------------------------------------------------------------
 
@@ -115,39 +90,27 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
   const { review } = useAdmin();
   const { callReport } = review;
 
-  const allObservationOptions = [
-    ...OFFICER_OBSERVATION_POSITIVE_OPTIONS,
-    ...OFFICER_OBSERVATION_ATTENTION_OPTIONS,
-  ];
-  const observationLabels = callReport.officerObservations
-    .map((value) => labelFor(allObservationOptions, value))
+  const identityBasisLabels = callReport.identityBasis
+    .map((value) => labelFor(IDENTITY_BASIS_OPTIONS, value))
     .filter((label): label is string => !!label)
     .join(', ');
 
-  const supportingDocLabels = callReport.supportingDocsAvailable
-    .map((value) => labelFor(SUPPORTING_DOC_OPTIONS, value))
+  const termsUnderstoodLabels = callReport.termsUnderstood
+    .map((value) => labelFor(LOAN_TERM_ITEM_OPTIONS, value))
     .filter((label): label is string => !!label)
     .join(', ');
 
-  const nextStepLabels = callReport.nextSteps
-    .map((value) => labelFor(NEXT_STEP_OPTIONS, value))
+  const riskDriverLabels = callReport.primaryRiskDrivers
+    .map((value) => labelFor(RISK_DRIVER_OPTIONS, value))
     .filter((label): label is string => !!label)
     .join(', ');
 
-  const requiredDocLabels = callReport.requiredDocuments
-    .map((value) => labelFor(REQUIRED_DOC_OPTIONS, value))
-    .filter((label): label is string => !!label)
-    .join(', ');
-
-  const conditionLabels = callReport.conditionsBeforeProceeding
-    .map((value) => labelFor(CONDITION_OPTIONS, value))
-    .filter((label): label is string => !!label)
-    .join(', ');
-
-  const totalIncome = computeTotalMonthlyIncome(callReport);
-  const totalObligations = computeTotalMonthlyObligations(callReport);
-  const disposableIncome = computeDisposableIncome(callReport);
-  const dti = computeDti(callReport);
+  const validationLabels: Record<string, string> = {
+    confirmed: 'Confirmed',
+    changed: 'Changed',
+    'unable-to-verify': 'Unable to Verify',
+    '': '—',
+  };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" scroll="paper">
@@ -156,7 +119,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           <Box>
             <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>Call report</Typography>
             <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
-              Read-only record of the structured call report interview and loan package proposal.
+              Read-only record of the NEXUS Customer KYC &amp; Call Validation Report.
             </Typography>
           </Box>
           <IconButton onClick={onClose} aria-label="Close call report">
@@ -168,226 +131,119 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
       <DialogContent sx={{ p: 2.5 }}>
         <Stack spacing={2.5}>
           <Box>
-            <SectionHeading>Call Details</SectionHeading>
+            <SectionHeading>1. Interaction Record</SectionHeading>
             <FieldGrid columns={4}>
-              <ResultField label="Call Date" value={callReport.callDate} />
-              <ResultField label="Call Time" value={callReport.callTime} />
-              <ResultField label="Call Type" value={labelFor(CALL_TYPE_OPTIONS, callReport.callType)} />
-              <ResultField
-                label="Place of Call"
-                value={
-                  callReport.placeOfCall === 'other'
-                    ? callReport.placeOfCallOther
-                    : labelFor(PLACE_OF_CALL_OPTIONS, callReport.placeOfCall)
-                }
-              />
-              <ResultField label="Client Representative" value={callReport.clientRepresentative} />
-              <ResultField label="PG Finance Representative" value={callReport.pgRepresentative} />
-              <ResultField label="Call Status" value={labelFor(CALL_STATUS_OPTIONS, callReport.callStatus)} />
-              <ResultField
-                label="Identity Confirmed"
-                value={labelFor(IDENTITY_CONFIRMED_OPTIONS, callReport.identityConfirmed)}
-              />
+              <ResultField label="Call / Visit Date" value={callReport.callVisitDate} />
+              <ResultField label="Time" value={callReport.callTime} />
+              <ResultField label="Interviewed Person" value={callReport.interviewedPerson} />
+              <ResultField label="Relationship to Borrower" value={callReport.relationshipToBorrower} />
+              <ResultField label="Interaction Type" value={labelFor(INTERACTION_TYPE_OPTIONS, callReport.interactionType)} />
+              <ResultField label="Identity Status" value={labelFor(IDENTITY_STATUS_OPTIONS, callReport.identityStatus)} />
+              <ResultField label="Basis of Identity Confirmation" value={identityBasisLabels} />
             </FieldGrid>
           </Box>
 
           <Box>
-            <SectionHeading>Loan Discussion</SectionHeading>
+            <SectionHeading>2. Application Validation</SectionHeading>
             <FieldGrid columns={3}>
-              <ResultField
-                label="Loan Purpose Confirmation"
-                value={labelFor(LOAN_PURPOSE_CONFIRMATION_OPTIONS, callReport.loanPurposeConfirmation)}
-              />
-              <ResultField label="Final Loan Purpose" value={callReport.finalLoanPurpose} />
-              <ResultField label="Target Release Date" value={callReport.targetReleaseDate} />
-              <ResultField
-                label="Primary Source of Repayment"
-                value={
-                  callReport.primaryRepaymentSource === 'other'
-                    ? callReport.otherRepaymentSource
-                    : labelFor(REPAYMENT_SOURCE_OPTIONS, callReport.primaryRepaymentSource)
-                }
-              />
-              <ResultField
-                label="Client Understanding"
-                value={
-                  callReport.clientUnderstanding
-                    .map((value) => labelFor(CLIENT_UNDERSTANDING_OPTIONS, value))
-                    .filter((label): label is string => !!label)
-                    .join(', ') || null
-                }
-              />
-              <ResultField
-                label="Client Concerns"
-                value={
-                  callReport.clientConcerns
-                    .map((value) => labelFor(CLIENT_CONCERN_OPTIONS, value))
-                    .filter((label): label is string => !!label)
-                    .join(', ') || null
-                }
-              />
+              <ResultField label="Identity / Authorized Representative" value={validationLabels[callReport.validation.identityAuthorizedRep]} />
+              <ResultField label="Loan Facility" value={validationLabels[callReport.validation.loanFacility]} />
+              <ResultField label="Loan Purpose" value={validationLabels[callReport.validation.loanPurpose]} />
+              <ResultField label="Primary Source of Repayment" value={validationLabels[callReport.validation.primaryRepaymentSource]} />
+              <ResultField label="Business / Employment Info" value={validationLabels[callReport.validation.businessEmploymentInfo]} />
+              <ResultField label="Existing Loans / Obligations" value={validationLabels[callReport.validation.existingLoansObligations]} />
+              <ResultField label="Residence / Business Address" value={validationLabels[callReport.validation.residenceBusinessAddress]} />
+              <ResultField label="Collateral / Security Declaration" value={validationLabels[callReport.validation.collateralSecurityDeclaration]} />
+              <ResultField label="Co-maker/Guarantee" value={validationLabels[callReport.validation.comakerGuarantee]} />
             </FieldGrid>
-            {(callReport.specificUseOfProceeds || callReport.concernNotes) && (
-              <Stack spacing={1.5} sx={{ mt: 1.5 }}>
-                {callReport.specificUseOfProceeds && (
-                  <NarrativeBlock label="SPECIFIC USE OF PROCEEDS" value={callReport.specificUseOfProceeds} />
-                )}
-                {callReport.concernNotes && (
-                  <NarrativeBlock label="CONCERN NOTES" value={callReport.concernNotes} />
-                )}
-              </Stack>
-            )}
-          </Box>
-
-          <Box>
-            <SectionHeading>Residence and Household Information</SectionHeading>
-            <FieldGrid columns={4}>
-              <ResultField
-                label="Years at Residence"
-                value={labelFor(RESIDENCE_YEARS_OPTIONS, callReport.yearsAtResidence)}
-              />
-              <ResultField
-                label="Residence Status"
-                value={
-                  callReport.residenceStatus === 'other'
-                    ? callReport.residenceStatusOther
-                    : labelFor(RESIDENCE_STATUS_OPTIONS, callReport.residenceStatus)
-                }
-              />
-              <ResultField label="Number of Dependents" value={callReport.numberOfDependents} />
-              <ResultField label="Household Income Earners" value={callReport.numberOfIncomeEarners} />
-            </FieldGrid>
-          </Box>
-
-          <Box>
-            <SectionHeading>Employment or Business Information</SectionHeading>
-            <FieldGrid columns={3}>
-              <ResultField
-                label="Main Source of Income"
-                value={
-                  callReport.mainIncomeSource === 'other'
-                    ? callReport.otherIncomeSource
-                    : labelFor(MAIN_INCOME_SOURCE_OPTIONS, callReport.mainIncomeSource)
-                }
-              />
-              <ResultField
-                label="Employment/Business Tenure"
-                value={labelFor(TENURE_RANGE_OPTIONS, callReport.employmentTenure)}
-              />
-              <ResultField
-                label="Income Stability"
-                value={labelFor(INCOME_STABILITY_OPTIONS, callReport.incomeStability)}
-              />
-              <ResultField label="Income Trend" value={labelFor(INCOME_TREND_OPTIONS, callReport.incomeTrend)} />
-              <ResultField label="Loan Renewal" value={callReport.isRenewal === 'yes' ? 'Yes' : callReport.isRenewal === 'no' ? 'No' : ''} />
-            </FieldGrid>
-          </Box>
-
-          <Box>
-            <SectionHeading>Organization Membership</SectionHeading>
-            <FieldGrid columns={4}>
-              <ResultField label="Member of an Organization" value={callReport.isOrgMember === 'yes' ? 'Yes' : callReport.isOrgMember === 'no' ? 'No' : ''} />
-              {callReport.isOrgMember === 'yes' && (
-                <>
-                  <ResultField
-                    label="Membership Type"
-                    value={labelFor(MEMBERSHIP_TYPE_OPTIONS, callReport.membershipType)}
-                  />
-                  <ResultField label="Organization Name" value={callReport.organizationName} />
-                  <ResultField
-                    label="Membership Standing"
-                    value={labelFor(MEMBERSHIP_STANDING_OPTIONS, callReport.membershipStanding)}
-                  />
-                </>
-              )}
-            </FieldGrid>
-          </Box>
-
-          <Box>
-            <SectionHeading>Quick Financial Information</SectionHeading>
-            <FieldGrid columns={4}>
-              <ResultField label="Declared Gross Monthly Income" value={formatCurrency(callReport.declaredGrossMonthlyIncome)} />
-              <ResultField label="Declared Net Monthly Income" value={formatCurrency(callReport.declaredNetMonthlyIncome)} />
-              <ResultField label="Total Monthly Income" value={formatCurrency(String(totalIncome))} />
-              <ResultField label="Total Monthly Obligations" value={formatCurrency(String(totalObligations))} />
-              <ResultField label="Preliminary Disposable Income" value={formatCurrency(String(disposableIncome))} />
-              <ResultField label="Estimated DTI" value={`${dti.toFixed(1)}%`} />
-              <ResultField label="Supporting Documents Available" value={supportingDocLabels} />
-            </FieldGrid>
-          </Box>
-
-          <Box>
-            <SectionHeading>Payment Behavior</SectionHeading>
-            <FieldGrid columns={3}>
-              <ResultField
-                label="Electricity Bill Payment"
-                value={labelFor(ELECTRICITY_PAYMENT_OPTIONS, callReport.electricityPayment)}
-              />
-              <ResultField
-                label="Credit-card Payment"
-                value={labelFor(CREDIT_CARD_PAYMENT_OPTIONS, callReport.creditCardPayment)}
-              />
-              <ResultField
-                label="Other Loan Repayment"
-                value={labelFor(OTHER_LOAN_REPAYMENT_OPTIONS, callReport.otherLoanRepayment)}
-              />
-              <ResultField label="Returned Checks" value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.hasReturnedChecks)} />
-              <ResultField
-                label="Past-due Obligations"
-                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.hasPastDueObligations)}
-              />
-              <ResultField
-                label="Pending Financial/Court Cases"
-                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.hasPendingCases)}
-              />
-            </FieldGrid>
-          </Box>
-
-          <Box>
-            <SectionHeading>Officer Observation</SectionHeading>
-            <NarrativeBlock label="OBSERVATIONS" value={observationLabels} />
-            {callReport.observationNotes && (
+            {callReport.validation.loanFacility === 'changed' && (
               <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock label="OBSERVATION NOTES" value={callReport.observationNotes} />
+                <NarrativeBlock
+                  label="LOAN FACILITY CHANGED TO"
+                  value={`${labelFor(LOAN_FACILITY_OPTIONS, callReport.loanFacilityChangedTo) || ''} — ${callReport.loanFacilityChangeReason}`}
+                />
+              </Box>
+            )}
+            {callReport.validation.loanPurpose === 'changed' && (
+              <Box sx={{ mt: 1.5 }}>
+                <NarrativeBlock
+                  label="LOAN PURPOSE CHANGED TO"
+                  value={labelFor(LOAN_PURPOSE_OPTIONS, callReport.loanPurposeChangedTo) || ''}
+                />
+              </Box>
+            )}
+            {callReport.validation.primaryRepaymentSource === 'changed' && (
+              <Box sx={{ mt: 1.5 }}>
+                <NarrativeBlock
+                  label="PRIMARY REPAYMENT SOURCE CHANGED TO"
+                  value={labelFor(REPAYMENT_SOURCE_TYPE_OPTIONS, callReport.primaryRepaymentSourceChangedTo) || ''}
+                />
+              </Box>
+            )}
+            {callReport.existingLoanRows.length > 0 && (
+              <Box sx={{ mt: 1.5 }}>
+                <NarrativeBlock
+                  label="EXISTING LOANS DECLARED"
+                  value={callReport.existingLoanRows
+                    .map((row) => `${row.lender} (${row.loanType}) — ${formatCurrency(row.outstandingBalance)}`)
+                    .join('\n')}
+                />
+              </Box>
+            )}
+            {callReport.comakerChange.completeName && (
+              <Box sx={{ mt: 1.5 }}>
+                <NarrativeBlock
+                  label="CO-MAKER/GUARANTOR"
+                  value={`${callReport.comakerChange.completeName} — ${callReport.comakerChange.relationshipToBorrower}`}
+                />
+              </Box>
+            )}
+            {callReport.materialChangesNotes && (
+              <Box sx={{ mt: 1.5 }}>
+                <NarrativeBlock label="MATERIAL CHANGES / CLARIFICATIONS" value={callReport.materialChangesNotes} />
               </Box>
             )}
           </Box>
 
-          <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
-            <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#8891A6', mb: 1 }}>
-              COLLATERAL INFORMATION
-            </Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 1 }}>
-              Collateral Offered: {labelFor(COLLATERAL_OFFERED_OPTIONS, callReport.collateralOffered) || '—'}
-            </Typography>
-            {callReport.collateralEntries.length > 0 ? (
-              <Stack spacing={0.75}>
-                {callReport.collateralEntries.map((entry) => (
-                  <Typography key={entry.id} sx={{ fontSize: 13.5, color: '#3B4256' }}>
-                    • {entry.description}
-                    {entry.estimatedValue ? ` — ₱${Number(entry.estimatedValue).toLocaleString()}` : ''}
-                  </Typography>
-                ))}
-              </Stack>
-            ) : (
-              <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>No collateral recorded.</Typography>
-            )}
+          <Box>
+            <SectionHeading>3. AML / KYC Questions</SectionHeading>
+            <FieldGrid columns={3}>
+              <ResultField label="Politically Exposed Person" value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPep)} />
+              <ResultField
+                label="PGFC-related Party"
+                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPgfcRelatedParty)}
+              />
+              <ResultField
+                label="Has Existing Loans"
+                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasExistingLoans)}
+              />
+              <ResultField
+                label="Payment History"
+                value={labelFor(PAYMENT_HISTORY_DESCRIPTOR_OPTIONS, callReport.amlPaymentHistory)}
+              />
+              <ResultField
+                label="Returned Checks"
+                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasReturnedChecks)}
+              />
+              <ResultField
+                label="Past Due Obligations"
+                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasPastDueObligations)}
+              />
+            </FieldGrid>
           </Box>
 
           <Box>
-            <SectionHeading>Agreed Next Steps</SectionHeading>
+            <SectionHeading>4. Customer Understanding</SectionHeading>
             <FieldGrid columns={2}>
-              <ResultField label="Next Steps" value={nextStepLabels} />
               <ResultField
-                label="Responsible Party"
-                value={labelFor(RESPONSIBLE_PARTY_OPTIONS, callReport.responsibleParty)}
+                label="Level of Understanding"
+                value={labelFor(UNDERSTANDING_LEVEL_OPTIONS, callReport.understandingLevel)}
               />
-              <ResultField label="Due Date" value={callReport.nextStepsDueDate} />
-              <ResultField label="Follow-up Date" value={callReport.followUpDate} />
+              <ResultField label="Terms Understood" value={termsUnderstoodLabels} />
             </FieldGrid>
-            {callReport.nextStepsInstructions && (
+            {callReport.concernsClarifications && (
               <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock label="SHORT INSTRUCTIONS" value={callReport.nextStepsInstructions} />
+                <NarrativeBlock label="CONCERNS / CLARIFICATIONS" value={callReport.concernsClarifications} />
               </Box>
             )}
           </Box>
@@ -395,70 +251,73 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
           <Box>
-            <SectionHeading>Loan Package Proposal</SectionHeading>
+            <SectionHeading>6. Proposed Loan Package</SectionHeading>
             <FieldGrid columns={3}>
-              <ResultField label="Proposed Loan Amount" value={formatCurrency(callReport.proposedLoanAmount)} />
-              <ResultField label="Proposed Loan Term" value={callReport.proposedLoanTerm ? `${callReport.proposedLoanTerm} months` : ''} />
-              <ResultField label="Proposed Loan Facility" value={callReport.proposedLoanFacility} />
-              <ResultField label="Proposed Interest Rate" value={callReport.proposedInterestRate ? `${callReport.proposedInterestRate}%` : ''} />
+              <ResultField label="Original Requested Amount" value={formatCurrency(callReport.originalRequestedAmount)} />
               <ResultField
-                label="Interest-rate Basis"
-                value={labelFor(INTEREST_RATE_BASIS_OPTIONS, callReport.interestRateBasis)}
+                label="Interest Rate"
+                value={callReport.proposalInterestRate ? `${callReport.proposalInterestRate}%` : ''}
               />
+              <ResultField
+                label="Interest Rate Basis"
+                value={labelFor(PROPOSAL_INTEREST_RATE_BASIS_OPTIONS, callReport.proposalInterestRateBasis)}
+              />
+              <ResultField label="Proposed Facility / Product" value={callReport.proposedFacilityProduct} />
               <ResultField
                 label="Computation Type"
                 value={
-                  callReport.computationType === 'other'
-                    ? callReport.computationTypeOther
-                    : labelFor(COMPUTATION_TYPE_OPTIONS, callReport.computationType)
+                  callReport.proposalComputationType === 'other'
+                    ? callReport.proposalComputationTypeOther
+                    : labelFor(PROPOSAL_COMPUTATION_TYPE_OPTIONS, callReport.proposalComputationType)
                 }
               />
+              <ResultField label="Proposed Loan Amount" value={formatCurrency(callReport.proposedLoanAmount)} />
               <ResultField
-                label="Payment Frequency"
-                value={
-                  callReport.paymentFrequency === 'other'
-                    ? callReport.paymentFrequencyOther
-                    : labelFor(PAYMENT_FREQUENCY_OPTIONS, callReport.paymentFrequency)
-                }
-              />
-              <ResultField label="Number of Payments" value={callReport.numberOfPayments} />
-              <ResultField label="First Payment Date" value={callReport.firstPaymentDate} />
-              <ResultField label="Proposed Release Date" value={callReport.proposedReleaseDate} />
-              <ResultField label="Grace Period" value={callReport.gracePeriod} />
-              <ResultField label="Final Use of Proceeds" value={callReport.finalUseOfProceeds} />
-              <ResultField
-                label="Primary Source of Repayment"
-                value={labelFor(REPAYMENT_SOURCE_OPTIONS, callReport.proposalPrimaryRepaymentSource)}
-              />
-              <ResultField label="Secondary Source of Repayment" value={callReport.secondaryRepaymentSource} />
-              <ResultField label="Estimated Amortization" value={formatCurrency(callReport.estimatedAmortization)} />
-              <ResultField label="Estimated Total Interest" value={formatCurrency(callReport.estimatedTotalInterest)} />
-              <ResultField label="Estimated Total Repayment" value={formatCurrency(callReport.estimatedTotalRepayment)} />
-              <ResultField label="Estimated Maturity Value" value={formatCurrency(callReport.estimatedMaturityValue)} />
-              <ResultField label="Preliminary DTI" value={callReport.preliminaryDti ? `${callReport.preliminaryDti}%` : ''} />
-              <ResultField
-                label="Disposable Income After Amortization"
-                value={formatCurrency(callReport.disposableIncomeAfterAmortization)}
+                label="Estimated Monthly Amortization"
+                value={formatCurrency(callReport.estimatedMonthlyAmortization)}
               />
               <ResultField
-                label="Collateral Assessment"
-                value={labelFor(COLLATERAL_ASSESSMENT_OPTIONS, callReport.collateralAssessment)}
+                label="Proposed Loan Term"
+                value={callReport.proposedLoanTermMonths ? `${callReport.proposedLoanTermMonths} months` : ''}
               />
-              <ResultField
-                label="Preliminary Recommendation"
-                value={labelFor(PRELIMINARY_RECOMMENDATION_OPTIONS, callReport.preliminaryRecommendation)}
-              />
+              <ResultField label="Other Request" value={callReport.otherRequest} />
             </FieldGrid>
-            <Stack spacing={1.5} sx={{ mt: 1.5 }}>
-              <ResultField label="Required Documents" value={requiredDocLabels} />
-              <ResultField label="Conditions Before Proceeding" value={conditionLabels} />
-              {callReport.recommendationReason && (
-                <NarrativeBlock label="RECOMMENDATION REASON" value={callReport.recommendationReason} />
-              )}
-              {callReport.loanPackageNotes && (
-                <NarrativeBlock label="LOAN PACKAGE NOTES" value={callReport.loanPackageNotes} />
-              )}
+          </Box>
+
+          <Box>
+            <SectionHeading>7. AO Preliminary Risk &amp; Call Disposition</SectionHeading>
+            <FieldGrid columns={2}>
+              <ResultField label="Primary Risk Driver" value={riskDriverLabels} />
+              <ResultField label="Call Disposition" value={labelFor(CALL_DISPOSITION_OPTIONS, callReport.callDisposition)} />
+            </FieldGrid>
+            {callReport.reasonKeyCondition && (
+              <Box sx={{ mt: 1.5 }}>
+                <NarrativeBlock label="REASON / KEY CONDITION" value={callReport.reasonKeyCondition} />
+              </Box>
+            )}
+          </Box>
+
+          <Box>
+            <SectionHeading>8. NEXUS System Validation</SectionHeading>
+            <Stack spacing={1.5}>
+              <NarrativeBlock label="AI SUMMARY" value={callReport.aiSummary} />
+              <NarrativeBlock label="AI EXCEPTIONS / INCONSISTENCIES" value={callReport.aiExceptions} />
+              <NarrativeBlock label="AI RECOMMENDATION / RISK LEVEL" value={callReport.aiRecommendation} />
+              <ResultField
+                label="AO vs. System Assessment Variance"
+                value={callReport.aoVsSystemVariance === 'noted' ? `Variance Noted — ${callReport.varianceExplanation}` : 'None'}
+              />
             </Stack>
+          </Box>
+
+          <Box>
+            <SectionHeading>Account Officer Endorsement Declaration</SectionHeading>
+            <FieldGrid columns={2}>
+              <ResultField label="Account Officer" value={callReport.accountOfficerName} />
+              <ResultField label="Date / Time" value={callReport.accountOfficerDateTime} />
+              <ResultField label="Reviewed by Head" value={callReport.reviewedByHeadName} />
+              <ResultField label="Date / Time" value={callReport.reviewedByHeadDateTime} />
+            </FieldGrid>
           </Box>
         </Stack>
       </DialogContent>
