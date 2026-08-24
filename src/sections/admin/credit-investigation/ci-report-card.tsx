@@ -27,7 +27,7 @@ import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { RichTextField } from 'src/components/rich-text-field';
 
 import { buildTranscriptAutoFill } from '../credit-investigation-transcript';
-import { RadioRow } from '../call-report/call-details-card';
+import { RadioRow } from '../call-report/call-report-types';
 
 // ----------------------------------------------------------------------
 // The ~15-section CI Report. Replaces the old 5-section version

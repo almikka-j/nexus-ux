@@ -669,9 +669,10 @@ content in `CreditCheckingResultModal`.
     label:value rows, with the one real input (Thru, required) as a
     proper `TextField` below a divider inside the same block.
   - Account Findings entries render as numbered `EntryCard`s (a "Entry N"
-    `Chip` + a "Remove" button, matching the Call Report collateral-entry
-    visual language already established in `collateral-information-card.tsx`)
-    rather than three bare inline fields in a row.
+    `Chip` + a "Remove" button, matching the repeatable-entry visual
+    language already established elsewhere in this app, e.g. Application
+    Validation's Existing Loan rows) rather than three bare inline fields
+    in a row.
   - The three special-finding lists (Cancelled Credit Cards File /
     Adversely Classified Loan File / Closed Current Account) are
     **collapsible** (`SpecialSection`, reusing the `ButtonBase` + `Collapse`
@@ -699,9 +700,10 @@ content in `CreditCheckingResultModal`.
   array-mutation setters (`addNegativeReportEntry`, `updateNegativeReportEntry`,
   `removeNegativeReportEntry`) each take a `NegativeReportEntryListKey`
   discriminator and index `negativeCreditReport[listKey]` — a direct
-  generalization of the Call Report collateral-entry pattern
-  (`addCollateralEntry`/`updateCollateralEntry`/`removeCollateralEntry`),
-  parameterized rather than copy-pasted 4×. `resetNegativeCreditReport()`
+  generalization of the same repeatable-array-mutation-setter pattern used
+  elsewhere (e.g. Call Report's `addExistingLoanRow`/`updateExistingLoanRow`/
+  `removeExistingLoanRow`), parameterized rather than copy-pasted 4×.
+  `resetNegativeCreditReport()`
   (used by "Remove Sample Data") and the `ApplicationReview` initial-state
   factory both call the same `createInitialNegativeCreditReport()` factory,
   so "start the form over" and "start a whole new review" can't drift apart.
@@ -738,7 +740,8 @@ Analysis" button.** `aiSummary`/`aiRecommendation` are never stored (previously
 they were, written by a button click with a fake multi-step "analyzing…"
 animation) — computed directly in `initial-credit-checking-view.tsx` from
 `application` (Application Details), same "pure computation, never stored"
-pattern as the Call Report financial ratios in `call-report-computations.ts`.
+pattern as Call Report's `buildCallReportAiRecommendation()`
+(`call-report-risk.ts`).
 See `docs/ADMIN_INITIAL_CREDIT_CHECKING.md` for this card's current content
 and gating (it now also always shows a risk-level read, merged in from the
 former standalone "Initial AI Recommendation" card).
@@ -1001,52 +1004,46 @@ pre-hydration default for the bare `/admin/credit-checking` URL.
 
 ### Call Report (`src/sections/admin/call-report-view.tsx` + `src/sections/admin/call-report/`)
 
-A detailed, numbered 12-section structured interview the officer fills out
-live while on the call with the borrower, followed by a preliminary loan
-package proposal and an AI-derived summary/recommendation. This is the
-original, more detailed field model — restored after a period where the page
-briefly rendered a shorter, consolidated `ReferenceCallReportForm` instead;
-that consolidated form and its two merged cards (`borrower-interview-card.tsx`,
-`financial-declaration-card.tsx`) have been deleted. The manual Call Summary
-and Additional Remarks cards (sections 12–13 of that original design, before
-Comaker was added as the new section 12) have also been removed, superseded
-by the AI review card below.
+The **NEXUS KYC Call Report** — a structured, 8-section interview the officer
+fills out live while on the call with the borrower, matching the source
+PDF's own section numbering (which itself skips/repeats a few numbers — see
+`docs/ADMIN_CALL_REPORT.md`'s "Section numbering"). This replaced the prior
+12-section field model (`call-details-card.tsx` … `comaker-information-card.tsx`
++ `call-report-computations.ts`, all deleted) in the 2026-08-24 NEXUS KYC
+rebuild.
 
 **Call Report has its own dedicated maintenance doc:
 `docs/ADMIN_CALL_REPORT.md`.** It is the authoritative guide for the current
-12-card page order, every section's fields and option lists, the Proceed
-gate, sample-data behavior, and the read-only result-modal mirror.
+8-card page order, every section's fields and option lists, the Proceed
+gate, the `comakers`/`comakerChange` sync, sample-data behavior, and the
+read-only result-modal mirror.
 
 State lives entirely in `AdminContext.review.callReport` (the `CallReport`
-type, `src/auth/admin-context.tsx`), one large object (~100 fields across the
-12 sections plus `approved` and `clientType` — `callSummary`/
-`callSummaryEdited`/`additionalRemarks` were removed along with their cards)
-following the same `setCallReport(partial)` pattern as every other review
-step, plus array-mutation setters for collateral (`addCollateralEntry`,
-`updateCollateralEntry(id, data)`, `removeCollateralEntry(id)`) and for
-comakers (`addComakerEntry`, `updateComakerEntry(id, data)`,
-`removeComakerEntry(id)`).
+type, `src/auth/admin-context.tsx`), one large object across the 8 sections
+plus `approved`/`decisionReason`, following the same `setCallReport(partial)`
+pattern as every other review step, plus array-mutation setters for existing
+loans (`addExistingLoanRow`, `updateExistingLoanRow(id, data)`,
+`removeExistingLoanRow(id)`) and `setCallReportComakerChange(data)`, which
+also derives the read-only `comakers: CiComakerEntry[]` mirror Credit
+Investigation's CI Report reads (see "Comaker sync" in the maintenance doc).
 
 **File split**:
-- `call-details-card.tsx` … `comaker-information-card.tsx` — the 12 section
-  cards, one file each; see `docs/ADMIN_CALL_REPORT.md` for the full list,
-  order, and per-card field notes. `call-details-card.tsx` additionally
-  exports two shared UI primitives used by every other card: `RadioRow` (a
-  labeled `RadioGroup` wrapper with an optional `disabled` prop) and
-  `ChipToggleGroup` (a multiselect chip row backing every checklist field).
-- `collateral-entry-fields.tsx` — the repeatable `CollateralEntry` form
-  (type, description, quantity, registered owner, owner relationship,
-  location, estimated value, ownership docs available, existing lien,
-  requires appraisal), used editable in Collateral Information (section 9)
-  and read-only in Loan Package Proposal (section 11).
-- `comaker-information-card.tsx` — the repeatable `CiComakerEntry` form
-  (section 12), the only place comaker data is entered; Credit
-  Investigation's CI Report shows it read-only.
-- `call-report-types.ts` — every enum's `{value,label}` option list, plus shared `fieldSx`/`cardSx` and a `labelFor()` lookup helper.
-- `call-report-computations.ts` — pure functions (`toNumber`, `computeTotalMonthlyIncome`, `computeTotalMonthlyObligations`, `computeDisposableIncome`, `computeDti`, `compareAmount`, `compareTerm`). Financial ratios are **never stored** — always recomputed at render time from the raw input fields, so they can't drift out of sync.
-- `call-report-summary.ts` — `buildCallSummary(callReport, signUpData)`, a pure function that composes the AI Summary text shown on the "AI review, summary & recommendation" card, skipping any section whose fields are still empty. Recomputed fresh on every render, not stored on `CallReport`.
-- `call-report-risk.ts` — `buildCallReportAiRecommendation(callReport)`, mirroring `initial-credit-checking-risk.ts`'s `{level, text}` shape. Driven by the officer's own `preliminaryRecommendation` answer first, falling back to the computed DTI ratio when no recommendation has been entered yet.
-- `call-report-result-modal.tsx` — `CallReportResultModal`, a read-only, section-by-section mirror of all 11 cards, opened both from the Call Report page's own **AI review, summary & recommendation** card (**View Call Report Result**) and from `ApplicationDetailsCard`'s **View Call Report** action on other review steps (e.g. Requirement Checklist).
+- `interaction-record-card.tsx`, `application-validation-card.tsx`,
+  `aml-kyc-card.tsx`, `customer-understanding-card.tsx`,
+  `proposed-loan-package-card.tsx`, `risk-disposition-card.tsx`,
+  `system-validation-card.tsx`, `endorsement-declaration-card.tsx` — the 8
+  section cards, one file each; see `docs/ADMIN_CALL_REPORT.md` for the full
+  list, order, and per-card field notes.
+- `call-report-types.tsx` — every enum's `{value,label}` option list, plus
+  shared `fieldSx`/`cardSx`, a `labelFor()` lookup helper, and the shared
+  `RadioRow`/`ChipToggleGroup` UI primitives every card imports (also
+  imported by `credit-investigation/ci-report-card.tsx` for `RadioRow`).
+- `call-report-summary.ts` — `buildCallSummary(callReport, signUpData)` and
+  `buildCallReportAiExceptions(callReport)`, pure functions computed on
+  demand (System Validation card's **Refresh AI Review** button) and stored
+  on `CallReport`, not recomputed on every render.
+- `call-report-risk.ts` — `buildCallReportAiRecommendation(callReport)`, mirroring `initial-credit-checking-risk.ts`'s `{level, text}` shape. Driven by the officer's own `callDisposition` answer first, folding in an AML/KYC flag count.
+- `call-report-result-modal.tsx` — `CallReportResultModal`, a read-only, section-by-section mirror of all 8 cards, opened both from the Call Report page's own **View Call Report Result** button and from `ApplicationDetailsCard`'s **View Call Report** action on other review steps (e.g. Requirement Checklist).
 - `officer-notes-history.tsx` (shared one directory above `call-report/`) —
   `OfficerNotesHistory` (boxed-card renderer, used standalone by
   Reconsideration only), `OfficerNotesDialog` (the chat-drawer used by
@@ -1058,16 +1055,14 @@ comakers (`addComakerEntry`, `updateComakerEntry(id, data)`,
   Details' shared `OfficerNotesDialog`, tagged with Process = `Call Report`.
 - `credit-checking-result-modal.tsx` — `CreditCheckingResultModal`, a centered MUI `Dialog`, opened from both this page and Initial Credit Checking (see "View Initial Credit Checking Result" below). It reads Initial Credit Checking state only, not `CallReport`, so it's unaffected by Call Report field changes.
 
-**Section numbering stops at 11** — each card's heading is numbered ("1. Call
-Details", "2. Loan Discussion", … "11. Loan Package Proposal"), matching the
-original structured-interview design minus the two removed manual sections.
-The **AI review, summary & recommendation** card that follows mirrors Initial
-Credit Checking's own card of the same name: an **AI Summary** block (from
-`buildCallSummary()`), a color-coded **AI Recommendation** block
-(`good`/`watch`/`high`, from `buildCallReportAiRecommendation()`), and a
-**View Call Report Result** button opening `CallReportResultModal` — it is
-not numbered as a 12th section since it isn't part of the interview, just a
-derived read of it.
+**Section numbering follows the source PDF, not 1–8 sequential** — headings
+read "1. Interaction Record", "2. Application Validation…", "3. AML / KYC
+Questions", "4. Customer Understanding…", then jump to "6. Proposed Loan
+Package" (the PDF has no independent section 5), "7. AO Preliminary Risk &
+Call Disposition", "8. NEXUS System Validation…", and a second, unnumbered
+"Account Officer Endorsement Declaration" section that the design spec also
+calls section 8. See `docs/ADMIN_CALL_REPORT.md` before "fixing" this
+numbering.
 
 **Application Details is a compact summary with modal actions on Call Report.**
 `ApplicationDetailsCard` (`src/sections/admin/application-details-card.tsx`,
@@ -1164,41 +1159,32 @@ PDF button with a "PDF export coming soon" tooltip — visible as an affordance
 matching the reference design, but not wired to real PDF generation (no PDF
 library exists in this project); and a working X close button.
 
-**The 12 section cards, in order** (see `docs/ADMIN_CALL_REPORT.md` for full
+**The 8 section cards, in order** (see `docs/ADMIN_CALL_REPORT.md` for full
 field lists and option-list names):
 
-1. **Call Details** (`call-details-card.tsx`) — date/time, Call Type, Place of Call (+ conditional "Specify Place of Call" when Other), representatives, Call Status (In Progress / Completed / Follow-up Needed / Unable to Reach), Identity Confirmed.
-2. **Loan Discussion** (`loan-discussion-card.tsx`) — Loan Purpose Confirmation, Final Loan Purpose (defaults once from `application.financialInfo.loanPurpose` via a guarded `useEffect`), Specific Use of Proceeds, Target Release Date, Primary Source of Repayment (+ conditional Other), Client Understanding and Client Concerns `ChipToggleGroup`s, and Concern Notes (shown once any concern is selected).
-3. **Residence and Household Information** (`residence-household-card.tsx`) — Years at Current Residence, Residence Status (+ conditional Other), Number of Dependents, Number of Household Income Earners, Supporting More Than One Family.
-4. **Employment or Business Information** (`employment-business-card.tsx`) — Main Source of Income (+ conditional Other), Employment/Business Tenure, Income Stability, Income Trend, loan-renewal gate revealing Income Change Since Previous Loan, Previous/Current Monthly Income, and Effective Date of Income Change.
-5. **Organization Membership** (`organization-membership-card.tsx`) — Member of an Organization (Yes/No gate); when Yes: Membership Type, Organization Name, Years of Membership, Membership Standing.
-6. **Quick Financial Information** (`quick-financial-info-card.tsx`) — verification-disclaimer banner, Declared Gross/Net Monthly Income, Other Recurring Monthly Income, Household Expenses, Existing Loan Payments, Credit-card Payments, Other Recurring Obligations, then the 4 live-computed read-only rows (Total Monthly Income, Total Monthly Obligations, Preliminary Disposable Income, Estimated Debt-to-Income Ratio) via the computation functions below, plus a Supporting Documents Available `ChipToggleGroup`.
-7. **Payment Behavior** (`payment-behavior-card.tsx`) — verification-disclaimer banner, Electricity Bill Payment, Credit-card Payment, Other Loan Repayment, Returned Checks, Past-due Obligations, Pending Financial/Court Cases, and an Explanation field shown when any of the last three is Yes.
-8. **Officer Observation** (`officer-observation-card.tsx`) — one `officerObservations: OfficerObservationItem[]` array, rendered as two visually-separated `ChipToggleGroup`s ("Positive or neutral" in green, "Needs attention" in red) that both read/write the same underlying array, plus Observation Notes.
-9. **Collateral Information** (`collateral-information-card.tsx` + `collateral-entry-fields.tsx`) — Collateral Offered (Yes/No/TBD) gates a repeatable entry list. Each entry (`CollateralEntry`: `id`, `type`, `description`, `quantity`, `registeredOwner`, `ownerRelationship`, `location`, `estimatedValue`, `ownershipDocsAvailable`, `existingLien`, `requiresAppraisal`) is edited via `CollateralEntryFields`, a shared component used **twice**: editable here, and read-only (via a separate small `CollateralEntryFieldsReadOnly` renderer, plain text rather than disabled form controls) inside Loan Package Proposal below — collateral is entered once, never re-typed.
-10. **Agreed Next Steps** (`agreed-next-steps-card.tsx`) — `nextSteps: NextStepItem[]` multiselect `ChipToggleGroup`, Responsible Party, Due Date, a Follow-up Date that becomes required whenever Call Status is Follow-up Needed or `nextSteps` includes "Schedule Follow-up Call", and Short Instructions.
-11. **Loan Package Proposal** (`loan-package-proposal-card.tsx`) — the largest card. A read-only "Original Loan Request" block, editable Proposed Terms (defaults Proposed Amount/Term from the original request and Final Use of Proceeds/Repayment Source from the Loan Discussion answers, each via a guarded one-time `useEffect`) including Payment Frequency, Number of Payments, First Payment Date, and Grace Period, a manual-entry Loan Computation block (Estimated Amortization/Total Interest/Total Repayment/Maturity Value, Preliminary DTI, Disposable Income After Amortization — explicitly **no formula**, since no approved interest/amortization formula exists anywhere in this codebase), a Requested-vs-Proposed comparison (`compareAmount`/`compareTerm` render as chips) that reveals an Adjustment Reason field only when the amount or term actually differs, Collateral Assessment, the reused read-only collateral entries, Required Documents and Conditions Before Proceeding checklists, Preliminary Recommendation (reveals Recommendation Reason when set to anything other than "Proceed as Requested"), and Loan Package Notes.
-12. **Comaker** (`comaker-information-card.tsx`) — a repeatable `CiComakerEntry` list (`id`, `name`, `relationshipToBorrower`, `address`, `contactNumber`, `occupation`, `monthlyIncome`), same Chip + Remove-button pattern as Collateral Information, no gating radio since zero comakers is a normal end state. This is the only place comaker data is entered — Credit Investigation's CI Report shows it read-only, sourced from `review.callReport.comakers`.
+1. **Interaction Record** (`interaction-record-card.tsx`) — read-only Application No./Customer Name, Call/Visit Date + Time, Interviewed Person, Relationship to Borrower, Interaction Type, Identity Status, Basis of Identity Confirmation (multiselect + conditional Other).
+2. **Application Validation — Confirm, Change or Verify** (`application-validation-card.tsx`) — 9 fixed `ValidationRow`s, each a three-way Confirmed/Changed/Unable to Verify control revealing its own "Changed Information" panel only when Changed: Identity/Authorized Rep, Loan Facility, Loan Purpose (+ Working Capital Use / Loan Take-out sub-branches), Primary Repayment Source, Business/Employment Info, Existing Loans/Obligations (repeatable `ExistingLoanRow` list), Residence/Business Address, Collateral/Security Declaration, and Co-maker/Guarantee (edits `comakerChange`, which derives the read-only `comakers` mirror — see the maintenance doc's "Comaker sync"). Ends with a Material Changes/Clarifications free-text field.
+3. **AML / KYC Questions** (`aml-kyc-card.tsx`) — 6 fixed declaration questions (PEP, PGFC-related party, existing loans, payment history, returned checks, past-due obligations).
+4. **Customer Understanding of Loan Terms & Requirements** (`customer-understanding-card.tsx`) — Customer Level of Understanding, Terms and Requirements Understood (multiselect), Concerns/Clarifications.
+5. **Proposed Loan Package** (`proposed-loan-package-card.tsx`, PDF section 6) — Original Requested Amount (defaults once from `application.financialInfo.desiredLoanAmount`), interest rate/basis, facility/product, computation type (+ conditional Other), proposed amount/amortization/term, other request.
+6. **AO Preliminary Risk & Call Disposition** (`risk-disposition-card.tsx`, PDF section 7) — Primary Risk Driver (multiselect), Call Disposition (single-select), Reason/Key Condition.
+7. **NEXUS System Validation / Exception Handoff** (`system-validation-card.tsx`, PDF section 8) — **Refresh AI Review** button computes and stores `aiSummary`/`aiExceptions`/`aiRecommendation` onto `CallReport` (not recomputed on every render); AO vs. System Assessment Variance (+ conditional Explanation).
+8. **Account Officer Endorsement Declaration** (`endorsement-declaration-card.tsx`, PDF section 8 again) — 5 fixed attestation paragraphs (read-only), Account Officer name (defaults once from `application.assignedOfficer`) + date/time, Reviewed by Head name + date/time.
 
-There is no manual Call Summary or Additional Remarks card — both were
-removed in favor of an **AI review, summary & recommendation** card
-(mirroring Initial Credit Checking's own), added after the 12 section cards:
-a **View Call Report Result** button opens the same read-only
+There is no manual Call Summary, Additional Remarks, or "AI review, summary &
+recommendation" card — the AI fields now live inside section 7 (System
+Validation) itself. A standalone **View Call Report Result** button, after
+the 8 section cards, opens `CallReportResultModal` — the same read-only
 section-by-section mirror described under "Read-only mirrors" elsewhere in
-this doc; an **AI Summary** built fresh on every render by
-`buildCallSummary()` (`call-report-summary.ts`) so it can never drift out of
-sync with the answers above it; and an **AI Recommendation** from
-`buildCallReportAiRecommendation()` (`call-report-risk.ts`), driven primarily
-by the officer's own Preliminary Recommendation answer (section 11) and
-falling back to the computed DTI ratio only when that hasn't been entered
-yet.
+this doc.
 
-**Proceed gate**: Proceed is disabled until Call Status, Identity Confirmed,
-and Preliminary Recommendation are set, and — only when Call Status is
-Follow-up Needed or a follow-up call was scheduled in Agreed Next Steps — a
-Follow-up Date is also set. "Do Not Proceed" stays ungated.
+**Proceed gate**: `canProceed = !!interactionType && !!identityStatus &&
+!!callDisposition` — no follow-up-date sub-condition (that concept doesn't
+exist on the current `CallReport`). "Sales Reject" stays ungated and opens
+the same reason-dropdown + optional-remarks dialog as Initial Credit
+Checking's own Sales Reject.
 
-**"Fill with Sample Data" / "Remove Sample Data" toggle** — registered as a page action into the shared settings popover (see "Page actions" above), same pattern as Initial Credit Checking's sample-data action, no `NODE_ENV` gate. Label and behavior are driven by `canProceed` (the same boolean gating the Proceed button): while incomplete, one click fills every one of the 12 sections with representative sample values in one shot (including a synthesized one-item collateral entry and a synthesized one-item comaker entry, both built inline with `crypto.randomUUID()` rather than via their `addXEntry()`+`updateXEntry()` pairs, since those are separate async state updates and the sample-fill needs each entry's data present in the same synchronous `setCallReport` call); once complete, the button relabels to "Remove Sample Data" and clicking it resets every field in the report back to its blank default (leaving `AdminContext`'s other steps, and the read-only Application Details data pulled from `RegistrationContext`, untouched). `clientType` still exists on `CallReport` (kept for potential future use) but currently has no rendered UI anywhere, since the card that used to show it was removed. The AI summary/recommendation need no sample-data handling of their own since they're derived fresh from whatever the 12 sections currently hold, not stored.
+**"Fill with Sample Data" / "Remove Sample Data" toggle** — registered as a page action into the shared settings popover (see "Page actions" above), same pattern as Initial Credit Checking's sample-data action, no `NODE_ENV` gate. Label and behavior are driven by `canProceed` (the same boolean gating the Proceed button): while incomplete, one click fills every one of the 8 sections with representative sample values in one shot (including a synthesized one-item `ExistingLoanRow` and a synthesized `CallReportComakerChange` whose derived one-item `comakers` entry is built inline, both via `crypto.randomUUID()` rather than the array-mutation setters, since the sample-fill needs each entry's data present in the same synchronous `setCallReport` call); once complete, the button relabels to "Remove Sample Data" and clicking it resets every field in the report back to its blank default (leaving `AdminContext`'s other steps, and the read-only Application Details data pulled from `RegistrationContext`, untouched). `aiSummary`/`aiExceptions`/`aiRecommendation` are cleared to `''` on Remove Sample Data rather than recomputed, matching their refresh-on-demand (not derived-on-render) behavior.
 
 ### Requirement Checklist (`src/sections/admin/requirement-checklist-view.tsx`)
 

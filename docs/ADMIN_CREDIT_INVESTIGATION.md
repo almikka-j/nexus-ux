@@ -486,8 +486,9 @@ source pre-fill automatically — header address, Employment Status, Loan
 Purpose, and the Spouse scaffold — each via a one-time `useEffect` in
 `CiReportCard` that patches a field only while it's still at its untouched
 default, so it can never clobber an officer's own edit on a later render
-(same "default once" convention as `loan-discussion-card.tsx`'s Final Loan
-Purpose default). Every other field starts genuinely blank (or an empty
+(same "default once" convention as Call Report's
+`proposed-loan-package-card.tsx`/`endorsement-declaration-card.tsx` prefill
+fields). Every other field starts genuinely blank (or an empty
 array) until the officer types something or uploads a transcript.
 
 **`RichTextField`** (`src/components/rich-text-field/rich-text-field.tsx`,
