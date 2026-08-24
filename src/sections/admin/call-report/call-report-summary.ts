@@ -1,41 +1,22 @@
 import type { CallReport } from 'src/auth/admin-context';
 
 import {
-  computeTotalMonthlyIncome,
-  computeTotalMonthlyObligations,
-  computeDisposableIncome,
-  computeDti,
-} from './call-report-computations';
-import {
   labelFor,
-  CALL_TYPE_OPTIONS,
-  IDENTITY_CONFIRMED_OPTIONS,
-  REPAYMENT_SOURCE_OPTIONS,
-  RESIDENCE_YEARS_OPTIONS,
-  RESIDENCE_STATUS_OPTIONS,
-  INCOME_STABILITY_OPTIONS,
-  INCOME_TREND_OPTIONS,
-  ELECTRICITY_PAYMENT_OPTIONS,
-  CREDIT_CARD_PAYMENT_OPTIONS,
-  OTHER_LOAN_REPAYMENT_OPTIONS,
-  OFFICER_OBSERVATION_POSITIVE_OPTIONS,
-  OFFICER_OBSERVATION_ATTENTION_OPTIONS,
-  NEXT_STEP_OPTIONS,
-  PRELIMINARY_RECOMMENDATION_OPTIONS,
+  INTERACTION_TYPE_OPTIONS,
+  IDENTITY_STATUS_OPTIONS,
+  LOAN_PURPOSE_OPTIONS,
+  RISK_DRIVER_OPTIONS,
+  CALL_DISPOSITION_OPTIONS,
 } from './call-report-types';
 
 // ----------------------------------------------------------------------
 // Pure function: reads the structured CallReport answers and composes a
-// plain-text summary, skipping any section whose relevant fields are still
-// empty ("include when available" per the design spec). Recomputed fresh on
-// every render for the "AI review, summary & recommendation" card — not
-// stored on CallReport, so it can never drift out of sync with the answers
-// above it.
+// plain-text summary for the "NEXUS System Validation" card's AI Summary
+// field, skipping any section whose relevant fields are still empty.
+// Recomputed fresh whenever the officer clicks "Refresh AI Review" (see
+// system-validation-card.tsx) rather than on every render, so an officer
+// can see exactly what changed since the last refresh.
 // ----------------------------------------------------------------------
-
-function formatCurrency(value: number): string {
-  return `₱${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-}
 
 export function buildCallSummary(
   callReport: CallReport,
@@ -44,105 +25,78 @@ export function buildCallSummary(
   const lines: string[] = [];
   const name = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : 'the borrower';
 
-  const callTypeLabel = labelFor(CALL_TYPE_OPTIONS, callReport.callType);
-  if (callReport.callDate || callTypeLabel) {
+  const interactionLabel = labelFor(INTERACTION_TYPE_OPTIONS, callReport.interactionType);
+  if (callReport.callVisitDate || interactionLabel) {
     const parts = [`Call with ${name}`];
-    if (callReport.callDate) parts.push(`on ${callReport.callDate}`);
-    if (callReport.callTime) parts.push(`${callReport.callTime}`);
-    if (callTypeLabel) parts.push(`(${callTypeLabel})`);
+    if (callReport.callVisitDate) parts.push(`on ${callReport.callVisitDate}`);
+    if (callReport.callTime) parts.push(callReport.callTime);
+    if (interactionLabel) parts.push(`(${interactionLabel})`);
     lines.push(`${parts.join(' ')}.`);
   }
 
-  const identityLabel = labelFor(IDENTITY_CONFIRMED_OPTIONS, callReport.identityConfirmed);
-  if (identityLabel) lines.push(`Identity confirmed: ${identityLabel}.`);
+  const identityLabel = labelFor(IDENTITY_STATUS_OPTIONS, callReport.identityStatus);
+  if (identityLabel) lines.push(`Identity status: ${identityLabel}.`);
 
-  if (callReport.finalLoanPurpose) {
-    lines.push(`Loan purpose: ${callReport.finalLoanPurpose}.`);
+  const changedItems = Object.entries(callReport.validation).filter(([, status]) => status === 'changed');
+  const unableItems = Object.entries(callReport.validation).filter(([, status]) => status === 'unable-to-verify');
+  if (changedItems.length > 0) {
+    lines.push(`${changedItems.length} application item(s) marked Changed during this call.`);
   }
-  const repaymentLabel = labelFor(REPAYMENT_SOURCE_OPTIONS, callReport.primaryRepaymentSource);
-  if (repaymentLabel) lines.push(`Primary source of repayment: ${repaymentLabel}.`);
-
-  const residenceYearsLabel = labelFor(RESIDENCE_YEARS_OPTIONS, callReport.yearsAtResidence);
-  const residenceStatusLabel = labelFor(RESIDENCE_STATUS_OPTIONS, callReport.residenceStatus);
-  if (residenceYearsLabel || residenceStatusLabel || callReport.numberOfDependents) {
-    const parts: string[] = [];
-    if (residenceYearsLabel) parts.push(`residing at current address for ${residenceYearsLabel.toLowerCase()}`);
-    if (residenceStatusLabel) parts.push(`${residenceStatusLabel.toLowerCase()} residence`);
-    if (callReport.numberOfDependents) parts.push(`${callReport.numberOfDependents} dependents`);
-    if (parts.length) lines.push(`Household: ${parts.join(', ')}.`);
+  if (unableItems.length > 0) {
+    lines.push(`${unableItems.length} application item(s) Unable to Verify.`);
   }
 
-  const stabilityLabel = labelFor(INCOME_STABILITY_OPTIONS, callReport.incomeStability);
-  const trendLabel = labelFor(INCOME_TREND_OPTIONS, callReport.incomeTrend);
-  if (stabilityLabel || trendLabel) {
-    const parts: string[] = [];
-    if (stabilityLabel) parts.push(`income stable: ${stabilityLabel.toLowerCase()}`);
-    if (trendLabel) parts.push(`trend: ${trendLabel.toLowerCase()}`);
-    lines.push(`Employment/business: ${parts.join(', ')}.`);
+  const loanPurposeLabel = labelFor(LOAN_PURPOSE_OPTIONS, callReport.loanPurposeChangedTo);
+  if (loanPurposeLabel) lines.push(`Loan purpose changed to: ${loanPurposeLabel}.`);
+
+  const riskDriverLabels = callReport.primaryRiskDrivers
+    .map((value) => labelFor(RISK_DRIVER_OPTIONS, value))
+    .filter((label): label is string => !!label);
+  if (riskDriverLabels.length > 0) {
+    lines.push(`Primary risk driver(s): ${riskDriverLabels.join(', ')}.`);
   }
 
-  if (callReport.declaredNetMonthlyIncome) {
-    const income = computeTotalMonthlyIncome(callReport);
-    const obligations = computeTotalMonthlyObligations(callReport);
-    const disposable = computeDisposableIncome(callReport);
-    const dti = computeDti(callReport);
-    lines.push(
-      `Declared net monthly income ${formatCurrency(income)}; total obligations ${formatCurrency(
-        obligations
-      )}; preliminary disposable income ${formatCurrency(disposable)} (DTI ${dti.toFixed(0)}%).`
-    );
-  }
-
-  const electricityLabel = labelFor(ELECTRICITY_PAYMENT_OPTIONS, callReport.electricityPayment);
-  const creditCardLabel = labelFor(CREDIT_CARD_PAYMENT_OPTIONS, callReport.creditCardPayment);
-  const otherLoanLabel = labelFor(OTHER_LOAN_REPAYMENT_OPTIONS, callReport.otherLoanRepayment);
-  if (electricityLabel || creditCardLabel || otherLoanLabel) {
-    const parts: string[] = [];
-    if (electricityLabel) parts.push(`electricity: ${electricityLabel.toLowerCase()}`);
-    if (creditCardLabel) parts.push(`credit card: ${creditCardLabel.toLowerCase()}`);
-    if (otherLoanLabel) parts.push(`other loans: ${otherLoanLabel.toLowerCase()}`);
-    lines.push(`Payment behavior — ${parts.join('; ')}.`);
-  }
-
-  const allObservationOptions = [
-    ...OFFICER_OBSERVATION_POSITIVE_OPTIONS,
-    ...OFFICER_OBSERVATION_ATTENTION_OPTIONS,
-  ];
-  if (callReport.officerObservations.length > 0) {
-    const labels = callReport.officerObservations
-      .map((value) => labelFor(allObservationOptions, value))
-      .filter((label): label is string => !!label);
-    lines.push(`Officer observations: ${labels.join(', ').toLowerCase()}.`);
-  }
-
-  if (callReport.collateralOffered === 'yes' && callReport.collateralEntries.length > 0) {
-    lines.push(
-      `Collateral: ${callReport.collateralEntries.length} item(s) offered.`
-    );
-  } else if (callReport.collateralOffered === 'no') {
-    lines.push('No collateral offered.');
-  }
-
-  if (callReport.nextSteps.length > 0) {
-    const labels = callReport.nextSteps
-      .map((value) => labelFor(NEXT_STEP_OPTIONS, value))
-      .filter((label): label is string => !!label);
-    const dueSuffix = callReport.nextStepsDueDate ? ` Due ${callReport.nextStepsDueDate}.` : '';
-    lines.push(`Agreed next steps: ${labels.join(', ').toLowerCase()}.${dueSuffix}`);
-  }
+  const dispositionLabel = labelFor(CALL_DISPOSITION_OPTIONS, callReport.callDisposition);
+  if (dispositionLabel) lines.push(`Call disposition: ${dispositionLabel}.`);
 
   if (callReport.proposedLoanAmount) {
-    const term = callReport.proposedLoanTerm ? ` over ${callReport.proposedLoanTerm} months` : '';
+    const term = callReport.proposedLoanTermMonths ? ` over ${callReport.proposedLoanTermMonths} months` : '';
     lines.push(`Proposed: ₱${Number(callReport.proposedLoanAmount).toLocaleString()}${term}.`);
   }
 
-  const recommendationLabel = labelFor(
-    PRELIMINARY_RECOMMENDATION_OPTIONS,
-    callReport.preliminaryRecommendation
-  );
-  if (recommendationLabel) {
-    lines.push(`Preliminary recommendation: ${recommendationLabel}.`);
+  return lines.join(' ');
+}
+
+// ----------------------------------------------------------------------
+// AI Exceptions / Inconsistencies field — flags AML/KYC "for verification"
+// or "yes" answers to red-flag questions, and any Application Validation
+// row marked Unable to Verify, since those are exactly what the PDF's own
+// "8. NEXUS System Validation" section is meant to surface.
+// ----------------------------------------------------------------------
+
+export function buildCallReportAiExceptions(callReport: CallReport): string {
+  const exceptions: string[] = [];
+
+  if (callReport.amlIsPep === 'yes' || callReport.amlIsPep === 'for-verification') {
+    exceptions.push('Customer flagged as a possible Politically Exposed Person (PEP).');
+  }
+  if (callReport.amlIsPgfcRelatedParty === 'yes' || callReport.amlIsPgfcRelatedParty === 'for-verification') {
+    exceptions.push('Customer flagged as a possible PGFC-related party.');
+  }
+  if (callReport.amlHasReturnedChecks === 'yes' || callReport.amlHasReturnedChecks === 'for-verification') {
+    exceptions.push('Customer has a history of returned checks.');
+  }
+  if (callReport.amlHasPastDueObligations === 'yes' || callReport.amlHasPastDueObligations === 'for-verification') {
+    exceptions.push('Customer has past due or unpaid financial obligations.');
+  }
+  if (callReport.amlPaymentHistory === 'major-delays' || callReport.amlPaymentHistory === 'for-verification') {
+    exceptions.push('Payment history shows major delays or needs verification.');
   }
 
-  return lines.join(' ');
+  const unableCount = Object.values(callReport.validation).filter((status) => status === 'unable-to-verify').length;
+  if (unableCount > 0) {
+    exceptions.push(`${unableCount} application validation item(s) could not be verified during this call.`);
+  }
+
+  return exceptions.length > 0 ? exceptions.join(' ') : 'No exceptions or inconsistencies flagged.';
 }

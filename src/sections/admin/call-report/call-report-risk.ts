@@ -1,80 +1,69 @@
 import type { CallReport } from 'src/auth/admin-context';
 
-import { computeDti } from './call-report-computations';
-
 // ----------------------------------------------------------------------
-// Mirrors initial-credit-checking-risk.ts's shape (level + text) so the
-// Call Report page's "AI review, summary & recommendation" card matches
-// Initial Credit Checking's pattern. Driven by the officer's own
-// Preliminary Recommendation answer first — that's the explicit judgment
-// call from section 11 — falling back to the computed DTI ratio only when
-// no recommendation has been entered yet.
+// Mirrors initial-credit-checking-risk.ts's shape (level + text). Driven
+// by the officer's own Call Disposition answer first (section 7's
+// explicit judgment call), falling back to a simple AML/KYC exception
+// count when no disposition has been entered yet.
 // ----------------------------------------------------------------------
 
 export type CallReportRiskLevel = 'good' | 'watch' | 'high';
 
-const RECOMMENDATION_LEVELS: Partial<Record<CallReport['preliminaryRecommendation'], CallReportRiskLevel>> = {
-  'proceed-as-requested': 'good',
-  'proceed-with-revised-terms': 'watch',
-  'proceed-with-conditions': 'watch',
-  'needs-additional-verification': 'watch',
-  'schedule-follow-up': 'watch',
-  hold: 'high',
-  'do-not-proceed': 'high',
+const DISPOSITION_LEVELS: Partial<Record<CallReport['callDisposition'], CallReportRiskLevel>> = {
+  'proceed-to-next-process': 'good',
+  'proceed-subject-to-requirements': 'watch',
+  'additional-verification': 'watch',
+  'follow-up-call': 'watch',
+  'sales-reject-decline': 'high',
 };
+
+function countAmlFlags(callReport: CallReport): number {
+  const flagged: (CallReport['amlIsPep'] | CallReport['amlHasReturnedChecks'])[] = [
+    callReport.amlIsPep,
+    callReport.amlIsPgfcRelatedParty,
+    callReport.amlHasReturnedChecks,
+    callReport.amlHasPastDueObligations,
+  ];
+  return flagged.filter((value) => value === 'yes' || value === 'for-verification').length;
+}
 
 export function buildCallReportAiRecommendation(callReport: CallReport): {
   level: CallReportRiskLevel;
   text: string;
 } {
-  const dti = computeDti(callReport);
-  const dtiClause = callReport.declaredNetMonthlyIncome
-    ? ` Estimated debt-to-income ratio from declared figures is approximately ${dti.toFixed(0)}%.`
-    : '';
+  const amlFlagCount = countAmlFlags(callReport);
+  const amlClause = amlFlagCount > 0 ? ` ${amlFlagCount} AML/KYC item(s) flagged for review.` : '';
 
-  if (callReport.preliminaryRecommendation) {
-    const level = RECOMMENDATION_LEVELS[callReport.preliminaryRecommendation] ?? 'watch';
-    const reasonClause = callReport.recommendationReason ? ` ${callReport.recommendationReason}` : '';
+  if (callReport.callDisposition) {
+    const level = DISPOSITION_LEVELS[callReport.callDisposition] ?? 'watch';
+    const reasonClause = callReport.reasonKeyCondition ? ` ${callReport.reasonKeyCondition}` : '';
     switch (level) {
       case 'good':
-        return {
-          level,
-          text: `Officer recommends proceeding as requested.${dtiClause}${reasonClause}`,
-        };
+        return { level, text: `Officer recommends proceeding to the next process.${amlClause}${reasonClause}` };
       case 'high':
-        return {
-          level,
-          text: `Officer recommends against proceeding as currently proposed.${dtiClause}${reasonClause}`,
-        };
+        return { level, text: `Officer recommends against proceeding as currently proposed.${amlClause}${reasonClause}` };
       default:
         return {
           level,
-          text: `Officer recommends proceeding with conditions or further verification before this moves forward.${dtiClause}${reasonClause}`,
+          text: `Officer recommends proceeding with conditions or further verification before this moves forward.${amlClause}${reasonClause}`,
         };
     }
   }
 
-  if (!callReport.declaredNetMonthlyIncome) {
+  if (amlFlagCount === 0) {
     return {
       level: 'watch',
-      text: 'Preliminary recommendation and declared income are not yet on file — complete the call report above to generate a fuller read.',
+      text: 'Call disposition has not been entered yet, and no AML/KYC items are flagged so far — complete the sections above to generate a fuller read.',
     };
   }
-
-  if (dti <= 35) {
-    return {
-      level: 'good',
-      text: `Debt-to-income ratio from declared figures is approximately ${dti.toFixed(0)}% — within an acceptable range. No preliminary recommendation has been entered yet.`,
-    };
-  }
-  if (dti <= 50) {
+  if (amlFlagCount <= 1) {
     return {
       level: 'watch',
-      text: `Debt-to-income ratio from declared figures is approximately ${dti.toFixed(0)}% — worth a closer look. No preliminary recommendation has been entered yet.`,
+      text: `${amlFlagCount} AML/KYC item(s) flagged for review. No call disposition has been entered yet.`,
     };
   }
   return {
     level: 'high',
-    text: `Debt-to-income ratio from declared figures is approximately ${dti.toFixed(0)}% — high relative to declared income. No preliminary recommendation has been entered yet.`,
+    text: `${amlFlagCount} AML/KYC items flagged for review — worth a closer look. No call disposition has been entered yet.`,
   };
 }
