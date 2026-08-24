@@ -32,6 +32,7 @@ import { ApplicationDetailsCard } from './application-details-card';
 import { OfficerNotesDialog, buildOfficerNoteEntry } from './officer-notes-history';
 import { computeInstallment } from './cibi-form-card';
 import { BureauReportsCard } from './bureau-reports-card';
+import { NegativeCreditReportCard } from './negative-credit-report-card';
 import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
 import { simulateBureauFinding } from './simulate-bureau-finding';
 import { buildInitialAiRecommendation } from './initial-credit-checking-risk';
@@ -205,7 +206,7 @@ export function InitialCreditCheckingView() {
     if (!allBureauReportsUploaded) return;
     if (creditChecking.bureauFindingStatus !== 'pending') return;
 
-    const result = simulateBureauFinding([
+    const finding = simulateBureauFinding([
       signUpData.email,
       cibiForm.reportFileName ?? '',
       loandexUpload.fileName ?? '',
@@ -213,7 +214,11 @@ export function InitialCreditCheckingView() {
       cmapUpload.fileName ?? '',
       nfisBapUpload.fileName ?? '',
     ]);
-    setCreditChecking({ bureauFindingStatus: result });
+    setCreditChecking({
+      bureauFindingStatus: finding.status,
+      bureauFindingBureau: finding.bureau,
+      bureauFindingReason: finding.reason,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     allBureauReportsUploaded,
@@ -288,6 +293,8 @@ export function InitialCreditCheckingView() {
       documentUploaded: false,
       documentName: null,
       bureauFindingStatus: 'pending',
+      bureauFindingBureau: null,
+      bureauFindingReason: null,
     });
     resetNegativeCreditReport();
 
@@ -344,14 +351,24 @@ export function InitialCreditCheckingView() {
                 label: 'Force Clean Bureau Finding',
                 icon: 'solar:check-circle-bold',
                 color: '#0C8A4F',
-                onClick: () => setCreditChecking({ bureauFindingStatus: 'clean' }),
+                onClick: () =>
+                  setCreditChecking({
+                    bureauFindingStatus: 'clean',
+                    bureauFindingBureau: null,
+                    bureauFindingReason: null,
+                  }),
               },
               {
                 key: 'force-negative',
                 label: 'Force Negative Bureau Finding',
                 icon: 'solar:danger-triangle-bold',
                 color: '#B32C22',
-                onClick: () => setCreditChecking({ bureauFindingStatus: 'negative' }),
+                onClick: () =>
+                  setCreditChecking({
+                    bureauFindingStatus: 'negative',
+                    bureauFindingBureau: 'CMAP',
+                    bureauFindingReason: 'Court Case due to Estafa',
+                  }),
               },
             ]
           : []),
@@ -545,6 +562,10 @@ export function InitialCreditCheckingView() {
             </Box>
           </Stack>
         </Box>
+
+        {allBureauReportsUploaded && creditChecking.bureauFindingStatus === 'negative' && (
+          <NegativeCreditReportCard />
+        )}
 
         <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -12,7 +12,7 @@ import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, GENERIC_NEGATIVE_RECORD_TEXT } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
@@ -203,7 +203,27 @@ export function NegativeCreditReportCard() {
     updateNegativeReportEntry,
     removeNegativeReportEntry,
   } = useAdmin();
-  const { negativeCreditReport } = review;
+  const { negativeCreditReport, creditChecking } = review;
+  const { bureauFindingBureau, bureauFindingReason } = creditChecking;
+
+  // Default the narrative once from the simulated finding's specific bureau
+  // + reason, same "default once, officer can still edit" convention as
+  // accountOfficerName elsewhere on this admin flow. `negativeRecordText`
+  // starts pre-seeded with a generic boilerplate sentence (not blank), so
+  // the guard checks for that exact boilerplate rather than emptiness —
+  // never overwrites text the officer has already typed or edited away.
+  const didDefaultNarrative = useRef(false);
+  useEffect(() => {
+    if (didDefaultNarrative.current) return;
+    if (negativeCreditReport.negativeRecordText !== GENERIC_NEGATIVE_RECORD_TEXT) return;
+    if (bureauFindingBureau && bureauFindingReason) {
+      didDefaultNarrative.current = true;
+      setNegativeCreditReport({
+        negativeRecordText: `${bureauFindingBureau} flagged: ${bureauFindingReason}.`,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bureauFindingBureau, bureauFindingReason]);
 
   if (!signUpData) return null;
 
@@ -283,6 +303,11 @@ export function NegativeCreditReportCard() {
             A negative finding was detected in the simulated bureau review. Complete this report
             before proceeding — only Recommendation/Remarks is required.
           </Typography>
+          {bureauFindingBureau && bureauFindingReason && (
+            <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: TONE_COLORS.error.text, mt: 0.5 }}>
+              {bureauFindingBureau} — {bureauFindingReason}
+            </Typography>
+          )}
         </Box>
       </Stack>
 

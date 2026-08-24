@@ -27,11 +27,24 @@ export type CreditCheckDecision = 'pending' | 'approved' | 'rejected';
  */
 export type BureauFindingStatus = 'pending' | 'clean' | 'negative';
 
+/** Which bureau's reason pool a negative finding was drawn from — see
+ * `simulateBureauFinding` for the reason pools themselves (sourced from the
+ * PGFC bureau acceptance/disposition policy table). `null` when
+ * `bureauFindingStatus` is not `'negative'`. */
+export type BureauFindingBureau = 'NFIS' | 'CMAP' | null;
+
 export type CreditChecking = {
   documentUploaded: boolean;
   documentName: string | null;
   decision: CreditCheckDecision;
   bureauFindingStatus: BureauFindingStatus;
+  /** The specific bureau whose reason pool produced the negative finding —
+   * set alongside `bureauFindingStatus`/`bureauFindingReason` in the same
+   * `simulateBureauFinding` call, sticky for the same reason. */
+  bureauFindingBureau: BureauFindingBureau;
+  /** The specific policy reason (e.g. "Court Case due to Estafa") that
+   * produced the negative finding — see `bureauFindingBureau`. */
+  bureauFindingReason: string | null;
   /**
    * Free-form notes the credit-checking officer types while reviewing —
    * carries forward and is shown read-only on later steps (starting with
@@ -1053,14 +1066,19 @@ type AdminContextValue = AdminState & {
 
 const STORAGE_KEY = 'hhc-lms-admin-session';
 
+// Exported so NegativeCreditReportCard can tell this generic boilerplate
+// apart from officer-edited text before overwriting it with the finding's
+// specific bureau + reason — see that component's narrative-default effect.
+export const GENERIC_NEGATIVE_RECORD_TEXT =
+  'Source of information: BAP Credit Bureau / CMAP report on accounts under watch lists, cancelled credit cards, adverse classified loan file, closed current account and court case file as of ';
+
 // Same factory-not-constant rationale as createInitialReview below — also
 // reused directly by resetNegativeCreditReport(), so "start the form over"
 // and "start a whole new review" can never drift out of sync.
 function createInitialNegativeCreditReport(): NegativeCreditReport {
   return {
     thru: '',
-    negativeRecordText:
-      'Source of information: BAP Credit Bureau / CMAP report on accounts under watch lists, cancelled credit cards, adverse classified loan file, closed current account and court case file as of ',
+    negativeRecordText: GENERIC_NEGATIVE_RECORD_TEXT,
     accountFindings: [],
     cancelledCreditCards: [],
     adverseClassifiedLoans: [],
@@ -1354,6 +1372,8 @@ function createInitialReview(): ApplicationReview {
       documentName: null,
       decision: 'pending',
       bureauFindingStatus: 'pending',
+      bureauFindingBureau: null,
+      bureauFindingReason: null,
       notes: '',
       decisionReason: '',
       officerRecommendation: '',

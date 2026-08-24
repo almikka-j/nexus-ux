@@ -207,6 +207,8 @@ export function CreditCheckingResultModal({
   const showNegativeReport =
     creditChecking.bureauFindingStatus === 'negative' && negativeCreditReport.submitted;
   const hasNegativeBureauFinding = creditChecking.bureauFindingStatus === 'negative';
+  const negativeFindingBureau = creditChecking.bureauFindingBureau;
+  const negativeFindingReason = creditChecking.bureauFindingReason;
   const recommendationStyle = hasNegativeBureauFinding
     ? { background: '#FDE2DF', color: '#B32C22' }
     : isCleared
@@ -244,16 +246,16 @@ export function CreditCheckingResultModal({
       fileName: cmapUpload.fileName,
       uploadedAt: cmapUpload.uploadedAt,
       clearResult: `Summary: The CMAP report for ${fullName} shows no matching watch-list entry, court record, or adverse account record.`,
-      reviewResult: `Summary: The CMAP report for ${fullName} contains a possible watch-list or adverse-record match that requires officer validation.`,
-      needsReview: hasNegativeBureauFinding,
+      reviewResult: `Summary: The CMAP report for ${fullName} flagged: ${negativeFindingReason}. Requires officer validation.`,
+      needsReview: hasNegativeBureauFinding && negativeFindingBureau === 'CMAP',
     },
     {
       bureau: 'NFIS / BAP',
       fileName: nfisBapUpload.fileName,
       uploadedAt: nfisBapUpload.uploadedAt,
       clearResult: `Summary: The NFIS / BAP report for ${fullName} shows no cancelled credit card, adversely classified loan, or other negative-file indicator.`,
-      reviewResult: `Summary: The NFIS / BAP report for ${fullName} contains a possible negative-file indicator that requires officer validation.`,
-      needsReview: hasNegativeBureauFinding,
+      reviewResult: `Summary: The NFIS / BAP report for ${fullName} flagged: ${negativeFindingReason}. Requires officer validation.`,
+      needsReview: hasNegativeBureauFinding && negativeFindingBureau === 'NFIS',
     },
   ];
 

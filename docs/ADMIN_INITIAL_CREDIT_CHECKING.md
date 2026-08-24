@@ -179,12 +179,38 @@ A `useEffect` (lines ~96–119) runs once bureau uploads are complete and
 `simulateBureauFinding()` — a deterministic hash of the applicant's email plus
 every uploaded filename, **not** `Math.random()`, so the same applicant with
 the same filenames always gets the same simulated result on every reload.
-Result is `'clean' | 'negative'`, written once and never re-derived. It is read
-by `CreditCheckingResultModal` to decide which report content to show.
+
+`simulateBureauFinding()` returns `{ status, bureau, reason }`, not just a
+bare `'clean' | 'negative'` string. On a negative outcome, a second hash picks
+which bureau produced it (`'NFIS' | 'CMAP'`) and a third picks a specific
+reason from that bureau's own reason pool — both pools are transcribed from
+the actual PGFC bureau acceptance/disposition policy table (NFIS: closed
+current accounts, adversely classified loans, cancelled credit cards;
+CMAP: court cases — Estafa, BP 22, foreclosure, etc. — accounts referred to
+lawyers, telecom data, returned cheques). CIBI, CIC, and LOANDEX are not
+modeled as a source of the negative finding: CIBI's disposition is a score
+threshold this app has no bureau-score field to compare against, and CIC/
+LOANDEX's own reasons largely overlap NFIS/CMAP's pool. The source table also
+restricts CIC/LOANDEX checks to SME/Clean/Housing-account loan products —
+not modeled, since this app has no such account-type field (only
+`application.loanType: 'personal' | 'business'`); every application is
+checked against the same reason pools regardless of loan type.
+
+`status`/`bureau`/`reason` are written once (as `bureauFindingStatus`/
+`bureauFindingBureau`/`bureauFindingReason` on `CreditChecking`) and never
+re-derived. `bureauFindingStatus` is read by `CreditCheckingResultModal` to
+decide which report content to show; `bureauFindingBureau`/`bureauFindingReason`
+name which of the two CMAP/NFIS-BAP report rows shows "Needs review" and
+supply the specific flagged reason text in its summary, and seed
+`NegativeCreditReportCard`'s "Negative Record" field the first time that
+card renders after a negative finding (officer-editable afterward, same
+"default once" convention as `accountOfficerName` on the Call Report).
 
 Two floating dev-only buttons ("Force Clean"/"Force Negative", visible only
 when `allBureauReportsUploaded`) let an admin override this result manually
-for testing either branch without re-uploading different filenames.
+for testing either branch without re-uploading different filenames. Force
+Negative always sets `bureauFindingBureau: 'CMAP'` /
+`bureauFindingReason: 'Court Case due to Estafa'` as a fixed example.
 
 ## AI review card
 
@@ -199,7 +225,9 @@ for testing either branch without re-uploading different filenames.
    uploaded source (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP), including its filename,
    upload date, status, and extracted finding. Missing reports show only the
    "Not uploaded" status label and no summary text;
-   simulated negative results flag CMAP/NFIS-BAP for officer review. The copy
+   a negative simulated finding flags exactly one of CMAP/NFIS-BAP for officer
+   review — whichever `bureauFindingBureau` names — showing that row's
+   specific flagged reason text (`bureauFindingReason`). The copy
    explicitly tells officers to validate these simulated findings against the
    source documents before deciding. A separate **Recommendation & Remarks**
    field stores the department's written finding for forwarding to the Credit

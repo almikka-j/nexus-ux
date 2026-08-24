@@ -128,13 +128,16 @@ localStorage key: `hhc-lms-admin-session`
 ```ts
 AdminUser            { email, firstName, lastName }
 CreditChecking        { documentUploaded, documentName, decision, bureauFindingStatus,
-                        notes, decisionReason }
+                        bureauFindingBureau, bureauFindingReason, notes, decisionReason }
                         — aiSummary/aiRecommendation are NOT stored; computed at render
                         time in initial-credit-checking-view.tsx from the uploaded bureau
                         reports + application details (see
                         docs/ADMIN_INITIAL_CREDIT_CHECKING.md). bureauFindingStatus
                         ('pending'|'clean'|'negative') is the simulated AI bureau-review
-                        outcome — see "Negative Credit Report" below.
+                        outcome; bureauFindingBureau ('NFIS'|'CMAP'|null) and
+                        bureauFindingReason (string|null) name the specific policy
+                        reason a negative finding was drawn from — see "Negative Credit
+                        Report" below.
 NegativeCreditReport  { thru, negativeRecordText, accountFindings, cancelledCreditCards,
                         adverseClassifiedLoans, closedCurrentAccounts, recommendationRemarks,
                         submitted } — see "Negative Credit Report" below. The four list
@@ -640,21 +643,43 @@ content in `CreditCheckingResultModal`.
   `'clean'` or `'negative'` is simulated via a **deterministic hash** (same
   technique as `getLoanNumber`'s email hash, not `Math.random()`, so the
   result doesn't flip between re-renders/reloads), seeded by the applicant's
-  email plus all 5 bureau upload filenames. Computed exactly once per
+  email plus all 5 bureau upload filenames. `simulateBureauFinding()` returns
+  `{ status, bureau, reason }`, not a bare string: on a negative outcome, a
+  second hash over a re-salted seed picks which bureau produced it
+  (`'NFIS' | 'CMAP'`) and a third picks a specific reason from that bureau's
+  own reason pool. Both pools are transcribed from the actual PGFC bureau
+  acceptance/disposition policy table — NFIS: closed current accounts
+  (improper handling, DAIF, unfunded check, negative balance, returned
+  checks, bank-initiated), adversely classified loans (past due, foreclosure,
+  litigation, written-off), cancelled credit cards (payment default,
+  multiple past-due accounts); CMAP: court cases (Estafa, BP 22, foreclosure,
+  illegal recruitment, ejectment, falsification of public document, replevin,
+  unlawful detainer, swindling), accounts referred to lawyers, telecom data,
+  returned cheques (DAIF, account closed, improper handling). CIBI, CIC, and
+  LOANDEX are not modeled as a source of the negative finding — CIBI's
+  disposition in the source table is a score threshold this app has no
+  bureau-score field to compare against, and CIC/LOANDEX's own reasons
+  largely overlap NFIS/CMAP's pool. The source table also restricts CIC/
+  LOANDEX checks to SME/Clean/Housing-account loan products; not modeled,
+  since this app has no such account-type field (only `application.loanType:
+  'personal' | 'business'`) — every application is checked against the same
+  reason pools regardless of loan type. Computed exactly once per
   upload session in a `useEffect` in `initial-credit-checking-view.tsx`,
   guarded by `creditChecking.bureauFindingStatus === 'pending'` — once it
-  resolves to `'clean'` or `'negative'` it's sticky (persisted via the normal
-  `AdminContext` localStorage effect) and never re-rolled. Both this page
-  (to decide whether to show `NegativeCreditReportCard`) and
-  `CreditCheckingResultModal` (to decide which content to render) read
-  `review.creditChecking.bureauFindingStatus` directly — neither ever
+  resolves, `bureauFindingStatus`/`bureauFindingBureau`/`bureauFindingReason`
+  are sticky (persisted via the normal `AdminContext` localStorage effect)
+  and never re-rolled. Both this page (to decide whether to show
+  `NegativeCreditReportCard`) and `CreditCheckingResultModal` (to decide
+  which content to render) read these stored fields directly — neither ever
   re-calls `simulateBureauFinding` itself — so they can't disagree.
 - **QA override**: since the hash is stable for a given email + the fixed
   sample-upload filenames, "Fill with Sample Data" alone can't exercise both
   outcomes reliably. Two dev-only actions, "Force Clean Bureau Finding" /
   "Force Negative Bureau Finding" (visible once `allBureauReportsUploaded`),
-  directly set `bureauFindingStatus`, bypassing the hash for testing —
-  registered into the shared settings popover's "Page actions" section (see
+  directly set `bureauFindingStatus` (and, for the negative case, a fixed
+  `bureauFindingBureau: 'CMAP'` / `bureauFindingReason: 'Court Case due to
+  Estafa'`), bypassing the hash for testing — registered into the shared
+  settings popover's "Page actions" section (see
   "Page actions: per-view dev/test controls in the settings popover" below)
   rather than rendered as their own floating buttons.
 - **`NegativeCreditReportCard`** (`src/sections/admin/negative-credit-report-card.tsx`,
@@ -691,7 +716,12 @@ content in `CreditCheckingResultModal`.
     plain "Submitted" button label (which looked like a static, unclickable
     state) was replaced with this explicit, re-openable banner.
   Submit is disabled until Recommendation/Remarks is non-blank. Every field
-  except Recommendation/Remarks is optional.
+  except Recommendation/Remarks is optional. The card header also shows the
+  specific `bureauFindingBureau`/`bureauFindingReason` that triggered the
+  finding, and the "Negative Record" field defaults once from that same
+  bureau + reason the first time the card renders after a negative
+  finding — officer-editable afterward, same "default once" convention as
+  `accountOfficerName` on the Call Report.
 - **Data model** (`src/auth/admin-context.tsx`): `NegativeCreditReport` on
   `ApplicationReview.negativeCreditReport`, with 4 `NegativeReportEntry[]`
   lists (`accountFindings`, `cancelledCreditCards`, `adverseClassifiedLoans`,
@@ -713,7 +743,10 @@ content in `CreditCheckingResultModal`.
   original hardcoded all-clear content (deliberate: no separate "report
   pending" state was requested). When `showNegativeReport` is true: the
   "Bureau Reports Result" block first renders an AI-read result for each
-  uploaded source (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP). When a submitted
+  uploaded source (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) — on a negative
+  finding, only the one row named by `bureauFindingBureau` (CMAP or
+  NFIS/BAP) shows "Needs review", with `bureauFindingReason`'s specific text
+  in its summary; the other stays "Clear". When a submitted
   negative report exists, its consolidated officer finding then renders the officer's typed narrative, each
   Account Findings entry as `{label} : {findings}`, and for each of the 3
   special lists either its entries (same format) or, if empty, a centered
