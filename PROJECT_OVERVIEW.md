@@ -140,8 +140,8 @@ NegativeCreditReport  { thru, negativeRecordText, accountFindings, cancelledCred
                         submitted } — see "Negative Credit Report" below. The four list
                         fields are NegativeReportEntry[] ({ id, label, findings }).
 Reconsideration       { notes, decision }
-CallReport            { approved, clientType, ...~100 structured fields across 13
-                        sections — see "Call Report" below }
+CallReport            { approved, decisionReason, ...~65 structured fields across the
+                        8-section NEXUS KYC structure — see "Call Report" below }
 RequirementChecklist  { documents, appraisalGroups, collateralNotes, endorsed,
                         returnedToApplicant, returnReason } — documents is
                         RequirementDoc[] (fixed 19-document list across Credit
@@ -157,8 +157,8 @@ ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callR
 Exposed via `useAdmin()`: `setAdminUser`, `setCreditChecking`, `setReconsideration`,
 `setNegativeCreditReport`, `addNegativeReportEntry`, `updateNegativeReportEntry`,
 `removeNegativeReportEntry`, `resetNegativeCreditReport`, `setCallReport`,
-`addCollateralEntry`, `updateCollateralEntry`, `removeCollateralEntry`,
-`setRequirementChecklist`, `logout()`.
+`addExistingLoanRow`, `updateExistingLoanRow`, `removeExistingLoanRow`,
+`setCallReportComakerChange`, `setRequirementChecklist`, `logout()`.
 
 **Important limitation:** the admin portal does *not* have its own applicant
 database. There is exactly one **"live" application** — whichever one exists in the

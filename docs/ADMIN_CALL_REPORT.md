@@ -109,7 +109,7 @@ shared `RadioRow` helper from `call-report/call-report-types.tsx` (not from
 any per-section card file — `RadioRow`/`ChipToggleGroup` live in the shared
 types file now, not on a "first" section card).
 
-## System-generated validation (section 7 card)
+## System-generated validation (section 8 card)
 
 `system-validation-card.tsx`'s **Refresh AI Review** button is the only way
 `aiSummary`/`aiExceptions`/`aiRecommendation` change — pure functions read the

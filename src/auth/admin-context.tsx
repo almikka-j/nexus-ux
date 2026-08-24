@@ -266,20 +266,6 @@ export type CallReportComakerChange = {
   remarks: string;
 };
 
-export type CollateralEntry = {
-  id: string;
-  type: 'real-estate' | 'vehicle' | 'equipment' | 'inventory' | 'receivables' | 'deposit' | 'personal-guarantee' | 'corporate-guarantee' | 'other' | '';
-  description: string;
-  quantity: string;
-  registeredOwner: string;
-  ownerRelationship: string;
-  location: string;
-  estimatedValue: string;
-  ownershipDocsAvailable: 'yes' | 'no' | 'pending' | '';
-  existingLien: 'yes' | 'no' | 'unknown' | '';
-  requiresAppraisal: 'yes' | 'no' | 'tbd' | '';
-};
-
 export type CiComakerEntry = {
   id: string;
   name: string;
