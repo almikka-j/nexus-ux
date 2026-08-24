@@ -203,8 +203,6 @@ export function CallReportView() {
       varianceExplanation: '',
       accountOfficerName: application.assignedOfficer ?? 'Ramon Cruz',
       accountOfficerDateTime: new Date().toISOString().slice(0, 16),
-      reviewedByHeadName: 'Maria Santos',
-      reviewedByHeadDateTime: new Date().toISOString().slice(0, 16),
     });
   };
 
@@ -299,8 +297,6 @@ export function CallReportView() {
       varianceExplanation: '',
       accountOfficerName: '',
       accountOfficerDateTime: '',
-      reviewedByHeadName: '',
-      reviewedByHeadDateTime: '',
     });
   };
 

@@ -323,8 +323,6 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
             <FieldGrid columns={2}>
               <ResultField label="Account Officer" value={callReport.accountOfficerName} />
               <ResultField label="Date / Time" value={callReport.accountOfficerDateTime} />
-              <ResultField label="Reviewed by Head" value={callReport.reviewedByHeadName} />
-              <ResultField label="Date / Time" value={callReport.reviewedByHeadDateTime} />
             </FieldGrid>
           </Box>
         </Stack>

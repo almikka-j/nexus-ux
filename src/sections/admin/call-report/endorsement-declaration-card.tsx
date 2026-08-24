@@ -78,24 +78,6 @@ export function EndorsementDeclarationCard() {
             sx={fieldSx}
           />
         </Stack>
-        <Stack direction="row" spacing={2}>
-          <TextField
-            fullWidth
-            label="Reviewed by Head"
-            value={callReport.reviewedByHeadName}
-            onChange={(event) => setCallReport({ reviewedByHeadName: event.target.value })}
-            sx={fieldSx}
-          />
-          <TextField
-            fullWidth
-            label="Date / Time"
-            type="datetime-local"
-            value={callReport.reviewedByHeadDateTime}
-            onChange={(event) => setCallReport({ reviewedByHeadDateTime: event.target.value })}
-            InputLabelProps={{ shrink: true }}
-            sx={fieldSx}
-          />
-        </Stack>
       </Stack>
     </Box>
   );

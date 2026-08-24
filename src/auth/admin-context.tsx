@@ -471,8 +471,6 @@ export type CallReport = {
   // Account Officer Endorsement Declaration
   accountOfficerName: string;
   accountOfficerDateTime: string;
-  reviewedByHeadName: string;
-  reviewedByHeadDateTime: string;
 };
 
 export function createExistingLoanRow(): ExistingLoanRow {
@@ -1473,8 +1471,6 @@ function createInitialReview(): ApplicationReview {
 
       accountOfficerName: '',
       accountOfficerDateTime: '',
-      reviewedByHeadName: '',
-      reviewedByHeadDateTime: '',
     },
     requirementChecklist: {
       documents: createInitialRequirementDocuments(),

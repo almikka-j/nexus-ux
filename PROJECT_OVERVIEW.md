@@ -1169,7 +1169,7 @@ field lists and option-list names):
 5. **Proposed Loan Package** (`proposed-loan-package-card.tsx`, PDF section 6) — Original Requested Amount (defaults once from `application.financialInfo.desiredLoanAmount`), interest rate/basis, facility/product, computation type (+ conditional Other), proposed amount/amortization/term, other request.
 6. **AO Preliminary Risk & Call Disposition** (`risk-disposition-card.tsx`, PDF section 7) — Primary Risk Driver (multiselect), Call Disposition (single-select), Reason/Key Condition.
 7. **NEXUS System Validation / Exception Handoff** (`system-validation-card.tsx`, PDF section 8) — **Refresh AI Review** button computes and stores `aiSummary`/`aiExceptions`/`aiRecommendation` onto `CallReport` (not recomputed on every render); AO vs. System Assessment Variance (+ conditional Explanation).
-8. **Account Officer Endorsement Declaration** (`endorsement-declaration-card.tsx`, PDF section 8 again) — 5 fixed attestation paragraphs (read-only), Account Officer name (defaults once from `application.assignedOfficer`) + date/time, Reviewed by Head name + date/time.
+8. **Account Officer Endorsement Declaration** (`endorsement-declaration-card.tsx`, PDF section 8 again) — 5 fixed attestation paragraphs (read-only), Account Officer name (defaults once from `application.assignedOfficer`) + date/time. No Head-review field yet — planned for a separate Call Report Review step.
 
 There is no manual Call Summary, Additional Remarks, or "AI review, summary &
 recommendation" card — the AI fields now live inside section 7 (System
