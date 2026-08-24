@@ -1205,18 +1205,22 @@ disabled/broken text rather than an intentional design choice, so it was
 reverted entirely: every `Field` now renders at the same normal,
 readable weight regardless of section. The actual fix for length: every
 section after Land (Technical Specification, Source or Kind of
-Utilities, Improvement — General Construction Features, Basis of
-Valuation, and the Prepared/Reviewed/Endorsed/Noted By signature block)
-is wrapped in the shared `CollapsibleSection` component
+Utilities, Improvement — General Construction Features, and Basis of
+Valuation) is wrapped in the shared `CollapsibleSection` component
 (`src/components/collapsible-section` — the same chevron+`Collapse`
 shell Document Checklist and Requirement Checklist's per-tab groups
 already use elsewhere in this app), collapsed by default via a single
 `expanded: Record<string, boolean>` state keyed per section. The
 Valuation section's own totals (Loanable Amount, Rounded Figures,
 Appraised Value (P), Item of Property, FMV/RCN, Construction Status %,
-Depreciated Value) and Remarks/Recommendation stay always-visible, not
-wrapped in a `CollapsibleSection`, since they're short enough on their
-own not to need tucking away.
+Depreciated Value), Remarks/Recommendation, and the
+Prepared/Reviewed/Endorsed/Noted By signature block all stay
+always-visible, not wrapped in a `CollapsibleSection` — the signature
+block was wrapped in one in an earlier version, but who prepared,
+reviewed, endorsed, and noted a report is attribution a reviewer
+shouldn't have to click to see, not routine detail worth tucking away
+by default, so it now renders as a plain `SectionLabel` + `FieldGrid`
+like the other always-visible sections.
 
 **Land titles collapse too, past the first fix's remaining problem.**
 Wrapping only the sections AFTER Land wasn't enough on its own: a bundle

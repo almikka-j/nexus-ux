@@ -627,20 +627,15 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
             </FieldGrid>
           </Stack>
 
-          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-            <CollapsibleSection
-              title="Prepared / Reviewed / Endorsed / Noted By"
-              expanded={!!expanded.signoff}
-              onToggle={() => toggle('signoff')}
-            >
-              <FieldGrid>
-                <Field label="Prepared by" value={report.preparedBy} />
-                <Field label="Reviewed by" value={report.reviewedBy} />
-                <Field label="Endorsed by" value={report.endorsedBy} />
-                <Field label="Noted by" value={report.notedBy} />
-              </FieldGrid>
-            </CollapsibleSection>
-          </Box>
+          <Stack spacing={1.5}>
+            <SectionLabel>Prepared / Reviewed / Endorsed / Noted By</SectionLabel>
+            <FieldGrid>
+              <Field label="Prepared by" value={report.preparedBy} />
+              <Field label="Reviewed by" value={report.reviewedBy} />
+              <Field label="Endorsed by" value={report.endorsedBy} />
+              <Field label="Noted by" value={report.notedBy} />
+            </FieldGrid>
+          </Stack>
 
           {report.recommendation && (
             <Stack spacing={1.5}>
