@@ -849,17 +849,21 @@ a "+N more" suffix when the request bundles more than one property
 (`getAppraisalNumber(firstBundle.id)`; deduplicated `appraiserName`s,
 since a request can list more than one distinct appraiser if its
 bundles were assigned to different people) — rather than cramming every
-bundle's value into one cell. All of this renders whenever
-`feeApprovalStatus === 'pending-approval'`; otherwise an
-empty-state card (`"No requests waiting on a decision"`, or an
-approved/declined confirmation, or a "no live application" prompt to
-start one from Account Solicitation) for the states this auto-seed
-doesn't reach (e.g. right after declining or approving the seeded
-request, since the seed only fires once while `reportBundles.length ===
-0`). There is no real multi-application backend here — like every other
-list page in this app, at most one real
-row ever renders, since one live session only ever holds one live fee
-request.
+bundle's value into one cell. **The row always renders whenever a live
+application exists** (`!!signUpData`), regardless of `feeApprovalStatus`
+— same convention `application-list-view.tsx` uses for its own live row
+(always present, only its actionability/status varies by step). An
+earlier version gated the row behind `feeApprovalStatus ===
+'pending-approval'`, so approving or declining the seeded request made
+the row disappear entirely and the page fall back to an empty-state
+card; that gate was removed — only the `StatusBadge` tone/label
+(`APPRAISAL_FEE_ROW_STATUS_COPY`, one entry per `FeeApprovalStatus`
+value: `not-submitted`/`pending-approval`/`approved`/`declined`) varies
+now. The only remaining empty state is "no live application at all"
+(`!signUpData`), prompting to start one from Account Solicitation. There
+is no real multi-application backend here — like every other list page
+in this app, at most one real row ever renders, since one live session
+only ever holds one live fee request.
 
 Clicking the row navigates to
 **`/admin/appraisal-fee-approval/[bundleId]`**

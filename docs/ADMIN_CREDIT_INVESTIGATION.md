@@ -324,6 +324,19 @@ placeholder segment — there's no real multi-application backend in this
 prototype, so there's no real request ID to route on, same reasoning as
 `appraisalFeeApprovalBundle()`).
 
+**The live application's row always renders, whenever a live application
+exists** (`!!signUpData`), regardless of `ciFeeStatus` — same convention
+`application-list-view.tsx` uses for its own live row (always present,
+only its actionability/status varies). An earlier version of this page
+gated the row behind `ciFeeStatus === 'pending-approval'`, so approving
+or declining the request made the row disappear entirely and the page
+fall back to an empty-state card; that gate was removed — only the
+`StatusBadge` tone/label (`CI_FEE_ROW_STATUS_COPY`, one entry per
+`CiFeeStatus` value: `not-requested`/`pending-approval`/`approved`/
+`not-applicable`) varies now. The only remaining empty state is "no live
+application at all" (`!signUpData`), showing "Nothing waiting on you yet"
+with a **"Go to Application List"** button.
+
 **Auto-seed on the list page**: same convention
 `appraisal-fee-approval-view.tsx` uses — if the session hydrates with no
 live application, `loadSample(SAMPLE_APPLICATION)` loads the shared sample
@@ -331,16 +344,16 @@ dataset; then, if `ciFeeStatus === 'not-requested'` **and**
 `ciFeeDeclineReason` is empty, it seeds a fresh `pending-approval` request
 (₱3,500, "Field verification + report preparation fee") directly into
 state — so a fresh session always has one real, active, clickable request
-to look at instead of an empty list, matching every other list page in
-this app. The `!ciFeeDeclineReason` check matters: `CiFeeStatus` has no
-separate `'declined'` value — declining a request (see below) resets
-`ciFeeStatus` back to `'not-requested'`, the same status a genuinely
-never-requested application starts at. Seeding on bare `ciFeeStatus ===
-'not-requested'` alone would immediately regenerate a new pending request
-the moment the list re-renders after a decline, making the "nothing
-waiting" empty state unreachable; checking that `ciFeeDeclineReason` is
-still blank is what tells a fresh application apart from a just-declined
-one.
+to look at instead of a blank "not requested" row, matching every other
+list page in this app. The `!ciFeeDeclineReason` check matters:
+`CiFeeStatus` has no separate `'declined'` value — declining a request
+(see below) resets `ciFeeStatus` back to `'not-requested'`, the same
+status a genuinely never-requested application starts at. Seeding on bare
+`ciFeeStatus === 'not-requested'` alone would immediately regenerate a new
+pending request the moment the list re-renders after a decline, making
+the "just declined, not yet re-requested" row state unreachable; checking
+that `ciFeeDeclineReason` is still blank is what tells a fresh application
+apart from a just-declined one.
 
 **The detail page** (`ci-fee-approval-bundle-view.tsx`) shows a header
 card (applicant name/App No./email, a `StatusBadge` for `ciFeeStatus`,
@@ -350,34 +363,27 @@ CI-fee-request timestamp field exists in `AdminContext`; no "View
 Documents" button either, since — unlike Appraisal, which gates fee
 approval on per-property document completeness — CI Fee is a flat fee
 amount/description with no equivalent document-completeness concept tied
-to the decision), then a "CI Fee Details" card with the fee breakdown and
-the same **"Approve CI Fee"** / **"Decline CI Fee"** pair as the inline
-page action on `credit-investigation-view.tsx`, each behind its own
-`ConfirmDialog` — Approve's ("Approve CI Fee?") just names the
-applicant/amount; Decline's ("Reason for declining") requires the same
-typed reason as the inline page action. Both call plain
-`setCreditInvestigation({ ciFeeStatus: ... })` — CI Fee has no dedicated
-`approveCiFee()`/`declineCiFee()` context methods the way Appraisal does.
-An officer can act from whichever surface they're already on (this screen
-or the inline page action); both write the same
-`review.creditInvestigation` fields.
+to the decision), then a "CI Fee Details" card with the fee breakdown.
+When `ciFeeStatus === 'pending-approval'`, it shows the same
+**"Approve CI Fee"** / **"Decline CI Fee"** pair as the inline page action
+on `credit-investigation-view.tsx`, each behind its own `ConfirmDialog` —
+Approve's ("Approve CI Fee?") just names the applicant/amount; Decline's
+("Reason for declining") requires the same typed reason as the inline
+page action. Both call plain `setCreditInvestigation({ ciFeeStatus: ...
+})` — CI Fee has no dedicated `approveCiFee()`/`declineCiFee()` context
+methods the way Appraisal does. An officer can act from whichever surface
+they're already on (this screen or the inline page action); both write
+the same `review.creditInvestigation` fields. For any other status
+(`not-requested`, `approved`, `not-applicable`), it shows a status message
+instead of the action buttons (e.g. "No CI Fee has been requested for
+{name} yet.", "You already approved the CI Fee for {name}.", "This
+application doesn't require a CI Fee.") — the detail page only shows
+"Request not found" when there's no live application at all
+(`!signUpData`), not merely because the fee hasn't been requested.
 
 `ciFeeDeclineReason: string` on `CreditInvestigation` (`admin-context.tsx`)
 follows the same per-decision-reason convention as `decisionReason`, and
 also doubles as the auto-seed guard described above.
-
-If `ciFeeStatus === 'not-requested'` (including right after visiting this
-page and declining) or there's no live application, the detail page shows
-a "Request not found" state with a **"Back to Fee Approvals"** link rather
-than rendering stale/blank fee data. The list page's own non-pending state
-shows "No requests waiting on a decision" with copy that varies by
-`ciFeeStatus` (`approved`, `not-applicable`, or the generic
-not-yet-submitted case); if there's no live application at all
-(`!signUpData`), it shows a distinct "Nothing waiting on you yet" empty
-state with a **"Go to Application List"** button instead — unlike
-`credit-investigation-view.tsx`'s `if (!signUpData) return null;` guard,
-which is fine there since every other section on that page genuinely needs
-applicant data to render anything at all.
 
 ## CI Report
 

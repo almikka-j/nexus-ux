@@ -59,7 +59,8 @@ import type { CiFeeStatus } from 'src/auth/admin-context';
 // before this split).
 // ----------------------------------------------------------------------
 
-const CI_FEE_STATUS_COPY: Record<Exclude<CiFeeStatus, 'not-requested'>, { label: string; tone: SemanticTone }> = {
+const CI_FEE_STATUS_COPY: Record<CiFeeStatus, { label: string; tone: SemanticTone }> = {
+  'not-requested': { label: 'Not Requested', tone: 'neutral' },
   'pending-approval': { label: 'For Approval', tone: 'warning' },
   approved: { label: 'Approved', tone: 'success' },
   'not-applicable': { label: 'Not Applicable', tone: 'info' },
@@ -114,7 +115,7 @@ export function CiFeeApprovalBundleView() {
   const [declineReason, setDeclineReason] = useState('');
   const [justApproved, setJustApproved] = useState(false);
 
-  if (!signUpData || ciFeeStatus === 'not-requested') {
+  if (!signUpData) {
     return (
       <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
         <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
@@ -297,11 +298,23 @@ export function CiFeeApprovalBundleView() {
             </Stack>
           ) : (
             <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mt: 3 }}>
-              <Iconify icon="solar:check-circle-bold-duotone" width={20} sx={{ color: '#0C8A4F' }} />
+              <Iconify
+                icon={
+                  ciFeeStatus === 'approved' && justApproved
+                    ? 'solar:check-circle-bold-duotone'
+                    : 'solar:info-circle-bold-duotone'
+                }
+                width={20}
+                sx={{ color: ciFeeStatus === 'approved' ? '#0C8A4F' : '#8891A6' }}
+              />
               <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
                 {ciFeeStatus === 'approved'
-                  ? `You already approved the CI Fee for ${applicantName}.`
-                  : `Approved the CI Fee for ${applicantName}.`}
+                  ? justApproved
+                    ? `Approved the CI Fee for ${applicantName}.`
+                    : `You already approved the CI Fee for ${applicantName}.`
+                  : ciFeeStatus === 'not-applicable'
+                    ? `This application doesn't require a CI Fee.`
+                    : `No CI Fee has been requested for ${applicantName} yet.`}
               </Typography>
             </Stack>
           )}

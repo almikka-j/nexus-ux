@@ -24,12 +24,14 @@ import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, StatusBadge, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { adminCardSx, StatusBadge, outlinedNavyButtonSx, type SemanticTone } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
 
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { SAMPLE_APPLICATION } from './sample-application';
+
+import type { FeeApprovalStatus } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Personal workspace for the Appraisal Fee Approver — framed as "Fee
@@ -88,7 +90,24 @@ import { SAMPLE_APPLICATION } from './sample-application';
 // that was changed so this list follows the same "always show one real
 // active example" convention every other list page in this app already
 // does, rather than being the one exception.)
+//
+// The live application's row ALWAYS shows whenever a live application
+// exists in the session — same convention application-list-view.tsx uses
+// (its `liveRows` render unconditionally whenever `hasApplication` is
+// true, regardless of which step/status she's actually at). An earlier
+// version of this page gated the row behind `feeApprovalStatus ===
+// 'pending-approval'`, so approving/declining the request made the row
+// vanish entirely and the table fall back to an empty state — the row is
+// now always present and clickable; only its StatusBadge tone/label and
+// the detail page's available actions vary by status.
 // ----------------------------------------------------------------------
+
+const APPRAISAL_FEE_ROW_STATUS_COPY: Record<FeeApprovalStatus, { label: string; tone: SemanticTone }> = {
+  'not-submitted': { label: 'Not Submitted', tone: 'neutral' },
+  'pending-approval': { label: 'For Approval', tone: 'warning' },
+  approved: { label: 'Approved', tone: 'success' },
+  declined: { label: 'Declined', tone: 'error' },
+};
 
 export function AppraisalFeeApprovalView() {
   const router = useRouter();
@@ -141,7 +160,7 @@ export function AppraisalFeeApprovalView() {
   }, [hydrated, hasApplication, reportBundles.length]);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
-  const isPending = !!signUpData && feeApprovalStatus === 'pending-approval';
+  const rowStatusCopy = APPRAISAL_FEE_ROW_STATUS_COPY[feeApprovalStatus];
 
   const feeBundles = reportBundles.filter((bundle) => bundle.feeNeeded === 'yes');
   const totalFeeAmount = feeBundles.reduce((sum, bundle) => sum + (Number(bundle.feeAmount) || 0), 0);
@@ -186,7 +205,7 @@ export function AppraisalFeeApprovalView() {
               Fee Approvals
             </Typography>
             <Typography sx={{ fontSize: 14, color: '#667085', mt: 0.5 }}>
-              Appraisal fee requests from the officer, waiting on a decision.
+              Appraisal fee requests from the officer, past and present.
             </Typography>
           </Box>
           <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#3448B0', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
@@ -212,7 +231,7 @@ export function AppraisalFeeApprovalView() {
               Go to Application List
             </Button>
           </Box>
-        ) : isPending ? (
+        ) : (
           <Box sx={{ ...adminCardSx, p: 0, overflow: 'hidden' }}>
             <TableContainer>
               <Table sx={{ tableLayout: 'fixed' }}>
@@ -283,7 +302,7 @@ export function AppraisalFeeApprovalView() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge tone="warning" label="For Approval" />
+                      <StatusBadge tone={rowStatusCopy.tone} label={rowStatusCopy.label} />
                     </TableCell>
                     <TableCell>
                       <IconButton size="small" sx={{ color: '#8891A6' }}>
@@ -294,20 +313,6 @@ export function AppraisalFeeApprovalView() {
                 </TableBody>
               </Table>
             </TableContainer>
-          </Box>
-        ) : (
-          <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
-            <Iconify icon="solar:check-circle-bold-duotone" width={48} sx={{ color: '#C7CCDA', mb: 2 }} />
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              No requests waiting on a decision
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: '#8891A6' }}>
-              {feeApprovalStatus === 'approved'
-                ? `You already approved the Appraisal Fees for ${applicantName}.`
-                : feeApprovalStatus === 'declined'
-                  ? `You declined the Appraisal Fees for ${applicantName} — waiting on the appraiser to revise it.`
-                  : 'No officer has submitted Appraisal Fees for the current application yet.'}
-            </Typography>
           </Box>
         )}
       </Stack>

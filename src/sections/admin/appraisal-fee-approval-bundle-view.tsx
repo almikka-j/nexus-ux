@@ -19,6 +19,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
+import type { FeeApprovalStatus } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
 import { adminCardSx, StatusBadge, type SemanticTone } from 'src/components/admin-ui';
@@ -103,7 +104,8 @@ import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investi
 // disclaimer line that used to sit under these buttons has been removed.
 // ----------------------------------------------------------------------
 
-const FEE_APPROVAL_STATUS_COPY: Record<'pending-approval' | 'approved' | 'declined', { label: string; tone: SemanticTone }> = {
+const FEE_APPROVAL_STATUS_COPY: Record<FeeApprovalStatus, { label: string; tone: SemanticTone }> = {
+  'not-submitted': { label: 'Not Submitted', tone: 'neutral' },
   'pending-approval': { label: 'For Approval', tone: 'warning' },
   approved: { label: 'Approved', tone: 'success' },
   declined: { label: 'Declined', tone: 'error' },
@@ -160,7 +162,7 @@ export function AppraisalFeeApprovalBundleView() {
   const [justApproved, setJustApproved] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
 
-  if (!signUpData || feeApprovalStatus === 'not-submitted') {
+  if (!signUpData) {
     return (
       <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
         <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
@@ -384,13 +386,23 @@ export function AppraisalFeeApprovalBundleView() {
             </Stack>
           ) : (
             <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mt: 3 }}>
-              <Iconify icon="solar:check-circle-bold-duotone" width={20} sx={{ color: '#0C8A4F' }} />
+              <Iconify
+                icon={
+                  feeApprovalStatus === 'approved'
+                    ? 'solar:check-circle-bold-duotone'
+                    : 'solar:info-circle-bold-duotone'
+                }
+                width={20}
+                sx={{ color: feeApprovalStatus === 'approved' ? '#0C8A4F' : '#8891A6' }}
+              />
               <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
                 {feeApprovalStatus === 'approved'
-                  ? `You already approved the Appraisal Fees for ${applicantName}.`
+                  ? justApproved
+                    ? `Approved the Appraisal Fees for ${applicantName}.`
+                    : `You already approved the Appraisal Fees for ${applicantName}.`
                   : feeApprovalStatus === 'declined'
                     ? 'This request was declined — the appraiser has been asked to revise it.'
-                    : `Approved the Appraisal Fees for ${applicantName}.`}
+                    : `No Appraisal Fees have been submitted for ${applicantName} yet.`}
               </Typography>
             </Stack>
           )}

@@ -24,37 +24,56 @@ import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, StatusBadge, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { adminCardSx, StatusBadge, outlinedNavyButtonSx, type SemanticTone } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { SAMPLE_APPLICATION } from './sample-application';
+
+import type { CiFeeStatus } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Personal workspace for the CI Head/Approver — framed as "Fee Approvals,"
 // same list -> detail split as appraisal-fee-approval-view.tsx ->
 // appraisal-fee-approval-bundle-view.tsx. This page is now ONLY the list:
-// one row per pending CI Fee request, styled as a table matching the
-// Appraisal Fee Approvals list's own shape (Applicant/Amount/Status
-// columns — no Appraisal No./Properties/Appraiser columns since CI Fee is
-// a single flat per-application request, not a multi-property bundle: see
+// one row per CI Fee request, styled as a table matching the Appraisal Fee
+// Approvals list's own shape (Applicant/Amount/Status columns — no
+// Appraisal No./Properties/Appraiser columns since CI Fee is a single flat
+// per-application request, not a multi-property bundle: see
 // CreditInvestigation.ciFeeStatus/ciFeeAmount on AdminContext, which has no
 // bundle concept at all). Clicking the row navigates to
 // ci-fee-approval-bundle-view.tsx (paths.admin.ciFeeApprovalBundle()) — the
 // actual request detail, StatusBadge/FactChip header card, and
 // Approve/Decline actions all live there now, not here.
 //
+// The live application's row ALWAYS shows whenever a live application
+// exists in the session — same convention application-list-view.tsx uses
+// (its `liveRows` render unconditionally whenever `hasApplication` is
+// true, regardless of which step/status she's actually at; only
+// `isActionable` varies). An earlier version of this page gated the row
+// behind `ciFeeStatus === 'pending-approval'`, so approving/declining the
+// request made the row vanish entirely and the table fall back to an
+// empty state — the row is now always present and clickable; only its
+// StatusBadge tone/label and the detail page's available actions vary by
+// status.
+//
 // Since there's no real multi-application backend in this prototype, this
-// list only ever has at most one real row (the current live application's
-// request, if pending) — same as every other list page here.
+// list only ever has at most one real row (the current live application)
+// — same as every other list page here.
 //
 // Same auto-load-and-seed convention appraisal-fee-approval-view.tsx uses:
 // if the session hydrates with no live application, load the shared sample
 // dataset so `signUpData` becomes real session state instead of a disabled
-// placeholder, then — since this page needs an actual PENDING request to
-// show anything — seed one directly into `pending-approval` so there's
-// always one real, active, clickable request to look at on a fresh
-// session, not an empty list.
+// placeholder, then — if no CI Fee has ever been requested for it yet —
+// seed one directly into `pending-approval` so there's always one real,
+// active example to look at on a fresh session, not an empty list.
 // ----------------------------------------------------------------------
+
+const CI_FEE_ROW_STATUS_COPY: Record<CiFeeStatus, { label: string; tone: SemanticTone }> = {
+  'not-requested': { label: 'Not Requested', tone: 'neutral' },
+  'pending-approval': { label: 'For Approval', tone: 'warning' },
+  approved: { label: 'Approved', tone: 'success' },
+  'not-applicable': { label: 'Not Applicable', tone: 'info' },
+};
 
 export function CiFeeApprovalView() {
   const router = useRouter();
@@ -106,7 +125,7 @@ export function CiFeeApprovalView() {
   }, [hydrated, hasApplication, ciFeeStatus, ciFeeDeclineReason]);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
-  const isPending = !!signUpData && ciFeeStatus === 'pending-approval';
+  const rowStatusCopy = CI_FEE_ROW_STATUS_COPY[ciFeeStatus];
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
@@ -123,7 +142,7 @@ export function CiFeeApprovalView() {
               Fee Approvals
             </Typography>
             <Typography sx={{ fontSize: 14, color: '#667085', mt: 0.5 }}>
-              Credit Investigation fee requests from the officer, waiting on a decision.
+              Credit Investigation fee requests from the officer, past and present.
             </Typography>
           </Box>
           <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#3448B0', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
@@ -149,7 +168,7 @@ export function CiFeeApprovalView() {
               Go to Application List
             </Button>
           </Box>
-        ) : isPending ? (
+        ) : (
           <Box sx={{ ...adminCardSx, p: 0, overflow: 'hidden' }}>
             <TableContainer>
               <Table sx={{ tableLayout: 'fixed' }}>
@@ -208,7 +227,7 @@ export function CiFeeApprovalView() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge tone="warning" label="For Approval" />
+                      <StatusBadge tone={rowStatusCopy.tone} label={rowStatusCopy.label} />
                     </TableCell>
                     <TableCell>
                       <IconButton size="small" sx={{ color: '#8891A6' }}>
@@ -219,20 +238,6 @@ export function CiFeeApprovalView() {
                 </TableBody>
               </Table>
             </TableContainer>
-          </Box>
-        ) : (
-          <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
-            <Iconify icon="solar:check-circle-bold-duotone" width={48} sx={{ color: '#C7CCDA', mb: 2 }} />
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              No requests waiting on a decision
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: '#8891A6' }}>
-              {ciFeeStatus === 'approved'
-                ? `You already approved the CI Fee for ${applicantName}.`
-                : ciFeeStatus === 'not-applicable'
-                  ? `This application doesn't require a CI Fee.`
-                  : `No officer has submitted a CI Fee for the current application yet.`}
-            </Typography>
           </Box>
         )}
       </Stack>
