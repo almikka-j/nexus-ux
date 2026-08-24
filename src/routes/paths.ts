@@ -70,6 +70,12 @@ export const paths = {
     applicantProfile: (email: string) => `/admin/applications/profile/${email}`,
     negativeList: '/admin/negative-list',
     ciFeeApproval: '/admin/ci-fee-approval',
+    // Same fixed-placeholder-segment convention as appraisalFeeApprovalBundle
+    // — CI Fee is a single flat per-application request (no bundles), so
+    // there's no real request ID to route on; this only keeps the URL shape
+    // consistent with the list -> detail split every other fee-approval flow
+    // uses.
+    ciFeeApprovalBundle: () => '/admin/ci-fee-approval/current',
     appraisalAppraiser: '/admin/appraisal-appraiser',
     appraisalAppraiserBundle: (bundleId: string) => `/admin/appraisal-appraiser/${bundleId}`,
     appraisalFeeApproval: '/admin/appraisal-fee-approval',

@@ -5,7 +5,8 @@
 > `credit-investigation-risk.ts`, `credit-investigation-transcript.ts`,
 > `credit-investigation/ci-fee-card.tsx`, `credit-investigation/ci-report-card.tsx`,
 > `credit-investigation/credit-investigation-doc-row.tsx`,
-> `components/rich-text-field/rich-text-field.tsx`) change. Companion to
+> `components/rich-text-field/rich-text-field.tsx`, `ci-fee-approval-view.tsx`,
+> `ci-fee-approval-bundle-view.tsx`) change. Companion to
 > `PROJECT_OVERVIEW.md` and `docs/ADMIN_REQUIREMENT_CHECKLIST.md` (the step
 > immediately before this one in the pipeline).
 
@@ -293,116 +294,87 @@ deliberately leave `employmentStatus`, `loanPurposeNotes`, and
 own one-time pre-fill effect (see CI Report below), not by this page
 action, so toggling sample data on and off can never fight that effect.
 
-**Dedicated CI Fee Approval screen** (`/admin/ci-fee-approval`,
-`src/sections/admin/ci-fee-approval-view.tsx`) offers a second, fuller-review
+**Dedicated CI Fee Approval screens** (`/admin/ci-fee-approval` ->
+`/admin/ci-fee-approval/current`,
+`src/sections/admin/ci-fee-approval-view.tsx` (list) ->
+`ci-fee-approval-bundle-view.tsx` (detail)) offer a second, fuller-review
 way to trigger the same two outcomes — nested as the first entry under the
 **"Request"** nav dropdown (`approvalItems`, `config-nav-admin.tsx` — the
 variable name is unchanged, only the rendered dropdown title moved from
 "Approval" to "Request"), alongside "Appraiser"/"Appraisal - Approver
-Fee"/"Appraisal - Approver Report" (renamed from "Appraisal Appraiser"/
-"Appraisal Fee Approval"/"Appraisal Approver" respectively — see
-`docs/ADMIN_APPRAISAL.md`) rather than a page action buried in the settings
-popover. Framed as **"My Approvals"**, the CI Head/
-Approver's own personal workspace (small "CI HEAD / APPROVER" eyebrow
-label, first-person copy, no sample filler rows — see
-`docs/ADMIN_APPRAISAL.md`'s "Approval-role screens" section for the
-convention shared across all four Request-dropdown screens), not a generic
-admin-facing queue. It reads the same single live
-`review.creditInvestigation` state and, while
-`ciFeeStatus === 'pending-approval'`, shows the applicant identity, the same
-request amount/description/remarks detail box as `ci-fee-card.tsx`, and the
-same **"Approve CI Fee"** / **"Decline CI Fee"** pair, each behind its own
+Fee"/"Appraisal - Approver Report" (see `docs/ADMIN_APPRAISAL.md`) rather
+than a page action buried in the settings popover. Framed as **"Fee
+Approvals,"** the CI Head/Approver's own personal workspace (small "CI
+HEAD / APPROVER" eyebrow label, first-person copy, no sample filler rows),
+not a generic admin-facing queue.
+
+Same list -> detail split as `appraisal-fee-approval-view.tsx` ->
+`appraisal-fee-approval-bundle-view.tsx` (an earlier single-page version of
+this screen — with a combined live+sample-row queue list, a `QueueRow`
+component, an `OutcomeScreen` completion state, and an optional
+`SampleApplicationEntry.ciFee` field — was replaced by this split;
+`SampleApplicationEntry` has no CI-fee-related field today). The list page
+(`ci-fee-approval-view.tsx`) is table-only, one row per pending request
+(`Applicant / Description / CI Fee Amount / Status`) — no "Appraisal
+No."/"Properties"/"Appraiser" columns, since `ciFeeStatus` lives on a
+single flat `review.creditInvestigation` object with no bundle/multi-
+property concept at all, unlike Appraisal. Clicking the row navigates to
+the detail page (`paths.admin.ciFeeApprovalBundle()`, a fixed `/current`
+placeholder segment — there's no real multi-application backend in this
+prototype, so there's no real request ID to route on, same reasoning as
+`appraisalFeeApprovalBundle()`).
+
+**Auto-seed on the list page**: same convention
+`appraisal-fee-approval-view.tsx` uses — if the session hydrates with no
+live application, `loadSample(SAMPLE_APPLICATION)` loads the shared sample
+dataset; then, if `ciFeeStatus === 'not-requested'` **and**
+`ciFeeDeclineReason` is empty, it seeds a fresh `pending-approval` request
+(₱3,500, "Field verification + report preparation fee") directly into
+state — so a fresh session always has one real, active, clickable request
+to look at instead of an empty list, matching every other list page in
+this app. The `!ciFeeDeclineReason` check matters: `CiFeeStatus` has no
+separate `'declined'` value — declining a request (see below) resets
+`ciFeeStatus` back to `'not-requested'`, the same status a genuinely
+never-requested application starts at. Seeding on bare `ciFeeStatus ===
+'not-requested'` alone would immediately regenerate a new pending request
+the moment the list re-renders after a decline, making the "nothing
+waiting" empty state unreachable; checking that `ciFeeDeclineReason` is
+still blank is what tells a fresh application apart from a just-declined
+one.
+
+**The detail page** (`ci-fee-approval-bundle-view.tsx`) shows a header
+card (applicant name/App No./email, a `StatusBadge` for `ciFeeStatus`,
+Description/CI Fee Amount `FactChip`s — no "Properties" or "Requested On"
+chip, since CI Fee has no multi-property concept and no dedicated
+CI-fee-request timestamp field exists in `AdminContext`; no "View
+Documents" button either, since — unlike Appraisal, which gates fee
+approval on per-property document completeness — CI Fee is a flat fee
+amount/description with no equivalent document-completeness concept tied
+to the decision), then a "CI Fee Details" card with the fee breakdown and
+the same **"Approve CI Fee"** / **"Decline CI Fee"** pair as the inline
+page action on `credit-investigation-view.tsx`, each behind its own
 `ConfirmDialog` — Approve's ("Approve CI Fee?") just names the
-applicant/amount; Decline's ("Reason for declining") requires the same typed
-reason as the inline page action above. An officer can act from whichever
-surface they're already on; both write the same
+applicant/amount; Decline's ("Reason for declining") requires the same
+typed reason as the inline page action. Both call plain
+`setCreditInvestigation({ ciFeeStatus: ... })` — CI Fee has no dedicated
+`approveCiFee()`/`declineCiFee()` context methods the way Appraisal does.
+An officer can act from whichever surface they're already on (this screen
+or the inline page action); both write the same
 `review.creditInvestigation` fields.
 
 `ciFeeDeclineReason: string` on `CreditInvestigation` (`admin-context.tsx`)
-follows the same per-decision-reason convention as `decisionReason`.
+follows the same per-decision-reason convention as `decisionReason`, and
+also doubles as the auto-seed guard described above.
 
-Either action — instead of redirecting away — flips a local `justApproved`
-or `justDeclined` flag that swaps the whole screen to a one-time
-completed/outcome state (shared `OutcomeScreen` component, local to
-`ci-fee-approval-view.tsx`): centered icon, heading, body copy naming the
-applicant, a **"Continue to Credit Investigation"** primary action, and a
-**"Back to Application List"** secondary one — green check icon for
-approved, amber X icon for declined. This mirrors Requirement Checklist's
-local `SuccessState` component (`requirement-checklist-view.tsx`, shown on
-`endorsed`) so completing this screen reads the same way as completing any
-other step/decision in the pipeline, rather than a card quietly changing
-its own text in place. Both flags are deliberately separate from the
-persisted `ciFeeStatus`: that status can independently become `'approved'`
-via the inline page action or from an earlier session, and a decline
-resets to `'not-requested'` — indistinguishable from an application that
-never requested a fee at all — so treating every render of either
-resulting status as a fresh completion would be wrong. A stale `'approved'`
-status (both flags still `false`) instead falls through to the plain
-"already approved" info card described below; a stale `'not-requested'`
-status falls through to that same info card with its own copy.
-
-For any other `ciFeeStatus` (and no fresh `justApproved` completion), it
-shows a non-actionable empty state with a link back to Credit
-Investigation. If there is no live application at all in this session
-(`!signUpData` — e.g. fresh browser state, no borrower has gone through
-onboarding yet), it shows a distinct "No application in progress" empty
-state with a **"Go to Application List"** button, rather than rendering
-nothing — unlike `credit-investigation-view.tsx`'s
-`if (!signUpData) return null;` guard, which is fine there since every
-other section on that page genuinely needs applicant data to render
-anything at all; this screen has a real "nothing to show yet" state worth
-surfacing (with a way forward) instead of going blank. The existing page
-action on Credit Investigation is unchanged and still works independently
-— this screen is additive, not a replacement.
-
-**Styled as a real per-step queue/list**, matching every other queue in
-this app (`application-list-view.tsx`'s per-step filtered list for
-Initial Credit Checking, Call Report, Requirement Checklist, Credit
-Investigation) — one row per application currently relevant to this
-screen, not a single isolated card. Reuses the exact row shape from that
-page: a `QueueRow` local component (icon box, name + optional **"Sample"**
-badge, "App No. X" subtext, a `StatusBadge tone="warning" label="Pending
-approval"`).
-
-This required a genuine data-model addition, not just a restyle: unlike
-`ReviewStep` (a real per-application concept — every `SampleApplicationEntry`
-already carries its own `step`), `ciFeeStatus` lives on a single flat
-`review.creditInvestigation` object in `AdminContext` — there is exactly
-one `ciFeeStatus` in the whole app, belonging to the one live application.
-`SampleApplicationEntry` had no CI-fee-related fields at all, so nothing
-else in the data model could ever produce a second "pending" row. Fixed by
-adding an optional `ciFee?: { status: 'pending-approval'; amount: string;
-amountDescription: string; remarks?: string }` field to
-`SampleApplicationEntry` (`sample-applications.ts`) and setting it on two
-existing entries (Ramil Dela Cruz, Cristina Villanueva) — same read-only
-convention as every other sample in this app (no working Approve/Decline;
-these rows are non-actionable filler, no click handler, no navigation).
-
-The list combines:
-- **The live application's row — only when actually pending**
-  (`ciFeeStatus === 'pending-approval'`). Unlike `application-list-view.tsx`
-  (where the live row always appears on every step, non-actionable where
-  irrelevant), this row is omitted entirely otherwise, since most
-  `ciFeeStatus` values aren't meaningfully "at this queue" the way an
-  unstarted pipeline step still is.
-- **Sample rows** — every `SAMPLE_APPLICATIONS` entry with `ciFee` set.
-
-If neither the live row nor any sample row applies, an empty-state card
-("No CI Fee pending approval", `NOT_PENDING_COPY[ciFeeStatus]`) renders
-instead of an empty list, with a link back to Credit Investigation.
-
-**The live application's detail card + Approve/Decline actions render
-directly below the list whenever its row is present — no click or expand
-needed.** This was a deliberate simplicity choice (confirmed with the
-user) over making the row itself clickable/expandable, since this screen
-has no per-application URL to route a row-click to (unlike the other
-queues, which route to a dedicated page per application) and there's only
-ever one live row to show detail for.
-
-If there is no live application at all in this session (`!signUpData` —
-e.g. fresh browser state, no borrower has gone through onboarding yet), a
-distinct "No application in progress" empty state renders instead of the
-list entirely, with a **"Go to Application List"** button — unlike
+If `ciFeeStatus === 'not-requested'` (including right after visiting this
+page and declining) or there's no live application, the detail page shows
+a "Request not found" state with a **"Back to Fee Approvals"** link rather
+than rendering stale/blank fee data. The list page's own non-pending state
+shows "No requests waiting on a decision" with copy that varies by
+`ciFeeStatus` (`approved`, `not-applicable`, or the generic
+not-yet-submitted case); if there's no live application at all
+(`!signUpData`), it shows a distinct "Nothing waiting on you yet" empty
+state with a **"Go to Application List"** button instead — unlike
 `credit-investigation-view.tsx`'s `if (!signUpData) return null;` guard,
 which is fine there since every other section on that page genuinely needs
 applicant data to render anything at all.

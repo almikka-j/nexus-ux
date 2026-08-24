@@ -917,19 +917,21 @@ The admin shell renders one of two nav components depending on the current
   Financial Evaluation as independent queues so different officers can own the
   three disciplines and work in parallel.
 
-A fourth, flat top-level entry — **"CI Fee Approval"** (`path:
-paths.admin.ciFeeApproval`, no `children`) — sits last in `adminNavData`,
-after "For Reconsideration." Same leaf shape as "Dashboard" (a plain
-clickable row, not a collapsible section), since it's a secondary/
-occasional-use tool screen rather than part of the main pipeline: it
-offers a second way to approve the live application's pending CI Fee
-(`src/sections/admin/ci-fee-approval-view.tsx`), alongside the existing
-"Simulate: Another Officer Approves CI Fee" page action on Credit
-Investigation. Deliberately **not** nested under "Comprehensive Credit
-Checking" — unlike Negative List (which moved from top-level into "For
-Reconsideration" once a natural parent existed for it, see above), CI Fee
-Approval has no natural existing parent section without contradicting its
-own placement as a distinct, always-reachable screen.
+**"CI Fee Approval"** (`path: paths.admin.ciFeeApproval`) is nested as the
+first entry (`approvalItems`, `config-nav-admin.tsx`) under a separate
+**"Request"** nav dropdown, alongside the Appraisal roster/fee-approval/
+approver screens (see `docs/ADMIN_APPRAISAL.md`) — a secondary/
+occasional-use group of Request-role screens, distinct from the main
+pipeline's "Comprehensive Credit Checking" queues. It offers a second,
+fuller-review way to approve or decline the live application's pending CI
+Fee — a list page (`ci-fee-approval-view.tsx`, one row per pending
+request, auto-seeding a sample request on an empty session) that drills
+into a detail page (`ci-fee-approval-bundle-view.tsx`, at
+`paths.admin.ciFeeApprovalBundle()`) with the fee breakdown and Approve/
+Decline actions — alongside the existing "Simulate: Another Officer
+Approves CI Fee" / "Simulate: Another Officer Declines CI Fee" page
+actions on Credit Investigation; see `docs/ADMIN_CREDIT_INVESTIGATION.md`'s
+"CI Fee Approval screens" section for the full detail.
 
 Both section headers are **non-clickable labels** (`path: null` in
 `adminNavData` — no `href`, clicking anywhere on the row just toggles that

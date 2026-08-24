@@ -1,238 +1,144 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
+import TableRow from '@mui/material/TableRow';
 import Container from '@mui/material/Container';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import TableContainer from '@mui/material/TableContainer';
 
+import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
+import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
-import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
-import { fCurrency } from 'src/utils/format-number';
+import { adminCardSx, StatusBadge, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
-import type { CiFeeStatus } from 'src/auth/admin-context';
+import { SAMPLE_APPLICATION } from './sample-application';
 
 // ----------------------------------------------------------------------
-// Personal workspace for the Credit Investigation Head/Approver — framed
-// as "My Approvals," their own inbox of CI Fee requests waiting on a
-// decision, not a generic admin-facing queue. Same role-workspace
-// treatment as appraisal-appraiser-view.tsx's "My Assignments": a
-// "CI HEAD / APPROVER" eyebrow label, first-person copy, and no sample
-// filler rows — a real approver's inbox would never show other people's
-// unrelated requests. `ciFeeStatus` lives on a single flat
-// review.creditInvestigation object in AdminContext (not per-application),
-// so this only ever has the one live application's request to show.
+// Personal workspace for the CI Head/Approver — framed as "Fee Approvals,"
+// same list -> detail split as appraisal-fee-approval-view.tsx ->
+// appraisal-fee-approval-bundle-view.tsx. This page is now ONLY the list:
+// one row per pending CI Fee request, styled as a table matching the
+// Appraisal Fee Approvals list's own shape (Applicant/Amount/Status
+// columns — no Appraisal No./Properties/Appraiser columns since CI Fee is
+// a single flat per-application request, not a multi-property bundle: see
+// CreditInvestigation.ciFeeStatus/ciFeeAmount on AdminContext, which has no
+// bundle concept at all). Clicking the row navigates to
+// ci-fee-approval-bundle-view.tsx (paths.admin.ciFeeApprovalBundle()) — the
+// actual request detail, StatusBadge/FactChip header card, and
+// Approve/Decline actions all live there now, not here.
 //
-// This is a second way to trigger the same simulated-second-officer
-// approval the "Simulate: Another Officer Approves CI Fee" page action on
-// credit-investigation-view.tsx already offers; that action is unchanged
-// and still present.
+// Since there's no real multi-application backend in this prototype, this
+// list only ever has at most one real row (the current live application's
+// request, if pending) — same as every other list page here.
+//
+// Same auto-load-and-seed convention appraisal-fee-approval-view.tsx uses:
+// if the session hydrates with no live application, load the shared sample
+// dataset so `signUpData` becomes real session state instead of a disabled
+// placeholder, then — since this page needs an actual PENDING request to
+// show anything — seed one directly into `pending-approval` so there's
+// always one real, active, clickable request to look at on a fresh
+// session, not an empty list.
 // ----------------------------------------------------------------------
-
-const NOT_PENDING_COPY: Record<Exclude<CiFeeStatus, 'pending-approval'>, string> = {
-  'not-requested': "There's no CI Fee request waiting on you right now.",
-  approved: 'You already approved this CI Fee request.',
-  'not-applicable': "This application doesn't require a CI Fee.",
-};
-
-// Same completed-screen shape as Requirement Checklist's local
-// SuccessState (requirement-checklist-view.tsx, shown on `endorsed`) —
-// centered icon/heading/body plus a forward action and a "Back to
-// Application List" fallback — reused here for both outcomes (approved,
-// declined) so finishing this screen reads the same way regardless of
-// which decision was made, matching how other steps in this pipeline
-// present their own completion.
-function OutcomeScreen({
-  icon,
-  iconBg,
-  iconColor,
-  heading,
-  body,
-  forwardHref,
-  forwardLabel,
-}: {
-  icon: string;
-  iconBg: string;
-  iconColor: string;
-  heading: string;
-  body: string;
-  forwardHref: string;
-  forwardLabel: string;
-}) {
-  return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
-      <Stack
-        alignItems="center"
-        textAlign="center"
-        spacing={2}
-        sx={{ ...adminCardSx, p: { xs: 4, md: 6 } }}
-      >
-        <Box
-          sx={{
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: iconBg,
-          }}
-        >
-          <Iconify icon={icon} width={26} sx={{ color: iconColor }} />
-        </Box>
-        <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>{heading}</Typography>
-        <Typography sx={{ fontSize: 14, color: '#8891A6', maxWidth: 420 }}>{body}</Typography>
-        <Button
-          component={RouterLink}
-          href={forwardHref}
-          variant="contained"
-          sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', mt: 1, '&:hover': { bgcolor: '#14205A' } }}
-        >
-          {forwardLabel}
-        </Button>
-        <Button
-          component={RouterLink}
-          href={paths.admin.accountSolicitation}
-          variant="outlined"
-          sx={{ color: '#5A6273', borderColor: '#C7CCDA', borderRadius: '10px', mt: 0.5 }}
-        >
-          Back to Application List
-        </Button>
-      </Stack>
-    </Container>
-  );
-}
 
 export function CiFeeApprovalView() {
-  const { signUpData } = useRegistration();
+  const router = useRouter();
+  const { signUpData, application, hydrated, loadSample } = useRegistration();
   const { review, setCreditInvestigation } = useAdmin();
-  const { ciFeeStatus, ciFeeAmount, ciFeeAmountDescription, ciFeeRemarks } =
+  const { ciFeeStatus, ciFeeAmount, ciFeeAmountDescription, ciFeeDeclineReason } =
     review.creditInvestigation;
 
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [declineOpen, setDeclineOpen] = useState(false);
-  const [declineReason, setDeclineReason] = useState('');
+  const hasApplication = !!signUpData && !!application.personalInfo;
 
-  // Tracks "approved just now, in this visit" separately from the
-  // persisted `ciFeeStatus === 'approved'` — that status can also be
-  // reached via the other approval path (the inline page action on
-  // credit-investigation-view.tsx) or from an earlier session, so it isn't
-  // safe to treat every render of an already-'approved' status as a fresh
-  // completion. This flag gates the one-time success screen below; a
-  // stale 'approved' status (this flag still false) instead falls through
-  // to the plain "already approved" info card.
-  const [justApproved, setJustApproved] = useState(false);
-  // Same idea for a fresh decline — separate from the persisted state
-  // (which resets to 'not-requested', indistinguishable from an
-  // application that never had a CI Fee requested at all) so the officer
-  // still sees a clear "declined" outcome screen right after acting,
-  // instead of the request just silently reverting to its blank state.
-  const [justDeclined, setJustDeclined] = useState(false);
+  // Same auto-load-and-seed convention appraisal-fee-approval-view.tsx
+  // uses: if the session hydrates with no live application, load the
+  // shared sample dataset; then, since this page needs an actual PENDING
+  // fee request to show anything, seed one directly into that state if
+  // none exists yet — this mirrors the Appraisal Fee Approvals list's own
+  // "always show one real, active example" convention rather than leaving
+  // a fresh session's CI Fee Approvals list empty until someone manually
+  // drives the Credit Investigation flow first.
+  //
+  // Guarded on `!ciFeeDeclineReason`, not just `ciFeeStatus ===
+  // 'not-requested'` alone: declining a request (see
+  // ci-fee-approval-bundle-view.tsx) also resets ciFeeStatus back to
+  // 'not-requested' — the same re-entry point a genuinely-never-requested
+  // application starts at, since CiFeeStatus has no separate 'declined'
+  // value. `ciFeeDeclineReason` is the one field decline sets that a
+  // fresh/never-requested application never has, so it's what
+  // distinguishes "never asked yet" (seed a sample) from "the approver
+  // just declined this one" (leave it alone) — without it, returning to
+  // the list right after a decline would immediately regenerate another
+  // pending request every render, making the "nothing waiting" empty
+  // state unreachable.
+  const didSeedApplication = useRef(false);
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!hasApplication) {
+      if (didSeedApplication.current) return;
+      didSeedApplication.current = true;
+      loadSample(SAMPLE_APPLICATION);
+      return;
+    }
+    if (ciFeeStatus === 'not-requested' && !ciFeeDeclineReason) {
+      setCreditInvestigation({
+        ciFeeStatus: 'pending-approval',
+        ciFeeAmount: '3500',
+        ciFeeAmountDescription: 'Field verification + report preparation fee',
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, hasApplication, ciFeeStatus, ciFeeDeclineReason]);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
-
   const isPending = !!signUpData && ciFeeStatus === 'pending-approval';
-
-  // Stays on this page after approving (no redirect) so the approver sees
-  // the completed result — the success screen below — right here, instead
-  // of being sent away before the outcome is visible.
-  const confirmApprove = () => {
-    if (!signUpData) return;
-    setConfirmOpen(false);
-    setCreditInvestigation({ ciFeeStatus: 'approved' });
-    setJustApproved(true);
-  };
-
-  const closeDecline = () => {
-    setDeclineOpen(false);
-    setDeclineReason('');
-  };
-
-  // A typed reason is required, then the request is reset back to
-  // 'not-requested' (same re-entry point as an application that never
-  // requested a fee) — the officer can re-request from the CI Fee card
-  // with corrected terms.
-  const confirmDecline = () => {
-    if (!signUpData || !declineReason.trim()) return;
-    setCreditInvestigation({
-      ciFeeStatus: 'not-requested',
-      ciFeeAmount: '',
-      ciFeeAmountDescription: '',
-      ciFeeRemarks: '',
-      ciFeeDeclineReason: declineReason.trim(),
-    });
-    setDeclineOpen(false);
-    setDeclineReason('');
-    setJustDeclined(true);
-  };
-
-  if (justApproved && signUpData) {
-    return (
-      <OutcomeScreen
-        icon="solar:check-circle-bold"
-        iconBg="#E7F8F0"
-        iconColor="#12B76A"
-        heading="CI Fee approved"
-        body={`The CI Fee for ${applicantName} has been approved. The CI Report is now unlocked on the Credit Investigation page.`}
-        forwardHref={paths.admin.creditInvestigation(encodeURIComponent(signUpData.email))}
-        forwardLabel="Continue to Credit Investigation"
-      />
-    );
-  }
-
-  if (justDeclined && signUpData) {
-    return (
-      <OutcomeScreen
-        icon="solar:close-circle-bold"
-        iconBg="#FEF0D6"
-        iconColor="#B36A05"
-        heading="CI Fee declined"
-        body={`The CI Fee request for ${applicantName} was declined and reset. The officer can re-request it from Credit Investigation with corrected terms.`}
-        forwardHref={paths.admin.creditInvestigation(encodeURIComponent(signUpData.email))}
-        forwardLabel="Continue to Credit Investigation"
-      />
-    );
-  }
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
-      <Stack spacing={4}>
-        <Box sx={{ px: 1 }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#3448B0', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
+      <Stack spacing={3}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          justifyContent="space-between"
+          spacing={1}
+          sx={{ px: 1 }}
+        >
+          <Box>
+            <Typography sx={{ fontSize: 30, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em' }}>
+              Fee Approvals
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: '#667085', mt: 0.5 }}>
+              Credit Investigation fee requests from the officer, waiting on a decision.
+            </Typography>
+          </Box>
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#3448B0', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
             CI Head / Approver
           </Typography>
-          <Typography sx={{ fontSize: 30, fontWeight: 800, color: '#14172A', letterSpacing: '-0.02em' }}>
-            My Approvals
-          </Typography>
-          <Typography sx={{ fontSize: 14, color: '#667085', mt: 0.5 }}>
-            Credit Investigation fee requests waiting on your decision.
-          </Typography>
-        </Box>
+        </Stack>
 
         {!signUpData ? (
           <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
-            <Iconify
-              icon="solar:wallet-money-bold-duotone"
-              width={48}
-              sx={{ color: '#C7CCDA', mb: 2 }}
-            />
+            <Iconify icon="solar:wallet-money-bold-duotone" width={48} sx={{ color: '#C7CCDA', mb: 2 }} />
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
               Nothing waiting on you yet
             </Typography>
             <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
-              There’s no live application in this session yet. Start one from the Application List,
-              then request a CI Fee on its Credit Investigation page.
+              There’s no live application in this session yet. Start one from the Application List.
             </Typography>
             <Button
               component={RouterLink}
@@ -244,163 +150,92 @@ export function CiFeeApprovalView() {
             </Button>
           </Box>
         ) : isPending ? (
-          <Box sx={{ ...adminCardSx, p: { xs: 3, md: 4 } }}>
-            <Stack spacing={0.5} sx={{ mb: 2.5 }}>
-              <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#14172A' }}>
-                {applicantName}
-              </Typography>
-              <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
-                App No. {getLoanNumber(signUpData.email)} · {signUpData.email}
-              </Typography>
-            </Stack>
-
-            <Stack
-              spacing={1.5}
-              sx={{ p: 2, borderRadius: '12px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}
-            >
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ pb: 1.5, borderBottom: '1px solid #E7EAF1' }}
-              >
-                <Box>
-                  <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#8891A6' }}>
-                    REQUEST AMOUNT
-                  </Typography>
-                  <Typography sx={{ mt: 0.25, fontSize: 21, fontWeight: 800, color: '#1C2A6E' }}>
-                    {fCurrency(ciFeeAmount)}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    width: 38,
-                    height: 38,
-                    display: 'grid',
-                    placeItems: 'center',
-                    borderRadius: '10px',
-                    color: '#1C2A6E',
-                    bgcolor: '#E9EDFF',
-                  }}
-                >
-                  <Iconify icon="solar:wad-of-money-bold-duotone" width={22} />
-                </Box>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between">
-                <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Description</Typography>
-                <Typography sx={{ fontSize: 12.5, color: '#3B4256', textAlign: 'right', maxWidth: '65%' }}>
-                  {ciFeeAmountDescription}
-                </Typography>
-              </Stack>
-              {ciFeeRemarks && (
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Remarks</Typography>
-                  <Typography sx={{ fontSize: 12.5, color: '#3B4256', textAlign: 'right', maxWidth: '65%' }}>
-                    {ciFeeRemarks}
-                  </Typography>
-                </Stack>
-              )}
-            </Stack>
-
-            <Typography sx={{ fontSize: 12.5, color: '#5A6273', mt: 2.5 }}>
-              This request is waiting on your decision before the CI Report can be prepared.
-            </Typography>
-
-            <Stack spacing={1} sx={{ mt: 2.5 }}>
-              <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-                <Button
-                  onClick={() => setConfirmOpen(true)}
-                  variant="contained"
-                  startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
-                  sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#14205A' } }}
-                >
-                  Approve CI Fee
-                </Button>
-                <Button
-                  onClick={() => setDeclineOpen(true)}
-                  variant="outlined"
-                  startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
-                  sx={{ color: '#B32C22', borderColor: '#F3C4BE', borderRadius: '10px', px: 2.5, '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(179,44,34,0.04)' } }}
-                >
-                  Decline CI Fee
-                </Button>
-              </Stack>
-              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
-                There’s no real second-officer login in this prototype — approving or declining
-                here simulates your review.
-              </Typography>
-            </Stack>
+          <Box sx={{ ...adminCardSx, p: 0, overflow: 'hidden' }}>
+            <TableContainer>
+              <Table sx={{ tableLayout: 'fixed' }}>
+                <TableHead>
+                  <TableRow
+                    sx={{
+                      '& th': {
+                        bgcolor: '#FBFBFD',
+                        borderBottom: '1px solid #E1E4ED',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: '#8891A6',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        py: 1.5,
+                        px: 2,
+                      },
+                    }}
+                  >
+                    <TableCell sx={{ width: '30%' }}>Applicant</TableCell>
+                    <TableCell sx={{ width: '35%' }}>Description</TableCell>
+                    <TableCell sx={{ width: '18%' }}>CI Fee Amount</TableCell>
+                    <TableCell sx={{ width: '17%' }}>Status</TableCell>
+                    <TableCell sx={{ width: 44 }} />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow
+                    hover
+                    onClick={() => router.push(paths.admin.ciFeeApprovalBundle())}
+                    sx={{
+                      cursor: 'pointer',
+                      '& td': {
+                        borderColor: '#EEF0F5',
+                        py: 1.375,
+                        px: 2,
+                      },
+                    }}
+                  >
+                    <TableCell>
+                      <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A' }}>
+                        {applicantName}
+                      </Typography>
+                      <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
+                        App No. {getLoanNumber(signUpData.email)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography sx={{ fontSize: 13.5, color: '#5A6273' }} noWrap title={ciFeeAmountDescription}>
+                        {ciFeeAmountDescription || '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#1C2A6E' }}>
+                        {fCurrency(ciFeeAmount)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge tone="warning" label="For Approval" />
+                    </TableCell>
+                    <TableCell>
+                      <IconButton size="small" sx={{ color: '#8891A6' }}>
+                        <Iconify icon="eva:arrow-ios-forward-fill" width={18} />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Box>
         ) : (
           <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
-            <Iconify
-              icon="solar:check-circle-bold-duotone"
-              width={48}
-              sx={{ color: '#C7CCDA', mb: 2 }}
-            />
+            <Iconify icon="solar:check-circle-bold-duotone" width={48} sx={{ color: '#C7CCDA', mb: 2 }} />
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              Nothing waiting on you right now
+              No requests waiting on a decision
             </Typography>
-            <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
-              {NOT_PENDING_COPY[ciFeeStatus as Exclude<CiFeeStatus, 'pending-approval'>]}
+            <Typography sx={{ fontSize: 14, color: '#8891A6' }}>
+              {ciFeeStatus === 'approved'
+                ? `You already approved the CI Fee for ${applicantName}.`
+                : ciFeeStatus === 'not-applicable'
+                  ? `This application doesn't require a CI Fee.`
+                  : `No officer has submitted a CI Fee for the current application yet.`}
             </Typography>
-            <Button
-              component={RouterLink}
-              href={paths.admin.creditInvestigation(encodeURIComponent(signUpData.email))}
-              variant="outlined"
-              sx={{ ...outlinedNavyButtonSx, px: 2.5 }}
-            >
-              Go to Credit Investigation
-            </Button>
           </Box>
         )}
       </Stack>
-
-      <ConfirmDialog
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title="Approve CI Fee?"
-        content={
-          <>
-            Approving unlocks the CI Report for <strong>{applicantName}</strong>
-            {ciFeeAmount ? <> ({fCurrency(ciFeeAmount)})</> : null}. This can’t be undone from
-            here.
-          </>
-        }
-        action={
-          <Button variant="contained" onClick={confirmApprove} sx={confirmDialogActionToneSx.default}>
-            Approve
-          </Button>
-        }
-      />
-
-      <ConfirmDialog
-        open={declineOpen}
-        onClose={closeDecline}
-        title="Reason for declining"
-        content={
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            minRows={3}
-            placeholder="Explain why this CI Fee request is being declined…"
-            value={declineReason}
-            onChange={(event) => setDeclineReason(event.target.value)}
-            sx={{ mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
-          />
-        }
-        action={
-          <Button
-            variant="contained"
-            disabled={!declineReason.trim()}
-            onClick={confirmDecline}
-            sx={confirmDialogActionToneSx.destructive}
-          >
-            Confirm
-          </Button>
-        }
-      />
     </Container>
   );
 }
