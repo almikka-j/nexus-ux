@@ -223,13 +223,10 @@ export function ApplicationListView({ accountSolicitation = false }: Application
         registration: { signUpData, verified: true, application } as RegistrationState,
         step,
         // The live application is always clickable on every step's row,
-        // same as every other step in this pipeline (creditChecking through
-        // requirementChecklist) — letting an admin inspect/act on her
-        // application at any step at will, not gating access behind
-        // completing an earlier step first. Financial Evaluation remains
-        // informational-only since its detailed workspace page doesn't
-        // exist yet.
-        isActionable: step !== 'financialEvaluation',
+        // same as every other step in this pipeline — letting an admin
+        // inspect/act on her application at any step at will, not gating
+        // access behind completing an earlier step first.
+        isActionable: true,
       }))
     : [];
 
@@ -305,6 +302,7 @@ export function ApplicationListView({ accountSolicitation = false }: Application
     requirementChecklist: paths.admin.requirementChecklist,
     creditInvestigation: paths.admin.creditInvestigation,
     appraisal: paths.admin.appraisal,
+    financialEvaluation: paths.admin.financialEvaluation,
   };
 
   const handleRowClick = (row: ListRow) => {

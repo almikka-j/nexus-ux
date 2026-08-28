@@ -13,9 +13,19 @@
 // ----------------------------------------------------------------------
 
 import type { RequirementDoc } from 'src/auth/admin-context';
-import type { RequirementDocMeta } from './requirement-checklist-docs';
+import type { RequirementDocMeta } from './credit-investigation-docs';
 
 export type CreditInvestigationRiskLevel = 'good' | 'watch' | 'high';
+
+// Shared by every "AI review, summary & recommendation" card built on top of
+// buildCreditInvestigationSummary()'s output (Credit Investigation's own
+// page, and Financial Evaluation's) so both read identical colors/labels for
+// the same risk level instead of keeping separate copies in sync by hand.
+export const AI_REVIEW_RISK_STYLES = {
+  good: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Ready' },
+  watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Almost ready' },
+  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'Not ready' },
+} as const;
 
 export function buildCreditInvestigationSummary(
   fixedDocs: RequirementDoc[],

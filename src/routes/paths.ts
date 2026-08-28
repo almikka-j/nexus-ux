@@ -97,6 +97,7 @@ export const paths = {
     requirementChecklist: (id: string) => `/admin/applications/${id}/requirement-checklist`,
     creditInvestigation: (id: string) => `/admin/applications/${id}/credit-investigation`,
     appraisal: (id: string) => `/admin/applications/${id}/appraisal`,
+    financialEvaluation: (id: string) => `/admin/applications/${id}/financial-evaluation`,
     creditScoring: (id: string) => `/admin/applications/${id}/credit-scoring`,
   },
 };

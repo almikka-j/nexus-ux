@@ -16,19 +16,17 @@
 (`src/sections/admin/credit-investigation-view.tsx`, rendered at
 `/admin/applications/[id]/credit-investigation`). This is the detail
 workspace for the `creditInvestigation` step under the sidebar's
-"Comprehensive Credit Checking" section — that nav entry and the
-`ReviewStep` type value existed before this page did, deliberately scaffolded
-ahead of their workspace (see `PROJECT_OVERVIEW.md`'s admin flow section);
-this page is that workspace.
+"Application" section (its Comprehensive Credit Checking sub-items) — that
+nav entry and the `ReviewStep` type value existed before this page did,
+deliberately scaffolded ahead of their workspace (see `PROJECT_OVERVIEW.md`'s
+admin flow section); this page is that workspace.
 
 Pipeline position: Initial Credit Checking → Call Report → Requirement
-Checklist → **Credit Investigation** → Appraisal → *(next step not yet
-built — Financial Evaluation remains a non-actionable placeholder)*. The live
-application's Credit Investigation queue row is always actionable, same as
-every other built step in this pipeline (Initial Credit Checking through
-Requirement Checklist) — an admin can inspect/act on the live application at
-any step at will, regardless of whether Requirement Checklist has been
-endorsed yet.
+Checklist → **Credit Investigation** → Appraisal → Financial Evaluation (see
+`docs/ADMIN_FINANCIAL_EVALUATION.md`). The live application's Credit
+Investigation queue row is always actionable, same as every other step in
+this pipeline — an admin can inspect/act on the live application at any step
+at will, regardless of whether Requirement Checklist has been endorsed yet.
 
 There is no real backend and no real AI — every document's status, every
 "AI Summary"/recommendation, and the transcript auto-fill are deterministic,
@@ -519,18 +517,15 @@ this app's generally permissive decision-gate style elsewhere):
 
 ## Queue unlocking
 
-`application-list-view.tsx`'s live-row `isActionable` for the
-`creditInvestigation` step is unconditionally `true`, matching every other
-built step in this pipeline (`creditChecking` through
-`requirementChecklist`) — the row is always clickable in the "Comprehensive
-Credit Checking → Credit Investigation" queue, regardless of Requirement
-Checklist's endorsement status. An earlier version of this page gated the
-row behind `review.requirementChecklist.endorsed`, but that broke the
-established "the live application's row is always actionable on every
-step" convention every other step in this list follows — reverted so an
-admin can reach this page directly at any time, same as any other step.
-Financial Evaluation remains always non-actionable (unbuilt); Appraisal is
-now built and actionable like every other step in the pipeline.
+`application-list-view.tsx`'s live-row `isActionable` is unconditionally
+`true` for every step in this pipeline (`creditChecking` through
+`financialEvaluation`) — the row is always clickable in the "Application →
+Credit Investigation" queue, regardless of Requirement Checklist's
+endorsement status. An earlier version of this page gated the row behind
+`review.requirementChecklist.endorsed`, but that broke the established "the
+live application's row is always actionable on every step" convention every
+other step in this list follows — reverted so an admin can reach this page
+directly at any time, same as any other step.
 
 Requirement Checklist's "Endorsed for comprehensive process" success screen
 gains a **"Continue to Credit Investigation"** button (above the existing
@@ -543,8 +538,6 @@ applicant" success screen is unaffected.
   (Disapprove → Reconsideration), chosen for a functionally complete first
   build. Proceed now routes to the real Appraisal page. Revisit Disapprove's
   routing before considering this feature fully settled.
-- **Financial Evaluation** remains scaffolded-only, unbuilt. Appraisal is
-  now built.
 - **No real file parsing, real AI/LLM, or real transcription anywhere** —
   every "AI Summary" and auto-fill is deterministic template text engineered
   to look the same shape as Requirement Checklist's/Initial Credit

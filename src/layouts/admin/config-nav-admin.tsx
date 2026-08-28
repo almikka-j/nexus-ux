@@ -4,25 +4,21 @@ import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
-// Account Solicitation used to be an expandable "Application List" section
-// with 3 separate sub-items — one per forward-moving intake step (Initial
-// Credit Checking, Call Report, Requirement Checklist), each linking to the
-// application list filtered to that step (?step=<reviewStep>). It's now a
-// single flat nav leaf pointing at the unfiltered list showing all 3 steps
-// together (see ApplicationListView's `accountSolicitation` prop) — an
-// applicant still only shows once per step they're actually at, just not
-// narrowed down to one step per click.
+// "Application" groups every forward-moving intake/review step under one
+// section: Account Solicitation (Initial Credit Checking, Call Report,
+// Requirement Checklist, unfiltered — see ApplicationListView's
+// `accountSolicitation` prop) alongside the Comprehensive Credit Checking
+// disciplines, which are a parallel-work stage — Credit Investigation,
+// Appraisal, and Financial Evaluation each have their own queue so they can
+// later be assigned to and completed by different officers.
 //
 // Reconsideration is deliberately NOT included — being sent to
 // Reconsideration means the application was already rejected at Initial
 // Credit Checking, so it isn't a forward step in "the process." It lives
 // under the separate "For Reconsideration" section below instead, alongside
 // the Negative List it can feed into.
-
-// Comprehensive Credit Checking is a parallel-work stage. Each discipline has
-// its own queue so Credit Investigation, Appraisal, and Financial Evaluation
-// can later be assigned to and completed by different officers.
-export const comprehensiveCreditCheckingItems = [
+export const applicationItems = [
+  { title: 'Account Solicitation', step: null, path: paths.admin.accountSolicitation },
   {
     title: 'Credit Investigation',
     step: 'creditInvestigation',
@@ -75,18 +71,10 @@ export const adminNavData = [
     icon: <Iconify width={24} icon="solar:widget-2-bold-duotone" />,
   },
   {
-    // Flat top-level leaf (same shape as Dashboard/CI Fee Approval below) —
-    // one click straight to the unfiltered list of Initial Credit Checking +
-    // Call Report + Requirement Checklist applications, no submenu to expand.
-    title: 'Account Solicitation',
-    path: paths.admin.accountSolicitation,
-    icon: <Iconify width={24} icon="solar:document-text-bold-duotone" />,
-  },
-  {
-    title: 'Comprehensive Credit Checking',
+    title: 'Application',
     path: null,
-    icon: <Iconify width={24} icon="solar:shield-check-bold-duotone" />,
-    children: comprehensiveCreditCheckingItems,
+    icon: <Iconify width={24} icon="solar:document-text-bold-duotone" />,
+    children: applicationItems,
   },
   {
     title: 'For Reconsideration',
@@ -126,7 +114,7 @@ export function getAdminReviewStep(pathname: string, searchStep: string | null) 
 
 export function isAdminNavChildActive(
   child:
-    | (typeof comprehensiveCreditCheckingItems)[number]
+    | (typeof applicationItems)[number]
     | (typeof reconsiderationTrackItems)[number]
     | (typeof approvalItems)[number],
   pathname: string,

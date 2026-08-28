@@ -588,11 +588,16 @@ rather than blocking the flow. Sets `application.selfieVerified = true` and call
        │                 → Endorse → /admin/applications/[id]/credit-investigation
        │                    ├─ Proceed → /admin/applications/[id]/appraisal
        │                    │              ├─ Passed → /admin/applications/[id]/credit-scoring (stub)
-       │                    │              └─ Failed → process halted (CI + Financial Evaluation)
+       │                    │              └─ Failed → process halted
        │                    └─ Disapprove → /admin/applications/[id]/reconsideration
        └─ No → /admin/applications/[id]/reconsideration
                  ├─ Approve → rejoins at call-report
                  └─ No → "Client notified" terminal state
+
+/admin/applications/[id]/financial-evaluation (reached via the "Application" nav
+queue, not chained off Appraisal's Passed/Failed outcome above)
+  ├─ Endorse to Credit Scoring → /admin/applications/[id]/credit-scoring (stub)
+  └─ Disapprove → /admin/applications/[id]/reconsideration
 ```
 
 **The Application List is no longer its own page.** `/admin/applications` (bare)
@@ -902,20 +907,21 @@ The admin shell renders one of two nav components depending on the current
   `AdminHeader` row (unchanged, still two rows in this mode). Two independent
   collapsible sections (`src/layouts/admin/config-nav-admin.tsx`):
 
-- **"Application List"** — the first forward-moving stages: Initial Credit
-  Checking, Call Report, and Requirement Checklist. Reconsideration
-  is deliberately **not** here — being sent to Reconsideration means the
-  application was already rejected at Initial Credit Checking, so it isn't a
-  forward step in "the process," it's an exception branch.
+- **"Application"** — every forward-moving stage in one section
+  (`applicationItems`, `config-nav-admin.tsx`): **Account Solicitation** (a
+  flat leaf covering Initial Credit Checking, Call Report, and Requirement
+  Checklist together — see the "Application List" note below), then the three
+  Comprehensive Credit Checking disciplines — **Credit Investigation**,
+  **Appraisal**, and **Financial Evaluation** — as independent queues so
+  different officers can own each discipline and work in parallel.
+  Reconsideration is deliberately **not** here — being sent to Reconsideration
+  means the application was already rejected at Initial Credit Checking, so it
+  isn't a forward step in "the process," it's an exception branch.
 - **"For Reconsideration"** — the rejected-track items: Reconsideration itself,
   plus Negative List (since Negative List entries are populated *from*
   Reconsideration's "No — Notify Client" outcome — see below). Negative List used
   to be its own top-level sidebar item; it's nested here now that there's a
   natural parent for it.
-- **"Comprehensive Credit Checking"** — a separate process group immediately
-  after Application List. It contains Credit Investigation, Appraisal, and
-  Financial Evaluation as independent queues so different officers can own the
-  three disciplines and work in parallel.
 
 **"CI Fee Approval"** (`path: paths.admin.ciFeeApproval`) is nested as the
 first entry (`approvalItems`, `config-nav-admin.tsx`) under a separate
@@ -945,7 +951,7 @@ and side navigation. The resolver handles both the filtered queue
 (`/admin/credit-checking?step=...`) and per-application routes
 (`/admin/applications/[id]/call-report`, `/requirement-checklist`, etc.), so the
 same process remains highlighted while entering an applicant. This also prevents
-both expandable parents from appearing active merely because their filtered
+an expandable parent from appearing active merely because unrelated filtered
 children share `/admin/credit-checking`. Initial Credit Checking is the default
 when that list has no `step` query; Negative List (`step: null`) compares its
 standalone pathname only. Sub-items render as a plain flat list — no number
@@ -993,21 +999,28 @@ so both `AdminHeader` (side-nav mode's separate row) and `AdminNavHorizontal`
 (top-nav mode's single merged row) can render the identical controls without
 duplicating the logout/HAI-drawer state.
 
-The "Application List" section's sub-links point at
-`paths.admin.applicationsByStep(<step>)` (`/admin/credit-checking?step=<reviewStep>`,
-except Initial Credit Checking which points at the unfiltered
-`paths.admin.applications`) — a filtered view of the applications list (see below),
-since multiple applications can be sitting at any given step and the sidebar can't
-point at one specific applicant's page. "For Reconsideration"'s Reconsideration
-sub-link works the same way (`?step=reconsideration`); Negative List points at its
-own standalone route (`paths.admin.negativeList`) instead, since it isn't a
+The "Application" section's Credit Investigation/Appraisal/Financial Evaluation
+sub-links point at `paths.admin.applicationsByStep(<step>)`
+(`/admin/credit-checking?step=<reviewStep>`) — a filtered view of the
+applications list (see below), since multiple applications can be sitting at any
+given step and the sidebar can't point at one specific applicant's page. Account
+Solicitation instead points at the unfiltered `paths.admin.accountSolicitation`,
+since it already covers all three of its underlying steps (Initial Credit
+Checking, Call Report, Requirement Checklist) in one unfiltered list — it has no
+`?step=` of its own. "For Reconsideration"'s Reconsideration sub-link works the
+same way as the filtered steps (`?step=reconsideration`); Negative List points at
+its own standalone route (`paths.admin.negativeList`) instead, since it isn't a
 step-filtered view of the applications list at all.
 
-The three Comprehensive Credit Checking disciplines are currently registered as
-navigation and queue steps only. Each queue has the standard heading and
-application cards, while those cards remain informational until their shared
-per-application workspace is introduced in the next implementation stage; this
-avoids linking users to unfinished routes.
+The three Comprehensive Credit Checking disciplines (Credit Investigation,
+Appraisal, Financial Evaluation — nested under "Application" alongside Account
+Solicitation) each have their own per-application detail page now — see
+`docs/ADMIN_CREDIT_INVESTIGATION.md`, `docs/ADMIN_APPRAISAL.md`, and
+`docs/ADMIN_FINANCIAL_EVALUATION.md`. Financial Evaluation's page has a
+read-only Document Checklist mirror, an AI summary, a Cash Flow Statement
+(Combined/Borrower Only income-expense form computing Debt Service Ratio),
+and a Proceed/Disapprove decision — but no fee/report flow, unlike Credit
+Investigation and Appraisal.
 
 **Each step only lists applications genuinely at that step, always — including the
 default view**: `ApplicationListView`'s `stepFilter` defaults to `'creditChecking'`

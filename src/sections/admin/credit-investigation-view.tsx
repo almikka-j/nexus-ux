@@ -34,32 +34,25 @@ import { RequestDocumentsDrawer } from './request-documents-drawer';
 import { CiFeeCard } from './credit-investigation/ci-fee-card';
 import { CiReportCard } from './credit-investigation/ci-report-card';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
-import { buildCreditInvestigationSummary } from './credit-investigation-risk';
+import { buildCreditInvestigationSummary, AI_REVIEW_RISK_STYLES } from './credit-investigation-risk';
 import { buildTranscriptAutoFill } from './credit-investigation-transcript';
 import {
-  REQUIREMENT_DOC_META,
+  CREDIT_INVESTIGATION_DOC_META,
   REQUIREMENT_SUBGROUP_LABELS,
   REQUIREMENT_SUBGROUP_ORDER,
-} from './requirement-checklist-docs';
+} from './credit-investigation-docs';
 
 import type { OutreachChannel } from 'src/auth/admin-context';
 import type { RequirementDocMeta } from './requirement-checklist-docs';
 
 // ----------------------------------------------------------------------
 
-const RISK_STYLES = {
-  good: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Ready' },
-  watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Almost ready' },
-  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'Not ready' },
-} as const;
-
-// The Document Checklist's fixed document set — every REQUIREMENT_DOC_META
-// entry tagged for the creditInvestigation tab, including the 3 bureau
-// checks (CIC/CMAP/NFIS-BAP). All of it is collected one step earlier, in
-// Requirement Checklist, and displayed here read-only from
-// review.requirementChecklist.documents — this page never owns or edits
-// these rows (see ReadOnlyRequirementDocRow).
-const CI_FIXED_DOC_META = REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('creditInvestigation'));
+// The Document Checklist's fixed document set — every Credit Investigation
+// document, including the 3 bureau checks (CIC/CMAP/NFIS-BAP). All of it is
+// collected one step earlier, in Requirement Checklist, and displayed here
+// read-only from review.requirementChecklist.documents — this page never
+// owns or edits these rows (see ReadOnlyRequirementDocRow).
+const CI_FIXED_DOC_META = CREDIT_INVESTIGATION_DOC_META;
 
 function needsAttention(doc: RequirementDoc | CreditInvestigationDoc) {
   return doc.status !== 'verified';
@@ -235,7 +228,7 @@ export function CreditInvestigationView() {
   };
 
   const { level, summary, recommendation } = buildCreditInvestigationSummary(fixedDocs, CI_FIXED_DOC_META);
-  const riskStyle = RISK_STYLES[level];
+  const riskStyle = AI_REVIEW_RISK_STYLES[level];
 
   const allFixedReceived = CI_FIXED_DOC_META.every(
     (meta) => fixedDocsByKey.get(meta.key)?.status !== 'missing'

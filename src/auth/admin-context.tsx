@@ -936,6 +936,71 @@ export type CreditInvestigation = {
   decisionReason: string;
 };
 
+// One row of an "other loan" the borrower is already servicing, entered on
+// the Financial Evaluation page's Cash Flow Statement — feeds into "Total of
+// Other Loans," which reduces Income Available for Debt Service and adds to
+// the Debt Service Ratio numerator. Deliberately just a lender name +
+// monthly amortization per column, not a full loan detail (principal/rate/
+// term) — this is an existing obligation being disclosed, not something
+// this app computes an amortization schedule for.
+export type CashFlowOtherLoan = {
+  id: string;
+  lender: string;
+  monthlyAmortizationCombined: string;
+  monthlyAmortizationBorrowerOnly: string;
+};
+
+export type CashFlowComputationType = 'add-on' | 'diminishing';
+
+// Financial Evaluation's Cash Flow Statement — a Combined/Borrower Only
+// two-column form computing Total Income, Total Expenses, Income Available
+// for Debt Service, Monthly Amortization (on the Proposed Amount, via
+// `computationType`), Net Income, and Debt Service Ratio. See
+// src/sections/admin/cash-flow-statement.ts for the derivation formulas
+// (kept as pure functions, not stored) and docs/ADMIN_FINANCIAL_EVALUATION.md.
+export type CashFlowStatement = {
+  computationType: CashFlowComputationType;
+  fixedIncomeCombined: string;
+  fixedIncomeBorrowerOnly: string;
+  variableIncomeCombined: string;
+  variableIncomeBorrowerOnly: string;
+  otherIncomeCombined: string;
+  otherIncomeBorrowerOnly: string;
+  lessDeductionsCombined: string;
+  lessDeductionsBorrowerOnly: string;
+  fixedExpenseCombined: string;
+  fixedExpenseBorrowerOnly: string;
+  utilitiesCombined: string;
+  utilitiesBorrowerOnly: string;
+  transportCombined: string;
+  transportBorrowerOnly: string;
+  otherExpenseCombined: string;
+  otherExpenseBorrowerOnly: string;
+  miscExpensesCombined: string;
+  miscExpensesBorrowerOnly: string;
+  adjustedExpensePercentCombined: string;
+  adjustedExpensePercentBorrowerOnly: string;
+  otherLoans: CashFlowOtherLoan[];
+  // Annual rate (%); Term in months — see cash-flow-statement.ts for the
+  // monthly-amortization formula's unit conversion.
+  principalCombined: string;
+  principalBorrowerOnly: string;
+  interestRateCombined: string;
+  interestRateBorrowerOnly: string;
+  termCombined: string;
+  termBorrowerOnly: string;
+  // Set by "Save Record" — null until the officer has saved at least once.
+  savedAt: string | null;
+  // Financial Evaluation's own Proceed/Disapprove decision — same shape as
+  // creditInvestigation.decision/decisionReason. Proceed routes to Credit
+  // Scoring (paths.admin.creditScoring, currently a "coming soon" stub, same
+  // as Appraisal's own Passed branch); Disapprove routes back to
+  // Reconsideration with a required reason, same destination every other
+  // disapprove path in this pipeline uses.
+  decision: CreditCheckDecision;
+  decisionReason: string;
+};
+
 export type ReviewStep =
   | 'creditChecking'
   | 'reconsideration'
@@ -967,6 +1032,7 @@ export type ApplicationReview = {
   requirementChecklist: RequirementChecklist;
   creditInvestigation: CreditInvestigation;
   appraisal: Appraisal;
+  cashFlowStatement: CashFlowStatement;
   stepTimestamps: StepTimestamps;
 };
 
@@ -1011,6 +1077,10 @@ type AdminContextValue = AdminState & {
   setCreditInvestigation: (data: Partial<CreditInvestigation>) => void;
   setCiReport: (data: Partial<CiReport>) => void;
   setAppraisal: (data: Partial<Appraisal>) => void;
+  setCashFlowStatement: (data: Partial<CashFlowStatement>) => void;
+  addCashFlowOtherLoan: () => void;
+  removeCashFlowOtherLoan: (id: string) => void;
+  updateCashFlowOtherLoan: (id: string, data: Partial<CashFlowOtherLoan>) => void;
   createAppraisalReportBundle: (
     tctGroupIds: string[],
     appraiserType: AppraiserType,
@@ -1089,39 +1159,22 @@ function createInitialNegativeCreditReport(): NegativeCreditReport {
   };
 }
 
-// Pre-populates every document as already received except
-// incomeTaxReturn and taxMappingAuthorization, which start with a sample
-// fileName and its metadata's freshStatus/freshNote already applied — so
-// there's always at least one outstanding item to upload on first load.
-const DOCS_STARTING_MISSING = new Set(['incomeTaxReturn', 'taxMappingAuthorization']);
-
+// Pre-populates every fixed document (Credit Investigation, Appraisal-group
+// seeds, and Financial Evaluation alike) as already received, with a sample
+// fileName and its metadata's freshStatus/freshNote already applied — none
+// start 'missing'.
 function createInitialRequirementDocuments(): RequirementDoc[] {
-  return REQUIREMENT_DOC_META.map((meta) => {
-    if (DOCS_STARTING_MISSING.has(meta.key)) {
-      return {
-        key: meta.key,
-        status: 'missing',
-        aiNote: '',
-        fileName: null,
-        fileUrl: null,
-        uploadedAt: null,
-        uploadedBy: null,
-        remarks: '',
-        reviewed: false,
-      };
-    }
-    return {
-      key: meta.key,
-      status: meta.freshStatus,
-      aiNote: meta.freshNote,
-      fileName: 'sample-local-pdf.pdf',
-      fileUrl: '/assets/documents/sample-local-pdf.pdf',
-      uploadedAt: new Date(0).toISOString(),
-      uploadedBy: 'Ramon Cruz',
-      remarks: '',
-      reviewed: false,
-    };
-  });
+  return REQUIREMENT_DOC_META.map((meta) => ({
+    key: meta.key,
+    status: meta.freshStatus,
+    aiNote: meta.freshNote,
+    fileName: 'sample-local-pdf.pdf',
+    fileUrl: '/assets/documents/sample-local-pdf.pdf',
+    uploadedAt: new Date(0).toISOString(),
+    uploadedBy: 'Ramon Cruz',
+    remarks: '',
+    reviewed: false,
+  }));
 }
 
 // The Credit Investigation Document Checklist has no fixed documents of its
@@ -1195,6 +1248,42 @@ function createInitialCreditInvestigation(): CreditInvestigation {
     ciFeeRemarks: '',
     ciFeeDeclineReason: '',
     report: createInitialCiReport(),
+    decision: 'pending',
+    decisionReason: '',
+  };
+}
+
+function createInitialCashFlowStatement(): CashFlowStatement {
+  return {
+    computationType: 'add-on',
+    fixedIncomeCombined: '',
+    fixedIncomeBorrowerOnly: '',
+    variableIncomeCombined: '',
+    variableIncomeBorrowerOnly: '',
+    otherIncomeCombined: '',
+    otherIncomeBorrowerOnly: '',
+    lessDeductionsCombined: '',
+    lessDeductionsBorrowerOnly: '',
+    fixedExpenseCombined: '',
+    fixedExpenseBorrowerOnly: '',
+    utilitiesCombined: '',
+    utilitiesBorrowerOnly: '',
+    transportCombined: '',
+    transportBorrowerOnly: '',
+    otherExpenseCombined: '',
+    otherExpenseBorrowerOnly: '',
+    miscExpensesCombined: '',
+    miscExpensesBorrowerOnly: '',
+    adjustedExpensePercentCombined: '',
+    adjustedExpensePercentBorrowerOnly: '',
+    otherLoans: [],
+    principalCombined: '',
+    principalBorrowerOnly: '',
+    interestRateCombined: '',
+    interestRateBorrowerOnly: '',
+    termCombined: '',
+    termBorrowerOnly: '',
+    savedAt: null,
     decision: 'pending',
     decisionReason: '',
   };
@@ -1517,6 +1606,7 @@ function createInitialReview(): ApplicationReview {
     },
     creditInvestigation: createInitialCreditInvestigation(),
     appraisal: createInitialAppraisal(),
+    cashFlowStatement: createInitialCashFlowStatement(),
     stepTimestamps: {},
   };
 }
@@ -1726,6 +1816,11 @@ function readStoredState(): AdminState {
               },
             };
           }),
+        },
+        cashFlowStatement: {
+          ...initialState.review.cashFlowStatement,
+          ...storedReview.cashFlowStatement,
+          otherLoans: storedReview.cashFlowStatement?.otherLoans ?? [],
         },
       },
     };
@@ -2019,6 +2114,52 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           review: {
             ...prev.review,
             appraisal: { ...prev.review.appraisal, ...data },
+          },
+        })),
+      setCashFlowStatement: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            cashFlowStatement: { ...prev.review.cashFlowStatement, ...data },
+          },
+        })),
+      addCashFlowOtherLoan: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            cashFlowStatement: {
+              ...prev.review.cashFlowStatement,
+              otherLoans: [
+                ...prev.review.cashFlowStatement.otherLoans,
+                { id: crypto.randomUUID(), lender: '', monthlyAmortizationCombined: '', monthlyAmortizationBorrowerOnly: '' },
+              ],
+            },
+          },
+        })),
+      removeCashFlowOtherLoan: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            cashFlowStatement: {
+              ...prev.review.cashFlowStatement,
+              otherLoans: prev.review.cashFlowStatement.otherLoans.filter((loan) => loan.id !== id),
+            },
+          },
+        })),
+      updateCashFlowOtherLoan: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            cashFlowStatement: {
+              ...prev.review.cashFlowStatement,
+              otherLoans: prev.review.cashFlowStatement.otherLoans.map((loan) =>
+                loan.id === id ? { ...loan, ...data } : loan
+              ),
+            },
           },
         })),
       createAppraisalReportBundle: (tctGroupIds, appraiserType, appraiserName, targetCompletionDate, fee) =>

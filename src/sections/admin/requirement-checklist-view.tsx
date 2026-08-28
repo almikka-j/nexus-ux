@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import ButtonBase from '@mui/material/ButtonBase';
+import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
@@ -39,9 +41,11 @@ import {
   REQUIREMENT_TAB_LABELS,
   REQUIREMENT_SUBGROUP_LABELS,
   REQUIREMENT_SUBGROUP_ORDER,
+  CREDIT_INVESTIGATION_DOC_META,
+  FINANCIAL_EVALUATION_DOC_META,
 } from './requirement-checklist-docs';
 
-import type { RequirementDoc, OutreachChannel } from 'src/auth/admin-context';
+import type { RequirementDoc, OutreachChannel, AppraisalCollateralType } from 'src/auth/admin-context';
 import type { AppraisalDocMeta, RequirementDocMeta, RequirementDocStatus } from './requirement-checklist-docs';
 import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk';
 
@@ -54,6 +58,15 @@ const RISK_STYLES: Record<
   good: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Ready' },
   watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Almost ready' },
   high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'Not ready' },
+};
+
+// Same Real Estate/Chattel labels as the Appraiser workspace's own "Add
+// Collateral" control (appraisal-tct-table.tsx) — kept in sync manually,
+// same convention as every other small constant duplicated across admin
+// files in this app.
+const COLLATERAL_TYPE_LABEL: Record<AppraisalCollateralType, string> = {
+  'real-estate': 'Real Estate',
+  chattel: 'Chattel',
 };
 
 // Same reason set as Initial Credit Checking's and Call Report's Sales
@@ -235,6 +248,7 @@ export function RequirementChecklistView() {
   const [reasonRemarks, setReasonRemarks] = useState('');
   const [appraisalNotApplicableConfirmOpen, setAppraisalNotApplicableConfirmOpen] = useState(false);
   const [newTctNumber, setNewTctNumber] = useState('');
+  const [newCollateralType, setNewCollateralType] = useState<AppraisalCollateralType>('real-estate');
   const [requestDrawerOpen, setRequestDrawerOpen] = useState(false);
 
   // Each document card can be collapsed independently, manually via its own
@@ -331,7 +345,7 @@ export function RequirementChecklistView() {
   const handleAddTctGroup = () => {
     const trimmed = newTctNumber.trim();
     if (!trimmed || isDuplicateTctNumber) return;
-    addAppraisalGroup(trimmed);
+    addAppraisalGroup(trimmed, newCollateralType);
     setNewTctNumber('');
   };
 
@@ -477,18 +491,14 @@ export function RequirementChecklistView() {
   // card must be 'verified' (not just "not missing") before that card
   // auto-collapses, so a card with a lingering 'needs-review' item never
   // hides itself.
-  const creditInvestigationDocs = REQUIREMENT_DOC_META.filter((meta) =>
-    meta.tabs.includes('creditInvestigation')
-  )
+  const creditInvestigationDocs = CREDIT_INVESTIGATION_DOC_META
     .map((meta) => requiredDocsByKey.get(meta.key))
     .filter((doc): doc is RequirementDoc => !!doc);
   const creditInvestigationFullyVerified = creditInvestigationDocs.every(
     (doc) => doc.status === 'verified'
   );
 
-  const financialEvaluationDocs = REQUIREMENT_DOC_META.filter((meta) =>
-    meta.tabs.includes('financialEvaluation')
-  )
+  const financialEvaluationDocs = FINANCIAL_EVALUATION_DOC_META
     .map((meta) => requiredDocsByKey.get(meta.key))
     .filter((doc): doc is RequirementDoc => !!doc);
   const financialEvaluationFullyVerified = financialEvaluationDocs.every(
@@ -607,7 +617,7 @@ export function RequirementChecklistView() {
   // themselves under. Appraisal rows are namespaced by group id since the
   // same document key (e.g. 'tctCctCopy') repeats across groups.
   const outstandingRowIds = [
-    ...REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('creditInvestigation'))
+    ...CREDIT_INVESTIGATION_DOC_META
       .filter((meta) => needsAttention(requiredDocsByKey.get(meta.key)!))
       .map((meta) => meta.key),
     ...(appraisalNotApplicable
@@ -618,7 +628,7 @@ export function RequirementChecklistView() {
             (meta) => `${group.id}:${meta.key}`
           );
         })),
-    ...REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
+    ...FINANCIAL_EVALUATION_DOC_META
       .filter((meta) => needsAttention(requiredDocsByKey.get(meta.key)!))
       .map((meta) => meta.key),
   ];
@@ -632,9 +642,9 @@ export function RequirementChecklistView() {
 
     // Expand whichever card owns this row before scrolling, so the target
     // is actually visible rather than hidden behind a collapsed section.
-    if (REQUIREMENT_DOC_META.some((meta) => meta.tabs.includes('creditInvestigation') && meta.key === rowId)) {
+    if (CREDIT_INVESTIGATION_DOC_META.some((meta) => meta.key === rowId)) {
       setCreditInvestigationCollapsed(false);
-    } else if (REQUIREMENT_DOC_META.some((meta) => meta.tabs.includes('financialEvaluation') && meta.key === rowId)) {
+    } else if (FINANCIAL_EVALUATION_DOC_META.some((meta) => meta.key === rowId)) {
       setFinancialEvaluationCollapsed(false);
     } else {
       setAppraisalCollapsed(false);
@@ -904,9 +914,7 @@ export function RequirementChecklistView() {
             <Stack spacing={3}>
               {REQUIREMENT_SUBGROUP_ORDER.map((subgroup) => {
                 const subgroupEntries: { meta: RequirementDocMeta; doc: RequirementDoc }[] =
-                  REQUIREMENT_DOC_META.filter(
-                    (meta) => meta.tabs.includes('creditInvestigation') && meta.subgroup === subgroup
-                  )
+                  CREDIT_INVESTIGATION_DOC_META.filter((meta) => meta.subgroup === subgroup)
                     .map((meta) => ({ meta, doc: requiredDocsByKey.get(meta.key) }))
                     .filter((entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc);
                 const sortedEntries = sortByAttentionFirst(subgroupEntries);
@@ -1045,10 +1053,10 @@ export function RequirementChecklistView() {
                   </Box>
                   <Box>
                     <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
-                      Add collateral property
+                      Add Collateral
                     </Typography>
                     <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
-                      Enter the title number to create a separate appraisal checklist.
+                      Select the collateral type and enter its number to create a separate appraisal checklist.
                     </Typography>
                   </Box>
                 </Stack>
@@ -1058,22 +1066,31 @@ export function RequirementChecklistView() {
                   alignItems={{ xs: 'stretch', sm: 'flex-start' }}
                   spacing={{ xs: 1, sm: 1.25 }}
                 >
+                  <FormControl size="small" sx={{ flexShrink: 0, width: { xs: '100%', sm: 170 } }}>
+                    <Select
+                      value={newCollateralType}
+                      onChange={(event) => setNewCollateralType(event.target.value as AppraisalCollateralType)}
+                      sx={{ minHeight: 42, borderRadius: '10px', bgcolor: 'common.white', fontSize: 14 }}
+                    >
+                      {(Object.keys(COLLATERAL_TYPE_LABEL) as AppraisalCollateralType[]).map((key) => (
+                        <MenuItem key={key} value={key}>
+                          {COLLATERAL_TYPE_LABEL[key]}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                   <TextField
                     fullWidth
                     size="small"
-                    label="TCT/CCT number"
-                    placeholder="e.g. TCT-2024-00981"
+                    label="Collateral No."
+                    placeholder={newCollateralType === 'chattel' ? 'e.g. Plate/Serial No.' : 'e.g. TCT-2024-00981'}
                     value={newTctNumber}
                     onChange={(event) => setNewTctNumber(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') handleAddTctGroup();
                     }}
                     error={isDuplicateTctNumber}
-                    helperText={
-                      isDuplicateTctNumber
-                        ? 'This property is already included.'
-                        : 'Use the exact number shown on the property title.'
-                    }
+                    helperText={isDuplicateTctNumber ? 'This collateral is already included.' : undefined}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -1083,7 +1100,6 @@ export function RequirementChecklistView() {
                     }}
                     sx={{
                       flex: 1,
-                      maxWidth: { sm: 460 },
                       '& .MuiOutlinedInput-root': {
                         minHeight: 42,
                         borderRadius: '10px',
@@ -1110,7 +1126,7 @@ export function RequirementChecklistView() {
                       '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
                     }}
                   >
-                    Add Property
+                    Add Collateral
                   </Button>
                 </Stack>
 
@@ -1125,11 +1141,11 @@ export function RequirementChecklistView() {
                 >
                   <Iconify icon="solar:home-2-bold-duotone" width={26} sx={{ color: '#C7CCDA' }} />
                   <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-                    No properties added yet.
+                    No collateral added yet.
                   </Typography>
                   <Typography sx={{ fontSize: 12.5, color: '#B0B6C3' }}>
-                    Add a TCT/CCT number above, or mark this application as not applicable if there
-                    is no real-estate collateral.
+                    Add a collateral above, or mark this application as not applicable if there
+                    is no collateral.
                   </Typography>
                 </Stack>
               ) : (
@@ -1278,7 +1294,7 @@ export function RequirementChecklistView() {
           >
             <Stack spacing={1.25}>
               {sortByAttentionFirst(
-                REQUIREMENT_DOC_META.filter((meta) => meta.tabs.includes('financialEvaluation'))
+                FINANCIAL_EVALUATION_DOC_META
                   .map((meta) => ({ meta, doc: requiredDocsByKey.get(meta.key) }))
                   .filter(
                     (entry): entry is { meta: RequirementDocMeta; doc: RequirementDoc } => !!entry.doc
