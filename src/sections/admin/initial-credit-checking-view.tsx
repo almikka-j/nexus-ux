@@ -18,12 +18,11 @@ import { paths } from 'src/routes/paths';
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
-import { fCurrency } from 'src/utils/format-number';
 import { Iconify } from 'src/components/iconify';
 import { fileToDataUrl } from 'src/utils/file-to-data-url';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { FileThumbnail } from 'src/components/file-thumbnail';
-import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { adminCardSx, outlinedNavyButtonSx, StatusBadge } from 'src/components/admin-ui';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
@@ -35,8 +34,8 @@ import { BureauReportsCard } from './bureau-reports-card';
 import { NegativeCreditReportCard } from './negative-credit-report-card';
 import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
 import { simulateBureauFinding } from './simulate-bureau-finding';
-import { buildInitialAiRecommendation } from './initial-credit-checking-risk';
-import type { InitialRiskLevel } from './initial-credit-checking-risk';
+import { buildInitialCreditCheckingResult, REVIEW_BASIS_LABELS } from './initial-credit-checking-risk';
+import type { InitialCreditCheckingRiskLevel } from './initial-credit-checking-risk';
 
 // ----------------------------------------------------------------------
 
@@ -109,48 +108,12 @@ function JustificationDropzone({
   );
 }
 
-// AI summary/recommendation are computed directly from Application details,
-// and additionally from the uploaded Bureau Reports once those are on file —
-// no manual "run analysis" step, no gating on bureau uploads before showing
-// anything. Purely derived (not stored), same pattern as the Call Report
-// financial ratios. Before bureau reports are uploaded, both fall back to a
-// read based on application details alone (this is what used to be a
-// separate "Initial AI Recommendation" card — merged in here so there's one
-// AI-output card instead of two, always populated).
-function buildAiSummary(
-  firstName: string,
-  loanAmount: number,
-  employmentStatus: string,
-  allBureauReportsUploaded: boolean
-) {
-  if (allBureauReportsUploaded) {
-    return `${firstName}'s bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) are on file and consistent with the application details submitted. Stated employment status is "${employmentStatus}" with a requested loan amount of ${fCurrency(loanAmount)}. No mismatches were found between the bureau reports and the application form.`;
-  }
-  return `${firstName} has requested ${fCurrency(loanAmount)} with stated employment status "${employmentStatus}". Bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) haven't been uploaded yet, so this summary is based on application details only.`;
-}
-
-function buildAiRecommendation(
-  loanAmount: number,
-  monthlyIncome: number,
-  allBureauReportsUploaded: boolean
-) {
-  const ratio = monthlyIncome > 0 ? loanAmount / (monthlyIncome * 12) : null;
-  const withinRange = ratio !== null && ratio <= 0.5;
-
-  if (allBureauReportsUploaded) {
-    return withinRange
-      ? 'Debt-to-income indicators are within an acceptable range. Recommend proceeding to Call Report preparation.'
-      : 'Requested amount is high relative to stated monthly income. Recommend proceeding with added scrutiny during Call Report review.';
-  }
-  return withinRange
-    ? 'Debt-to-income indicators are within an acceptable range based on application details alone. Upload the bureau reports above to confirm before proceeding to Call Report.'
-    : 'Requested amount is high relative to stated monthly income, based on application details alone. Upload the bureau reports above for a fuller picture before proceeding.';
-}
-
-const INITIAL_RISK_STYLES: Record<InitialRiskLevel, { bg: string; color: string; icon: string; label: string }> = {
-  good: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Low risk' },
-  watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Needs a closer look' },
-  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High risk' },
+const RISK_LEVEL_STYLES: Record<InitialCreditCheckingRiskLevel, { bg: string; color: string; icon: string; label: string }> = {
+  low: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Low' },
+  moderate: { bg: '#EEF1FE', color: '#3448B0', icon: 'solar:info-circle-bold', label: 'Moderate' },
+  elevated: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Elevated' },
+  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High' },
+  'unable-to-determine': { bg: '#F5F6FA', color: '#8891A6', icon: 'solar:question-circle-bold', label: 'Unable to Determine' },
 };
 
 export function InitialCreditCheckingView() {
@@ -380,23 +343,19 @@ export function InitialCreditCheckingView() {
 
   if (!signUpData || !application.personalInfo) return null;
 
-  const initialAiRecommendation = buildInitialAiRecommendation(
-    application.financialInfo?.desiredLoanAmount ?? 0,
-    application.financialInfo?.monthlyIncome ?? 0,
-    application.financialInfo?.employmentStatus ?? 'Unknown'
-  );
-  const initialRiskStyle = INITIAL_RISK_STYLES[initialAiRecommendation.level];
-  const aiSummary = buildAiSummary(
-    signUpData.firstName,
-    application.financialInfo?.desiredLoanAmount ?? 0,
-    application.financialInfo?.employmentStatus ?? 'Unknown',
-    allBureauReportsUploaded
-  );
-  const aiRecommendation = buildAiRecommendation(
-    application.financialInfo?.desiredLoanAmount ?? 0,
-    application.financialInfo?.monthlyIncome ?? 0,
-    allBureauReportsUploaded
-  );
+  const creditCheckingResult = buildInitialCreditCheckingResult({
+    cmapCases: creditChecking.cmapCases,
+    bapNfisRecords: creditChecking.bapNfisRecords,
+    cibiResults: creditChecking.cibiResults,
+    cicContracts: creditChecking.cicContracts,
+    loandexRecords: creditChecking.loandexRecords,
+    pgfcExposureRecords: creditChecking.pgfcExposureRecords,
+    allBureauReportsUploaded,
+    desiredLoanAmount: application.financialInfo?.desiredLoanAmount ?? 0,
+    monthlyIncome: application.financialInfo?.monthlyIncome ?? 0,
+    employmentStatus: application.financialInfo?.employmentStatus ?? 'Unknown',
+  });
+  const riskStyle = RISK_LEVEL_STYLES[creditCheckingResult.riskLevel];
 
   const handleApprove = () => {
     setCreditChecking({ decision: 'approved' });
@@ -537,6 +496,18 @@ export function InitialCreditCheckingView() {
           </Button>
 
           <Stack spacing={2}>
+            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: riskStyle.bg }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Iconify icon={riskStyle.icon} width={16} sx={{ color: riskStyle.color }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
+                  AI Risk Level · {riskStyle.label}
+                </Typography>
+              </Stack>
+              <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6 }}>
+                {creditCheckingResult.overallAssessment}
+              </Typography>
+            </Box>
+
             <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                 <Iconify icon="solar:document-text-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
@@ -545,20 +516,31 @@ export function InitialCreditCheckingView() {
                 </Typography>
               </Stack>
               <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
-                {aiSummary}
+                {creditCheckingResult.summary}
               </Typography>
             </Box>
 
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: initialRiskStyle.bg }}>
+            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Iconify icon={initialRiskStyle.icon} width={16} sx={{ color: initialRiskStyle.color }} />
-                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: initialRiskStyle.color }}>
-                  AI Recommendation · {initialRiskStyle.label}
+                <Iconify icon="solar:magic-stick-3-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>
+                  AI Recommended Action
                 </Typography>
               </Stack>
-              <Typography sx={{ fontSize: 13.5, color: initialRiskStyle.color, lineHeight: 1.6 }}>
-                {aiRecommendation}
+              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
+                {creditCheckingResult.recommendedAction}
               </Typography>
+            </Box>
+
+            <Box>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>
+                AI Review Basis
+              </Typography>
+              <Stack direction="row" flexWrap="wrap" gap={1}>
+                {creditCheckingResult.reviewBasis.map((tag) => (
+                  <StatusBadge key={tag} tone="neutral" label={REVIEW_BASIS_LABELS[tag]} />
+                ))}
+              </Stack>
             </Box>
           </Stack>
         </Box>
