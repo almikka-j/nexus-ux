@@ -1544,17 +1544,23 @@ function createAppraisalReportBundle(
 // the instant that bureau's report file is uploaded (see the setCmapUpload/
 // setCicUpload/setLoandexUpload/setNfisBapUpload/setPgfcExposureUpload/
 // setCibiForm setters below), replacing the old officer-driven manual
-// add/remove/edit flow. Every field uses a descriptive "No ___ on record"
-// phrase rather than a bare '—' placeholder, so an uploaded report reads as
-// a genuinely completed record rather than a blank-looking row — a dash by
-// itself was reported as looking empty even though it was populated data.
+// add/remove/edit flow. Fields carry realistic-looking dummy values (real
+// bank/institution names, dates, case numbers, peso amounts) rather than a
+// bare '—' or a "No ___ on record" placeholder phrase — a genuine "nothing
+// wrong" bureau result for an existing credit facility still has a real
+// account with real numbers, it's just in good standing, so the UI should
+// look like an actual completed record rather than an empty/placeholder
+// one. CMAP is the one exception: a clean court/legal-case check
+// legitimately means no case exists at all (there's no such thing as a
+// "court case in good standing"), so its case-detail fields stay
+// descriptive rather than fabricating a nonexistent case number/date.
 // `defendantSubject` can't use the applicant's real name — admin-context.tsx
 // is registration-agnostic and has no access to signUpData anywhere else in
 // this file either; threading it in would require a much larger refactor
 // out of scope here. Every status/paymentStatus/contractStatus/accountStatus
 // field (the ones initial-credit-checking-risk.ts's risk engine pattern-
 // matches for "clean") is deliberately UNCHANGED by this — only the
-// non-status descriptive fields were reworded.
+// non-status descriptive fields carry the dummy values.
 function createCmapSampleCase(): CmapCase {
   return {
     id: crypto.randomUUID(),
@@ -1572,13 +1578,13 @@ function createCmapSampleCase(): CmapCase {
 function createBapNfisSampleRecord(): BapNfisRecord {
   return {
     id: crypto.randomUUID(),
-    lendingInstitution: 'No prior lending institution on record',
-    facility: 'None reported',
-    originalLoanAmount: '₱0.00',
-    dateGranted: 'No date on record',
-    maturityDate: 'No date on record',
-    outstandingBalance: '₱0.00',
-    paymentHistory: 'No payment history on file',
+    lendingInstitution: 'BPI Family Savings Bank',
+    facility: 'Salary Loan',
+    originalLoanAmount: '₱80,000.00',
+    dateGranted: '2023-03-14',
+    maturityDate: '2025-03-14',
+    outstandingBalance: '₱15,400.00',
+    paymentHistory: '24 of 24 monthly payments made on time',
     statusRemarks:
       'No cancelled credit card, adversely classified loan, or negative-file indicator found.',
   };
@@ -1609,12 +1615,12 @@ function createCibiSampleResult(
 function createCicSampleContract(): CicContract {
   return {
     id: crypto.randomUUID(),
-    contractCode: 'No matching contract on record',
-    contractType: 'None reported',
-    maturityDate: 'No date on record',
-    outstandingBalance: '₱0.00',
+    contractCode: 'CIC-2023-0417-6620',
+    contractType: 'Auto Loan',
+    maturityDate: '2026-08-01',
+    outstandingBalance: '₱212,300.00',
     overdueAmount: '₱0.00',
-    monthlyAmortization: '₱0.00',
+    monthlyAmortization: '₱9,850.00',
     contractStatus: 'No Record Found',
     remarks: 'Consistent borrower and account information, no material discrepancy found.',
   };
@@ -1623,12 +1629,12 @@ function createCicSampleContract(): CicContract {
 function createLoandexSampleRecord(): LoandexRecord {
   return {
     id: crypto.randomUUID(),
-    bankInstitution: 'No matching account on record',
-    loanFacility: 'None reported',
-    maturityDate: 'No date on record',
-    outstandingBalance: '₱0.00',
+    bankInstitution: 'BDO Unibank',
+    loanFacility: 'Personal Loan',
+    maturityDate: '2027-01-10',
+    outstandingBalance: '₱48,750.00',
     overdueAmount: '₱0.00',
-    monthlyAmortization: '₱0.00',
+    monthlyAmortization: '₱3,250.00',
     accountStatus: 'Current — No Past-Due Exposure',
     remarks: 'Regular payment activity, no past-due exposure reported.',
   };
