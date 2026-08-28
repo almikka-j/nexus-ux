@@ -1797,3 +1797,383 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```
+
+---
+
+## Addendum (2026-08-29, same day): Task 8 — read-only auto-filled rows, PGFC gets its own upload
+
+After Tasks 1-7 were implemented, reviewed, and this plan's original scope
+was fully verified working in-browser, the user reversed two of the
+original spec's decisions (see
+`docs/superpowers/specs/2026-08-29-bureau-reports-results-design.md`'s
+"Addendum" section for full rationale):
+
+1. No manual Add/Remove/edit — each of the six tables auto-populates with
+   **exactly one realistic canned sample row** the moment that bureau's
+   file is uploaded (by hand, or via "Fill with Sample Data").
+2. PGFC Existing Exposure gets its own upload row (file input, View/
+   Replace/Delete menu) exactly like the other five bureaus, instead of
+   being always-visible with no gate.
+
+### Task 8: Read-only auto-fill + PGFC upload row
+
+**Files:**
+- Modify: `src/auth/admin-context.tsx` — add `pgfcExposureUpload: BureauUpload`
+  field + `setPgfcExposureUpload` setter (mirroring `cmapUpload`/
+  `setCmapUpload` at lines ~1113, 1156, 1607, 2269 — copy that exact
+  pattern for the new field/setter's declaration, initial-state seed, and
+  `readStoredState()` merge entry). Delete all 18 `add*`/`remove*`/
+  `update*` setters and their `AdminContextValue` signatures added in
+  Task 1 (`addCmapCase`/`removeCmapCase`/`updateCmapCase` and the same
+  triple for `bapNfisRecords`/`cibiResults`/`cicContracts`/
+  `loandexRecords`/`pgfcExposureRecords`). Extend each of the six upload
+  setters (`setCmapUpload`, `setNfisBapUpload`, `setCicUpload`,
+  `setLoandexUpload`, `setPgfcExposureUpload`, and the CIBI report-upload
+  path inside `setCibiForm`) so that when the incoming `data.fileName` is
+  truthy AND the corresponding array is currently empty, the same state
+  update also populates that bureau's one-row array with the canned
+  sample row (see the spec addendum for each bureau's exact field values).
+  When `data.fileName` is explicitly set to `null` (the existing "Delete
+  file" action), also reset that bureau's array back to `[]`.
+- Modify: `src/sections/admin/bureau-results-tables.tsx` — remove
+  `AddButton`, `RemoveButton`, and the `onAdd`/`onRemove`/`onUpdate` props
+  from all six components' signatures. Each `Field` becomes a disabled
+  `TextField` (add `disabled` prop, drop the `onChange` wiring — keep the
+  same visual shell/spacing).
+- Modify: `src/sections/admin/bureau-reports-card.tsx` — add a sixth
+  `SimpleBureauRow` for PGFC Existing Exposure (replacing the old
+  always-visible `Box`), matching the other four bureaus' shape exactly:
+  `title="PGFC Existing Exposure"`, `upload={pgfcExposureUpload}`,
+  `onUpload={setPgfcExposureUpload}`, `resultsTable={<PgfcExposureTable rows={creditChecking.pgfcExposureRecords} />}`.
+  Remove the now-deleted `onAdd`/`onRemove`/`onUpdate` props from every
+  `SimpleBureauRow`/`CibiRow` results-table wiring (all six).
+  `BureauReportsCard`'s `useAdmin()` destructure drops all 18 old
+  setters, adds `pgfcExposureUpload` (from `review.creditChecking`) and
+  `setPgfcExposureUpload`.
+- Modify: `src/sections/admin/initial-credit-checking-view.tsx` —
+  `handleFillSampleData` (~line 196-247) gains
+  `setPgfcExposureUpload(sampleReport);` alongside its existing four
+  bureau-upload calls (`setLoandexUpload`/`setCicUpload`/`setCmapUpload`/
+  `setNfisBapUpload`), so "Fill with Sample Data" also uploads and
+  populates PGFC Existing Exposure. The `allBureauReportsUploaded`
+  boolean (~line 192-197) gains a sixth condition:
+  `&& !!pgfcExposureUpload.fileName`. `handleClearSampleData` (the
+  "Remove Sample Data" undo, right after `handleFillSampleData`) gains
+  the matching reset for `pgfcExposureUpload` and, since arrays now
+  auto-clear when `fileName` becomes `null` (per the setter change
+  above), no separate array-clearing code is needed there — clearing the
+  upload alone clears its row.
+- Modify: `src/sections/admin/call-report/credit-checking-result-modal.tsx` —
+  its own separate `allBureauReportsUploaded` computation (~line 188-193)
+  gains the same sixth condition: `&& !!pgfcExposureUpload.fileName`.
+  Needs `pgfcExposureUpload` added to its existing `review` destructure.
+
+**Interfaces:**
+- Consumes: `BureauUpload` type (existing, unchanged). `CmapCase`,
+  `BapNfisRecord`, `CibiResult`, `CicContract`, `LoandexRecord`,
+  `PgfcExposureRecord` types (existing, unchanged — only their setters
+  change, not their shape).
+- Produces: `pgfcExposureUpload: BureauUpload` field on `CreditChecking`,
+  `setPgfcExposureUpload: (data: Partial<BureauUpload>) => void` on
+  `AdminContextValue`. The six table components' new signature:
+  `{ rows: T[] }` only (no callbacks).
+
+- [ ] **Step 1: Add `pgfcExposureUpload` field + setter to `admin-context.tsx`**
+
+Add the type field as a sibling top-level `review` field like
+`cmapUpload` (NOT nested inside `CreditChecking`) — copy `cmapUpload`'s
+exact location and pattern:
+
+```ts
+  pgfcExposureUpload: BureauUpload;
+```
+
+Add the setter signature to `AdminContextValue`:
+
+```ts
+  setPgfcExposureUpload: (data: Partial<BureauUpload>) => void;
+```
+
+Seed it in `createInitialReview()` alongside the other four uploads:
+
+```ts
+    pgfcExposureUpload: { fileName: null, fileData: null, uploadedAt: null },
+```
+
+Add it to `readStoredState()`'s merge block alongside the other four:
+
+```ts
+        pgfcExposureUpload: { ...initialState.review.pgfcExposureUpload, ...storedReview.pgfcExposureUpload },
+```
+
+- [ ] **Step 2: Delete the 18 add/remove/update setters and their signatures**
+
+Remove all 18 setter implementations added in Task 1
+(`addCmapCase`/`removeCmapCase`/`updateCmapCase`,
+`addBapNfisRecord`/`removeBapNfisRecord`/`updateBapNfisRecord`,
+`addCibiResult`/`removeCibiResult`/`updateCibiResult`,
+`addCicContract`/`removeCicContract`/`updateCicContract`,
+`addLoandexRecord`/`removeLoandexRecord`/`updateLoandexRecord`,
+`addPgfcExposureRecord`/`removePgfcExposureRecord`/`updatePgfcExposureRecord`)
+and their 18 corresponding lines in the `AdminContextValue` interface.
+
+- [ ] **Step 3: Write the six canned sample-row constants**
+
+In `admin-context.tsx`, near the six row types (or in a small local
+helper near the setters — implementer's judgment on exact placement, as
+long as it's colocated with where it's used), define one canned sample
+row per bureau as literal objects matching each row type exactly,
+following the spec addendum's exact field values:
+
+```ts
+function createCmapSampleCase(): CmapCase {
+  return {
+    id: crypto.randomUUID(),
+    defendantSubject: '—',
+    plaintiff: '—',
+    natureOfCase: 'No matching record',
+    amountInvolved: '—',
+    caseNo: '—',
+    dateFiled: '—',
+    status: 'No Record Found',
+    creditRiskRemarks: 'No adverse court or legal record found.',
+  };
+}
+
+function createBapNfisSampleRecord(): BapNfisRecord {
+  return {
+    id: crypto.randomUUID(),
+    lendingInstitution: 'N/A — no record found',
+    facility: '—',
+    originalLoanAmount: '—',
+    dateGranted: '—',
+    maturityDate: '—',
+    outstandingBalance: '—',
+    paymentHistory: '—',
+    statusRemarks:
+      'No cancelled credit card, adversely classified loan, or negative-file indicator found.',
+  };
+}
+
+function createCibiSampleResult(facilityType: string, originalAmount: string, monthlyAmortization: string): CibiResult {
+  return {
+    id: crypto.randomUUID(),
+    provider: 'CIBI',
+    facilityType,
+    originalAmount,
+    outstandingBalance: '0.00',
+    overdueAmount: '0.00',
+    monthlyAmortization,
+    paymentStatus: 'Current — No Delinquency',
+    remarks: 'CIBI Bureau Score 600. One active account, payments made as agreed.',
+  };
+}
+
+function createCicSampleContract(): CicContract {
+  return {
+    id: crypto.randomUUID(),
+    contractCode: 'N/A',
+    contractType: '—',
+    maturityDate: '—',
+    outstandingBalance: '—',
+    overdueAmount: '—',
+    monthlyAmortization: '—',
+    contractStatus: 'No Record Found',
+    remarks: 'Consistent borrower and account information, no material discrepancy found.',
+  };
+}
+
+function createLoandexSampleRecord(): LoandexRecord {
+  return {
+    id: crypto.randomUUID(),
+    bankInstitution: 'N/A — one active account on file',
+    loanFacility: 'Personal Loan',
+    maturityDate: '—',
+    outstandingBalance: '0.00',
+    overdueAmount: '0.00',
+    monthlyAmortization: '—',
+    accountStatus: 'Current — No Past-Due Exposure',
+    remarks: 'Regular payment activity, no past-due exposure reported.',
+  };
+}
+
+function createPgfcSampleExposureRecord(): PgfcExposureRecord {
+  return {
+    id: crypto.randomUUID(),
+    principalBalance: '0.00',
+    interestBalance: '0.00',
+    maturityDate: '—',
+    remainingTerm: '—',
+    lastPaymentDate: '—',
+    monthlyAmortization: '0.00',
+    paymentStatus: 'No Existing Exposure',
+    remarks: 'No prior or existing PGFC loan exposure on file.',
+  };
+}
+```
+
+`defendantSubject` uses a generic `'—'` placeholder rather than the
+applicant's real name — `admin-context.tsx` is registration-agnostic and
+has no access to `signUpData` anywhere else in the file either; threading
+it in would require a much larger refactor out of this task's scope.
+
+CIBI's sample needs `facilityType`/`originalAmount`/`monthlyAmortization`
+passed in from the current `cibiForm` state at the moment its report is
+uploaded (`creditType`, `financedAmount`, `installment` respectively) —
+thread these through when calling `createCibiSampleResult(...)` from
+inside `setCibiForm`'s implementation (Step 4 below).
+
+- [ ] **Step 4: Wire auto-fill into the six upload setters**
+
+Replace each of the four plain `BureauUpload` setters
+(`setCmapUpload`/`setCicUpload`/`setLoandexUpload`/`setNfisBapUpload`)
+with a version that also populates the array on upload and clears it on
+delete. `cmapUpload` itself is a top-level `review` field (unchanged
+location); `cmapCases` lives in `review.creditChecking`. Example for
+CMAP — repeat the identical shape for CIC/LOANDEX/NFIS-BAP with their own
+array/sample-row function:
+
+```ts
+      setCmapUpload: (data) =>
+        setState((prev) => {
+          const nextUpload = { ...prev.review.cmapUpload, ...data };
+          const shouldSeed = !!nextUpload.fileName && prev.review.creditChecking.cmapCases.length === 0;
+          const shouldClear = data.fileName === null;
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              cmapUpload: nextUpload,
+              creditChecking: {
+                ...prev.review.creditChecking,
+                cmapCases: shouldSeed
+                  ? [createCmapSampleCase()]
+                  : shouldClear
+                    ? []
+                    : prev.review.creditChecking.cmapCases,
+              },
+            },
+          };
+        }),
+```
+
+Do the same shape for `setCicUpload`→`cicContracts`,
+`setLoandexUpload`→`loandexRecords`, `setNfisBapUpload`→`bapNfisRecords`,
+and the new `setPgfcExposureUpload`→`pgfcExposureRecords`.
+
+For CIBI, find `setCibiForm`'s existing implementation and extend it the
+same way: when `data.reportFileName` is truthy and
+`prev.review.creditChecking.cibiResults.length === 0`, populate
+`cibiResults` with one `createCibiSampleResult(...)` row, reading
+`facilityType`/`originalAmount`/`monthlyAmortization` from the MERGED
+form state (`{ ...prev.review.cibiForm, ...data }`, since `creditType`/
+`financedAmount`/`installment` may already be set on `prev.review.cibiForm`
+from the intake form, not necessarily present in this particular `data`
+patch). When `data.reportFileName` is explicitly `null`, clear
+`cibiResults` back to `[]`.
+
+- [ ] **Step 5: Typecheck**
+
+Run: `cd "/Users/almikkaj/Downloads/Gvtech Code/lms-v2/.worktrees/bureau-reports-results" && npx tsc --noEmit`
+Expected: errors in `bureau-results-tables.tsx` and `bureau-reports-card.tsx`
+(they still pass the now-deleted `onAdd`/`onRemove`/`onUpdate` props) —
+expected at this intermediate point, fixed in Steps 6-7.
+
+- [ ] **Step 6: Simplify `bureau-results-tables.tsx`**
+
+For each of the six components: remove the `AddButton`/`RemoveButton`
+function components (delete them outright — dead code once unused),
+remove `onAdd`/`onRemove`/`onUpdate` from each component's prop type and
+destructure, remove the trailing `<AddButton .../>` JSX line and the
+`<RemoveButton .../>` grid cell in each row-map. Change `Field` to accept
+and forward a `disabled` prop, and pass `disabled` from each row's
+`<Field .../>` call (every field in every row becomes non-editable
+display). Keep the `EmptyState` component and its per-table message
+unchanged.
+
+- [ ] **Step 7: Update `bureau-reports-card.tsx`**
+
+Remove the `onAdd`/`onRemove`/`onUpdate` props from all six
+`resultsTable={<XyzTable .../>}` call sites (LOANDEX, CIC, CMAP,
+NFIS/BAP, CIBI, and the new PGFC row). Replace the old always-visible
+PGFC `Box` (the one with a bare `<Typography>` heading + `<PgfcExposureTable>`,
+no upload) with a sixth `<SimpleBureauRow>` call:
+
+```tsx
+        <SimpleBureauRow
+          title="PGFC Existing Exposure"
+          upload={pgfcExposureUpload}
+          onUpload={setPgfcExposureUpload}
+          resultsTable={<PgfcExposureTable rows={creditChecking.pgfcExposureRecords} />}
+        />
+```
+
+Update `BureauReportsCard`'s `useAdmin()` destructure: remove the 18
+deleted setters, add `setPgfcExposureUpload`; add `pgfcExposureUpload` to
+the `const { loandexUpload, cicUpload, cmapUpload, nfisBapUpload, creditChecking } = review;`
+destructure.
+
+- [ ] **Step 8: Typecheck**
+
+Run: `npx tsc --noEmit`
+Expected: errors remaining only in `initial-credit-checking-view.tsx` and
+`credit-checking-result-modal.tsx` (Step 9 fixes these — they still need
+`pgfcExposureUpload` wired into their `allBureauReportsUploaded`
+computations and `handleFillSampleData`).
+
+- [ ] **Step 9: Update `initial-credit-checking-view.tsx` and `credit-checking-result-modal.tsx`**
+
+In `initial-credit-checking-view.tsx`: add `pgfcExposureUpload` to the
+existing `const { creditChecking, cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload } = review;`
+destructure; add `&& !!pgfcExposureUpload.fileName` to
+`allBureauReportsUploaded`'s computation; add
+`setPgfcExposureUpload(sampleReport);` to `handleFillSampleData` right
+after its existing `setNfisBapUpload(sampleReport);` line; add the
+matching reset (`setPgfcExposureUpload({ fileName: null, fileData: null, uploadedAt: null })`,
+or whatever shape `handleClearSampleData` uses for the other four
+uploads — match its existing pattern exactly) to `handleClearSampleData`.
+
+In `credit-checking-result-modal.tsx`: add `pgfcExposureUpload` to its
+own `review` destructure; add the same `&& !!pgfcExposureUpload.fileName`
+condition to its separate `allBureauReportsUploaded` computation.
+
+- [ ] **Step 10: Typecheck**
+
+Run: `npx tsc --noEmit`
+Expected: zero errors anywhere in the project.
+
+- [ ] **Step 11: Lint**
+
+Run: `npx eslint src/auth/admin-context.tsx src/sections/admin/bureau-results-tables.tsx src/sections/admin/bureau-reports-card.tsx src/sections/admin/initial-credit-checking-view.tsx src/sections/admin/call-report/credit-checking-result-modal.tsx`
+Expected: no errors.
+
+- [ ] **Step 12: Manual verification**
+
+Start the dev server (`npm run dev`, poll for readiness), drive a
+Playwright smoke walk (same signup→apply→admin-login flow as Task 7):
+navigate to Initial Credit Checking, click "Fill with Sample Data",
+confirm ALL SIX bureau rows (including PGFC Existing Exposure) now show
+`fileName` uploaded AND each table shows exactly one populated read-only
+row (no Add/Remove buttons visible anywhere). Then clear localStorage /
+start a fresh session, manually upload just the CMAP file, confirm ONLY
+CMAP's table populates (one row, read-only) — the other five stay in
+their empty state. Confirm zero console errors throughout. Stop the dev
+server after.
+
+- [ ] **Step 13: Commit**
+
+Commit message: "Make bureau-results tables read-only auto-fill; give
+PGFC its own upload" with body explaining the reversal (each of the six
+tables now auto-populates with one realistic canned sample row on
+upload, no officer data entry; PGFC Existing Exposure gets its own
+upload row matching the other five bureaus), plus the standard
+Co-Authored-By trailer this repo's commits use.
+
+- [ ] **Step 14: Update docs**
+
+Update `docs/ADMIN_INITIAL_CREDIT_CHECKING.md`'s Task 7 additions: change
+"the officer can add/remove rows" language to describe the read-only
+auto-fill behavior instead, and document PGFC Existing Exposure now
+having its own upload gate like the other five bureaus. Commit as a
+follow-up ("Update docs for read-only auto-fill and PGFC upload gate",
+same Co-Authored-By trailer).

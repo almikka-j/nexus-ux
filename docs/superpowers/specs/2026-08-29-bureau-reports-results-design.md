@@ -360,3 +360,128 @@ comparisons exist anywhere). No other consumer exists.
   arrays defaulted to `[]` from `initialState` with zero additional
   migration code, same as every other plain-field addition to this slice
   has worked before.
+
+## Addendum (2026-08-29, same day): read-only auto-filled rows, not officer data entry
+
+After Tasks 1-7 above were implemented, reviewed, and merged, the user
+reversed two of this spec's original decisions:
+
+1. **No manual Add/Remove row entry.** The six tables' `AddButton`/
+   `RemoveButton` are removed. Each table becomes read-only display: the
+   moment that bureau's file is uploaded (or "Fill with Sample Data" sets
+   it, which must trigger the identical result), the table auto-populates
+   with **exactly one realistic-looking canned sample row** — same
+   convention as this file's already-existing `BUREAU_SUMMARIES` narrative
+   strings and Requirement Checklist's `freshNote` canned text. The
+   officer never types into these tables at all.
+2. **PGFC Existing Exposure gets its own upload row**, matching the other
+   five bureaus exactly (file input, View/Replace/Delete menu, `BureauRow`
+   shell) — reversing the original "always visible, no upload gate"
+   decision. Its table is now gated on that upload the same way CMAP/CIC/
+   LOANDEX/NFIS-BAP already are.
+
+### Data model changes
+
+- New `pgfcExposureUpload: BureauUpload` field + `setPgfcExposureUpload`
+  setter on `CreditChecking`, mirroring `cmapUpload`/`setCmapUpload`
+  exactly (`admin-context.tsx:1113,1156,1607,2269` — see those exact
+  lines for the pattern to copy).
+- The 18 `add*`/`remove*`/`update*` setters from Task 1 are **deleted
+  entirely** — no add, no remove, and no officer-driven update anymore.
+  Callers (`bureau-results-tables.tsx`, `bureau-reports-card.tsx`) drop
+  the `onAdd`/`onRemove`/`onUpdate` props they took.
+- Each of the six upload setters (`setCmapUpload`, `setNfisBapUpload`
+  [existing name, not renamed], `setCicUpload`, `setLoandexUpload`,
+  `setPgfcExposureUpload`, and CIBI's own report-upload path inside
+  `setCibiForm`) is extended so that when `data.fileName` is truthy AND
+  the corresponding array is currently empty, it ALSO populates that
+  bureau's one-row array with a canned sample row in the same state
+  update — not a separate action the UI has to remember to call
+  separately. This guarantees both trigger paths (manual upload via the
+  file input, and "Fill with Sample Data" which calls these same setters
+  directly per `initial-credit-checking-view.tsx:243-246`) populate the
+  table identically, since they go through the identical setter.
+  Guard on "array is currently empty" (not simply "fileName is truthy")
+  so replacing an already-uploaded file doesn't stack a second duplicate
+  sample row.
+- Deleting a bureau's file (the existing "Delete file" menu action,
+  which sets `fileName: null`) should also clear that bureau's array back
+  to `[]`, so re-uploading later produces a fresh single sample row again,
+  not a stale one.
+
+### Canned sample row content, per bureau (realistic placeholder values)
+
+One row each, following this file's existing canned-narrative tone
+(`BUREAU_SUMMARIES`) — all fields still `string`-typed per the original
+row types, no schema change:
+
+- **CMAP** (`CmapCase`): `defendantSubject` = the applicant's full name,
+  `plaintiff` = "—" (no plaintiff — no case on file), `natureOfCase` =
+  "No matching record", `amountInvolved` = "—", `caseNo` = "—",
+  `dateFiled` = "—", `status` = "No Record Found", `creditRiskRemarks` =
+  "No adverse court or legal record found."
+- **BAP/NFIS** (`BapNfisRecord`): `lendingInstitution` = "N/A — no record
+  found", `facility` = "—", `originalLoanAmount` = "—", `dateGranted` =
+  "—", `maturityDate` = "—", `outstandingBalance` = "—",
+  `paymentHistory` = "—", `statusRemarks` = "No cancelled credit card,
+  adversely classified loan, or negative-file indicator found."
+- **CIBI** (`CibiResult`): `provider` = "CIBI", `facilityType` =
+  "Personal Loan" (or "Business Loan" per `application.loanType`, same
+  mapping `cibiForm.creditType` already uses), `originalAmount` = the
+  applicant's `desiredLoanAmount` formatted as a string, `outstandingBalance`
+  = "0.00", `overdueAmount` = "0.00", `monthlyAmortization` =
+  `cibiForm.installment`, `paymentStatus` = "Current — No Delinquency",
+  `remarks` = "CIBI Bureau Score 600. One active account, payments made
+  as agreed."
+- **CIC** (`CicContract`): `contractCode` = "N/A", `contractType` = "—",
+  `maturityDate` = "—", `outstandingBalance` = "—", `overdueAmount` =
+  "—", `monthlyAmortization` = "—", `contractStatus` = "No Record Found",
+  `remarks` = "Consistent borrower and account information, no material
+  discrepancy found."
+- **LOANDEX** (`LoandexRecord`): `bankInstitution` = "N/A — one active
+  account on file", `loanFacility` = "Personal Loan", `maturityDate` =
+  "—", `outstandingBalance` = "0.00", `overdueAmount` = "0.00",
+  `monthlyAmortization` = "—", `accountStatus` = "Current — No Past-Due
+  Exposure", `remarks` = "Regular payment activity, no past-due exposure
+  reported."
+- **PGFC Existing Exposure** (`PgfcExposureRecord`): `principalBalance` =
+  "0.00", `interestBalance` = "0.00", `maturityDate` = "—",
+  `remainingTerm` = "—", `lastPaymentDate` = "—", `monthlyAmortization` =
+  "0.00", `paymentStatus` = "No Existing Exposure", `remarks` = "No prior
+  or existing PGFC loan exposure on file."
+
+### UI changes
+
+- `bureau-results-tables.tsx`: remove `AddButton`/`RemoveButton` and the
+  `onAdd`/`onRemove`/`onUpdate` props from all six components' signatures
+  entirely — fields are now read-only display (`Field`'s `TextField`
+  becomes a disabled `TextField` showing the row's value, keeping the
+  existing visual shell/spacing with a minimal diff rather than swapping
+  to a plain `Typography` value). Empty-state message stays (shown only
+  in the split-second before the setter's same state update lands — in
+  practice React batches this so the empty state should rarely if ever be
+  visible, but keep it for defensive correctness).
+- `bureau-reports-card.tsx`: add a sixth `SimpleBureauRow` for PGFC
+  Existing Exposure (`title="PGFC Existing Exposure"`,
+  `upload={pgfcExposureUpload}`, `onUpload={setPgfcExposureUpload}`,
+  `resultsTable={<PgfcExposureTable rows={...} />}` — note: no
+  `onAdd`/`onRemove`/`onUpdate` props passed anymore, matching the
+  simplified table signature), replacing the old always-visible `Box`
+  with no upload gate. Remove the `onAdd`/`onRemove`/`onUpdate` props from
+  all six `SimpleBureauRow`/`CibiRow` results-table wirings.
+- `initial-credit-checking-view.tsx`'s `handleFillSampleData` gains one
+  more line: `setPgfcExposureUpload(sampleReport)` alongside its existing
+  four bureau-upload calls, so "Fill with Sample Data" also uploads and
+  populates PGFC Existing Exposure like the other five.
+- `credit-checking-result-modal.tsx`'s `allBureauReportsUploaded`
+  computation (and `initial-credit-checking-view.tsx`'s copy of the same
+  logic) gains `&& !!pgfcExposureUpload.fileName` as a sixth condition,
+  since PGFC is now a real upload gate like the other five and the risk
+  engine's "ON HOLD" rule should treat it the same way.
+
+### Non-goals (unchanged from the original spec)
+
+Everything else in the original spec (six distinct table components per
+bureau, label-above-field visual style, the 5-level AI risk engine and its
+derivation rules, no PDF export, no per-row file attachment) is unchanged
+by this addendum.
