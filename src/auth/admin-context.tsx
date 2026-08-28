@@ -1544,20 +1544,26 @@ function createAppraisalReportBundle(
 // the instant that bureau's report file is uploaded (see the setCmapUpload/
 // setCicUpload/setLoandexUpload/setNfisBapUpload/setPgfcExposureUpload/
 // setCibiForm setters below), replacing the old officer-driven manual
-// add/remove/edit flow. `defendantSubject` uses a generic '—' placeholder
-// rather than the applicant's real name — admin-context.tsx is
-// registration-agnostic and has no access to signUpData anywhere else in
+// add/remove/edit flow. Every field uses a descriptive "No ___ on record"
+// phrase rather than a bare '—' placeholder, so an uploaded report reads as
+// a genuinely completed record rather than a blank-looking row — a dash by
+// itself was reported as looking empty even though it was populated data.
+// `defendantSubject` can't use the applicant's real name — admin-context.tsx
+// is registration-agnostic and has no access to signUpData anywhere else in
 // this file either; threading it in would require a much larger refactor
-// out of scope here.
+// out of scope here. Every status/paymentStatus/contractStatus/accountStatus
+// field (the ones initial-credit-checking-risk.ts's risk engine pattern-
+// matches for "clean") is deliberately UNCHANGED by this — only the
+// non-status descriptive fields were reworded.
 function createCmapSampleCase(): CmapCase {
   return {
     id: crypto.randomUUID(),
-    defendantSubject: '—',
-    plaintiff: '—',
+    defendantSubject: 'No court or legal case matched to applicant',
+    plaintiff: 'None on record',
     natureOfCase: 'No matching record',
-    amountInvolved: '—',
-    caseNo: '—',
-    dateFiled: '—',
+    amountInvolved: '₱0.00',
+    caseNo: 'No case number on record',
+    dateFiled: 'No filing date on record',
     status: 'No Record Found',
     creditRiskRemarks: 'No adverse court or legal record found.',
   };
@@ -1566,13 +1572,13 @@ function createCmapSampleCase(): CmapCase {
 function createBapNfisSampleRecord(): BapNfisRecord {
   return {
     id: crypto.randomUUID(),
-    lendingInstitution: 'N/A — no record found',
-    facility: '—',
-    originalLoanAmount: '—',
-    dateGranted: '—',
-    maturityDate: '—',
-    outstandingBalance: '—',
-    paymentHistory: '—',
+    lendingInstitution: 'No prior lending institution on record',
+    facility: 'None reported',
+    originalLoanAmount: '₱0.00',
+    dateGranted: 'No date on record',
+    maturityDate: 'No date on record',
+    outstandingBalance: '₱0.00',
+    paymentHistory: 'No payment history on file',
     statusRemarks:
       'No cancelled credit card, adversely classified loan, or negative-file indicator found.',
   };
@@ -1592,8 +1598,8 @@ function createCibiSampleResult(
     provider: 'CIBI',
     facilityType,
     originalAmount,
-    outstandingBalance: '0.00',
-    overdueAmount: '0.00',
+    outstandingBalance: '₱0.00',
+    overdueAmount: '₱0.00',
     monthlyAmortization,
     paymentStatus: 'Current — No Delinquency',
     remarks: 'CIBI Bureau Score 600. One active account, payments made as agreed.',
@@ -1603,12 +1609,12 @@ function createCibiSampleResult(
 function createCicSampleContract(): CicContract {
   return {
     id: crypto.randomUUID(),
-    contractCode: 'N/A',
-    contractType: '—',
-    maturityDate: '—',
-    outstandingBalance: '—',
-    overdueAmount: '—',
-    monthlyAmortization: '—',
+    contractCode: 'No matching contract on record',
+    contractType: 'None reported',
+    maturityDate: 'No date on record',
+    outstandingBalance: '₱0.00',
+    overdueAmount: '₱0.00',
+    monthlyAmortization: '₱0.00',
     contractStatus: 'No Record Found',
     remarks: 'Consistent borrower and account information, no material discrepancy found.',
   };
@@ -1617,12 +1623,12 @@ function createCicSampleContract(): CicContract {
 function createLoandexSampleRecord(): LoandexRecord {
   return {
     id: crypto.randomUUID(),
-    bankInstitution: 'N/A — one active account on file',
-    loanFacility: 'Personal Loan',
-    maturityDate: '—',
-    outstandingBalance: '0.00',
-    overdueAmount: '0.00',
-    monthlyAmortization: '—',
+    bankInstitution: 'No matching account on record',
+    loanFacility: 'None reported',
+    maturityDate: 'No date on record',
+    outstandingBalance: '₱0.00',
+    overdueAmount: '₱0.00',
+    monthlyAmortization: '₱0.00',
     accountStatus: 'Current — No Past-Due Exposure',
     remarks: 'Regular payment activity, no past-due exposure reported.',
   };
@@ -1631,12 +1637,12 @@ function createLoandexSampleRecord(): LoandexRecord {
 function createPgfcSampleExposureRecord(): PgfcExposureRecord {
   return {
     id: crypto.randomUUID(),
-    principalBalance: '0.00',
-    interestBalance: '0.00',
-    maturityDate: '—',
-    remainingTerm: '—',
-    lastPaymentDate: '—',
-    monthlyAmortization: '0.00',
+    principalBalance: '₱0.00',
+    interestBalance: '₱0.00',
+    maturityDate: 'No date on record',
+    remainingTerm: 'No existing term on record',
+    lastPaymentDate: 'No payment history on record',
+    monthlyAmortization: '₱0.00',
     paymentStatus: 'No Existing Exposure',
     remarks: 'No prior or existing PGFC loan exposure on file.',
   };
