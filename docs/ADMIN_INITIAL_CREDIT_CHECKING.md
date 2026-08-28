@@ -2,8 +2,9 @@
 
 > **Maintenance rule:** update this file whenever `initial-credit-checking-view.tsx`
 > or its supporting cards (`application-details-card.tsx`, `bureau-reports-card.tsx`,
-> `negative-credit-report-card.tsx`, `initial-credit-checking-risk.ts`,
-> `simulate-bureau-finding.ts`, `officer-notes-history.tsx`) change — new fields, new cards, changed gating,
+> `bureau-results-tables.tsx`, `negative-credit-report-card.tsx`,
+> `initial-credit-checking-risk.ts`, `simulate-bureau-finding.ts`,
+> `officer-notes-history.tsx`) change — new fields, new cards, changed gating,
 > changed decision behavior. Companion to `PROJECT_OVERVIEW.md` (system-wide) and
 > `docs/BORROWER_SIGNUP_FLOW.md` (where the data this screen reads comes from).
 
@@ -18,8 +19,9 @@ proceeds to Call Report, is rejected, or is sent to Reconsideration.
 
 There is no real backend, no real bureau integration, and no real AI — every
 "AI" output here is a deterministic function of the application's own data
-(loan amount, income, employment status), not a call to any external service.
-See "Fabricated claims" below for what that means for this screen's copy.
+(loan amount, income, employment status) and whatever bureau-result rows the
+officer has entered, not a call to any external service. See "Fabricated
+claims" below for what that means for this screen's copy.
 
 ## Layout
 
@@ -43,7 +45,9 @@ the compact aging values and Step 1 pill remain in the row above. Large
 The right-column cards, in order:
 
 1. **`BureauReportsCard`** — the CIBI form + 4 bureau-report upload slots
-   (LOANDEX, CIC, CMAP, NFIS/BAP). See "Bureau reports" below.
+   (LOANDEX, CIC, CMAP, NFIS/BAP), each revealing an editable results table
+   once uploaded, plus an always-visible PGFC Existing Exposure table. See
+   "Bureau reports" below.
 2. **"Officer notes"** — add a structured, attributed note or open the complete
    note history. See "Officer notes" below.
 3. **"AI review, summary & recommendation"** — see "AI review card" below.
@@ -156,21 +160,47 @@ independent of the borrower-facing "Auto-filled"/"Pre-filled" chip pattern on
 Upload ID (`step-personal-info.tsx`); the two are separate components with
 separate color/label choices, not shared.
 
-The other 4 bureau reports (LOANDEX, CIC, CMAP, NFIS/BAP) are plain file-name
-uploads with no form behind them.
+All 5 bureaus, plus a new internal "PGFC Existing Exposure" section, now have
+real editable **results tables** (`src/sections/admin/bureau-results-tables.tsx`)
+matching the columns from the "PGFC – Integrated Initial Credit Checking
+Results" reference template: `CmapCasesTable`, `BapNfisRecordsTable`,
+`CibiResultsTable`, `CicContractsTable`, `LoandexRecordsTable`, and
+`PgfcExposureTable`. Each table renders a row per record (label-above-field
+layout, not the template's literal spreadsheet grid) with an **Add**
+button to append a new row and a small `X` icon button to remove one; every
+field is a plain text input, freely editable by the officer. An empty table
+shows a dashed-border empty-state message (e.g. "No CMAP court/legal cases
+recorded yet.") instead of nothing. Rows are backed by six new arrays on
+`CreditChecking` (`cmapCases`, `bapNfisRecords`, `cibiResults`, `cicContracts`,
+`loandexRecords`, `pgfcExposureRecords` — each row a `{id, ...fields}` object)
+with matching `add*`/`remove*`/`update*` setters on `useAdmin()`, so edits
+round-trip through the same `localStorage`-backed admin session as the rest
+of this screen.
+
+Each of the five bureau results tables is revealed only once that bureau's
+own file is uploaded — LOANDEX, CIC, and CMAP reveal on their single file
+upload; NFIS/BAP the same; **CIBI specifically reveals on its report upload**
+("Upload document", the step after "Create Report" → "Submit to CIBI"), not
+on the intake form's submission alone — submitting the form only marks it
+"Sent" and does not by itself show `CibiResultsTable`. **PGFC Existing
+Exposure has no upload gate at all** — its table (and Add Exposure Record
+button) is always visible on the page, since it represents the applicant's
+existing exposure to PGFC itself rather than an external bureau report.
 
 `allBureauReportsUploaded` = all 5 of `cibiForm.reportFileName`,
 `loandexUpload.fileName`, `cicUpload.fileName`, `cmapUpload.fileName`,
 `nfisBapUpload.fileName` are set. This drives:
 - Whether the simulated bureau-finding effect runs (see below).
-- Which wording AI Summary/AI Recommendation use — both always render, this
-  only switches between the application-details-only fallback and the
-  bureau-reports-confirmed version (see "AI review card" below).
+- Whether `buildInitialCreditCheckingResult()` can compute a real risk level
+  at all — while any upload is missing it short-circuits to the dedicated
+  "Unable to Determine" level rather than switching wording, as the old
+  before/after-upload fallback text used to (see "AI review card" below).
 - The Fill/Remove Sample Data floating button's label and action.
 
-**It no longer gates whether AI Summary/AI Recommendation render at all, the
-Proceed to Call Report/Disapprove decision, or the "View Initial Credit Checking
-Result" button** — see "Decision gate" and "AI review card" below.
+**It no longer gates whether the AI Risk Level/Summary/Recommended Action
+render at all, the Proceed to Call Report/Disapprove decision, or the "View
+Initial Credit Checking Result" button** — see "Decision gate" and "AI review
+card" below.
 
 ## Simulated bureau finding
 
@@ -236,39 +266,62 @@ Negative always sets `bureauFindingBureau: 'CMAP'` /
    editable only when the modal is opened from Initial Credit Checking; the
    Call Report passes `recommendationEditable={false}` and renders the stored
    value as read-only text (with an empty-state message when none was recorded).
-2. **AI Summary** — `buildAiSummary()`, always rendered, never gated. Without
-   bureau reports it summarizes application details only ("Bureau reports
-   ... haven't been uploaded yet, so this summary is based on application
-   details only"); once all 5 are uploaded, it switches to the fuller
-   "on file and consistent with the application details" version.
-3. **AI Recommendation** — `buildAiRecommendation()`, always rendered, never
-   gated, and **carries the risk-level styling** (this is where the former
-   standalone "Initial AI Recommendation" card's content lives now — see
-   "History" below). Its label reads "AI Recommendation · {risk label}"
-   (Low risk / Needs a closer look / High risk) and its background/text
-   color follows `INITIAL_RISK_STYLES` for that level, same colors the old
-   standalone card used. `buildInitialAiRecommendation()`
-   (`initial-credit-checking-risk.ts`) computes the debt-to-income ratio and
-   risk level (`'good' | 'watch' | 'high'`): Low risk (≤35% of annual
-   income), Needs a closer look (≤60%, or when monthly income is 0/unset —
-   ratio can't be computed), High risk (>60%). This same function is shared
-   with `credit-checking-result-modal.tsx`, so the risk level shown here and
-   the tone of the generated report never disagree. The recommendation text
-   itself also has an unuploaded-vs-uploaded fallback, same pattern as AI
-   Summary — e.g. "...based on application details alone. Upload the bureau
-   reports above for a fuller picture before proceeding" vs. the
-   bureau-reports-confirmed wording.
+2. **AI Risk Level** pill — `buildInitialCreditCheckingResult()`
+   (`initial-credit-checking-risk.ts`) is the single engine behind the whole
+   card now, replacing the old `buildInitialAiRecommendation()` plus two
+   now-deleted ad-hoc `buildAiSummary()`/`buildAiRecommendation()` builder
+   functions. It reads all six new bureau-result row arrays (`cmapCases`,
+   `bapNfisRecords`, `cibiResults`, `cicContracts`, `loandexRecords`,
+   `pgfcExposureRecords`), `allBureauReportsUploaded`, and the application's
+   loan amount/income/employment status, and returns one
+   `InitialCreditCheckingResult` object consumed by the whole card. Its
+   `riskLevel` is one of 5 levels (`RISK_LEVEL_STYLES`, each with its own
+   background/text color and icon): **Low**, **Moderate**, **Elevated**,
+   **High**, or **Unable to Determine** — in priority order: not all 5 bureau
+   reports uploaded yet → Unable to Determine; any CMAP court/legal case or
+   any row elsewhere with a delinquent/overdue/negative-style status → High;
+   existing PGFC exposure on file, or requested amount >60% of stated annual
+   income → Elevated; at least one bureau row on file with nothing adverse
+   found → Moderate; all 5 reports on file, nothing recorded anywhere, income
+   ratio acceptable → Low. The pill reads "AI Risk Level · {label}" with
+   `riskStyle.bg`/`riskStyle.color` driving the surrounding callout box, same
+   "risk level colors the whole block" idea the old standalone card used.
+3. **AI Summary** — `creditCheckingResult.summary`, always rendered, never
+   gated. Its wording is generated per risk level — e.g. it names how many
+   bureau records were reviewed and, where relevant, calls out the specific
+   court/legal case or delinquent-status finding that drove the level.
+4. **AI Recommended Action** — `creditCheckingResult.recommendedAction`,
+   always rendered, a plain-language next step for the officer (e.g.
+   "Recommend further credit review before proceeding…" for High, "Recommend
+   proceeding to Call Report preparation…" for Low).
+5. **AI Review Basis** — a row of tag chips (`StatusBadge`, neutral tone)
+   listing which factors the result above drew on, via
+   `creditCheckingResult.reviewBasis` (an array of `ReviewBasisTag`) and
+   `REVIEW_BASIS_LABELS` for their display text (e.g. "Court / legal
+   findings", "Existing exposure", "Delinquency / overdue history", "Data
+   completeness", "Bureau consistency"). This is new — the old 3-level engine
+   had no equivalent basis list.
 
 **History:** there used to be a separate standalone "Initial AI
 Recommendation" card, shown above `BureauReportsCard`, with copy explicitly
 saying it was "not a substitute for the full AI review below." It was first
 merged into this card as its own always-shown callout (a transitional state),
-then folded further — its content and risk-level styling now live directly
-inside the "AI Recommendation" block itself, so there's exactly one
-recommendation per card, not two. AI Summary and AI Recommendation are now
-*both* always populated (previously both were `null` until
-`allBureauReportsUploaded`), each with its own before/after-bureau-upload
-wording.
+then folded further into a single "AI Recommendation" block carrying the
+risk-level styling. That 3-level engine (`buildInitialAiRecommendation()`:
+`'good' | 'watch' | 'high'`, a pure debt-to-income-ratio check) and its two
+companion ad-hoc `buildAiSummary()`/`buildAiRecommendation()` builders have
+since been deleted outright and replaced by the single 5-level
+`buildInitialCreditCheckingResult()` described above, which also reads the
+new bureau-result row tables rather than income/loan-amount alone. AI Summary
+and AI Recommended Action remain always populated (never gated on
+`allBureauReportsUploaded` — that state instead routes to the dedicated
+"Unable to Determine" risk level), and the card now also always renders the
+AI Review Basis tag list.
+
+`credit-checking-result-modal.tsx` shares this same engine: its `isCleared`
+used to check `riskLevel === 'good'` under the old 3-level type; it now
+checks `riskLevel === 'low'` under the new 5-level type, same threshold
+meaning (still additionally gated on `allBureauReportsUploaded`).
 
 ## Decision gate
 
@@ -285,10 +338,8 @@ uploaded.
   `decision: 'rejected'` + the typed reason, routes to Reconsideration.
 
 `allBureauReportsUploaded` still independently gates the Fill/Remove Sample
-Data button. The decision buttons, the "View Initial
-Credit Checking Result" button, and AI Summary/Recommendation's *visibility*
-(only their wording, not whether they render) have all since been unblocked —
-see "AI review card" above.
+Data button. The decision buttons and the "View Initial Credit Checking
+Result" button have all since been unblocked — see "AI review card" above.
 
 ## Fabricated claims — what's real vs. simulated
 
@@ -303,9 +354,9 @@ a real AI model:
 - The "Auto-filled" CIBI fields are copied straight from the borrower's own
   submitted data, not independently verified against a bureau record.
 - The simulated bureau finding is a hash function, not a real bureau response.
-- Every "AI Summary"/"AI Recommendation"/risk-level string is a template
-  string built from arithmetic on `application.financialInfo`, not a model
-  inference call.
+- Every "AI Risk Level"/"AI Summary"/"AI Recommended Action"/"AI Review
+  Basis" string is a template string built from the bureau-result row data
+  and arithmetic on `application.financialInfo`, not a model inference call.
 
 This is intentional prototype behavior, not a gap to close as part of routine
 maintenance on this screen — flag it explicitly if a future change makes any
