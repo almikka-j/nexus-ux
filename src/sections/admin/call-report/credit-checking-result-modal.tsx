@@ -19,7 +19,7 @@ import { useRegistration } from 'src/auth/registration-context';
 import { Iconify } from 'src/components/iconify';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
-import { buildInitialAiRecommendation } from '../initial-credit-checking-risk';
+import { buildInitialCreditCheckingResult } from '../initial-credit-checking-risk';
 
 // ----------------------------------------------------------------------
 // Entirely computed at render time from existing state — no new fields are
@@ -192,13 +192,20 @@ export function CreditCheckingResultModal({
     !!cmapUpload.fileName &&
     !!nfisBapUpload.fileName;
 
-  const initialRiskLevel = buildInitialAiRecommendation(
-    application.financialInfo?.desiredLoanAmount ?? 0,
-    application.financialInfo?.monthlyIncome ?? 0,
-    application.financialInfo?.employmentStatus ?? 'Unknown'
-  ).level;
+  const { riskLevel } = buildInitialCreditCheckingResult({
+    cmapCases: creditChecking.cmapCases,
+    bapNfisRecords: creditChecking.bapNfisRecords,
+    cibiResults: creditChecking.cibiResults,
+    cicContracts: creditChecking.cicContracts,
+    loandexRecords: creditChecking.loandexRecords,
+    pgfcExposureRecords: creditChecking.pgfcExposureRecords,
+    allBureauReportsUploaded,
+    desiredLoanAmount: application.financialInfo?.desiredLoanAmount ?? 0,
+    monthlyIncome: application.financialInfo?.monthlyIncome ?? 0,
+    employmentStatus: application.financialInfo?.employmentStatus ?? 'Unknown',
+  });
 
-  const isCleared = initialRiskLevel === 'good' && allBureauReportsUploaded;
+  const isCleared = riskLevel === 'low' && allBureauReportsUploaded;
 
   // Only when the simulated bureau review actually came back negative AND
   // the officer has submitted the manual report do we show real data here —
