@@ -29,6 +29,14 @@ import {
 } from 'src/components/admin-ui';
 
 import { computeInstallment } from './cibi-form-card';
+import {
+  CmapCasesTable,
+  BapNfisRecordsTable,
+  CibiResultsTable,
+  CicContractsTable,
+  LoandexRecordsTable,
+  PgfcExposureTable,
+} from './bureau-results-tables';
 
 import type { CibiForm, BureauUpload } from 'src/auth/admin-context';
 
@@ -216,10 +224,12 @@ function SimpleBureauRow({
   title,
   upload,
   onUpload,
+  resultsTable,
 }: {
   title: string;
   upload: BureauUpload;
   onUpload: (data: Partial<BureauUpload>) => void;
+  resultsTable?: React.ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
@@ -238,85 +248,90 @@ function SimpleBureauRow({
   };
 
   return (
-    <BureauRow
-      title={title}
-      uploaded={!!upload.fileName}
-      bureauFindingStatus={review.creditChecking.bureauFindingStatus}
-      summary={upload.fileName ? BUREAU_SUMMARIES[title]?.(applicantName) : undefined}
-      uploadDetails={
-        upload.fileName
-          ? `${upload.fileName} · Uploaded ${formatUploadedAt(upload.uploadedAt) ?? 'date unavailable'}`
-          : undefined
-      }
-    >
-      <input ref={inputRef} type="file" accept="image/*,.pdf" hidden onChange={handleUpload} />
-      {upload.fileName ? (
-        <>
-          <Button
-            onClick={() => upload.fileData && window.open(upload.fileData, '_blank', 'noopener,noreferrer')}
-            disabled={!upload.fileData}
-            variant="outlined"
-            size="small"
-            startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
-            sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
-          >
-            View
-          </Button>
-          <IconButton
-            onClick={(event) => setMenuAnchor(event.currentTarget)}
-            aria-label={`More actions for ${title}`}
-            size="small"
-            sx={iconButtonBorderedSx}
-          >
-            <Iconify icon="eva:more-vertical-fill" width={18} />
-          </IconButton>
-          <Menu
-            anchorEl={menuAnchor}
-            open={Boolean(menuAnchor)}
-            onClose={() => setMenuAnchor(null)}
-            slotProps={{ paper: { sx: { mt: 0.5, minWidth: 175, borderRadius: '10px' } } }}
-          >
-            <MenuItem
-              onClick={() => {
-                setMenuAnchor(null);
-                inputRef.current?.click();
-              }}
-              sx={{ fontSize: 13.5 }}
+    <Stack spacing={1.5}>
+      <BureauRow
+        title={title}
+        uploaded={!!upload.fileName}
+        bureauFindingStatus={review.creditChecking.bureauFindingStatus}
+        summary={upload.fileName ? BUREAU_SUMMARIES[title]?.(applicantName) : undefined}
+        uploadDetails={
+          upload.fileName
+            ? `${upload.fileName} · Uploaded ${formatUploadedAt(upload.uploadedAt) ?? 'date unavailable'}`
+            : undefined
+        }
+      >
+        <input ref={inputRef} type="file" accept="image/*,.pdf" hidden onChange={handleUpload} />
+        {upload.fileName ? (
+          <>
+            <Button
+              onClick={() => upload.fileData && window.open(upload.fileData, '_blank', 'noopener,noreferrer')}
+              disabled={!upload.fileData}
+              variant="outlined"
+              size="small"
+              startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
+              sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
             >
-              <Iconify icon="solar:refresh-bold-duotone" width={17} sx={{ mr: 1.25 }} />
-              Replace file
-            </MenuItem>
-            <MenuItem
-              onClick={() => {
-                setMenuAnchor(null);
-                onUpload({ fileName: null, fileData: null, uploadedAt: null });
-              }}
-              sx={{ fontSize: 13.5, color: '#B32C22', '&:hover': { bgcolor: TONE_COLORS.error.bg } }}
+              View
+            </Button>
+            <IconButton
+              onClick={(event) => setMenuAnchor(event.currentTarget)}
+              aria-label={`More actions for ${title}`}
+              size="small"
+              sx={iconButtonBorderedSx}
             >
-              <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
-              Delete file
-            </MenuItem>
-          </Menu>
-        </>
-      ) : (
-        <>
-          <Button
-            onClick={() => inputRef.current?.click()}
-            variant="contained"
-            size="small"
-            sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', px: 2, '&:hover': { bgcolor: '#14205A' } }}
-          >
-            Upload report
-          </Button>
-        </>
+              <Iconify icon="eva:more-vertical-fill" width={18} />
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={() => setMenuAnchor(null)}
+              slotProps={{ paper: { sx: { mt: 0.5, minWidth: 175, borderRadius: '10px' } } }}
+            >
+              <MenuItem
+                onClick={() => {
+                  setMenuAnchor(null);
+                  inputRef.current?.click();
+                }}
+                sx={{ fontSize: 13.5 }}
+              >
+                <Iconify icon="solar:refresh-bold-duotone" width={17} sx={{ mr: 1.25 }} />
+                Replace file
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuAnchor(null);
+                  onUpload({ fileName: null, fileData: null, uploadedAt: null });
+                }}
+                sx={{ fontSize: 13.5, color: '#B32C22', '&:hover': { bgcolor: TONE_COLORS.error.bg } }}
+              >
+                <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
+                Delete file
+              </MenuItem>
+            </Menu>
+          </>
+        ) : (
+          <>
+            <Button
+              onClick={() => inputRef.current?.click()}
+              variant="contained"
+              size="small"
+              sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', px: 2, '&:hover': { bgcolor: '#14205A' } }}
+            >
+              Upload report
+            </Button>
+          </>
+        )}
+      </BureauRow>
+      {upload.fileName && resultsTable && (
+        <Box sx={{ pl: { xs: 0, sm: 2 } }}>{resultsTable}</Box>
       )}
-    </BureauRow>
+    </Stack>
   );
 }
 
 function CibiRow() {
   const { signUpData, application } = useRegistration();
-  const { review, setCibiForm } = useAdmin();
+  const { review, setCibiForm, addCibiResult, removeCibiResult, updateCibiResult } = useAdmin();
   const { cibiForm } = review;
   const [formOpen, setFormOpen] = useState(false);
   const [reportMenuAnchor, setReportMenuAnchor] = useState<HTMLElement | null>(null);
@@ -756,13 +771,45 @@ function CibiRow() {
           </Box>
         </Box>
       </Collapse>
+
+      <Collapse in={!!cibiForm.reportFileName} timeout="auto" unmountOnExit>
+        <Box sx={{ p: 2.5, pt: 0 }}>
+          <CibiResultsTable
+            rows={review.creditChecking.cibiResults}
+            onAdd={addCibiResult}
+            onRemove={removeCibiResult}
+            onUpdate={updateCibiResult}
+          />
+        </Box>
+      </Collapse>
     </Box>
   );
 }
 
 export function BureauReportsCard() {
-  const { review, setLoandexUpload, setCicUpload, setCmapUpload, setNfisBapUpload } = useAdmin();
-  const { loandexUpload, cicUpload, cmapUpload, nfisBapUpload } = review;
+  const {
+    review,
+    setLoandexUpload,
+    setCicUpload,
+    setCmapUpload,
+    setNfisBapUpload,
+    addCmapCase,
+    removeCmapCase,
+    updateCmapCase,
+    addBapNfisRecord,
+    removeBapNfisRecord,
+    updateBapNfisRecord,
+    addCicContract,
+    removeCicContract,
+    updateCicContract,
+    addLoandexRecord,
+    removeLoandexRecord,
+    updateLoandexRecord,
+    addPgfcExposureRecord,
+    removePgfcExposureRecord,
+    updatePgfcExposureRecord,
+  } = useAdmin();
+  const { loandexUpload, cicUpload, cmapUpload, nfisBapUpload, creditChecking } = review;
 
   return (
     <Box sx={adminCardSx}>
@@ -775,10 +822,69 @@ export function BureauReportsCard() {
 
       <Stack spacing={1.5}>
         <CibiRow />
-        <SimpleBureauRow title="LOANDEX" upload={loandexUpload} onUpload={setLoandexUpload} />
-        <SimpleBureauRow title="CIC" upload={cicUpload} onUpload={setCicUpload} />
-        <SimpleBureauRow title="CMAP" upload={cmapUpload} onUpload={setCmapUpload} />
-        <SimpleBureauRow title="NFIS / BAP" upload={nfisBapUpload} onUpload={setNfisBapUpload} />
+        <SimpleBureauRow
+          title="LOANDEX"
+          upload={loandexUpload}
+          onUpload={setLoandexUpload}
+          resultsTable={
+            <LoandexRecordsTable
+              rows={creditChecking.loandexRecords}
+              onAdd={addLoandexRecord}
+              onRemove={removeLoandexRecord}
+              onUpdate={updateLoandexRecord}
+            />
+          }
+        />
+        <SimpleBureauRow
+          title="CIC"
+          upload={cicUpload}
+          onUpload={setCicUpload}
+          resultsTable={
+            <CicContractsTable
+              rows={creditChecking.cicContracts}
+              onAdd={addCicContract}
+              onRemove={removeCicContract}
+              onUpdate={updateCicContract}
+            />
+          }
+        />
+        <SimpleBureauRow
+          title="CMAP"
+          upload={cmapUpload}
+          onUpload={setCmapUpload}
+          resultsTable={
+            <CmapCasesTable
+              rows={creditChecking.cmapCases}
+              onAdd={addCmapCase}
+              onRemove={removeCmapCase}
+              onUpdate={updateCmapCase}
+            />
+          }
+        />
+        <SimpleBureauRow
+          title="NFIS / BAP"
+          upload={nfisBapUpload}
+          onUpload={setNfisBapUpload}
+          resultsTable={
+            <BapNfisRecordsTable
+              rows={creditChecking.bapNfisRecords}
+              onAdd={addBapNfisRecord}
+              onRemove={removeBapNfisRecord}
+              onUpdate={updateBapNfisRecord}
+            />
+          }
+        />
+        <Box sx={{ borderRadius: '13px', border: '1px solid #EBEDF3', bgcolor: 'common.white', p: 2 }}>
+          <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
+            PGFC Existing Exposure
+          </Typography>
+          <PgfcExposureTable
+            rows={creditChecking.pgfcExposureRecords}
+            onAdd={addPgfcExposureRecord}
+            onRemove={removePgfcExposureRecord}
+            onUpdate={updatePgfcExposureRecord}
+          />
+        </Box>
       </Stack>
     </Box>
   );
