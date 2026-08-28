@@ -77,6 +77,92 @@ export type CreditChecking = {
    * flows if the officer starts over.
    */
   justificationDocument: { fileName: string; fileData: string } | null;
+  /**
+   * Six new repeatable-row results tables, one per bureau report section
+   * plus PGFC's own internal exposure record — see
+   * docs/superpowers/specs/2026-08-29-bureau-reports-results-design.md.
+   * Each is populated by the officer once that bureau's report file is
+   * uploaded (pgfcExposureRecords has no upload gate — it's an internal
+   * record, not a third-party bureau report).
+   */
+  cmapCases: CmapCase[];
+  bapNfisRecords: BapNfisRecord[];
+  cibiResults: CibiResult[];
+  cicContracts: CicContract[];
+  loandexRecords: LoandexRecord[];
+  pgfcExposureRecords: PgfcExposureRecord[];
+};
+
+export type CmapCase = {
+  id: string;
+  defendantSubject: string;
+  plaintiff: string;
+  natureOfCase: string;
+  amountInvolved: string;
+  caseNo: string;
+  dateFiled: string;
+  status: string;
+  creditRiskRemarks: string;
+};
+
+export type BapNfisRecord = {
+  id: string;
+  lendingInstitution: string;
+  facility: string;
+  originalLoanAmount: string;
+  dateGranted: string;
+  maturityDate: string;
+  outstandingBalance: string;
+  paymentHistory: string;
+  statusRemarks: string;
+};
+
+export type CibiResult = {
+  id: string;
+  provider: string;
+  facilityType: string;
+  originalAmount: string;
+  outstandingBalance: string;
+  overdueAmount: string;
+  monthlyAmortization: string;
+  paymentStatus: string;
+  remarks: string;
+};
+
+export type CicContract = {
+  id: string;
+  contractCode: string;
+  contractType: string;
+  maturityDate: string;
+  outstandingBalance: string;
+  overdueAmount: string;
+  monthlyAmortization: string;
+  contractStatus: string;
+  remarks: string;
+};
+
+export type LoandexRecord = {
+  id: string;
+  bankInstitution: string;
+  loanFacility: string;
+  maturityDate: string;
+  outstandingBalance: string;
+  overdueAmount: string;
+  monthlyAmortization: string;
+  accountStatus: string;
+  remarks: string;
+};
+
+export type PgfcExposureRecord = {
+  id: string;
+  principalBalance: string;
+  interestBalance: string;
+  maturityDate: string;
+  remainingTerm: string;
+  lastPaymentDate: string;
+  monthlyAmortization: string;
+  paymentStatus: string;
+  remarks: string;
 };
 
 export type CibiForm = {
@@ -1046,6 +1132,24 @@ type AdminContextValue = AdminState & {
   hydrated: boolean;
   setAdminUser: (user: AdminUser) => void;
   setCreditChecking: (data: Partial<CreditChecking>) => void;
+  addCmapCase: () => void;
+  removeCmapCase: (id: string) => void;
+  updateCmapCase: (id: string, data: Partial<CmapCase>) => void;
+  addBapNfisRecord: () => void;
+  removeBapNfisRecord: (id: string) => void;
+  updateBapNfisRecord: (id: string, data: Partial<BapNfisRecord>) => void;
+  addCibiResult: () => void;
+  removeCibiResult: (id: string) => void;
+  updateCibiResult: (id: string, data: Partial<CibiResult>) => void;
+  addCicContract: () => void;
+  removeCicContract: (id: string) => void;
+  updateCicContract: (id: string, data: Partial<CicContract>) => void;
+  addLoandexRecord: () => void;
+  removeLoandexRecord: (id: string) => void;
+  updateLoandexRecord: (id: string, data: Partial<LoandexRecord>) => void;
+  addPgfcExposureRecord: () => void;
+  removePgfcExposureRecord: (id: string) => void;
+  updatePgfcExposureRecord: (id: string, data: Partial<PgfcExposureRecord>) => void;
   setCibiForm: (data: Partial<CibiForm>) => void;
   setLoandexUpload: (data: Partial<LoandexUpload>) => void;
   setCicUpload: (data: Partial<BureauUpload>) => void;
@@ -1467,6 +1571,12 @@ function createInitialReview(): ApplicationReview {
       decisionReason: '',
       officerRecommendation: '',
       justificationDocument: null,
+      cmapCases: [],
+      bapNfisRecords: [],
+      cibiResults: [],
+      cicContracts: [],
+      loandexRecords: [],
+      pgfcExposureRecords: [],
     },
     cibiForm: {
       firstName: '',
@@ -1852,6 +1962,294 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         setState((prev) => ({
           ...prev,
           review: { ...prev.review, creditChecking: { ...prev.review.creditChecking, ...data } },
+        })),
+      addCmapCase: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              cmapCases: [
+                ...prev.review.creditChecking.cmapCases,
+                {
+                  id: crypto.randomUUID(),
+                  defendantSubject: '',
+                  plaintiff: '',
+                  natureOfCase: '',
+                  amountInvolved: '',
+                  caseNo: '',
+                  dateFiled: '',
+                  status: '',
+                  creditRiskRemarks: '',
+                },
+              ],
+            },
+          },
+        })),
+      removeCmapCase: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              cmapCases: prev.review.creditChecking.cmapCases.filter((row) => row.id !== id),
+            },
+          },
+        })),
+      updateCmapCase: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              cmapCases: prev.review.creditChecking.cmapCases.map((row) =>
+                row.id === id ? { ...row, ...data } : row
+              ),
+            },
+          },
+        })),
+      addBapNfisRecord: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              bapNfisRecords: [
+                ...prev.review.creditChecking.bapNfisRecords,
+                {
+                  id: crypto.randomUUID(),
+                  lendingInstitution: '',
+                  facility: '',
+                  originalLoanAmount: '',
+                  dateGranted: '',
+                  maturityDate: '',
+                  outstandingBalance: '',
+                  paymentHistory: '',
+                  statusRemarks: '',
+                },
+              ],
+            },
+          },
+        })),
+      removeBapNfisRecord: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              bapNfisRecords: prev.review.creditChecking.bapNfisRecords.filter((row) => row.id !== id),
+            },
+          },
+        })),
+      updateBapNfisRecord: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              bapNfisRecords: prev.review.creditChecking.bapNfisRecords.map((row) =>
+                row.id === id ? { ...row, ...data } : row
+              ),
+            },
+          },
+        })),
+      addCibiResult: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              cibiResults: [
+                ...prev.review.creditChecking.cibiResults,
+                {
+                  id: crypto.randomUUID(),
+                  provider: '',
+                  facilityType: '',
+                  originalAmount: '',
+                  outstandingBalance: '',
+                  overdueAmount: '',
+                  monthlyAmortization: '',
+                  paymentStatus: '',
+                  remarks: '',
+                },
+              ],
+            },
+          },
+        })),
+      removeCibiResult: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              cibiResults: prev.review.creditChecking.cibiResults.filter((row) => row.id !== id),
+            },
+          },
+        })),
+      updateCibiResult: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              cibiResults: prev.review.creditChecking.cibiResults.map((row) =>
+                row.id === id ? { ...row, ...data } : row
+              ),
+            },
+          },
+        })),
+      addCicContract: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              cicContracts: [
+                ...prev.review.creditChecking.cicContracts,
+                {
+                  id: crypto.randomUUID(),
+                  contractCode: '',
+                  contractType: '',
+                  maturityDate: '',
+                  outstandingBalance: '',
+                  overdueAmount: '',
+                  monthlyAmortization: '',
+                  contractStatus: '',
+                  remarks: '',
+                },
+              ],
+            },
+          },
+        })),
+      removeCicContract: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              cicContracts: prev.review.creditChecking.cicContracts.filter((row) => row.id !== id),
+            },
+          },
+        })),
+      updateCicContract: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              cicContracts: prev.review.creditChecking.cicContracts.map((row) =>
+                row.id === id ? { ...row, ...data } : row
+              ),
+            },
+          },
+        })),
+      addLoandexRecord: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              loandexRecords: [
+                ...prev.review.creditChecking.loandexRecords,
+                {
+                  id: crypto.randomUUID(),
+                  bankInstitution: '',
+                  loanFacility: '',
+                  maturityDate: '',
+                  outstandingBalance: '',
+                  overdueAmount: '',
+                  monthlyAmortization: '',
+                  accountStatus: '',
+                  remarks: '',
+                },
+              ],
+            },
+          },
+        })),
+      removeLoandexRecord: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              loandexRecords: prev.review.creditChecking.loandexRecords.filter((row) => row.id !== id),
+            },
+          },
+        })),
+      updateLoandexRecord: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              loandexRecords: prev.review.creditChecking.loandexRecords.map((row) =>
+                row.id === id ? { ...row, ...data } : row
+              ),
+            },
+          },
+        })),
+      addPgfcExposureRecord: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              pgfcExposureRecords: [
+                ...prev.review.creditChecking.pgfcExposureRecords,
+                {
+                  id: crypto.randomUUID(),
+                  principalBalance: '',
+                  interestBalance: '',
+                  maturityDate: '',
+                  remainingTerm: '',
+                  lastPaymentDate: '',
+                  monthlyAmortization: '',
+                  paymentStatus: '',
+                  remarks: '',
+                },
+              ],
+            },
+          },
+        })),
+      removePgfcExposureRecord: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              pgfcExposureRecords: prev.review.creditChecking.pgfcExposureRecords.filter((row) => row.id !== id),
+            },
+          },
+        })),
+      updatePgfcExposureRecord: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditChecking: {
+              ...prev.review.creditChecking,
+              pgfcExposureRecords: prev.review.creditChecking.pgfcExposureRecords.map((row) =>
+                row.id === id ? { ...row, ...data } : row
+              ),
+            },
+          },
         })),
       setCibiForm: (data) =>
         setState((prev) => ({
