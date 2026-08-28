@@ -44,10 +44,10 @@ the compact aging values and Step 1 pill remain in the row above. Large
 
 The right-column cards, in order:
 
-1. **`BureauReportsCard`** — the CIBI form + 4 bureau-report upload slots
-   (LOANDEX, CIC, CMAP, NFIS/BAP), each revealing an editable results table
-   once uploaded, plus an always-visible PGFC Existing Exposure table. See
-   "Bureau reports" below.
+1. **`BureauReportsCard`** — the CIBI form + 5 bureau-report upload slots
+   (LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure), each
+   auto-populating a read-only results table with one canned sample row the
+   instant that bureau's file is uploaded. See "Bureau reports" below.
 2. **"Officer notes"** — add a structured, attributed note or open the complete
    note history. See "Officer notes" below.
 3. **"AI review, summary & recommendation"** — see "AI review card" below.
@@ -160,36 +160,47 @@ independent of the borrower-facing "Auto-filled"/"Pre-filled" chip pattern on
 Upload ID (`step-personal-info.tsx`); the two are separate components with
 separate color/label choices, not shared.
 
-All 5 bureaus, plus a new internal "PGFC Existing Exposure" section, now have
-real editable **results tables** (`src/sections/admin/bureau-results-tables.tsx`)
-matching the columns from the "PGFC – Integrated Initial Credit Checking
-Results" reference template: `CmapCasesTable`, `BapNfisRecordsTable`,
-`CibiResultsTable`, `CicContractsTable`, `LoandexRecordsTable`, and
-`PgfcExposureTable`. Each table renders a row per record (label-above-field
-layout, not the template's literal spreadsheet grid) with an **Add**
-button to append a new row and a small `X` icon button to remove one; every
-field is a plain text input, freely editable by the officer. An empty table
-shows a dashed-border empty-state message (e.g. "No CMAP court/legal cases
-recorded yet.") instead of nothing. Rows are backed by six new arrays on
-`CreditChecking` (`cmapCases`, `bapNfisRecords`, `cibiResults`, `cicContracts`,
-`loandexRecords`, `pgfcExposureRecords` — each row a `{id, ...fields}` object)
-with matching `add*`/`remove*`/`update*` setters on `useAdmin()`, so edits
-round-trip through the same `localStorage`-backed admin session as the rest
-of this screen.
+All 6 bureau sections — CMAP, BAP/NFIS, CIBI, CIC, LOANDEX, and PGFC Existing
+Exposure — now have **read-only, auto-filling results tables**
+(`src/sections/admin/bureau-results-tables.tsx`) matching the columns from the
+"PGFC – Integrated Initial Credit Checking Results" reference template:
+`CmapCasesTable`, `BapNfisRecordsTable`, `CibiResultsTable`,
+`CicContractsTable`, `LoandexRecordsTable`, and `PgfcExposureTable`. There is
+no more officer data entry here: the instant a bureau's file is uploaded
+(whether by hand or via "Fill with Sample Data"), that bureau's array is
+seeded with exactly **one realistic canned sample row**
+(`createCmapSampleCase()`/`createBapNfisSampleRecord()`/
+`createCibiSampleResult()`/`createCicSampleContract()`/
+`createLoandexSampleRecord()`/`createPgfcSampleExposureRecord()` in
+`admin-context.tsx`), rendered as disabled `TextField`s — no Add/Remove
+buttons anywhere. Replacing an already-uploaded file does not stack a second
+row (the seed only fires while the array is still empty); deleting the file
+("Delete file" in the row's menu) resets the array back to `[]`. CIBI's
+sample additionally pulls `facilityType`/`originalAmount`/
+`monthlyAmortization` from the CIBI intake form's `creditType`/
+`financedAmount`/`installment` at the moment its report is uploaded. Rows are
+backed by six arrays on `CreditChecking` (`cmapCases`, `bapNfisRecords`,
+`cibiResults`, `cicContracts`, `loandexRecords`, `pgfcExposureRecords` — each
+row a `{id, ...fields}` object), populated entirely by the six upload
+setters (`setCmapUpload`/`setNfisBapUpload`/`setCicUpload`/
+`setLoandexUpload`/`setPgfcExposureUpload`/`setCibiForm`) — there are no
+`add*`/`remove*`/`update*` setters on `useAdmin()` for these rows. An empty
+table (only reachable transiently, before that bureau's upload lands) shows a
+dashed-border empty-state message (e.g. "No CMAP court/legal cases recorded
+yet.") instead of nothing.
 
-Each of the five bureau results tables is revealed only once that bureau's
-own file is uploaded — LOANDEX, CIC, and CMAP reveal on their single file
-upload; NFIS/BAP the same; **CIBI specifically reveals on its report upload**
-("Upload document", the step after "Create Report" → "Submit to CIBI"), not
-on the intake form's submission alone — submitting the form only marks it
-"Sent" and does not by itself show `CibiResultsTable`. **PGFC Existing
-Exposure has no upload gate at all** — its table (and Add Exposure Record
-button) is always visible on the page, since it represents the applicant's
-existing exposure to PGFC itself rather than an external bureau report.
+Each of the six bureau results tables is revealed only once that bureau's own
+file is uploaded — LOANDEX, CIC, CMAP, NFIS/BAP, and **PGFC Existing
+Exposure** all reveal on their single file upload, exactly the same shape
+(`SimpleBureauRow`, `src/sections/admin/bureau-reports-card.tsx` — PGFC is no
+longer an always-visible, upload-less section); **CIBI specifically reveals
+on its report upload** ("Upload document", the step after "Create Report" →
+"Submit to CIBI"), not on the intake form's submission alone — submitting the
+form only marks it "Sent" and does not by itself show `CibiResultsTable`.
 
-`allBureauReportsUploaded` = all 5 of `cibiForm.reportFileName`,
+`allBureauReportsUploaded` = all 6 of `cibiForm.reportFileName`,
 `loandexUpload.fileName`, `cicUpload.fileName`, `cmapUpload.fileName`,
-`nfisBapUpload.fileName` are set. This drives:
+`nfisBapUpload.fileName`, `pgfcExposureUpload.fileName` are set. This drives:
 - Whether the simulated bureau-finding effect runs (see below).
 - Whether `buildInitialCreditCheckingResult()` can compute a real risk level
   at all — while any upload is missing it short-circuits to the dedicated
@@ -277,12 +288,12 @@ Negative always sets `bureauFindingBureau: 'CMAP'` /
    `InitialCreditCheckingResult` object consumed by the whole card. Its
    `riskLevel` is one of 5 levels (`RISK_LEVEL_STYLES`, each with its own
    background/text color and icon): **Low**, **Moderate**, **Elevated**,
-   **High**, or **Unable to Determine** — in priority order: not all 5 bureau
+   **High**, or **Unable to Determine** — in priority order: not all 6 bureau
    reports uploaded yet → Unable to Determine; any CMAP court/legal case or
    any row elsewhere with a delinquent/overdue/negative-style status → High;
    existing PGFC exposure on file, or requested amount >60% of stated annual
    income → Elevated; at least one bureau row on file with nothing adverse
-   found → Moderate; all 5 reports on file, nothing recorded anywhere, income
+   found → Moderate; all 6 reports on file, nothing recorded anywhere, income
    ratio acceptable → Low. The pill reads "AI Risk Level · {label}" with
    `riskStyle.bg`/`riskStyle.color` driving the surrounding callout box, same
    "risk level colors the whole block" idea the old standalone card used.
