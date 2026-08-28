@@ -488,7 +488,7 @@ export function InitialCreditCheckingView() {
           <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
             {allBureauReportsUploaded
               ? 'Based on the uploaded bureau reports and application details.'
-              : 'Based on application details — upload the CIBI, LOANDEX, CIC, CMAP, and NFIS/BAP reports above to confirm with the full bureau review.'}
+              : 'Based on application details — upload the CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure reports above to confirm with the full bureau review.'}
           </Typography>
 
           <Button

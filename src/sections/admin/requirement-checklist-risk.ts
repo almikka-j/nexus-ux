@@ -4,7 +4,7 @@
 // Derives the Requirement Checklist screen's "AI review, summary &
 // recommendation" content — pure computation from the current documents
 // array + application financial info, never stored (same pattern as
-// initial-credit-checking-risk.ts's buildInitialAiRecommendation).
+// initial-credit-checking-risk.ts's buildInitialCreditCheckingResult).
 // ----------------------------------------------------------------------
 
 import type { RequirementDoc } from 'src/auth/admin-context';

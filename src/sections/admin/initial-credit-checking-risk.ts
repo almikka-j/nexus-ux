@@ -63,9 +63,22 @@ const NEGATIVE_STATUS_KEYWORDS = [
   'closed with balance',
 ];
 
+// createBapNfisSampleRecord()'s canned CLEAN statusRemarks value ("No
+// cancelled credit card, adversely classified loan, or negative-file
+// indicator found.") uses "negative-file indicator" as bureau jargon for "a
+// derogatory-record file" — it contains the substring "negative" while
+// stating a clean result, the same false-positive shape rules 1-3 above had
+// to be fixed for. Exempt this one known clean phrase rather than weakening
+// the "negative" keyword generally (real free-text negative findings, if
+// this app ever gains them, should still match on that word elsewhere).
+const NEGATIVE_STATUS_KEYWORD_EXEMPTIONS = ['negative-file indicator found'];
+
 function isNegativeStatus(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return false;
+  if (NEGATIVE_STATUS_KEYWORD_EXEMPTIONS.some((phrase) => normalized.includes(phrase))) {
+    return false;
+  }
   return NEGATIVE_STATUS_KEYWORDS.some((keyword) => normalized.includes(keyword));
 }
 
@@ -111,9 +124,18 @@ export function buildInitialCreditCheckingResult(
     bapNfisRecords.length +
     cibiResults.length +
     cicContracts.length +
-    loandexRecords.length;
+    loandexRecords.length +
+    pgfcExposureRecords.length;
 
-  const hasCourtCase = cmapCases.length > 0;
+  // Every bureau now ALWAYS seeds exactly one canned row the moment its file
+  // is uploaded (see admin-context.tsx's createXSampleRecord factories) — row
+  // *presence* no longer means anything, since a row exists whether the
+  // finding is adverse or clean. These predicates must instead read each
+  // row's own status-like field and compare against the canned clean value
+  // that factory always writes; anything else is an adverse finding. Exact
+  // match is sufficient here — this is a closed set of canned values with no
+  // free-text officer input anywhere in this prototype.
+  const hasCourtCase = cmapCases.some((row) => row.status.trim().toLowerCase() !== 'no record found');
   const hasNegativeStatus =
     bapNfisRecords.some((row) => isNegativeStatus(row.statusRemarks) || isNegativeStatus(row.paymentHistory)) ||
     cibiResults.some((row) => isNegativeStatus(row.paymentStatus)) ||
@@ -122,7 +144,9 @@ export function buildInitialCreditCheckingResult(
     pgfcExposureRecords.some((row) => isNegativeStatus(row.paymentStatus));
 
   const ratio = monthlyIncome > 0 ? desiredLoanAmount / (monthlyIncome * 12) : null;
-  const hasExistingExposure = pgfcExposureRecords.length > 0;
+  const hasExistingExposure = pgfcExposureRecords.some(
+    (row) => row.paymentStatus.trim().toLowerCase() !== 'no existing exposure'
+  );
   const highDebtRatio = ratio !== null && ratio > 0.6;
 
   const buildAssessment = (level: InitialCreditCheckingRiskLevel) =>
@@ -134,7 +158,7 @@ export function buildInitialCreditCheckingResult(
       riskLevel: 'unable-to-determine',
       overallAssessment: buildAssessment('unable-to-determine'),
       summary:
-        'One or more bureau reports have not been uploaded yet. Risk assessment cannot be completed until CIBI, LOANDEX, CIC, CMAP, and NFIS/BAP reports are all on file.',
+        'One or more bureau reports have not been uploaded yet. Risk assessment cannot be completed until CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure reports are all on file.',
       recommendedAction: 'Upload the remaining bureau reports above before proceeding.',
       reviewBasis: ['data-completeness'],
     };
@@ -150,7 +174,7 @@ export function buildInitialCreditCheckingResult(
     return {
       riskLevel: 'high',
       overallAssessment: buildAssessment('high'),
-      summary: `${totalRows} bureau record(s) reviewed across CIBI, LOANDEX, CIC, CMAP, and NFIS/BAP. ${hasCourtCase ? 'A court/legal case was found on record. ' : ''}${hasNegativeStatus ? 'One or more accounts show a delinquent, overdue, or negative status.' : ''}`.trim(),
+      summary: `${totalRows} bureau record(s) reviewed across CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure. ${hasCourtCase ? 'A court/legal case was found on record. ' : ''}${hasNegativeStatus ? 'One or more accounts show a delinquent, overdue, or negative status.' : ''}`.trim(),
       recommendedAction:
         'Recommend further credit review before proceeding — the finding(s) above require independent validation by authorized Credit personnel.',
       reviewBasis,
@@ -171,24 +195,37 @@ export function buildInitialCreditCheckingResult(
     };
   }
 
-  // 4. PROCEED SUBJECT TO VERIFICATION — at least one row on file, nothing
-  // adverse found.
-  if (totalRows > 0) {
+  // 4. PROCEED SUBJECT TO VERIFICATION — a genuinely intermediate state: some
+  // bureau activity is on record but not everything has been uploaded yet
+  // (so rule 1 hasn't fired), and nothing adverse was found. With the current
+  // canned-data reality every bureau always seeds exactly one clean row the
+  // instant its file is uploaded, so once `allBureauReportsUploaded` is true
+  // this condition can no longer distinguish anything from rule 5 below —
+  // that combination now falls through to CLEAR TO PROCEED instead. This
+  // branch is kept structurally in place in case a future data source (real
+  // bureau integrations, partial/ambiguous records) produces a state that
+  // legitimately belongs here. Note `!allBureauReportsUploaded` can never be
+  // true at this point in the function (rule 1 already returned early for
+  // that case) — this condition is intentionally unreachable under today's
+  // canned-data reality, not a bug; it documents the shape of state this
+  // branch is reserved for.
+  if (totalRows > 0 && !allBureauReportsUploaded) {
     return {
       riskLevel: 'moderate',
       overallAssessment: buildAssessment('moderate'),
-      summary: `${totalRows} bureau record(s) reviewed across CIBI, LOANDEX, CIC, CMAP, and NFIS/BAP. No adverse findings, but recorded activity should be verified against the application details before proceeding.`,
+      summary: `${totalRows} bureau record(s) reviewed across CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure. No adverse findings, but recorded activity should be verified against the application details before proceeding.`,
       recommendedAction: 'Recommend proceeding to Call Report preparation, subject to verification of the recorded bureau activity above.',
       reviewBasis: ['bureau-consistency'],
     };
   }
 
-  // 5. CLEAR TO PROCEED — every report uploaded, nothing recorded, income
-  // ratio acceptable.
+  // 5. CLEAR TO PROCEED — every report uploaded, nothing adverse anywhere,
+  // income ratio acceptable. This is the common case now that every bureau
+  // always seeds a clean canned row on upload.
   return {
     riskLevel: 'low',
     overallAssessment: buildAssessment('low'),
-    summary: `All 5 bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP) are on file with no adverse findings, court/legal records, or existing PGFC exposure. Requested amount is within an acceptable range for stated income (${employmentStatus.toLowerCase()}).`,
+    summary: `All 6 bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, PGFC Existing Exposure) are on file with no adverse findings, court/legal records, or existing PGFC exposure. Requested amount is within an acceptable range for stated income (${employmentStatus.toLowerCase()}).`,
     recommendedAction: 'Debt-to-income and bureau indicators are within an acceptable range. Recommend proceeding to Call Report preparation.',
     reviewBasis: ['data-completeness', 'bureau-consistency'],
   };

@@ -32,8 +32,8 @@ import { buildInitialCreditCheckingResult } from '../initial-credit-checking-ris
 // 'pending' at that point — the officer hasn't clicked Approve/No yet) and
 // Call Report (decision has already been made). Because of that, "cleared"
 // can't be keyed off `decision === 'approved'` — it's keyed off the same
-// debt-to-income risk level (`buildInitialAiRecommendation`) shown in the
-// Initial AI Recommendation callout, so the two screens never disagree.
+// risk level (`buildInitialCreditCheckingResult`) shown in the Initial
+// Credit Checking AI review card, so the two screens never disagree.
 // ----------------------------------------------------------------------
 
 function SectionLabel({ children }: { children: React.ReactNode }) {

@@ -16,13 +16,14 @@ import type {
 } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
-// One small editable-rows table per bureau report section, matching the
+// One small read-only table per bureau report section, matching the
 // "PGFC – Integrated Initial Credit Checking Results" PDF template's exact
 // columns for that section. Rendered below each bureau's upload row in
-// bureau-reports-card.tsx once that bureau's file is uploaded (PGFC
-// Existing Exposure has no upload gate — see that file). Each table is its
-// own component rather than one generic table, since the six sections'
-// columns don't share a common shape.
+// bureau-reports-card.tsx, auto-populated with exactly one canned sample row
+// the instant that bureau's file is uploaded — no officer editing. PGFC
+// Existing Exposure has its own upload gate matching the other five bureaus
+// (see that file). Each table is its own component rather than one generic
+// table, since the six sections' columns don't share a common shape.
 //
 // Label-above-field row layout (this app's Field convention from
 // cash-flow-statement-card.tsx / bureau-reports-card.tsx's CIBI intake

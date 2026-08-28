@@ -79,11 +79,13 @@ export type CreditChecking = {
   justificationDocument: { fileName: string; fileData: string } | null;
   /**
    * Six new repeatable-row results tables, one per bureau report section
-   * plus PGFC's own internal exposure record — see
+   * (CMAP, BAP/NFIS, CIBI, CIC, LOANDEX, PGFC Existing Exposure) — see
    * docs/superpowers/specs/2026-08-29-bureau-reports-results-design.md.
-   * Each is populated by the officer once that bureau's report file is
-   * uploaded (pgfcExposureRecords has no upload gate — it's an internal
-   * record, not a third-party bureau report).
+   * Each array auto-populates with exactly one canned, read-only sample row
+   * the instant that bureau's upload's `fileName` becomes non-null — there
+   * is no officer-editable entry flow. PGFC Existing Exposure has its own
+   * upload gate (`pgfcExposureUpload`, below) exactly like the other five
+   * bureaus.
    */
   cmapCases: CmapCase[];
   bapNfisRecords: BapNfisRecord[];
