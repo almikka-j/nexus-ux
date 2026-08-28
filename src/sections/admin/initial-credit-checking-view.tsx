@@ -128,6 +128,7 @@ export function InitialCreditCheckingView() {
     setCicUpload,
     setCmapUpload,
     setNfisBapUpload,
+    setPgfcExposureUpload,
     resetNegativeCreditReport,
   } = useAdmin();
   // Sales Reject requires the officer to pick a reason (and optionally add
@@ -151,13 +152,15 @@ export function InitialCreditCheckingView() {
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
 
-  const { creditChecking, cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload } = review;
+  const { creditChecking, cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload, pgfcExposureUpload } =
+    review;
   const allBureauReportsUploaded =
     !!cibiForm.reportFileName &&
     !!loandexUpload.fileName &&
     !!cicUpload.fileName &&
     !!cmapUpload.fileName &&
-    !!nfisBapUpload.fileName;
+    !!nfisBapUpload.fileName &&
+    !!pgfcExposureUpload.fileName;
 
   // Simulated AI review of the bureau uploads — see simulate-bureau-finding.ts
   // for why this is a deterministic hash rather than Math.random(). Runs
@@ -244,6 +247,7 @@ export function InitialCreditCheckingView() {
     setCicUpload(sampleReport);
     setCmapUpload(sampleReport);
     setNfisBapUpload(sampleReport);
+    setPgfcExposureUpload(sampleReport);
   };
 
   // Undoes exactly what handleFillSampleData sets — scoped to only the
@@ -290,6 +294,7 @@ export function InitialCreditCheckingView() {
     setCicUpload({ fileName: null, fileData: null, uploadedAt: null });
     setCmapUpload({ fileName: null, fileData: null, uploadedAt: null });
     setNfisBapUpload({ fileName: null, fileData: null, uploadedAt: null });
+    setPgfcExposureUpload({ fileName: null, fileData: null, uploadedAt: null });
   };
 
   useRegisterPageActions(

@@ -331,7 +331,7 @@ function SimpleBureauRow({
 
 function CibiRow() {
   const { signUpData, application } = useRegistration();
-  const { review, setCibiForm, addCibiResult, removeCibiResult, updateCibiResult } = useAdmin();
+  const { review, setCibiForm } = useAdmin();
   const { cibiForm } = review;
   const [formOpen, setFormOpen] = useState(false);
   const [reportMenuAnchor, setReportMenuAnchor] = useState<HTMLElement | null>(null);
@@ -774,12 +774,7 @@ function CibiRow() {
 
       <Collapse in={!!cibiForm.reportFileName} timeout="auto" unmountOnExit>
         <Box sx={{ p: 2.5, pt: 0 }}>
-          <CibiResultsTable
-            rows={review.creditChecking.cibiResults}
-            onAdd={addCibiResult}
-            onRemove={removeCibiResult}
-            onUpdate={updateCibiResult}
-          />
+          <CibiResultsTable rows={review.creditChecking.cibiResults} />
         </Box>
       </Collapse>
     </Box>
@@ -793,23 +788,9 @@ export function BureauReportsCard() {
     setCicUpload,
     setCmapUpload,
     setNfisBapUpload,
-    addCmapCase,
-    removeCmapCase,
-    updateCmapCase,
-    addBapNfisRecord,
-    removeBapNfisRecord,
-    updateBapNfisRecord,
-    addCicContract,
-    removeCicContract,
-    updateCicContract,
-    addLoandexRecord,
-    removeLoandexRecord,
-    updateLoandexRecord,
-    addPgfcExposureRecord,
-    removePgfcExposureRecord,
-    updatePgfcExposureRecord,
+    setPgfcExposureUpload,
   } = useAdmin();
-  const { loandexUpload, cicUpload, cmapUpload, nfisBapUpload, creditChecking } = review;
+  const { loandexUpload, cicUpload, cmapUpload, nfisBapUpload, pgfcExposureUpload, creditChecking } = review;
 
   return (
     <Box sx={adminCardSx}>
@@ -826,65 +807,32 @@ export function BureauReportsCard() {
           title="LOANDEX"
           upload={loandexUpload}
           onUpload={setLoandexUpload}
-          resultsTable={
-            <LoandexRecordsTable
-              rows={creditChecking.loandexRecords}
-              onAdd={addLoandexRecord}
-              onRemove={removeLoandexRecord}
-              onUpdate={updateLoandexRecord}
-            />
-          }
+          resultsTable={<LoandexRecordsTable rows={creditChecking.loandexRecords} />}
         />
         <SimpleBureauRow
           title="CIC"
           upload={cicUpload}
           onUpload={setCicUpload}
-          resultsTable={
-            <CicContractsTable
-              rows={creditChecking.cicContracts}
-              onAdd={addCicContract}
-              onRemove={removeCicContract}
-              onUpdate={updateCicContract}
-            />
-          }
+          resultsTable={<CicContractsTable rows={creditChecking.cicContracts} />}
         />
         <SimpleBureauRow
           title="CMAP"
           upload={cmapUpload}
           onUpload={setCmapUpload}
-          resultsTable={
-            <CmapCasesTable
-              rows={creditChecking.cmapCases}
-              onAdd={addCmapCase}
-              onRemove={removeCmapCase}
-              onUpdate={updateCmapCase}
-            />
-          }
+          resultsTable={<CmapCasesTable rows={creditChecking.cmapCases} />}
         />
         <SimpleBureauRow
           title="NFIS / BAP"
           upload={nfisBapUpload}
           onUpload={setNfisBapUpload}
-          resultsTable={
-            <BapNfisRecordsTable
-              rows={creditChecking.bapNfisRecords}
-              onAdd={addBapNfisRecord}
-              onRemove={removeBapNfisRecord}
-              onUpdate={updateBapNfisRecord}
-            />
-          }
+          resultsTable={<BapNfisRecordsTable rows={creditChecking.bapNfisRecords} />}
         />
-        <Box sx={{ borderRadius: '13px', border: '1px solid #EBEDF3', bgcolor: 'common.white', p: 2 }}>
-          <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
-            PGFC Existing Exposure
-          </Typography>
-          <PgfcExposureTable
-            rows={creditChecking.pgfcExposureRecords}
-            onAdd={addPgfcExposureRecord}
-            onRemove={removePgfcExposureRecord}
-            onUpdate={updatePgfcExposureRecord}
-          />
-        </Box>
+        <SimpleBureauRow
+          title="PGFC Existing Exposure"
+          upload={pgfcExposureUpload}
+          onUpload={setPgfcExposureUpload}
+          resultsTable={<PgfcExposureTable rows={creditChecking.pgfcExposureRecords} />}
+        />
       </Stack>
     </Box>
   );

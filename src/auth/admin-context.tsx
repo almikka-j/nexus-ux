@@ -1112,6 +1112,7 @@ export type ApplicationReview = {
   cicUpload: BureauUpload;
   cmapUpload: BureauUpload;
   nfisBapUpload: BureauUpload;
+  pgfcExposureUpload: BureauUpload;
   reconsideration: Reconsideration;
   negativeCreditReport: NegativeCreditReport;
   callReport: CallReport;
@@ -1132,29 +1133,12 @@ type AdminContextValue = AdminState & {
   hydrated: boolean;
   setAdminUser: (user: AdminUser) => void;
   setCreditChecking: (data: Partial<CreditChecking>) => void;
-  addCmapCase: () => void;
-  removeCmapCase: (id: string) => void;
-  updateCmapCase: (id: string, data: Partial<CmapCase>) => void;
-  addBapNfisRecord: () => void;
-  removeBapNfisRecord: (id: string) => void;
-  updateBapNfisRecord: (id: string, data: Partial<BapNfisRecord>) => void;
-  addCibiResult: () => void;
-  removeCibiResult: (id: string) => void;
-  updateCibiResult: (id: string, data: Partial<CibiResult>) => void;
-  addCicContract: () => void;
-  removeCicContract: (id: string) => void;
-  updateCicContract: (id: string, data: Partial<CicContract>) => void;
-  addLoandexRecord: () => void;
-  removeLoandexRecord: (id: string) => void;
-  updateLoandexRecord: (id: string, data: Partial<LoandexRecord>) => void;
-  addPgfcExposureRecord: () => void;
-  removePgfcExposureRecord: (id: string) => void;
-  updatePgfcExposureRecord: (id: string, data: Partial<PgfcExposureRecord>) => void;
   setCibiForm: (data: Partial<CibiForm>) => void;
   setLoandexUpload: (data: Partial<LoandexUpload>) => void;
   setCicUpload: (data: Partial<BureauUpload>) => void;
   setCmapUpload: (data: Partial<BureauUpload>) => void;
   setNfisBapUpload: (data: Partial<BureauUpload>) => void;
+  setPgfcExposureUpload: (data: Partial<BureauUpload>) => void;
   setReconsideration: (data: Partial<Reconsideration>) => void;
   setNegativeCreditReport: (
     data: Partial<Pick<NegativeCreditReport, 'thru' | 'negativeRecordText' | 'recommendationRemarks' | 'submitted'>>
@@ -1554,6 +1538,108 @@ function createAppraisalReportBundle(
   };
 }
 
+// One canned sample row per bureau results table — populated automatically
+// the instant that bureau's report file is uploaded (see the setCmapUpload/
+// setCicUpload/setLoandexUpload/setNfisBapUpload/setPgfcExposureUpload/
+// setCibiForm setters below), replacing the old officer-driven manual
+// add/remove/edit flow. `defendantSubject` uses a generic '—' placeholder
+// rather than the applicant's real name — admin-context.tsx is
+// registration-agnostic and has no access to signUpData anywhere else in
+// this file either; threading it in would require a much larger refactor
+// out of scope here.
+function createCmapSampleCase(): CmapCase {
+  return {
+    id: crypto.randomUUID(),
+    defendantSubject: '—',
+    plaintiff: '—',
+    natureOfCase: 'No matching record',
+    amountInvolved: '—',
+    caseNo: '—',
+    dateFiled: '—',
+    status: 'No Record Found',
+    creditRiskRemarks: 'No adverse court or legal record found.',
+  };
+}
+
+function createBapNfisSampleRecord(): BapNfisRecord {
+  return {
+    id: crypto.randomUUID(),
+    lendingInstitution: 'N/A — no record found',
+    facility: '—',
+    originalLoanAmount: '—',
+    dateGranted: '—',
+    maturityDate: '—',
+    outstandingBalance: '—',
+    paymentHistory: '—',
+    statusRemarks:
+      'No cancelled credit card, adversely classified loan, or negative-file indicator found.',
+  };
+}
+
+// CIBI's sample needs facilityType/originalAmount/monthlyAmortization
+// sourced from the current cibiForm state (creditType/financedAmount/
+// installment respectively) at the moment its report is uploaded — see
+// setCibiForm below.
+function createCibiSampleResult(
+  facilityType: string,
+  originalAmount: string,
+  monthlyAmortization: string
+): CibiResult {
+  return {
+    id: crypto.randomUUID(),
+    provider: 'CIBI',
+    facilityType,
+    originalAmount,
+    outstandingBalance: '0.00',
+    overdueAmount: '0.00',
+    monthlyAmortization,
+    paymentStatus: 'Current — No Delinquency',
+    remarks: 'CIBI Bureau Score 600. One active account, payments made as agreed.',
+  };
+}
+
+function createCicSampleContract(): CicContract {
+  return {
+    id: crypto.randomUUID(),
+    contractCode: 'N/A',
+    contractType: '—',
+    maturityDate: '—',
+    outstandingBalance: '—',
+    overdueAmount: '—',
+    monthlyAmortization: '—',
+    contractStatus: 'No Record Found',
+    remarks: 'Consistent borrower and account information, no material discrepancy found.',
+  };
+}
+
+function createLoandexSampleRecord(): LoandexRecord {
+  return {
+    id: crypto.randomUUID(),
+    bankInstitution: 'N/A — one active account on file',
+    loanFacility: 'Personal Loan',
+    maturityDate: '—',
+    outstandingBalance: '0.00',
+    overdueAmount: '0.00',
+    monthlyAmortization: '—',
+    accountStatus: 'Current — No Past-Due Exposure',
+    remarks: 'Regular payment activity, no past-due exposure reported.',
+  };
+}
+
+function createPgfcSampleExposureRecord(): PgfcExposureRecord {
+  return {
+    id: crypto.randomUUID(),
+    principalBalance: '0.00',
+    interestBalance: '0.00',
+    maturityDate: '—',
+    remainingTerm: '—',
+    lastPaymentDate: '—',
+    monthlyAmortization: '0.00',
+    paymentStatus: 'No Existing Exposure',
+    remarks: 'No prior or existing PGFC loan exposure on file.',
+  };
+}
+
 // Factory (not a shared constant) so `resetReview()` gets a fresh object each
 // call — reusing one constant reference across resets risks accidental
 // mutation-sharing bugs if any setter ever mutated in place instead of
@@ -1606,6 +1692,7 @@ function createInitialReview(): ApplicationReview {
     cicUpload: { fileName: null, fileData: null, uploadedAt: null },
     cmapUpload: { fileName: null, fileData: null, uploadedAt: null },
     nfisBapUpload: { fileName: null, fileData: null, uploadedAt: null },
+    pgfcExposureUpload: { fileName: null, fileData: null, uploadedAt: null },
     reconsideration: { notes: '', decision: 'pending' },
     negativeCreditReport: createInitialNegativeCreditReport(),
     callReport: {
@@ -1763,6 +1850,7 @@ function readStoredState(): AdminState {
           ...initialState.review.nfisBapUpload,
           ...storedReview.nfisBapUpload,
         },
+        pgfcExposureUpload: { ...initialState.review.pgfcExposureUpload, ...storedReview.pgfcExposureUpload },
         callReport: {
           ...initialState.review.callReport,
           ...storedReview.callReport,
@@ -1963,319 +2051,140 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           review: { ...prev.review, creditChecking: { ...prev.review.creditChecking, ...data } },
         })),
-      addCmapCase: () =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              cmapCases: [
-                ...prev.review.creditChecking.cmapCases,
-                {
-                  id: crypto.randomUUID(),
-                  defendantSubject: '',
-                  plaintiff: '',
-                  natureOfCase: '',
-                  amountInvolved: '',
-                  caseNo: '',
-                  dateFiled: '',
-                  status: '',
-                  creditRiskRemarks: '',
-                },
-              ],
-            },
-          },
-        })),
-      removeCmapCase: (id) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              cmapCases: prev.review.creditChecking.cmapCases.filter((row) => row.id !== id),
-            },
-          },
-        })),
-      updateCmapCase: (id, data) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              cmapCases: prev.review.creditChecking.cmapCases.map((row) =>
-                row.id === id ? { ...row, ...data } : row
-              ),
-            },
-          },
-        })),
-      addBapNfisRecord: () =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              bapNfisRecords: [
-                ...prev.review.creditChecking.bapNfisRecords,
-                {
-                  id: crypto.randomUUID(),
-                  lendingInstitution: '',
-                  facility: '',
-                  originalLoanAmount: '',
-                  dateGranted: '',
-                  maturityDate: '',
-                  outstandingBalance: '',
-                  paymentHistory: '',
-                  statusRemarks: '',
-                },
-              ],
-            },
-          },
-        })),
-      removeBapNfisRecord: (id) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              bapNfisRecords: prev.review.creditChecking.bapNfisRecords.filter((row) => row.id !== id),
-            },
-          },
-        })),
-      updateBapNfisRecord: (id, data) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              bapNfisRecords: prev.review.creditChecking.bapNfisRecords.map((row) =>
-                row.id === id ? { ...row, ...data } : row
-              ),
-            },
-          },
-        })),
-      addCibiResult: () =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              cibiResults: [
-                ...prev.review.creditChecking.cibiResults,
-                {
-                  id: crypto.randomUUID(),
-                  provider: '',
-                  facilityType: '',
-                  originalAmount: '',
-                  outstandingBalance: '',
-                  overdueAmount: '',
-                  monthlyAmortization: '',
-                  paymentStatus: '',
-                  remarks: '',
-                },
-              ],
-            },
-          },
-        })),
-      removeCibiResult: (id) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              cibiResults: prev.review.creditChecking.cibiResults.filter((row) => row.id !== id),
-            },
-          },
-        })),
-      updateCibiResult: (id, data) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              cibiResults: prev.review.creditChecking.cibiResults.map((row) =>
-                row.id === id ? { ...row, ...data } : row
-              ),
-            },
-          },
-        })),
-      addCicContract: () =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              cicContracts: [
-                ...prev.review.creditChecking.cicContracts,
-                {
-                  id: crypto.randomUUID(),
-                  contractCode: '',
-                  contractType: '',
-                  maturityDate: '',
-                  outstandingBalance: '',
-                  overdueAmount: '',
-                  monthlyAmortization: '',
-                  contractStatus: '',
-                  remarks: '',
-                },
-              ],
-            },
-          },
-        })),
-      removeCicContract: (id) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              cicContracts: prev.review.creditChecking.cicContracts.filter((row) => row.id !== id),
-            },
-          },
-        })),
-      updateCicContract: (id, data) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              cicContracts: prev.review.creditChecking.cicContracts.map((row) =>
-                row.id === id ? { ...row, ...data } : row
-              ),
-            },
-          },
-        })),
-      addLoandexRecord: () =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              loandexRecords: [
-                ...prev.review.creditChecking.loandexRecords,
-                {
-                  id: crypto.randomUUID(),
-                  bankInstitution: '',
-                  loanFacility: '',
-                  maturityDate: '',
-                  outstandingBalance: '',
-                  overdueAmount: '',
-                  monthlyAmortization: '',
-                  accountStatus: '',
-                  remarks: '',
-                },
-              ],
-            },
-          },
-        })),
-      removeLoandexRecord: (id) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              loandexRecords: prev.review.creditChecking.loandexRecords.filter((row) => row.id !== id),
-            },
-          },
-        })),
-      updateLoandexRecord: (id, data) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              loandexRecords: prev.review.creditChecking.loandexRecords.map((row) =>
-                row.id === id ? { ...row, ...data } : row
-              ),
-            },
-          },
-        })),
-      addPgfcExposureRecord: () =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              pgfcExposureRecords: [
-                ...prev.review.creditChecking.pgfcExposureRecords,
-                {
-                  id: crypto.randomUUID(),
-                  principalBalance: '',
-                  interestBalance: '',
-                  maturityDate: '',
-                  remainingTerm: '',
-                  lastPaymentDate: '',
-                  monthlyAmortization: '',
-                  paymentStatus: '',
-                  remarks: '',
-                },
-              ],
-            },
-          },
-        })),
-      removePgfcExposureRecord: (id) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              pgfcExposureRecords: prev.review.creditChecking.pgfcExposureRecords.filter((row) => row.id !== id),
-            },
-          },
-        })),
-      updatePgfcExposureRecord: (id, data) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            creditChecking: {
-              ...prev.review.creditChecking,
-              pgfcExposureRecords: prev.review.creditChecking.pgfcExposureRecords.map((row) =>
-                row.id === id ? { ...row, ...data } : row
-              ),
-            },
-          },
-        })),
       setCibiForm: (data) =>
-        setState((prev) => ({
-          ...prev,
-          review: { ...prev.review, cibiForm: { ...prev.review.cibiForm, ...data } },
-        })),
+        setState((prev) => {
+          const nextForm = { ...prev.review.cibiForm, ...data };
+          const shouldSeed =
+            !!nextForm.reportFileName && prev.review.creditChecking.cibiResults.length === 0;
+          const shouldClear = data.reportFileName === null;
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              cibiForm: nextForm,
+              creditChecking: {
+                ...prev.review.creditChecking,
+                cibiResults: shouldSeed
+                  ? [
+                      createCibiSampleResult(
+                        nextForm.creditType,
+                        nextForm.financedAmount,
+                        nextForm.installment
+                      ),
+                    ]
+                  : shouldClear
+                    ? []
+                    : prev.review.creditChecking.cibiResults,
+              },
+            },
+          };
+        }),
       setLoandexUpload: (data) =>
-        setState((prev) => ({
-          ...prev,
-          review: { ...prev.review, loandexUpload: { ...prev.review.loandexUpload, ...data } },
-        })),
+        setState((prev) => {
+          const nextUpload = { ...prev.review.loandexUpload, ...data };
+          const shouldSeed = !!nextUpload.fileName && prev.review.creditChecking.loandexRecords.length === 0;
+          const shouldClear = data.fileName === null;
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              loandexUpload: nextUpload,
+              creditChecking: {
+                ...prev.review.creditChecking,
+                loandexRecords: shouldSeed
+                  ? [createLoandexSampleRecord()]
+                  : shouldClear
+                    ? []
+                    : prev.review.creditChecking.loandexRecords,
+              },
+            },
+          };
+        }),
       setCicUpload: (data) =>
-        setState((prev) => ({
-          ...prev,
-          review: { ...prev.review, cicUpload: { ...prev.review.cicUpload, ...data } },
-        })),
+        setState((prev) => {
+          const nextUpload = { ...prev.review.cicUpload, ...data };
+          const shouldSeed = !!nextUpload.fileName && prev.review.creditChecking.cicContracts.length === 0;
+          const shouldClear = data.fileName === null;
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              cicUpload: nextUpload,
+              creditChecking: {
+                ...prev.review.creditChecking,
+                cicContracts: shouldSeed
+                  ? [createCicSampleContract()]
+                  : shouldClear
+                    ? []
+                    : prev.review.creditChecking.cicContracts,
+              },
+            },
+          };
+        }),
       setCmapUpload: (data) =>
-        setState((prev) => ({
-          ...prev,
-          review: { ...prev.review, cmapUpload: { ...prev.review.cmapUpload, ...data } },
-        })),
+        setState((prev) => {
+          const nextUpload = { ...prev.review.cmapUpload, ...data };
+          const shouldSeed = !!nextUpload.fileName && prev.review.creditChecking.cmapCases.length === 0;
+          const shouldClear = data.fileName === null;
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              cmapUpload: nextUpload,
+              creditChecking: {
+                ...prev.review.creditChecking,
+                cmapCases: shouldSeed
+                  ? [createCmapSampleCase()]
+                  : shouldClear
+                    ? []
+                    : prev.review.creditChecking.cmapCases,
+              },
+            },
+          };
+        }),
       setNfisBapUpload: (data) =>
-        setState((prev) => ({
-          ...prev,
-          review: { ...prev.review, nfisBapUpload: { ...prev.review.nfisBapUpload, ...data } },
-        })),
+        setState((prev) => {
+          const nextUpload = { ...prev.review.nfisBapUpload, ...data };
+          const shouldSeed = !!nextUpload.fileName && prev.review.creditChecking.bapNfisRecords.length === 0;
+          const shouldClear = data.fileName === null;
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              nfisBapUpload: nextUpload,
+              creditChecking: {
+                ...prev.review.creditChecking,
+                bapNfisRecords: shouldSeed
+                  ? [createBapNfisSampleRecord()]
+                  : shouldClear
+                    ? []
+                    : prev.review.creditChecking.bapNfisRecords,
+              },
+            },
+          };
+        }),
+      setPgfcExposureUpload: (data) =>
+        setState((prev) => {
+          const nextUpload = { ...prev.review.pgfcExposureUpload, ...data };
+          const shouldSeed =
+            !!nextUpload.fileName && prev.review.creditChecking.pgfcExposureRecords.length === 0;
+          const shouldClear = data.fileName === null;
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              pgfcExposureUpload: nextUpload,
+              creditChecking: {
+                ...prev.review.creditChecking,
+                pgfcExposureRecords: shouldSeed
+                  ? [createPgfcSampleExposureRecord()]
+                  : shouldClear
+                    ? []
+                    : prev.review.creditChecking.pgfcExposureRecords,
+              },
+            },
+          };
+        }),
       setReconsideration: (data) =>
         setState((prev) => ({
           ...prev,

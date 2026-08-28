@@ -157,8 +157,16 @@ export function CreditCheckingResultModal({
   const { review, setCreditChecking } = useAdmin();
   const [isRemarksSaving, setIsRemarksSaving] = useState(false);
   const remarksSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { creditChecking, negativeCreditReport, cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload } =
-    review;
+  const {
+    creditChecking,
+    negativeCreditReport,
+    cibiForm,
+    loandexUpload,
+    cicUpload,
+    cmapUpload,
+    nfisBapUpload,
+    pgfcExposureUpload,
+  } = review;
 
   useEffect(
     () => () => {
@@ -190,7 +198,8 @@ export function CreditCheckingResultModal({
     !!loandexUpload.fileName &&
     !!cicUpload.fileName &&
     !!cmapUpload.fileName &&
-    !!nfisBapUpload.fileName;
+    !!nfisBapUpload.fileName &&
+    !!pgfcExposureUpload.fileName;
 
   const { riskLevel } = buildInitialCreditCheckingResult({
     cmapCases: creditChecking.cmapCases,

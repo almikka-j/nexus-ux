@@ -3,13 +3,8 @@
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-
-import { Iconify } from 'src/components/iconify';
-import { outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import type {
   CmapCase,
@@ -42,22 +37,16 @@ const fieldSx = {
 function Field({
   label,
   value,
-  onChange,
+  disabled,
 }: {
   label: string;
   value: string;
-  onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <Stack spacing={0.6}>
       <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#3B4256' }}>{label}</Typography>
-      <TextField
-        fullWidth
-        size="small"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        sx={fieldSx}
-      />
+      <TextField fullWidth size="small" value={value} disabled={disabled} sx={fieldSx} />
     </Stack>
   );
 }
@@ -78,39 +67,7 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
-function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <Button
-      onClick={onClick}
-      variant="outlined"
-      size="small"
-      startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
-      sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
-    >
-      {label}
-    </Button>
-  );
-}
-
-function RemoveButton({ onClick }: { onClick: () => void }) {
-  return (
-    <IconButton size="small" onClick={onClick} sx={{ mt: { xs: 0, sm: 2.75 } }}>
-      <Iconify icon="mingcute:close-line" width={16} />
-    </IconButton>
-  );
-}
-
-export function CmapCasesTable({
-  rows,
-  onAdd,
-  onRemove,
-  onUpdate,
-}: {
-  rows: CmapCase[];
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-  onUpdate: (id: string, data: Partial<CmapCase>) => void;
-}) {
+export function CmapCasesTable({ rows }: { rows: CmapCase[] }) {
   return (
     <Stack spacing={2}>
       {rows.length === 0 ? (
@@ -120,52 +77,38 @@ export function CmapCasesTable({
           {rows.map((row) => (
             <Grid container spacing={1.5} alignItems="flex-start" key={row.id}>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Defendant / Subject" value={row.defendantSubject} onChange={(v) => onUpdate(row.id, { defendantSubject: v })} />
+                <Field label="Defendant / Subject" value={row.defendantSubject} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Plaintiff" value={row.plaintiff} onChange={(v) => onUpdate(row.id, { plaintiff: v })} />
+                <Field label="Plaintiff" value={row.plaintiff} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Nature of Case" value={row.natureOfCase} onChange={(v) => onUpdate(row.id, { natureOfCase: v })} />
+                <Field label="Nature of Case" value={row.natureOfCase} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Amount Involved" value={row.amountInvolved} onChange={(v) => onUpdate(row.id, { amountInvolved: v })} />
+                <Field label="Amount Involved" value={row.amountInvolved} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Case No." value={row.caseNo} onChange={(v) => onUpdate(row.id, { caseNo: v })} />
+                <Field label="Case No." value={row.caseNo} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Date Filed" value={row.dateFiled} onChange={(v) => onUpdate(row.id, { dateFiled: v })} />
+                <Field label="Date Filed" value={row.dateFiled} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Status" value={row.status} onChange={(v) => onUpdate(row.id, { status: v })} />
+                <Field label="Status" value={row.status} disabled />
               </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <Field label="Credit Risk Remarks" value={row.creditRiskRemarks} onChange={(v) => onUpdate(row.id, { creditRiskRemarks: v })} />
-              </Grid>
-              <Grid item xs={12} md={1}>
-                <RemoveButton onClick={() => onRemove(row.id)} />
+              <Grid item xs={12} sm={6} md={3}>
+                <Field label="Credit Risk Remarks" value={row.creditRiskRemarks} disabled />
               </Grid>
             </Grid>
           ))}
         </Stack>
       )}
-      <AddButton label="Add Case" onClick={onAdd} />
     </Stack>
   );
 }
 
-export function BapNfisRecordsTable({
-  rows,
-  onAdd,
-  onRemove,
-  onUpdate,
-}: {
-  rows: BapNfisRecord[];
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-  onUpdate: (id: string, data: Partial<BapNfisRecord>) => void;
-}) {
+export function BapNfisRecordsTable({ rows }: { rows: BapNfisRecord[] }) {
   return (
     <Stack spacing={2}>
       {rows.length === 0 ? (
@@ -175,52 +118,38 @@ export function BapNfisRecordsTable({
           {rows.map((row) => (
             <Grid container spacing={1.5} alignItems="flex-start" key={row.id}>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Lending Institution / Source" value={row.lendingInstitution} onChange={(v) => onUpdate(row.id, { lendingInstitution: v })} />
+                <Field label="Lending Institution / Source" value={row.lendingInstitution} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Facility" value={row.facility} onChange={(v) => onUpdate(row.id, { facility: v })} />
+                <Field label="Facility" value={row.facility} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Original Loan Amount" value={row.originalLoanAmount} onChange={(v) => onUpdate(row.id, { originalLoanAmount: v })} />
+                <Field label="Original Loan Amount" value={row.originalLoanAmount} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Date Granted / Reported" value={row.dateGranted} onChange={(v) => onUpdate(row.id, { dateGranted: v })} />
+                <Field label="Date Granted / Reported" value={row.dateGranted} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Maturity / Date Closed" value={row.maturityDate} onChange={(v) => onUpdate(row.id, { maturityDate: v })} />
+                <Field label="Maturity / Date Closed" value={row.maturityDate} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Outstanding Balance" value={row.outstandingBalance} onChange={(v) => onUpdate(row.id, { outstandingBalance: v })} />
+                <Field label="Outstanding Balance" value={row.outstandingBalance} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Payment History" value={row.paymentHistory} onChange={(v) => onUpdate(row.id, { paymentHistory: v })} />
+                <Field label="Payment History" value={row.paymentHistory} disabled />
               </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <Field label="Status / Remarks" value={row.statusRemarks} onChange={(v) => onUpdate(row.id, { statusRemarks: v })} />
-              </Grid>
-              <Grid item xs={12} md={1}>
-                <RemoveButton onClick={() => onRemove(row.id)} />
+              <Grid item xs={12} sm={6} md={3}>
+                <Field label="Status / Remarks" value={row.statusRemarks} disabled />
               </Grid>
             </Grid>
           ))}
         </Stack>
       )}
-      <AddButton label="Add Record" onClick={onAdd} />
     </Stack>
   );
 }
 
-export function CibiResultsTable({
-  rows,
-  onAdd,
-  onRemove,
-  onUpdate,
-}: {
-  rows: CibiResult[];
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-  onUpdate: (id: string, data: Partial<CibiResult>) => void;
-}) {
+export function CibiResultsTable({ rows }: { rows: CibiResult[] }) {
   return (
     <Stack spacing={2}>
       {rows.length === 0 ? (
@@ -230,52 +159,38 @@ export function CibiResultsTable({
           {rows.map((row) => (
             <Grid container spacing={1.5} alignItems="flex-start" key={row.id}>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Provider" value={row.provider} onChange={(v) => onUpdate(row.id, { provider: v })} />
+                <Field label="Provider" value={row.provider} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Facility Type" value={row.facilityType} onChange={(v) => onUpdate(row.id, { facilityType: v })} />
+                <Field label="Facility Type" value={row.facilityType} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Original / Finance Amount" value={row.originalAmount} onChange={(v) => onUpdate(row.id, { originalAmount: v })} />
+                <Field label="Original / Finance Amount" value={row.originalAmount} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Outstanding Balance" value={row.outstandingBalance} onChange={(v) => onUpdate(row.id, { outstandingBalance: v })} />
+                <Field label="Outstanding Balance" value={row.outstandingBalance} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Overdue Amount" value={row.overdueAmount} onChange={(v) => onUpdate(row.id, { overdueAmount: v })} />
+                <Field label="Overdue Amount" value={row.overdueAmount} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Monthly Amortization" value={row.monthlyAmortization} onChange={(v) => onUpdate(row.id, { monthlyAmortization: v })} />
+                <Field label="Monthly Amortization" value={row.monthlyAmortization} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Payment Status" value={row.paymentStatus} onChange={(v) => onUpdate(row.id, { paymentStatus: v })} />
+                <Field label="Payment Status" value={row.paymentStatus} disabled />
               </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <Field label="Remarks" value={row.remarks} onChange={(v) => onUpdate(row.id, { remarks: v })} />
-              </Grid>
-              <Grid item xs={12} md={1}>
-                <RemoveButton onClick={() => onRemove(row.id)} />
+              <Grid item xs={12} sm={6} md={3}>
+                <Field label="Remarks" value={row.remarks} disabled />
               </Grid>
             </Grid>
           ))}
         </Stack>
       )}
-      <AddButton label="Add Result" onClick={onAdd} />
     </Stack>
   );
 }
 
-export function CicContractsTable({
-  rows,
-  onAdd,
-  onRemove,
-  onUpdate,
-}: {
-  rows: CicContract[];
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-  onUpdate: (id: string, data: Partial<CicContract>) => void;
-}) {
+export function CicContractsTable({ rows }: { rows: CicContract[] }) {
   return (
     <Stack spacing={2}>
       {rows.length === 0 ? (
@@ -285,52 +200,38 @@ export function CicContractsTable({
           {rows.map((row) => (
             <Grid container spacing={1.5} alignItems="flex-start" key={row.id}>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Contract Code" value={row.contractCode} onChange={(v) => onUpdate(row.id, { contractCode: v })} />
+                <Field label="Contract Code" value={row.contractCode} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Contract Type" value={row.contractType} onChange={(v) => onUpdate(row.id, { contractType: v })} />
+                <Field label="Contract Type" value={row.contractType} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Maturity Date" value={row.maturityDate} onChange={(v) => onUpdate(row.id, { maturityDate: v })} />
+                <Field label="Maturity Date" value={row.maturityDate} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Outstanding Balance" value={row.outstandingBalance} onChange={(v) => onUpdate(row.id, { outstandingBalance: v })} />
+                <Field label="Outstanding Balance" value={row.outstandingBalance} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Overdue Amount" value={row.overdueAmount} onChange={(v) => onUpdate(row.id, { overdueAmount: v })} />
+                <Field label="Overdue Amount" value={row.overdueAmount} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Monthly Amortization" value={row.monthlyAmortization} onChange={(v) => onUpdate(row.id, { monthlyAmortization: v })} />
+                <Field label="Monthly Amortization" value={row.monthlyAmortization} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Contract Status" value={row.contractStatus} onChange={(v) => onUpdate(row.id, { contractStatus: v })} />
+                <Field label="Contract Status" value={row.contractStatus} disabled />
               </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <Field label="Remarks" value={row.remarks} onChange={(v) => onUpdate(row.id, { remarks: v })} />
-              </Grid>
-              <Grid item xs={12} md={1}>
-                <RemoveButton onClick={() => onRemove(row.id)} />
+              <Grid item xs={12} sm={6} md={3}>
+                <Field label="Remarks" value={row.remarks} disabled />
               </Grid>
             </Grid>
           ))}
         </Stack>
       )}
-      <AddButton label="Add Contract" onClick={onAdd} />
     </Stack>
   );
 }
 
-export function LoandexRecordsTable({
-  rows,
-  onAdd,
-  onRemove,
-  onUpdate,
-}: {
-  rows: LoandexRecord[];
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-  onUpdate: (id: string, data: Partial<LoandexRecord>) => void;
-}) {
+export function LoandexRecordsTable({ rows }: { rows: LoandexRecord[] }) {
   return (
     <Stack spacing={2}>
       {rows.length === 0 ? (
@@ -340,52 +241,38 @@ export function LoandexRecordsTable({
           {rows.map((row) => (
             <Grid container spacing={1.5} alignItems="flex-start" key={row.id}>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Bank / Institution" value={row.bankInstitution} onChange={(v) => onUpdate(row.id, { bankInstitution: v })} />
+                <Field label="Bank / Institution" value={row.bankInstitution} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Loan Facility" value={row.loanFacility} onChange={(v) => onUpdate(row.id, { loanFacility: v })} />
+                <Field label="Loan Facility" value={row.loanFacility} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Maturity Date" value={row.maturityDate} onChange={(v) => onUpdate(row.id, { maturityDate: v })} />
+                <Field label="Maturity Date" value={row.maturityDate} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Outstanding Balance" value={row.outstandingBalance} onChange={(v) => onUpdate(row.id, { outstandingBalance: v })} />
+                <Field label="Outstanding Balance" value={row.outstandingBalance} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Overdue Amount" value={row.overdueAmount} onChange={(v) => onUpdate(row.id, { overdueAmount: v })} />
+                <Field label="Overdue Amount" value={row.overdueAmount} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Monthly Amortization" value={row.monthlyAmortization} onChange={(v) => onUpdate(row.id, { monthlyAmortization: v })} />
+                <Field label="Monthly Amortization" value={row.monthlyAmortization} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Account Status" value={row.accountStatus} onChange={(v) => onUpdate(row.id, { accountStatus: v })} />
+                <Field label="Account Status" value={row.accountStatus} disabled />
               </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <Field label="Remarks" value={row.remarks} onChange={(v) => onUpdate(row.id, { remarks: v })} />
-              </Grid>
-              <Grid item xs={12} md={1}>
-                <RemoveButton onClick={() => onRemove(row.id)} />
+              <Grid item xs={12} sm={6} md={3}>
+                <Field label="Remarks" value={row.remarks} disabled />
               </Grid>
             </Grid>
           ))}
         </Stack>
       )}
-      <AddButton label="Add Record" onClick={onAdd} />
     </Stack>
   );
 }
 
-export function PgfcExposureTable({
-  rows,
-  onAdd,
-  onRemove,
-  onUpdate,
-}: {
-  rows: PgfcExposureRecord[];
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-  onUpdate: (id: string, data: Partial<PgfcExposureRecord>) => void;
-}) {
+export function PgfcExposureTable({ rows }: { rows: PgfcExposureRecord[] }) {
   return (
     <Stack spacing={2}>
       {rows.length === 0 ? (
@@ -395,37 +282,33 @@ export function PgfcExposureTable({
           {rows.map((row) => (
             <Grid container spacing={1.5} alignItems="flex-start" key={row.id}>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Principal Balance" value={row.principalBalance} onChange={(v) => onUpdate(row.id, { principalBalance: v })} />
+                <Field label="Principal Balance" value={row.principalBalance} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Interest Balance" value={row.interestBalance} onChange={(v) => onUpdate(row.id, { interestBalance: v })} />
+                <Field label="Interest Balance" value={row.interestBalance} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Maturity Date" value={row.maturityDate} onChange={(v) => onUpdate(row.id, { maturityDate: v })} />
+                <Field label="Maturity Date" value={row.maturityDate} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Remaining Term" value={row.remainingTerm} onChange={(v) => onUpdate(row.id, { remainingTerm: v })} />
+                <Field label="Remaining Term" value={row.remainingTerm} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Last Payment Date" value={row.lastPaymentDate} onChange={(v) => onUpdate(row.id, { lastPaymentDate: v })} />
+                <Field label="Last Payment Date" value={row.lastPaymentDate} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Monthly Amortization" value={row.monthlyAmortization} onChange={(v) => onUpdate(row.id, { monthlyAmortization: v })} />
+                <Field label="Monthly Amortization" value={row.monthlyAmortization} disabled />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Field label="Payment Status" value={row.paymentStatus} onChange={(v) => onUpdate(row.id, { paymentStatus: v })} />
+                <Field label="Payment Status" value={row.paymentStatus} disabled />
               </Grid>
-              <Grid item xs={12} sm={6} md={2}>
-                <Field label="Remarks" value={row.remarks} onChange={(v) => onUpdate(row.id, { remarks: v })} />
-              </Grid>
-              <Grid item xs={12} md={1}>
-                <RemoveButton onClick={() => onRemove(row.id)} />
+              <Grid item xs={12} sm={6} md={3}>
+                <Field label="Remarks" value={row.remarks} disabled />
               </Grid>
             </Grid>
           ))}
         </Stack>
       )}
-      <AddButton label="Add Exposure Record" onClick={onAdd} />
     </Stack>
   );
 }
