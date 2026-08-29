@@ -265,7 +265,7 @@ export function CreditCheckingResultModal({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
         <Box>
           <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#14172A' }}>
