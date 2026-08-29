@@ -2,10 +2,13 @@
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
+
+import { Iconify } from 'src/components/iconify';
 
 import { cardSx } from './call-report-types';
 
@@ -22,12 +25,42 @@ import { cardSx } from './call-report-types';
 // officer should be able to edit after the fact.
 // ----------------------------------------------------------------------
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
+function SignatureField({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
-    <Box sx={{ flex: 1 }}>
-      <Typography sx={{ fontSize: 11.5, color: '#8891A6', mb: 0.4 }}>{label}</Typography>
-      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value || '—'}</Typography>
-    </Box>
+    <Stack direction="row" spacing={1.25} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+      <Box
+        sx={{
+          width: 32,
+          height: 32,
+          borderRadius: '9px',
+          bgcolor: '#EEF1FE',
+          display: 'grid',
+          placeItems: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Iconify icon={icon} width={16} sx={{ color: '#3448B0' }} />
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: '#9AA2B4',
+          }}
+        >
+          {label}
+        </Typography>
+        <Typography
+          sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          title={value}
+        >
+          {value || '—'}
+        </Typography>
+      </Box>
+    </Stack>
   );
 }
 
@@ -68,10 +101,28 @@ export function EndorsementDeclarationCard() {
         ))}
       </Stack>
 
-      <Stack direction="row" spacing={2}>
-        <ReadOnlyField label="Account Officer" value={accountOfficer} />
-        <ReadOnlyField label="Date / Time" value={dateTimeLabel} />
-      </Stack>
+      <Divider sx={{ borderColor: '#EEF0F5', mb: 2 }} />
+
+      <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#FAFBFD', border: '1px solid #EEF0F5' }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+          <Iconify icon="solar:pen-new-square-bold-duotone" width={16} sx={{ color: '#8891A6' }} />
+          <Typography
+            sx={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              color: '#8891A6',
+            }}
+          >
+            Endorsed by
+          </Typography>
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <SignatureField icon="solar:user-id-bold-duotone" label="Account Officer" value={accountOfficer} />
+          <SignatureField icon="solar:clock-circle-bold-duotone" label="Date / Time" value={dateTimeLabel} />
+        </Stack>
+      </Box>
     </Box>
   );
 }
