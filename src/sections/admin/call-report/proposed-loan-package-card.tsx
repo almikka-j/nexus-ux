@@ -91,6 +91,42 @@ export function ProposedLoanPackageCard() {
           ))}
         </TextField>
 
+        <Stack direction="row" spacing={2} alignItems="center">
+          <TextField
+            label="Interest Rate"
+            value={callReport.proposalInterestRate}
+            onChange={(event) => setCallReport({ proposalInterestRate: event.target.value })}
+            InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+            sx={{ ...fieldSx, flex: 1 }}
+          />
+          <Box sx={{ flex: 1 }}>
+            <RadioRow
+              label="Interest Rate Basis"
+              value={callReport.proposalInterestRateBasis}
+              options={PROPOSAL_INTEREST_RATE_BASIS_OPTIONS}
+              onChange={(value) => setCallReport({ proposalInterestRateBasis: value })}
+            />
+          </Box>
+        </Stack>
+
+        <Box>
+          <RadioRow
+            label="Computation Type"
+            value={callReport.proposalComputationType}
+            options={PROPOSAL_COMPUTATION_TYPE_OPTIONS}
+            onChange={(value) => setCallReport({ proposalComputationType: value })}
+          />
+          {callReport.proposalComputationType === 'other' && (
+            <TextField
+              fullWidth
+              label="Other"
+              value={callReport.proposalComputationTypeOther}
+              onChange={(event) => setCallReport({ proposalComputationTypeOther: event.target.value })}
+              sx={{ ...fieldSx, mt: 1.5 }}
+            />
+          )}
+        </Box>
+
         <Stack direction="row" spacing={2}>
           <TextField
             fullWidth
@@ -110,24 +146,6 @@ export function ProposedLoanPackageCard() {
           />
         </Stack>
 
-        <Stack direction="row" spacing={2} alignItems="center">
-          <TextField
-            label="Interest Rate"
-            value={callReport.proposalInterestRate}
-            onChange={(event) => setCallReport({ proposalInterestRate: event.target.value })}
-            InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-            sx={{ ...fieldSx, flex: 1 }}
-          />
-          <Box sx={{ flex: 1 }}>
-            <RadioRow
-              label="Interest Rate Basis"
-              value={callReport.proposalInterestRateBasis}
-              options={PROPOSAL_INTEREST_RATE_BASIS_OPTIONS}
-              onChange={(value) => setCallReport({ proposalInterestRateBasis: value })}
-            />
-          </Box>
-        </Stack>
-
         <TextField
           fullWidth
           label="Estimated Monthly Amortization"
@@ -136,24 +154,6 @@ export function ProposedLoanPackageCard() {
           InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
           sx={fieldSx}
         />
-
-        <Box>
-          <RadioRow
-            label="Computation Type"
-            value={callReport.proposalComputationType}
-            options={PROPOSAL_COMPUTATION_TYPE_OPTIONS}
-            onChange={(value) => setCallReport({ proposalComputationType: value })}
-          />
-          {callReport.proposalComputationType === 'other' && (
-            <TextField
-              fullWidth
-              label="Other"
-              value={callReport.proposalComputationTypeOther}
-              onChange={(event) => setCallReport({ proposalComputationTypeOther: event.target.value })}
-              sx={{ ...fieldSx, mt: 1.5 }}
-            />
-          )}
-        </Box>
       </Stack>
     </Box>
   );
