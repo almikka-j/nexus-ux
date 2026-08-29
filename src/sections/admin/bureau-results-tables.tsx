@@ -27,14 +27,17 @@ import type {
 // application-details-card.tsx's FactChip), NOT disabled TextFields — a
 // disabled input reads as an empty/unfilled field even when it holds real
 // data, where a plain label-over-value chip reads as a completed record.
-// All fields stay on one line — chips are narrow enough to fit 8 fields at
-// once, and the row scrolls horizontally rather than wrapping or hiding
-// fields behind a toggle.
+// Chips share the row's width via flex (no horizontal scroll, no wrapping)
+// so the whole record stays on one line at any container width. The one
+// free-text field per bureau (remarks / status-remarks) is pulled out of
+// the chip row entirely — long prose forced into an equal-width chip would
+// either overflow or squeeze every other field — and rendered as a plain
+// wrapped text line beneath the row instead.
 // ----------------------------------------------------------------------
 
 function FactChip({ label, value }: { label: string; value: string }) {
   return (
-    <Stack spacing={0.3} sx={{ px: 1.25, py: 0.85, minWidth: 108, flexShrink: 0 }}>
+    <Stack spacing={0.3} sx={{ px: 1.25, py: 0.85, flex: 1, minWidth: 0 }}>
       <Typography
         sx={{
           fontSize: 10,
@@ -69,21 +72,26 @@ function FactChip({ label, value }: { label: string; value: string }) {
 
 function FactChipRow({ children }: { children: React.ReactNode }) {
   return (
-    <Box sx={{ overflowX: 'auto' }}>
-      <Stack
-        direction="row"
-        flexWrap="nowrap"
-        sx={{
-          width: 'fit-content',
-          minWidth: 1,
-          border: '1px solid #EEF0F5',
-          borderRadius: '12px',
-          bgcolor: '#FAFBFD',
-          '& > div:not(:last-of-type)': { borderRight: '1px solid #EEF0F5' },
-        }}
-      >
-        {children}
-      </Stack>
+    <Stack
+      direction="row"
+      flexWrap="nowrap"
+      sx={{
+        border: '1px solid #EEF0F5',
+        borderRadius: '12px',
+        bgcolor: '#FAFBFD',
+        '& > div:not(:last-of-type)': { borderRight: '1px solid #EEF0F5' },
+      }}
+    >
+      {children}
+    </Stack>
+  );
+}
+
+function RemarksLine({ label, value }: { label: string; value: string }) {
+  return (
+    <Box sx={{ px: 1.75, py: 1.1, borderRadius: '10px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+      <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#9AA2B4', mb: 0.3 }}>{label}</Typography>
+      <Typography sx={{ fontSize: 13, color: '#14172A', lineHeight: 1.5 }}>{value || '—'}</Typography>
     </Box>
   );
 }
@@ -112,16 +120,18 @@ export function CmapCasesTable({ rows }: { rows: CmapCase[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <FactChipRow key={row.id}>
-              <FactChip label="Defendant / Subject" value={row.defendantSubject} />
-              <FactChip label="Plaintiff" value={row.plaintiff} />
-              <FactChip label="Nature of Case" value={row.natureOfCase} />
-              <FactChip label="Amount Involved" value={row.amountInvolved} />
-              <FactChip label="Case No." value={row.caseNo} />
-              <FactChip label="Date Filed" value={row.dateFiled} />
-              <FactChip label="Status" value={row.status} />
-              <FactChip label="Credit Risk Remarks" value={row.creditRiskRemarks} />
-            </FactChipRow>
+            <Stack spacing={1} key={row.id}>
+              <FactChipRow>
+                <FactChip label="Defendant / Subject" value={row.defendantSubject} />
+                <FactChip label="Plaintiff" value={row.plaintiff} />
+                <FactChip label="Nature of Case" value={row.natureOfCase} />
+                <FactChip label="Amount Involved" value={row.amountInvolved} />
+                <FactChip label="Case No." value={row.caseNo} />
+                <FactChip label="Date Filed" value={row.dateFiled} />
+                <FactChip label="Status" value={row.status} />
+              </FactChipRow>
+              <RemarksLine label="Credit Risk Remarks" value={row.creditRiskRemarks} />
+            </Stack>
           ))}
         </Stack>
       )}
@@ -137,16 +147,18 @@ export function BapNfisRecordsTable({ rows }: { rows: BapNfisRecord[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <FactChipRow key={row.id}>
-              <FactChip label="Lending Institution / Source" value={row.lendingInstitution} />
-              <FactChip label="Facility" value={row.facility} />
-              <FactChip label="Original Loan Amount" value={row.originalLoanAmount} />
-              <FactChip label="Date Granted / Reported" value={row.dateGranted} />
-              <FactChip label="Maturity / Date Closed" value={row.maturityDate} />
-              <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
-              <FactChip label="Payment History" value={row.paymentHistory} />
-              <FactChip label="Status / Remarks" value={row.statusRemarks} />
-            </FactChipRow>
+            <Stack spacing={1} key={row.id}>
+              <FactChipRow>
+                <FactChip label="Lending Institution / Source" value={row.lendingInstitution} />
+                <FactChip label="Facility" value={row.facility} />
+                <FactChip label="Original Loan Amount" value={row.originalLoanAmount} />
+                <FactChip label="Date Granted / Reported" value={row.dateGranted} />
+                <FactChip label="Maturity / Date Closed" value={row.maturityDate} />
+                <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
+                <FactChip label="Payment History" value={row.paymentHistory} />
+              </FactChipRow>
+              <RemarksLine label="Status / Remarks" value={row.statusRemarks} />
+            </Stack>
           ))}
         </Stack>
       )}
@@ -162,16 +174,18 @@ export function CibiResultsTable({ rows }: { rows: CibiResult[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <FactChipRow key={row.id}>
-              <FactChip label="Provider" value={row.provider} />
-              <FactChip label="Facility Type" value={row.facilityType} />
-              <FactChip label="Original / Finance Amount" value={row.originalAmount} />
-              <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
-              <FactChip label="Overdue Amount" value={row.overdueAmount} />
-              <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
-              <FactChip label="Payment Status" value={row.paymentStatus} />
-              <FactChip label="Remarks" value={row.remarks} />
-            </FactChipRow>
+            <Stack spacing={1} key={row.id}>
+              <FactChipRow>
+                <FactChip label="Provider" value={row.provider} />
+                <FactChip label="Facility Type" value={row.facilityType} />
+                <FactChip label="Original / Finance Amount" value={row.originalAmount} />
+                <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
+                <FactChip label="Overdue Amount" value={row.overdueAmount} />
+                <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
+                <FactChip label="Payment Status" value={row.paymentStatus} />
+              </FactChipRow>
+              <RemarksLine label="Remarks" value={row.remarks} />
+            </Stack>
           ))}
         </Stack>
       )}
@@ -187,16 +201,18 @@ export function CicContractsTable({ rows }: { rows: CicContract[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <FactChipRow key={row.id}>
-              <FactChip label="Contract Code" value={row.contractCode} />
-              <FactChip label="Contract Type" value={row.contractType} />
-              <FactChip label="Maturity Date" value={row.maturityDate} />
-              <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
-              <FactChip label="Overdue Amount" value={row.overdueAmount} />
-              <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
-              <FactChip label="Contract Status" value={row.contractStatus} />
-              <FactChip label="Remarks" value={row.remarks} />
-            </FactChipRow>
+            <Stack spacing={1} key={row.id}>
+              <FactChipRow>
+                <FactChip label="Contract Code" value={row.contractCode} />
+                <FactChip label="Contract Type" value={row.contractType} />
+                <FactChip label="Maturity Date" value={row.maturityDate} />
+                <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
+                <FactChip label="Overdue Amount" value={row.overdueAmount} />
+                <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
+                <FactChip label="Contract Status" value={row.contractStatus} />
+              </FactChipRow>
+              <RemarksLine label="Remarks" value={row.remarks} />
+            </Stack>
           ))}
         </Stack>
       )}
@@ -212,16 +228,18 @@ export function LoandexRecordsTable({ rows }: { rows: LoandexRecord[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <FactChipRow key={row.id}>
-              <FactChip label="Bank / Institution" value={row.bankInstitution} />
-              <FactChip label="Loan Facility" value={row.loanFacility} />
-              <FactChip label="Maturity Date" value={row.maturityDate} />
-              <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
-              <FactChip label="Overdue Amount" value={row.overdueAmount} />
-              <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
-              <FactChip label="Account Status" value={row.accountStatus} />
-              <FactChip label="Remarks" value={row.remarks} />
-            </FactChipRow>
+            <Stack spacing={1} key={row.id}>
+              <FactChipRow>
+                <FactChip label="Bank / Institution" value={row.bankInstitution} />
+                <FactChip label="Loan Facility" value={row.loanFacility} />
+                <FactChip label="Maturity Date" value={row.maturityDate} />
+                <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
+                <FactChip label="Overdue Amount" value={row.overdueAmount} />
+                <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
+                <FactChip label="Account Status" value={row.accountStatus} />
+              </FactChipRow>
+              <RemarksLine label="Remarks" value={row.remarks} />
+            </Stack>
           ))}
         </Stack>
       )}
@@ -237,16 +255,18 @@ export function PgfcExposureTable({ rows }: { rows: PgfcExposureRecord[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <FactChipRow key={row.id}>
-              <FactChip label="Principal Balance" value={row.principalBalance} />
-              <FactChip label="Interest Balance" value={row.interestBalance} />
-              <FactChip label="Maturity Date" value={row.maturityDate} />
-              <FactChip label="Remaining Term" value={row.remainingTerm} />
-              <FactChip label="Last Payment Date" value={row.lastPaymentDate} />
-              <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
-              <FactChip label="Payment Status" value={row.paymentStatus} />
-              <FactChip label="Remarks" value={row.remarks} />
-            </FactChipRow>
+            <Stack spacing={1} key={row.id}>
+              <FactChipRow>
+                <FactChip label="Principal Balance" value={row.principalBalance} />
+                <FactChip label="Interest Balance" value={row.interestBalance} />
+                <FactChip label="Maturity Date" value={row.maturityDate} />
+                <FactChip label="Remaining Term" value={row.remainingTerm} />
+                <FactChip label="Last Payment Date" value={row.lastPaymentDate} />
+                <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
+                <FactChip label="Payment Status" value={row.paymentStatus} />
+              </FactChipRow>
+              <RemarksLine label="Remarks" value={row.remarks} />
+            </Stack>
           ))}
         </Stack>
       )}
