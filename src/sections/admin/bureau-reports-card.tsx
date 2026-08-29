@@ -148,6 +148,7 @@ function BureauRow({
   uploadDetails,
   uploaded,
   bureauFindingStatus,
+  resultsTable,
   children,
 }: {
   title: string;
@@ -163,6 +164,10 @@ function BureauRow({
    * "Uploaded" instead of a clean/negative verdict.
    */
   bureauFindingStatus: 'pending' | 'clean' | 'negative';
+  /** Rendered inside this same bordered shell, below the header row —
+   * matches CIBI's card, where its results table lives inside CibiRow's
+   * own outer Box rather than as a separate sibling card underneath. */
+  resultsTable?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const isNegative = uploaded && bureauFindingStatus === 'negative';
@@ -174,7 +179,7 @@ function BureauRow({
 
   return (
     // Same 13px-radius bordered white shell as RequirementDocRow's row container.
-    <Box sx={{ borderRadius: '13px', border: '1px solid #EBEDF3', bgcolor: 'common.white' }}>
+    <Box sx={{ borderRadius: '13px', border: '1px solid #EBEDF3', bgcolor: 'common.white', overflow: 'hidden' }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         alignItems={{ xs: 'stretch', sm: 'center' }}
@@ -216,6 +221,9 @@ function BureauRow({
           {children}
         </Stack>
       </Stack>
+      {resultsTable && (
+        <Box sx={{ p: 2.5, pt: 0 }}>{resultsTable}</Box>
+      )}
     </Box>
   );
 }
@@ -248,84 +256,78 @@ function SimpleBureauRow({
   };
 
   return (
-    <Stack spacing={1.5}>
-      <BureauRow
-        title={title}
-        uploaded={!!upload.fileName}
-        bureauFindingStatus={review.creditChecking.bureauFindingStatus}
-        summary={upload.fileName ? BUREAU_SUMMARIES[title]?.(applicantName) : undefined}
-        uploadDetails={
-          upload.fileName
-            ? `${upload.fileName} · Uploaded ${formatUploadedAt(upload.uploadedAt) ?? 'date unavailable'}`
-            : undefined
-        }
-      >
-        <input ref={inputRef} type="file" accept="image/*,.pdf" hidden onChange={handleUpload} />
-        {upload.fileName ? (
-          <>
-            <Button
-              onClick={() => upload.fileData && window.open(upload.fileData, '_blank', 'noopener,noreferrer')}
-              disabled={!upload.fileData}
-              variant="outlined"
-              size="small"
-              startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
-              sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
+    <BureauRow
+      title={title}
+      uploaded={!!upload.fileName}
+      bureauFindingStatus={review.creditChecking.bureauFindingStatus}
+      summary={upload.fileName ? BUREAU_SUMMARIES[title]?.(applicantName) : undefined}
+      uploadDetails={
+        upload.fileName
+          ? `${upload.fileName} · Uploaded ${formatUploadedAt(upload.uploadedAt) ?? 'date unavailable'}`
+          : undefined
+      }
+      resultsTable={upload.fileName ? resultsTable : undefined}
+    >
+      <input ref={inputRef} type="file" accept="image/*,.pdf" hidden onChange={handleUpload} />
+      {upload.fileName ? (
+        <>
+          <Button
+            onClick={() => upload.fileData && window.open(upload.fileData, '_blank', 'noopener,noreferrer')}
+            disabled={!upload.fileData}
+            variant="outlined"
+            size="small"
+            startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
+            sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
+          >
+            View
+          </Button>
+          <IconButton
+            onClick={(event) => setMenuAnchor(event.currentTarget)}
+            aria-label={`More actions for ${title}`}
+            size="small"
+            sx={iconButtonBorderedSx}
+          >
+            <Iconify icon="eva:more-vertical-fill" width={18} />
+          </IconButton>
+          <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={() => setMenuAnchor(null)}
+            slotProps={{ paper: { sx: { mt: 0.5, minWidth: 175, borderRadius: '10px' } } }}
+          >
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null);
+                inputRef.current?.click();
+              }}
+              sx={{ fontSize: 13.5 }}
             >
-              View
-            </Button>
-            <IconButton
-              onClick={(event) => setMenuAnchor(event.currentTarget)}
-              aria-label={`More actions for ${title}`}
-              size="small"
-              sx={iconButtonBorderedSx}
+              <Iconify icon="solar:refresh-bold-duotone" width={17} sx={{ mr: 1.25 }} />
+              Replace file
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null);
+                onUpload({ fileName: null, fileData: null, uploadedAt: null });
+              }}
+              sx={{ fontSize: 13.5, color: '#B32C22', '&:hover': { bgcolor: TONE_COLORS.error.bg } }}
             >
-              <Iconify icon="eva:more-vertical-fill" width={18} />
-            </IconButton>
-            <Menu
-              anchorEl={menuAnchor}
-              open={Boolean(menuAnchor)}
-              onClose={() => setMenuAnchor(null)}
-              slotProps={{ paper: { sx: { mt: 0.5, minWidth: 175, borderRadius: '10px' } } }}
-            >
-              <MenuItem
-                onClick={() => {
-                  setMenuAnchor(null);
-                  inputRef.current?.click();
-                }}
-                sx={{ fontSize: 13.5 }}
-              >
-                <Iconify icon="solar:refresh-bold-duotone" width={17} sx={{ mr: 1.25 }} />
-                Replace file
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setMenuAnchor(null);
-                  onUpload({ fileName: null, fileData: null, uploadedAt: null });
-                }}
-                sx={{ fontSize: 13.5, color: '#B32C22', '&:hover': { bgcolor: TONE_COLORS.error.bg } }}
-              >
-                <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
-                Delete file
-              </MenuItem>
-            </Menu>
-          </>
-        ) : (
-          <>
-            <Button
-              onClick={() => inputRef.current?.click()}
-              variant="contained"
-              size="small"
-              sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', px: 2, '&:hover': { bgcolor: '#14205A' } }}
-            >
-              Upload report
-            </Button>
-          </>
-        )}
-      </BureauRow>
-      {upload.fileName && resultsTable && (
-        <Box sx={{ pl: { xs: 0, sm: 2 } }}>{resultsTable}</Box>
+              <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
+              Delete file
+            </MenuItem>
+          </Menu>
+        </>
+      ) : (
+        <Button
+          onClick={() => inputRef.current?.click()}
+          variant="contained"
+          size="small"
+          sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', px: 2, '&:hover': { bgcolor: '#14205A' } }}
+        >
+          Upload report
+        </Button>
       )}
-    </Stack>
+    </BureauRow>
   );
 }
 
