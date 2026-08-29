@@ -2,6 +2,7 @@
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import type {
@@ -49,23 +50,24 @@ function FactChip({ label, value }: { label: string; value: string }) {
           overflow: 'hidden',
           textOverflow: 'ellipsis',
         }}
-        title={label}
       >
         {label}
       </Typography>
-      <Typography
-        sx={{
-          fontSize: 12.5,
-          fontWeight: 700,
-          color: '#14172A',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-        title={value}
-      >
-        {value || '—'}
-      </Typography>
+      <Tooltip title={value || '—'} arrow placement="top" enterDelay={300}>
+        <Typography
+          sx={{
+            fontSize: 12.5,
+            fontWeight: 700,
+            color: '#14172A',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            cursor: 'default',
+          }}
+        >
+          {value || '—'}
+        </Typography>
+      </Tooltip>
     </Stack>
   );
 }

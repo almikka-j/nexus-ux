@@ -72,11 +72,17 @@ const CONTACT_TYPES = ['Mobile', 'Landline'];
 
 function formatUploadedAt(uploadedAt: string | null) {
   if (!uploadedAt) return null;
-  return new Date(uploadedAt).toLocaleDateString('en-PH', {
+  const date = new Date(uploadedAt);
+  const datePart = date.toLocaleDateString('en-PH', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   });
+  const timePart = date.toLocaleTimeString('en-PH', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${datePart}, ${timePart}`;
 }
 
 const fieldSx = {
