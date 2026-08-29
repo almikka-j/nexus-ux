@@ -131,7 +131,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
       <DialogContent sx={{ p: 2.5 }}>
         <Stack spacing={2.5}>
           <Box>
-            <SectionHeading>1. Interaction Record</SectionHeading>
+            <SectionHeading>Interaction Record</SectionHeading>
             <FieldGrid columns={4}>
               <ResultField label="Call / Visit Date" value={callReport.callVisitDate} />
               <ResultField label="Time" value={callReport.callTime} />
@@ -144,7 +144,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>2. Application Validation</SectionHeading>
+            <SectionHeading>Application Validation</SectionHeading>
             <FieldGrid columns={3}>
               <ResultField label="Identity / Authorized Representative" value={validationLabels[callReport.validation.identityAuthorizedRep]} />
               <ResultField label="Loan Facility" value={validationLabels[callReport.validation.loanFacility]} />
@@ -214,7 +214,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>3. AML / KYC Questions</SectionHeading>
+            <SectionHeading>AML / KYC Questions</SectionHeading>
             <FieldGrid columns={3}>
               <ResultField label="Politically Exposed Person" value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPep)} />
               <ResultField
@@ -241,7 +241,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>4. Customer Understanding</SectionHeading>
+            <SectionHeading>Customer Understanding</SectionHeading>
             <FieldGrid columns={2}>
               <ResultField
                 label="Level of Understanding"
@@ -259,7 +259,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
           <Box>
-            <SectionHeading>6. Proposed Loan Package</SectionHeading>
+            <SectionHeading>Proposed Loan Package</SectionHeading>
             <FieldGrid columns={3}>
               <ResultField label="Original Requested Amount" value={formatCurrency(callReport.originalRequestedAmount)} />
               <ResultField
@@ -293,7 +293,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>7. AO Preliminary Risk &amp; Call Disposition</SectionHeading>
+            <SectionHeading>AO Preliminary Risk &amp; Call Disposition</SectionHeading>
             <FieldGrid columns={2}>
               <ResultField label="Primary Risk Driver" value={riskDriverLabels} />
               <ResultField label="Call Disposition" value={labelFor(CALL_DISPOSITION_OPTIONS, callReport.callDisposition)} />
@@ -306,7 +306,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>8. NEXUS System Validation</SectionHeading>
+            <SectionHeading>NEXUS System Validation</SectionHeading>
             <Stack spacing={1.5}>
               <NarrativeBlock label="AI SUMMARY" value={callReport.aiSummary} />
               <NarrativeBlock label="AI EXCEPTIONS / INCONSISTENCIES" value={callReport.aiExceptions} />

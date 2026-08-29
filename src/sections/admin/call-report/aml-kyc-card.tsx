@@ -63,7 +63,7 @@ export function AmlKycCard() {
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        3. AML / KYC Questions
+        AML / KYC Questions
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
         Record customer declarations. Positive responses or uncertainty should be routed for

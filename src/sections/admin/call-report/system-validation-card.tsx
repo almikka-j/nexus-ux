@@ -57,7 +57,7 @@ export function SystemValidationCard() {
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
             <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              8. NEXUS System Validation / Exception Handoff
+              NEXUS System Validation / Exception Handoff
             </Typography>
           </Stack>
           <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>

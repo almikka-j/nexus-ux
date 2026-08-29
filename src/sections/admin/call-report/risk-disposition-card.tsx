@@ -32,7 +32,7 @@ export function RiskDispositionCard() {
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        7. AO Preliminary Risk &amp; Call Disposition
+        AO Preliminary Risk &amp; Call Disposition
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
         The officer&apos;s own preliminary read on this application, based on the call.

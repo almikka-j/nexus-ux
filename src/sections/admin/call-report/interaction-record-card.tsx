@@ -6,8 +6,6 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
-import { useRegistration } from 'src/auth/registration-context';
-import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import {
   cardSx,
@@ -21,27 +19,14 @@ import {
 
 // ----------------------------------------------------------------------
 // PDF section 1: Interaction Record. Application No./Customer Name are
-// NEXUS "auto-populate" fields per the PDF's own system rule — shown
-// read-only from signUpData/getLoanNumber, not officer-entered, matching
-// how ApplicationDetailsCard already surfaces this same data elsewhere.
+// omitted here — already shown on the enclosing application card
+// (ApplicationDetailsCard), so repeating them on every Call Report card
+// would be redundant.
 // ----------------------------------------------------------------------
-
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <Box sx={{ flex: 1 }}>
-      <Typography sx={{ fontSize: 11.5, color: '#8891A6', mb: 0.4 }}>{label}</Typography>
-      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value || '—'}</Typography>
-    </Box>
-  );
-}
 
 export function InteractionRecordCard() {
   const { review, setCallReport } = useAdmin();
   const { callReport } = review;
-  const { signUpData } = useRegistration();
-
-  const applicationNo = signUpData ? getLoanNumber(signUpData.email) : '';
-  const customerName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
 
   const toggleIdentityBasis = (value: (typeof IDENTITY_BASIS_OPTIONS)[number]['value']) => {
     const next = callReport.identityBasis.includes(value)
@@ -53,18 +38,13 @@ export function InteractionRecordCard() {
   return (
     <Box sx={cardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        1. Interaction Record
+        Interaction Record
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
         Basic details about this call or visit.
       </Typography>
 
       <Stack spacing={2.5}>
-        <Stack direction="row" spacing={2}>
-          <ReadOnlyField label="Application No." value={applicationNo} />
-          <ReadOnlyField label="Customer Name" value={customerName} />
-        </Stack>
-
         <Stack direction="row" spacing={2}>
           <TextField
             label="Call / Visit Date"
