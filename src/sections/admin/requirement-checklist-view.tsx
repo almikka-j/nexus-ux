@@ -8,6 +8,7 @@ import Stack from '@mui/material/Stack';
 import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -338,6 +339,17 @@ export function RequirementChecklistView() {
     patchDoc(key, { reviewed });
   };
 
+  // Bulk "Mark all as reviewed" for a whole section — only touches docs
+  // that are actually on file (status !== 'missing'); a document that was
+  // never uploaded has nothing to review.
+  const handleMarkAllReviewed = (keys: string[]) => () => {
+    setRequirementChecklist({
+      documents: documents.map((doc) =>
+        keys.includes(doc.key) && doc.status !== 'missing' ? { ...doc, reviewed: true } : doc
+      ),
+    });
+  };
+
   const handleRemarksChange = (key: string) => (remarks: string) => {
     patchDoc(key, { remarks });
   };
@@ -381,6 +393,12 @@ export function RequirementChecklistView() {
 
   const handleToggleAppraisalDocReviewed = (groupId: string, key: string) => (reviewed: boolean) => {
     updateAppraisalGroupDoc(groupId, key, { reviewed });
+  };
+
+  const handleMarkAllAppraisalDocsReviewed = (groupId: string, docs: RequirementDoc[]) => () => {
+    docs.forEach((doc) => {
+      if (doc.status !== 'missing') updateAppraisalGroupDoc(groupId, doc.key, { reviewed: true });
+    });
   };
 
   const handleAppraisalDocRemarksChange = (groupId: string, key: string) => (remarks: string) => {
@@ -910,6 +928,25 @@ export function RequirementChecklistView() {
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
               )
             }
+            headerAction={
+              <Button
+                onClick={handleMarkAllReviewed(creditInvestigationDocs.map((doc) => doc.key))}
+                disabled={creditInvestigationDocs.every((doc) => doc.status === 'missing' || doc.reviewed)}
+                size="small"
+                variant="outlined"
+                startIcon={<Iconify icon="solar:check-read-bold" width={16} />}
+                sx={{
+                  ...outlinedNavyButtonSx,
+                  borderRadius: '10px',
+                  px: 1.75,
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  flexShrink: 0,
+                }}
+              >
+                Mark All as Reviewed
+              </Button>
+            }
           >
             <Stack spacing={3}>
               {REQUIREMENT_SUBGROUP_ORDER.map((subgroup) => {
@@ -1203,6 +1240,19 @@ export function RequirementChecklistView() {
                             />
                           </Stack>
                           <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <Tooltip title="Mark all documents in this property as reviewed">
+                              <span>
+                                <IconButton
+                                  onClick={handleMarkAllAppraisalDocsReviewed(group.id, group.documents)}
+                                  disabled={group.documents.every((doc) => doc.status === 'missing' || doc.reviewed)}
+                                  aria-label={`Mark all documents in ${group.tctNumber} as reviewed`}
+                                  size="small"
+                                  sx={{ color: '#8891A6' }}
+                                >
+                                  <Iconify icon="solar:check-read-bold" width={18} />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
                             <IconButton
                               onClick={() =>
                                 setCollapsedAppraisalGroups((current) => ({
@@ -1290,6 +1340,25 @@ export function RequirementChecklistView() {
               financialEvaluationFullyVerified && (
                 <Iconify icon="solar:check-circle-bold" width={17} sx={{ color: '#0C8A4F' }} />
               )
+            }
+            headerAction={
+              <Button
+                onClick={handleMarkAllReviewed(financialEvaluationDocs.map((doc) => doc.key))}
+                disabled={financialEvaluationDocs.every((doc) => doc.status === 'missing' || doc.reviewed)}
+                size="small"
+                variant="outlined"
+                startIcon={<Iconify icon="solar:check-read-bold" width={16} />}
+                sx={{
+                  ...outlinedNavyButtonSx,
+                  borderRadius: '10px',
+                  px: 1.75,
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  flexShrink: 0,
+                }}
+              >
+                Mark All as Reviewed
+              </Button>
             }
           >
             <Stack spacing={1.25}>
