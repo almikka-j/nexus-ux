@@ -15,7 +15,7 @@ import { paths } from 'src/routes/paths';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
-import type { CallReportComakerChange, ExistingLoanRow } from 'src/auth/admin-context';
+import type { CallReport, CallReportComakerChange, ExistingLoanRow } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -35,6 +35,8 @@ import { RiskDispositionCard } from './call-report/risk-disposition-card';
 import { SystemValidationCard } from './call-report/system-validation-card';
 import { EndorsementDeclarationCard } from './call-report/endorsement-declaration-card';
 import { cardSx } from './call-report/call-report-types';
+import { buildCallSummary, buildCallReportAiExceptions } from './call-report/call-report-summary';
+import { buildCallReportAiRecommendation, buildCallReportVariance } from './call-report/call-report-risk';
 
 // ----------------------------------------------------------------------
 
@@ -83,8 +85,13 @@ export function CallReportView() {
 
   const handleFillSampleData = () => {
     if (!signUpData) return;
-    const loanAmount = application.financialInfo?.desiredLoanAmount ?? 0;
-    const loanTerm = application.financialInfo?.loanTermMonths ?? 0;
+    // Falls back to a non-zero sample amount/term when the application has
+    // none on file (e.g. a call report filled with sample data before any
+    // real financial info exists) — otherwise Original Requested Amount and
+    // every amount/term derived from it would sample-fill as "₱0"/"0 months",
+    // which reads as empty even though the field is technically populated.
+    const loanAmount = application.financialInfo?.desiredLoanAmount || 150000;
+    const loanTerm = application.financialInfo?.loanTermMonths || 24;
 
     const sampleExistingLoan: ExistingLoanRow = {
       id: crypto.randomUUID(),
@@ -106,7 +113,8 @@ export function CallReportView() {
       remarks: '',
     };
 
-    setCallReport({
+    const draft: CallReport = {
+      ...callReport,
       interactionType: 'phone',
       callVisitDate: new Date().toISOString().slice(0, 10),
       callTime: '14:30',
@@ -186,23 +194,32 @@ export function CallReportView() {
       originalRequestedAmount: String(loanAmount),
       proposalInterestRate: '1.5',
       proposalInterestRateBasis: 'monthly',
-      proposedFacilityProduct: 'Clean Loan',
+      proposedFacilityProduct: 'clean-loan',
       proposalComputationType: 'diminishing-balance',
       proposalComputationTypeOther: '',
       proposedLoanAmount: String(loanAmount),
       estimatedMonthlyAmortization: loanTerm ? String(Math.round(loanAmount / loanTerm)) : '',
       proposedLoanTermMonths: String(loanTerm),
       otherRequest: '',
+      preliminaryRiskLevel: 'low',
       primaryRiskDrivers: ['character'],
       callDisposition: 'proceed-to-next-process',
       reasonKeyCondition: 'Client cooperative, consistent answers, no major exceptions noted.',
-      aiSummary: '',
-      aiExceptions: '',
-      aiRecommendation: '',
-      aoVsSystemVariance: 'none',
-      varianceExplanation: '',
       accountOfficerName: application.assignedOfficer ?? 'Ramon Cruz',
       accountOfficerDateTime: new Date().toISOString().slice(0, 16),
+    };
+
+    // Compute the AI review fields from the sample data itself, same
+    // builders "Refresh AI Review" uses, so the AI card shows real content
+    // immediately instead of the "click Refresh AI Review" empty state.
+    const variance = buildCallReportVariance(draft);
+    setCallReport({
+      ...draft,
+      aiSummary: buildCallSummary(draft, signUpData),
+      aiExceptions: buildCallReportAiExceptions(draft),
+      aiRecommendation: buildCallReportAiRecommendation(draft).text,
+      aoVsSystemVariance: variance.status,
+      varianceExplanation: variance.explanation,
     });
   };
 
@@ -287,6 +304,7 @@ export function CallReportView() {
       estimatedMonthlyAmortization: '',
       proposedLoanTermMonths: '',
       otherRequest: '',
+      preliminaryRiskLevel: '',
       primaryRiskDrivers: [],
       callDisposition: '',
       reasonKeyCondition: '',
