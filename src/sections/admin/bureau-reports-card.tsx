@@ -69,21 +69,6 @@ import type { CibiForm, BureauUpload } from 'src/auth/admin-context';
 
 const GENDERS = ['Male', 'Female'];
 const CONTACT_TYPES = ['Mobile', 'Landline'];
-// Kept in sync with each bureau's `clearResult` copy in
-// credit-checking-result-modal.tsx (minus that modal's "Summary: " prefix,
-// which reads redundantly inline on this card) so the finding text an
-// officer sees here matches the one shown later in the Initial Credit
-// Checking Result modal.
-const BUREAU_SUMMARIES: Record<string, (applicantName: string) => string> = {
-  LOANDEX: (applicantName) =>
-    `The LOANDEX report for ${applicantName} shows one active loan account with regular payment activity and no past-due exposure reported.`,
-  CIC: (applicantName) =>
-    `The CIC report for ${applicantName} shows consistent borrower and account information, with no material discrepancy in the submitted credit data.`,
-  CMAP: (applicantName) =>
-    `The CMAP report for ${applicantName} shows no matching watch-list entry, court record, or adverse account record.`,
-  'NFIS / BAP': (applicantName) =>
-    `The NFIS / BAP report for ${applicantName} shows no cancelled credit card, adversely classified loan, or other negative-file indicator.`,
-};
 
 function formatUploadedAt(uploadedAt: string | null) {
   if (!uploadedAt) return null;
@@ -144,7 +129,6 @@ function Field({
 
 function BureauRow({
   title,
-  summary,
   uploadDetails,
   uploaded,
   bureauFindingStatus,
@@ -152,7 +136,6 @@ function BureauRow({
   children,
 }: {
   title: string;
-  summary?: string;
   uploadDetails?: string;
   /** Drives whether the badge renders at all — hidden entirely when false. */
   uploaded: boolean;
@@ -203,11 +186,6 @@ function BureauRow({
           />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
-            {summary && (
-              <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
-                {summary}
-              </Typography>
-            )}
             {uploadDetails && (
               <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
                 {uploadDetails}
@@ -241,11 +219,7 @@ function SimpleBureauRow({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
-  const { signUpData } = useRegistration();
   const { review } = useAdmin();
-  const applicantName = signUpData
-    ? [signUpData.firstName, signUpData.middleName, signUpData.lastName].filter(Boolean).join(' ')
-    : 'the applicant';
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -260,7 +234,6 @@ function SimpleBureauRow({
       title={title}
       uploaded={!!upload.fileName}
       bureauFindingStatus={review.creditChecking.bureauFindingStatus}
-      summary={upload.fileName ? BUREAU_SUMMARIES[title]?.(applicantName) : undefined}
       uploadDetails={
         upload.fileName
           ? `${upload.fileName} · Uploaded ${formatUploadedAt(upload.uploadedAt) ?? 'date unavailable'}`
@@ -427,21 +400,10 @@ function CibiRow() {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>CIBI</Typography>
             {cibiForm.reportFileName ? (
-              <>
-                <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.45, mt: 0.35 }}>
-                  The credit report for{' '}
-                  {[signUpData?.firstName, signUpData?.middleName, signUpData?.lastName]
-                    .filter(Boolean)
-                    .join(' ') || 'the applicant'}{' '}
-                  shows a CIBI Bureau Score of 600. Two accounts were reported: one active and one
-                  closed. Both accounts reflect payments made as agreed, with no recorded
-                  delinquency.
-                </Typography>
-                <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
-                  {cibiForm.reportFileName} · Uploaded{' '}
-                  {formatUploadedAt(cibiForm.reportUploadedAt) ?? 'date unavailable'}
-                </Typography>
-              </>
+              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
+                {cibiForm.reportFileName} · Uploaded{' '}
+                {formatUploadedAt(cibiForm.reportUploadedAt) ?? 'date unavailable'}
+              </Typography>
             ) : (
               <Typography sx={{ fontSize: 12, color: '#8891A6' }}>API integration available</Typography>
             )}
