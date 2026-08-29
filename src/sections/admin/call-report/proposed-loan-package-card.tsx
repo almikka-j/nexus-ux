@@ -112,12 +112,11 @@ export function ProposedLoanPackageCard() {
 
         <Stack direction="row" spacing={2} alignItems="center">
           <TextField
-            fullWidth
             label="Interest Rate"
             value={callReport.proposalInterestRate}
             onChange={(event) => setCallReport({ proposalInterestRate: event.target.value })}
             InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-            sx={fieldSx}
+            sx={{ ...fieldSx, flex: '0 0 180px' }}
           />
           <Box sx={{ flex: 1 }}>
             <RadioRow
