@@ -1,14 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Collapse from '@mui/material/Collapse';
 import Typography from '@mui/material/Typography';
-import ButtonBase from '@mui/material/ButtonBase';
-
-import { Iconify } from 'src/components/iconify';
 
 import type {
   CmapCase,
@@ -33,19 +27,19 @@ import type {
 // application-details-card.tsx's FactChip), NOT disabled TextFields — a
 // disabled input reads as an empty/unfilled field even when it holds real
 // data, where a plain label-over-value chip reads as a completed record.
-// Collapsed to a single-line summary (first two fields) by default, since
-// eight chips per row no longer fit one line — "View details" expands the
-// same card to show every field.
+// All fields stay on one line — chips are narrow enough to fit 8 fields at
+// once, and the row scrolls horizontally rather than wrapping or hiding
+// fields behind a toggle.
 // ----------------------------------------------------------------------
 
 function FactChip({ label, value }: { label: string; value: string }) {
   return (
-    <Stack spacing={0.35} sx={{ px: 1.75, py: 1, minWidth: 0, flex: '1 1 150px' }}>
+    <Stack spacing={0.3} sx={{ px: 1.25, py: 0.85, minWidth: 108, flexShrink: 0 }}>
       <Typography
         sx={{
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 700,
-          letterSpacing: '0.04em',
+          letterSpacing: '0.03em',
           textTransform: 'uppercase',
           color: '#9AA2B4',
           whiteSpace: 'nowrap',
@@ -58,7 +52,7 @@ function FactChip({ label, value }: { label: string; value: string }) {
       </Typography>
       <Typography
         sx={{
-          fontSize: 13.5,
+          fontSize: 12.5,
           fontWeight: 700,
           color: '#14172A',
           whiteSpace: 'nowrap',
@@ -75,70 +69,21 @@ function FactChip({ label, value }: { label: string; value: string }) {
 
 function FactChipRow({ children }: { children: React.ReactNode }) {
   return (
-    <Stack
-      direction="row"
-      flexWrap="wrap"
-      sx={{
-        border: '1px solid #EEF0F5',
-        borderRadius: '12px',
-        bgcolor: '#FAFBFD',
-        '& > div:not(:last-of-type)': { borderRight: { xs: 'none', sm: '1px solid #EEF0F5' } },
-      }}
-    >
-      {children}
-    </Stack>
-  );
-}
-
-type Fact = { label: string; value: string };
-
-// `facts[0]`/`facts[1]` double as the always-visible one-line summary, so
-// each table orders its facts with the two most identifying fields first
-// (e.g. institution name, then facility/type) before the rest.
-function ExpandableFactCard({ facts }: { facts: Fact[] }) {
-  const [expanded, setExpanded] = useState(false);
-  const [primary, secondary, ...rest] = facts;
-
-  return (
-    <Box sx={{ border: '1px solid #EEF0F5', borderRadius: '12px', bgcolor: '#FAFBFD', overflow: 'hidden' }}>
-      <ButtonBase
-        onClick={() => setExpanded((value) => !value)}
+    <Box sx={{ overflowX: 'auto' }}>
+      <Stack
+        direction="row"
+        flexWrap="nowrap"
         sx={{
-          width: 1,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          px: 1.75,
-          py: 1,
-          justifyContent: 'flex-start',
+          width: 'fit-content',
+          minWidth: 1,
+          border: '1px solid #EEF0F5',
+          borderRadius: '12px',
+          bgcolor: '#FAFBFD',
+          '& > div:not(:last-of-type)': { borderRight: '1px solid #EEF0F5' },
         }}
       >
-        <Stack direction="row" spacing={0} flexWrap="nowrap" sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-          <FactChip label={primary.label} value={primary.value} />
-          {secondary && <FactChip label={secondary.label} value={secondary.value} />}
-        </Stack>
-        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0, pr: 0.5 }}>
-          <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#3448B0', whiteSpace: 'nowrap' }}>
-            {expanded ? 'Hide details' : 'View details'}
-          </Typography>
-          <Iconify
-            icon="solar:alt-arrow-down-bold"
-            width={16}
-            sx={{ color: '#3448B0', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
-          />
-        </Stack>
-      </ButtonBase>
-      <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <Box sx={{ borderTop: '1px solid #EEF0F5' }}>
-          <FactChipRow>
-            <FactChip label={primary.label} value={primary.value} />
-            {secondary && <FactChip label={secondary.label} value={secondary.value} />}
-            {rest.map((fact) => (
-              <FactChip key={fact.label} label={fact.label} value={fact.value} />
-            ))}
-          </FactChipRow>
-        </Box>
-      </Collapse>
+        {children}
+      </Stack>
     </Box>
   );
 }
@@ -167,19 +112,16 @@ export function CmapCasesTable({ rows }: { rows: CmapCase[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <ExpandableFactCard
-              key={row.id}
-              facts={[
-                { label: 'Defendant / Subject', value: row.defendantSubject },
-                { label: 'Status', value: row.status },
-                { label: 'Plaintiff', value: row.plaintiff },
-                { label: 'Nature of Case', value: row.natureOfCase },
-                { label: 'Amount Involved', value: row.amountInvolved },
-                { label: 'Case No.', value: row.caseNo },
-                { label: 'Date Filed', value: row.dateFiled },
-                { label: 'Credit Risk Remarks', value: row.creditRiskRemarks },
-              ]}
-            />
+            <FactChipRow key={row.id}>
+              <FactChip label="Defendant / Subject" value={row.defendantSubject} />
+              <FactChip label="Plaintiff" value={row.plaintiff} />
+              <FactChip label="Nature of Case" value={row.natureOfCase} />
+              <FactChip label="Amount Involved" value={row.amountInvolved} />
+              <FactChip label="Case No." value={row.caseNo} />
+              <FactChip label="Date Filed" value={row.dateFiled} />
+              <FactChip label="Status" value={row.status} />
+              <FactChip label="Credit Risk Remarks" value={row.creditRiskRemarks} />
+            </FactChipRow>
           ))}
         </Stack>
       )}
@@ -195,19 +137,16 @@ export function BapNfisRecordsTable({ rows }: { rows: BapNfisRecord[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <ExpandableFactCard
-              key={row.id}
-              facts={[
-                { label: 'Lending Institution / Source', value: row.lendingInstitution },
-                { label: 'Facility', value: row.facility },
-                { label: 'Original Loan Amount', value: row.originalLoanAmount },
-                { label: 'Date Granted / Reported', value: row.dateGranted },
-                { label: 'Maturity / Date Closed', value: row.maturityDate },
-                { label: 'Outstanding Balance', value: row.outstandingBalance },
-                { label: 'Payment History', value: row.paymentHistory },
-                { label: 'Status / Remarks', value: row.statusRemarks },
-              ]}
-            />
+            <FactChipRow key={row.id}>
+              <FactChip label="Lending Institution / Source" value={row.lendingInstitution} />
+              <FactChip label="Facility" value={row.facility} />
+              <FactChip label="Original Loan Amount" value={row.originalLoanAmount} />
+              <FactChip label="Date Granted / Reported" value={row.dateGranted} />
+              <FactChip label="Maturity / Date Closed" value={row.maturityDate} />
+              <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
+              <FactChip label="Payment History" value={row.paymentHistory} />
+              <FactChip label="Status / Remarks" value={row.statusRemarks} />
+            </FactChipRow>
           ))}
         </Stack>
       )}
@@ -223,19 +162,16 @@ export function CibiResultsTable({ rows }: { rows: CibiResult[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <ExpandableFactCard
-              key={row.id}
-              facts={[
-                { label: 'Provider', value: row.provider },
-                { label: 'Facility Type', value: row.facilityType },
-                { label: 'Original / Finance Amount', value: row.originalAmount },
-                { label: 'Outstanding Balance', value: row.outstandingBalance },
-                { label: 'Overdue Amount', value: row.overdueAmount },
-                { label: 'Monthly Amortization', value: row.monthlyAmortization },
-                { label: 'Payment Status', value: row.paymentStatus },
-                { label: 'Remarks', value: row.remarks },
-              ]}
-            />
+            <FactChipRow key={row.id}>
+              <FactChip label="Provider" value={row.provider} />
+              <FactChip label="Facility Type" value={row.facilityType} />
+              <FactChip label="Original / Finance Amount" value={row.originalAmount} />
+              <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
+              <FactChip label="Overdue Amount" value={row.overdueAmount} />
+              <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
+              <FactChip label="Payment Status" value={row.paymentStatus} />
+              <FactChip label="Remarks" value={row.remarks} />
+            </FactChipRow>
           ))}
         </Stack>
       )}
@@ -251,19 +187,16 @@ export function CicContractsTable({ rows }: { rows: CicContract[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <ExpandableFactCard
-              key={row.id}
-              facts={[
-                { label: 'Contract Code', value: row.contractCode },
-                { label: 'Contract Type', value: row.contractType },
-                { label: 'Maturity Date', value: row.maturityDate },
-                { label: 'Outstanding Balance', value: row.outstandingBalance },
-                { label: 'Overdue Amount', value: row.overdueAmount },
-                { label: 'Monthly Amortization', value: row.monthlyAmortization },
-                { label: 'Contract Status', value: row.contractStatus },
-                { label: 'Remarks', value: row.remarks },
-              ]}
-            />
+            <FactChipRow key={row.id}>
+              <FactChip label="Contract Code" value={row.contractCode} />
+              <FactChip label="Contract Type" value={row.contractType} />
+              <FactChip label="Maturity Date" value={row.maturityDate} />
+              <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
+              <FactChip label="Overdue Amount" value={row.overdueAmount} />
+              <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
+              <FactChip label="Contract Status" value={row.contractStatus} />
+              <FactChip label="Remarks" value={row.remarks} />
+            </FactChipRow>
           ))}
         </Stack>
       )}
@@ -279,19 +212,16 @@ export function LoandexRecordsTable({ rows }: { rows: LoandexRecord[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <ExpandableFactCard
-              key={row.id}
-              facts={[
-                { label: 'Bank / Institution', value: row.bankInstitution },
-                { label: 'Loan Facility', value: row.loanFacility },
-                { label: 'Maturity Date', value: row.maturityDate },
-                { label: 'Outstanding Balance', value: row.outstandingBalance },
-                { label: 'Overdue Amount', value: row.overdueAmount },
-                { label: 'Monthly Amortization', value: row.monthlyAmortization },
-                { label: 'Account Status', value: row.accountStatus },
-                { label: 'Remarks', value: row.remarks },
-              ]}
-            />
+            <FactChipRow key={row.id}>
+              <FactChip label="Bank / Institution" value={row.bankInstitution} />
+              <FactChip label="Loan Facility" value={row.loanFacility} />
+              <FactChip label="Maturity Date" value={row.maturityDate} />
+              <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
+              <FactChip label="Overdue Amount" value={row.overdueAmount} />
+              <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
+              <FactChip label="Account Status" value={row.accountStatus} />
+              <FactChip label="Remarks" value={row.remarks} />
+            </FactChipRow>
           ))}
         </Stack>
       )}
@@ -307,19 +237,16 @@ export function PgfcExposureTable({ rows }: { rows: PgfcExposureRecord[] }) {
       ) : (
         <Stack spacing={1.5}>
           {rows.map((row) => (
-            <ExpandableFactCard
-              key={row.id}
-              facts={[
-                { label: 'Principal Balance', value: row.principalBalance },
-                { label: 'Payment Status', value: row.paymentStatus },
-                { label: 'Interest Balance', value: row.interestBalance },
-                { label: 'Maturity Date', value: row.maturityDate },
-                { label: 'Remaining Term', value: row.remainingTerm },
-                { label: 'Last Payment Date', value: row.lastPaymentDate },
-                { label: 'Monthly Amortization', value: row.monthlyAmortization },
-                { label: 'Remarks', value: row.remarks },
-              ]}
-            />
+            <FactChipRow key={row.id}>
+              <FactChip label="Principal Balance" value={row.principalBalance} />
+              <FactChip label="Interest Balance" value={row.interestBalance} />
+              <FactChip label="Maturity Date" value={row.maturityDate} />
+              <FactChip label="Remaining Term" value={row.remainingTerm} />
+              <FactChip label="Last Payment Date" value={row.lastPaymentDate} />
+              <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
+              <FactChip label="Payment Status" value={row.paymentStatus} />
+              <FactChip label="Remarks" value={row.remarks} />
+            </FactChipRow>
           ))}
         </Stack>
       )}
