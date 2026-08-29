@@ -410,6 +410,53 @@ export function CreditCheckingResultModal({
             <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5, mt: 0.5, mb: 1.5 }}>
               The department&apos;s written finding, forwarded to the Credit Committee.
             </Typography>
+
+            {(!!creditChecking.justificationText.trim() || !!creditChecking.justificationDocument) && (
+              <Stack
+                spacing={1}
+                sx={{ p: 1.75, mb: 1.5, borderRadius: '11px', bgcolor: '#FEF0D6' }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Iconify icon="solar:shield-warning-bold" width={16} sx={{ color: '#B36A05' }} />
+                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#B36A05' }}>
+                    Proceed with Justification
+                  </Typography>
+                </Stack>
+                {!!creditChecking.justificationText.trim() && (
+                  <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    {creditChecking.justificationText}
+                  </Typography>
+                )}
+                {creditChecking.justificationDocument && (
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    component="button"
+                    onClick={() =>
+                      window.open(
+                        creditChecking.justificationDocument!.fileData,
+                        '_blank',
+                        'noopener,noreferrer'
+                      )
+                    }
+                    sx={{
+                      alignSelf: 'flex-start',
+                      p: 0,
+                      border: 'none',
+                      bgcolor: 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Iconify icon="solar:paperclip-bold" width={15} sx={{ color: '#B36A05' }} />
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#B36A05', textDecoration: 'underline' }}>
+                      {creditChecking.justificationDocument.fileName}
+                    </Typography>
+                  </Stack>
+                )}
+              </Stack>
+            )}
+
             {recommendationEditable ? (
               <TextField
                 fullWidth

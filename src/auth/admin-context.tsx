@@ -78,6 +78,14 @@ export type CreditChecking = {
    */
   justificationDocument: { fileName: string; fileData: string } | null;
   /**
+   * The officer's typed justification text from that same "Proceed with
+   * Justification" modal — previously only folded into the officer-notes
+   * log entry (buildOfficerNoteEntry), with no field of its own, so
+   * CreditCheckingResultModal's "Recommendation & Remarks" section had no
+   * way to surface it next to justificationDocument.
+   */
+  justificationText: string;
+  /**
    * Six new repeatable-row results tables, one per bureau report section
    * (CMAP, BAP/NFIS, CIBI, CIC, LOANDEX, PGFC Existing Exposure) — see
    * docs/superpowers/specs/2026-08-29-bureau-reports-results-design.md.
@@ -1671,6 +1679,7 @@ function createInitialReview(): ApplicationReview {
       decisionReason: '',
       officerRecommendation: '',
       justificationDocument: null,
+      justificationText: '',
       cmapCases: [],
       bapNfisRecords: [],
       cibiResults: [],

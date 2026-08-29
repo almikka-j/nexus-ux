@@ -380,6 +380,7 @@ export function InitialCreditCheckingView() {
 
     setCreditChecking({
       notes: creditChecking.notes ? `${creditChecking.notes}\n\n---\n\n${entry}` : entry,
+      justificationText: justification,
       justificationDocument: justificationFile
         ? { fileName: justificationFile.name, fileData: await fileToDataUrl(justificationFile) }
         : null,
