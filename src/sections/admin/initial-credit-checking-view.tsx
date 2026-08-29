@@ -32,7 +32,6 @@ import { ApplicationDetailsCard } from './application-details-card';
 import { OfficerNotesDialog, buildOfficerNoteEntry } from './officer-notes-history';
 import { computeInstallment } from './cibi-form-card';
 import { BureauReportsCard } from './bureau-reports-card';
-import { NegativeCreditReportCard } from './negative-credit-report-card';
 import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
 import { simulateBureauFinding } from './simulate-bureau-finding';
 import {
@@ -701,10 +700,6 @@ export function InitialCreditCheckingView() {
             </Button>
           </Stack>
         </Box>
-
-        {allBureauReportsUploaded && creditChecking.bureauFindingStatus === 'negative' && (
-          <NegativeCreditReportCard />
-        )}
 
         <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
