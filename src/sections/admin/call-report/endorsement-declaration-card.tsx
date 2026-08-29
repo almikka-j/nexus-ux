@@ -30,16 +30,17 @@ function SignatureField({ icon, label, value }: { icon: string; label: string; v
     <Stack direction="row" spacing={1.25} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
       <Box
         sx={{
-          width: 32,
-          height: 32,
+          width: 34,
+          height: 34,
           borderRadius: '9px',
-          bgcolor: '#EEF1FE',
+          bgcolor: 'common.white',
+          border: '1px solid #C7EDDA',
           display: 'grid',
           placeItems: 'center',
           flexShrink: 0,
         }}
       >
-        <Iconify icon={icon} width={16} sx={{ color: '#3448B0' }} />
+        <Iconify icon={icon} width={17} sx={{ color: '#0C8A4F' }} />
       </Box>
       <Box sx={{ minWidth: 0 }}>
         <Typography
@@ -48,13 +49,14 @@ function SignatureField({ icon, label, value }: { icon: string; label: string; v
             fontWeight: 700,
             letterSpacing: '0.04em',
             textTransform: 'uppercase',
-            color: '#9AA2B4',
+            color: '#0C8A4F',
+            opacity: 0.75,
           }}
         >
           {label}
         </Typography>
         <Typography
-          sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          sx={{ fontSize: 14.5, fontWeight: 700, color: '#14172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
           title={value}
         >
           {value || '—'}
@@ -103,20 +105,17 @@ export function EndorsementDeclarationCard() {
 
       <Divider sx={{ borderColor: '#EEF0F5', mb: 2 }} />
 
-      <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#FAFBFD', border: '1px solid #EEF0F5' }}>
+      <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#E7F8F0' }}>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-          <Iconify icon="solar:pen-new-square-bold-duotone" width={16} sx={{ color: '#8891A6' }} />
-          <Typography
-            sx={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              color: '#8891A6',
-            }}
-          >
-            Endorsed by
-          </Typography>
+          <Iconify icon="solar:verified-check-bold" width={17} sx={{ color: '#0C8A4F' }} />
+          <Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#0C8A4F' }}>
+              Endorsed
+            </Typography>
+            <Typography sx={{ fontSize: 11.5, color: '#0C8A4F', opacity: 0.75 }}>
+              Recorded automatically when this officer opened the Call Report step.
+            </Typography>
+          </Box>
         </Stack>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <SignatureField icon="solar:user-id-bold-duotone" label="Account Officer" value={accountOfficer} />
