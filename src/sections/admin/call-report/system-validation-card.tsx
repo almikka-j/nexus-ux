@@ -145,6 +145,16 @@ export function SystemValidationCard({ onViewResult }: { onViewResult: () => voi
           )}
         </Box>
 
+        <Stack direction="row" spacing={1} sx={{ px: 0.5 }}>
+          <Iconify icon="solar:shield-warning-linear" width={15} sx={{ color: '#A0A7B5', mt: 0.15, flexShrink: 0 }} />
+          <Typography sx={{ fontSize: 11.5, color: '#98A2B3', lineHeight: 1.6 }}>
+            <Box component="span" sx={{ fontWeight: 700, color: '#8891A6' }}>AI Control Statement — </Box>
+            This AI-generated result is an advisory risk-screening output only. It does not
+            constitute loan approval, disapproval, or a policy waiver. All findings, exceptions,
+            and recommendations must be independently validated by authorized Credit personnel.
+          </Typography>
+        </Stack>
+
         <Divider sx={{ borderColor: '#EEF0F5' }} />
 
         <Stack
