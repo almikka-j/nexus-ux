@@ -270,7 +270,10 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
                 label="Interest Rate Basis"
                 value={labelFor(PROPOSAL_INTEREST_RATE_BASIS_OPTIONS, callReport.proposalInterestRateBasis)}
               />
-              <ResultField label="Proposed Facility / Product" value={callReport.proposedFacilityProduct} />
+              <ResultField
+                label="Proposed Facility / Product"
+                value={labelFor(LOAN_FACILITY_OPTIONS, callReport.proposedFacilityProduct)}
+              />
               <ResultField
                 label="Computation Type"
                 value={
@@ -288,7 +291,6 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
                 label="Proposed Loan Term"
                 value={callReport.proposedLoanTermMonths ? `${callReport.proposedLoanTermMonths} months` : ''}
               />
-              <ResultField label="Other Request" value={callReport.otherRequest} />
             </FieldGrid>
           </Box>
 

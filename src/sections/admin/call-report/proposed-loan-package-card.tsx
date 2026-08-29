@@ -4,6 +4,7 @@ import { useRef, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -11,13 +12,23 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
-import { cardSx, fieldSx, RadioRow, PROPOSAL_INTEREST_RATE_BASIS_OPTIONS, PROPOSAL_COMPUTATION_TYPE_OPTIONS } from './call-report-types';
+import {
+  cardSx,
+  fieldSx,
+  RadioRow,
+  LOAN_FACILITY_OPTIONS,
+  PROPOSAL_INTEREST_RATE_BASIS_OPTIONS,
+  PROPOSAL_COMPUTATION_TYPE_OPTIONS,
+} from './call-report-types';
 
 // ----------------------------------------------------------------------
 // PDF section 6 (the PDF's own section number): Proposed Loan Package.
-// Original Requested Amount defaults once from the application's own
-// desired loan amount, same "default once, never overwrite an edit"
-// convention this codebase already uses elsewhere for prefilled fields.
+// Original Requested Amount is the applicant's own stated amount from the
+// application (defaulted once from application.financialInfo.desiredLoanAmount)
+// — read-only here, since this card is the officer's proposal, not a place
+// to edit what the applicant originally asked for. Proposed Facility /
+// Product reuses the same LOAN_FACILITY_OPTIONS list as Application
+// Validation's "Loan Facility" field, rather than free text.
 // ----------------------------------------------------------------------
 
 export function ProposedLoanPackageCard() {
@@ -50,15 +61,17 @@ export function ProposedLoanPackageCard() {
       </Typography>
 
       <Stack spacing={2.5}>
-        <Stack direction="row" spacing={2}>
-          <TextField
-            fullWidth
-            label="Original Requested Amount"
-            value={callReport.originalRequestedAmount}
-            onChange={(event) => setCallReport({ originalRequestedAmount: event.target.value })}
-            InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
-            sx={fieldSx}
-          />
+        <TextField
+          fullWidth
+          disabled
+          label="Original Requested Amount"
+          value={callReport.originalRequestedAmount}
+          InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
+          helperText="From the applicant's own submission — not editable here"
+          sx={fieldSx}
+        />
+
+        <Stack direction="row" spacing={2} alignItems="flex-start">
           <TextField
             fullWidth
             label="Interest Rate"
@@ -67,22 +80,30 @@ export function ProposedLoanPackageCard() {
             InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
             sx={fieldSx}
           />
+          <Box sx={{ flex: 1 }}>
+            <RadioRow
+              label="Interest Rate Basis"
+              value={callReport.proposalInterestRateBasis}
+              options={PROPOSAL_INTEREST_RATE_BASIS_OPTIONS}
+              onChange={(value) => setCallReport({ proposalInterestRateBasis: value })}
+            />
+          </Box>
         </Stack>
 
-        <RadioRow
-          label="Interest Rate Basis"
-          value={callReport.proposalInterestRateBasis}
-          options={PROPOSAL_INTEREST_RATE_BASIS_OPTIONS}
-          onChange={(value) => setCallReport({ proposalInterestRateBasis: value })}
-        />
-
         <TextField
+          select
           fullWidth
           label="Proposed Facility / Product"
           value={callReport.proposedFacilityProduct}
           onChange={(event) => setCallReport({ proposedFacilityProduct: event.target.value })}
           sx={fieldSx}
-        />
+        >
+          {LOAN_FACILITY_OPTIONS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
 
         <Box>
           <RadioRow
@@ -113,31 +134,22 @@ export function ProposedLoanPackageCard() {
           />
           <TextField
             fullWidth
-            label="Estimated Monthly Amortization"
-            value={callReport.estimatedMonthlyAmortization}
-            onChange={(event) => setCallReport({ estimatedMonthlyAmortization: event.target.value })}
-            InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
-            sx={fieldSx}
-          />
-        </Stack>
-
-        <Stack direction="row" spacing={2}>
-          <TextField
-            fullWidth
             label="Proposed Loan Term"
             value={callReport.proposedLoanTermMonths}
             onChange={(event) => setCallReport({ proposedLoanTermMonths: event.target.value })}
             InputProps={{ endAdornment: <InputAdornment position="end">months</InputAdornment> }}
             sx={fieldSx}
           />
-          <TextField
-            fullWidth
-            label="Other Request"
-            value={callReport.otherRequest}
-            onChange={(event) => setCallReport({ otherRequest: event.target.value })}
-            sx={fieldSx}
-          />
         </Stack>
+
+        <TextField
+          fullWidth
+          label="Estimated Monthly Amortization"
+          value={callReport.estimatedMonthlyAmortization}
+          onChange={(event) => setCallReport({ estimatedMonthlyAmortization: event.target.value })}
+          InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
+          sx={fieldSx}
+        />
       </Stack>
     </Box>
   );
