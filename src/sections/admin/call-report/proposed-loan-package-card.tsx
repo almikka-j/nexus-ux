@@ -100,7 +100,7 @@ export function ProposedLoanPackageCard() {
             InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
             sx={{ ...fieldSx, flex: 1, minWidth: 0 }}
           />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ flex: 1, minWidth: 0, '& .MuiFormControl-root': { width: 1 } }}>
             <RadioRow
               label="Interest Rate Basis"
               value={callReport.proposalInterestRateBasis}
