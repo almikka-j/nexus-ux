@@ -607,7 +607,7 @@ export function InitialCreditCheckingView() {
   );
 
   return (
-    <Container maxWidth={isSplitLayout ? 'xl' : 'md'} sx={{ py: { xs: 4, md: 6 } }}>
+    <Container maxWidth={isSplitLayout ? 'xl' : 'lg'} sx={{ py: { xs: 4, md: 6 } }}>
       <ApplicationReviewHeader
         step="Step 1 · Initial Credit Checking"
         reviewStep="creditChecking"
