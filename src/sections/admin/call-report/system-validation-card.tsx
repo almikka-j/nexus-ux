@@ -3,7 +3,6 @@
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
@@ -61,16 +60,35 @@ export function SystemValidationCard() {
 
   return (
     <Box sx={cardSx}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-        <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
-        <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-          AI review, summary &amp; recommendation
-        </Typography>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
+        justifyContent="space-between"
+        spacing={1.5}
+        sx={{ mb: 2.5 }}
+      >
+        <Box>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+            <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+              AI review, summary &amp; recommendation
+            </Typography>
+          </Stack>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+            System-generated validation only. AI / automated rules are advisory and must not replace
+            authorized credit, compliance, or approval judgment.
+          </Typography>
+        </Box>
+
+        <Button
+          onClick={refreshAiReview}
+          variant="outlined"
+          startIcon={<Iconify icon="solar:refresh-bold" width={18} />}
+          sx={{ ...outlinedNavyButtonSx, px: 2, flexShrink: 0, whiteSpace: 'nowrap' }}
+        >
+          Refresh AI Review
+        </Button>
       </Stack>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-        System-generated validation only. AI / automated rules are advisory and must not replace
-        authorized credit, compliance, or approval judgment.
-      </Typography>
 
       <Stack spacing={2}>
         <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
@@ -125,17 +143,6 @@ export function SystemValidationCard() {
             </Stack>
           )}
         </Box>
-
-        <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-        <Button
-          onClick={refreshAiReview}
-          variant="outlined"
-          startIcon={<Iconify icon="solar:refresh-bold" width={18} />}
-          sx={{ ...outlinedNavyButtonSx, px: 2, alignSelf: 'flex-start' }}
-        >
-          Refresh AI Review
-        </Button>
       </Stack>
     </Box>
   );
