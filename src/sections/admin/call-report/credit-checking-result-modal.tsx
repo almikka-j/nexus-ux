@@ -20,6 +20,7 @@ import { Iconify } from 'src/components/iconify';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { buildInitialCreditCheckingResult } from '../initial-credit-checking-risk';
+import { AiRecommendationSummary } from '../ai-recommendation-summary';
 import {
   CmapCasesTable,
   BapNfisRecordsTable,
@@ -137,15 +138,6 @@ function BureauResultSection({
   );
 }
 
-function FindingBullet({ children }: { children: React.ReactNode }) {
-  return (
-    <Stack direction="row" spacing={1.25} alignItems="flex-start">
-      <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: '#C1C7D6', mt: 0.9, flexShrink: 0 }} />
-      <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{children}</Typography>
-    </Stack>
-  );
-}
-
 type CreditCheckingResultModalProps = {
   open: boolean;
   onClose: () => void;
@@ -214,7 +206,7 @@ export function CreditCheckingResultModal({
     !!nfisBapUpload.fileName &&
     !!pgfcExposureUpload.fileName;
 
-  const { riskLevel } = buildInitialCreditCheckingResult({
+  const creditCheckingResult = buildInitialCreditCheckingResult({
     cmapCases: creditChecking.cmapCases,
     bapNfisRecords: creditChecking.bapNfisRecords,
     cibiResults: creditChecking.cibiResults,
@@ -229,6 +221,7 @@ export function CreditCheckingResultModal({
     bureauFindingBureau: creditChecking.bureauFindingBureau,
     bureauFindingReason: creditChecking.bureauFindingReason,
   });
+  const { riskLevel } = creditCheckingResult;
 
   const isCleared = riskLevel === 'low' && allBureauReportsUploaded;
 
@@ -241,17 +234,6 @@ export function CreditCheckingResultModal({
   const hasNegativeBureauFinding = creditChecking.bureauFindingStatus === 'negative';
   const negativeFindingBureau = creditChecking.bureauFindingBureau;
   const negativeFindingReason = creditChecking.bureauFindingReason;
-  const recommendationStyle = hasNegativeBureauFinding
-    ? { background: '#FDE2DF', color: '#B32C22' }
-    : isCleared
-      ? { background: '#E7F8F0', color: '#0C8A4F' }
-      : { background: '#FEF0D6', color: '#B36A05' };
-
-  const recommendationLines = negativeCreditReport.recommendationRemarks
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const [recommendationLead, ...recommendationBullets] = recommendationLines;
 
   const handleRecommendationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setCreditChecking({ officerRecommendation: event.target.value });
@@ -411,38 +393,14 @@ export function CreditCheckingResultModal({
             )}
           </Box>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', bgcolor: recommendationStyle.background }}>
-            <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Iconify
-                  icon="solar:magic-stick-3-bold-duotone"
-                  width={18}
-                  sx={{ color: recommendationStyle.color }}
-                />
-                <Typography sx={{ fontSize: 14, fontWeight: 700, color: recommendationStyle.color }}>
-                  AI Recommendation
-                </Typography>
-              </Stack>
-            </Stack>
-            {showNegativeReport ? (
-              <Stack spacing={1}>
-                {recommendationLead && (
-                  <Typography sx={{ fontSize: 13.5, color: recommendationStyle.color, lineHeight: 1.6 }}>
-                    {recommendationLead}
-                  </Typography>
-                )}
-                {recommendationBullets.map((line, index) => (
-                  // eslint-disable-next-line react/no-array-index-key
-                  <FindingBullet key={index}>{line}</FindingBullet>
-                ))}
-              </Stack>
-            ) : (
-              <Typography sx={{ fontSize: 13.5, color: recommendationStyle.color, lineHeight: 1.6 }}>
-                {isCleared
-                  ? 'In view of the foregoing, the Credit Department is hereby recommending the said loan application to proceed.'
-                  : 'In view of the foregoing, the Credit Department will issue a recommendation once the credit checking review is complete.'}
-              </Typography>
-            )}
+          <Box>
+            <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+              AI Review, Summary &amp; Recommendation
+            </Typography>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5, mb: 2 }}>
+              Based on the uploaded bureau reports and application details.
+            </Typography>
+            <AiRecommendationSummary result={creditCheckingResult} />
           </Box>
 
           <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
