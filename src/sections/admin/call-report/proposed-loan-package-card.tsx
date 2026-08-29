@@ -116,7 +116,7 @@ export function ProposedLoanPackageCard() {
             value={callReport.proposalInterestRate}
             onChange={(event) => setCallReport({ proposalInterestRate: event.target.value })}
             InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-            sx={{ ...fieldSx, flex: '0 0 180px' }}
+            sx={{ ...fieldSx, flex: 1 }}
           />
           <Box sx={{ flex: 1 }}>
             <RadioRow
