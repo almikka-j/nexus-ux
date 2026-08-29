@@ -93,13 +93,14 @@ export function ProposedLoanPackageCard() {
 
         <Stack direction="row" spacing={2} alignItems="center">
           <TextField
+            fullWidth
             label="Interest Rate"
             value={callReport.proposalInterestRate}
             onChange={(event) => setCallReport({ proposalInterestRate: event.target.value })}
             InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-            sx={{ ...fieldSx, flex: 1 }}
+            sx={{ ...fieldSx, flex: 1, minWidth: 0 }}
           />
-          <Box sx={{ flex: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <RadioRow
               label="Interest Rate Basis"
               value={callReport.proposalInterestRateBasis}
