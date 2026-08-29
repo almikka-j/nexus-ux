@@ -557,15 +557,6 @@ export function InitialCreditCheckingView() {
               : 'Based on application details — upload the CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure reports above to confirm with the full bureau review.'}
           </Typography>
 
-          <Button
-            onClick={() => setResultModalOpen(true)}
-            variant="outlined"
-            startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-            sx={{ ...outlinedNavyButtonSx, mb: 2.5, px: 2 }}
-          >
-            View Initial Credit Checking Result
-          </Button>
-
           <Stack spacing={2}>
             <Box sx={{ p: 2.25, borderRadius: '14px', bgcolor: riskStyle.bg }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5} sx={{ mb: 1.25 }}>
@@ -693,6 +684,30 @@ export function InitialCreditCheckingView() {
                 exceptions, and recommendations must be independently validated by authorized
                 Credit personnel.
               </Typography>
+            </Stack>
+
+            <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              justifyContent="space-between"
+              spacing={1.5}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
+                <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
+                  View the full formatted report for this assessment.
+                </Typography>
+              </Stack>
+              <Button
+                onClick={() => setResultModalOpen(true)}
+                variant="contained"
+                endIcon={<Iconify icon="solar:arrow-right-bold" width={16} />}
+                sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.25, flexShrink: 0, '&:hover': { bgcolor: '#14205A' } }}
+              >
+                View Initial Credit Checking Result
+              </Button>
             </Stack>
           </Stack>
         </Box>
