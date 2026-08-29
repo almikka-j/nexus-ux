@@ -147,14 +147,27 @@ export function SystemValidationCard({ onViewResult }: { onViewResult: () => voi
 
         <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-        <Button
-          onClick={onViewResult}
-          variant="outlined"
-          startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-          sx={{ ...outlinedNavyButtonSx, px: 2, alignSelf: 'flex-start' }}
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          justifyContent="space-between"
+          spacing={1.5}
         >
-          View Call Report Result
-        </Button>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
+            <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
+              View the full formatted report generated from everything entered above.
+            </Typography>
+          </Stack>
+          <Button
+            onClick={onViewResult}
+            variant="outlined"
+            startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+            sx={{ ...outlinedNavyButtonSx, px: 2, flexShrink: 0 }}
+          >
+            View Call Report Result
+          </Button>
+        </Stack>
       </Stack>
     </Box>
   );
