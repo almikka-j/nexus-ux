@@ -212,6 +212,9 @@ export function CreditCheckingResultModal({
     desiredLoanAmount: application.financialInfo?.desiredLoanAmount ?? 0,
     monthlyIncome: application.financialInfo?.monthlyIncome ?? 0,
     employmentStatus: application.financialInfo?.employmentStatus ?? 'Unknown',
+    bureauFindingStatus: creditChecking.bureauFindingStatus,
+    bureauFindingBureau: creditChecking.bureauFindingBureau,
+    bureauFindingReason: creditChecking.bureauFindingReason,
   });
 
   const isCleared = riskLevel === 'low' && allBureauReportsUploaded;

@@ -425,6 +425,9 @@ export function InitialCreditCheckingView() {
     desiredLoanAmount: application.financialInfo?.desiredLoanAmount ?? 0,
     monthlyIncome: application.financialInfo?.monthlyIncome ?? 0,
     employmentStatus: application.financialInfo?.employmentStatus ?? 'Unknown',
+    bureauFindingStatus: creditChecking.bureauFindingStatus,
+    bureauFindingBureau: creditChecking.bureauFindingBureau,
+    bureauFindingReason: creditChecking.bureauFindingReason,
   });
   const riskStyle = RISK_LEVEL_STYLES[creditCheckingResult.riskLevel];
 

@@ -113,6 +113,18 @@ export type BuildInitialCreditCheckingResultInput = {
   desiredLoanAmount: number;
   monthlyIncome: number;
   employmentStatus: string;
+  /**
+   * The simulated bureau-review outcome from simulate-bureau-finding.ts
+   * (see initial-credit-checking-view.tsx's useEffect) — independent of the
+   * canned bureau row data above, since it represents a random negative
+   * finding rolled once per upload session rather than anything read from
+   * cmapCases/bapNfisRecords/etc. Must override every other rule: a negative
+   * simulated finding always means the application does not meet the
+   * initial RAC, regardless of what the (always-clean) canned rows say.
+   */
+  bureauFindingStatus?: 'pending' | 'clean' | 'negative';
+  bureauFindingBureau?: string | null;
+  bureauFindingReason?: string | null;
 };
 
 export type InitialCreditCheckingResult = {
@@ -142,6 +154,9 @@ export function buildInitialCreditCheckingResult(
     desiredLoanAmount,
     monthlyIncome,
     employmentStatus,
+    bureauFindingStatus,
+    bureauFindingBureau,
+    bureauFindingReason,
   } = input;
 
   const totalRows =
@@ -180,6 +195,31 @@ export function buildInitialCreditCheckingResult(
 
   const buildAssessment = (level: InitialCreditCheckingRiskLevel, detail: string) =>
     `The applicant is assessed as ${RISK_LEVEL_LABELS[level]} credit risk based on consolidated bureau results, existing exposure, payment history, legal findings, and credit scoring. ${detail}`.trim();
+
+  // 0. DOES NOT MEET INITIAL RAC — a negative simulated bureau finding
+  // overrides every other rule below, including the always-clean canned row
+  // data (see the BuildInitialCreditCheckingResultInput doc comment).
+  if (bureauFindingStatus === 'negative') {
+    const bureau = bureauFindingBureau ?? 'a bureau report';
+    const reason = bureauFindingReason ?? 'an unspecified adverse finding';
+    return {
+      riskLevel: 'high',
+      overallAssessment: buildAssessment(
+        'high',
+        `${bureau} flagged an adverse finding (${reason}) that does not satisfy the applicable Risk Acceptance Criteria.`
+      ),
+      favorableFindings: [],
+      adverseFindings: [`${bureau} flagged: ${reason}.`],
+      discrepancies: [],
+      missingInformation: [],
+      recommendedAction: 'does-not-meet-initial-rac',
+      reasonForRecommendation: `${bureau} returned a confirmed adverse finding (${reason}). This does not satisfy the applicable Risk Acceptance Criteria and requires independent validation by authorized Credit personnel before any further action.`,
+      reviewBasis: ['delinquency-overdue-history', 'policy-rac-alignment'],
+      requiredVerification: [
+        `Independent validation of the ${bureau} finding by authorized Credit personnel.`,
+      ],
+    };
+  }
 
   // 1. ON HOLD — missing bureau result / incomplete data.
   if (!allBureauReportsUploaded) {
