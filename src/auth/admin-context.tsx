@@ -592,7 +592,12 @@ export type CallReport = {
   aoVsSystemVariance: SystemVarianceStatus;
   varianceExplanation: string;
 
-  // Account Officer Endorsement Declaration
+  // Account Officer Endorsement Declaration — unused. EndorsementDeclarationCard
+  // and CallReportResultModal both show Account Officer / Date-Time read-only,
+  // derived live from application.assignedOfficer and
+  // review.stepTimestamps.callReport instead of these fields. Left in place
+  // rather than deleted, matching this file's convention of not tearing out
+  // state when only its UI is removed.
   accountOfficerName: string;
   accountOfficerDateTime: string;
 };

@@ -1,26 +1,35 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
-
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
-import { cardSx, fieldSx } from './call-report-types';
+import { cardSx } from './call-report-types';
 
 // ----------------------------------------------------------------------
 // PDF section 8 (second occurrence — the source PDF numbers both this
 // and NEXUS System Validation as "8"): Account Officer Endorsement
 // Declaration. The declaration paragraphs are the PDF's own fixed
 // attestation text, rendered read-only — not something an officer edits.
-// Account Officer name defaults once from the assigned officer, same
-// "default once" convention every other prefilled field on this page
-// follows.
+// Account Officer and Date/Time are plain read-only display, not
+// TextFields — Account Officer is whoever's assigned to the application
+// (application.assignedOfficer), and Date/Time is when this officer
+// entered the Call Report step (review.stepTimestamps.callReport, set by
+// ApplicationReviewHeader's markStepEntered). Neither is something the
+// officer should be able to edit after the fact.
 // ----------------------------------------------------------------------
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <Box sx={{ flex: 1 }}>
+      <Typography sx={{ fontSize: 11.5, color: '#8891A6', mb: 0.4 }}>{label}</Typography>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value || '—'}</Typography>
+    </Box>
+  );
+}
 
 const DECLARATION_PARAGRAPHS = [
   'I hereby confirm that I have conducted the required pre-screening of the borrower/applicant in accordance with the Company’s established policies and procedures, including full compliance with Know Your Customer (KYC) requirements and applicable regulatory standards.',
@@ -31,19 +40,19 @@ const DECLARATION_PARAGRAPHS = [
 ];
 
 export function EndorsementDeclarationCard() {
-  const { review, setCallReport } = useAdmin();
-  const { callReport } = review;
+  const { review } = useAdmin();
   const { application } = useRegistration();
 
-  const didDefault = useRef(false);
-  useEffect(() => {
-    if (didDefault.current || callReport.accountOfficerName) return;
-    if (application.assignedOfficer) {
-      didDefault.current = true;
-      setCallReport({ accountOfficerName: application.assignedOfficer });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [application.assignedOfficer]);
+  const accountOfficer = application.assignedOfficer || '—';
+  const dateTimeLabel = review.stepTimestamps.callReport
+    ? new Date(review.stepTimestamps.callReport).toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : '—';
 
   return (
     <Box sx={cardSx}>
@@ -59,25 +68,9 @@ export function EndorsementDeclarationCard() {
         ))}
       </Stack>
 
-      <Stack spacing={2}>
-        <Stack direction="row" spacing={2}>
-          <TextField
-            fullWidth
-            label="Account Officer"
-            value={callReport.accountOfficerName}
-            onChange={(event) => setCallReport({ accountOfficerName: event.target.value })}
-            sx={fieldSx}
-          />
-          <TextField
-            fullWidth
-            label="Date / Time"
-            type="datetime-local"
-            value={callReport.accountOfficerDateTime}
-            onChange={(event) => setCallReport({ accountOfficerDateTime: event.target.value })}
-            InputLabelProps={{ shrink: true }}
-            sx={fieldSx}
-          />
-        </Stack>
+      <Stack direction="row" spacing={2}>
+        <ReadOnlyField label="Account Officer" value={accountOfficer} />
+        <ReadOnlyField label="Date / Time" value={dateTimeLabel} />
       </Stack>
     </Box>
   );

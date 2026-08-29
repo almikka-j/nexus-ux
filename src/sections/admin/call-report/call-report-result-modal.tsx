@@ -10,6 +10,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 
 import { useAdmin } from 'src/auth/admin-context';
+import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -90,7 +91,22 @@ function formatCurrency(value: string): string {
 
 export function CallReportResultModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { review } = useAdmin();
+  const { application } = useRegistration();
   const { callReport } = review;
+
+  // Account Officer and Date/Time are read-only, derived the same way
+  // EndorsementDeclarationCard displays them — not officer-entered fields on
+  // CallReport (accountOfficerName/accountOfficerDateTime are unused now).
+  const accountOfficer = application.assignedOfficer || '—';
+  const accountOfficerDateTime = review.stepTimestamps.callReport
+    ? new Date(review.stepTimestamps.callReport).toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : '—';
 
   const identityBasisLabels = callReport.identityBasis
     .map((value) => labelFor(IDENTITY_BASIS_OPTIONS, value))
@@ -337,8 +353,8 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           <Box>
             <SectionHeading>Account Officer Endorsement Declaration</SectionHeading>
             <FieldGrid columns={2}>
-              <ResultField label="Account Officer" value={callReport.accountOfficerName} />
-              <ResultField label="Date / Time" value={callReport.accountOfficerDateTime} />
+              <ResultField label="Account Officer" value={accountOfficer} />
+              <ResultField label="Date / Time" value={accountOfficerDateTime} />
             </FieldGrid>
           </Box>
         </Stack>
