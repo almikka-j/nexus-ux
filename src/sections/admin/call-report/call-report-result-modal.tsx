@@ -87,6 +87,56 @@ function NarrativeBlock({ label, value }: { label: string; value: string }) {
   );
 }
 
+// Matches EndorsementDeclarationCard's SignatureField exactly.
+function SignatureField({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <Stack direction="row" spacing={1.25} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+      <Box
+        sx={{
+          width: 34,
+          height: 34,
+          borderRadius: '9px',
+          bgcolor: 'common.white',
+          border: '1px solid #C7EDDA',
+          display: 'grid',
+          placeItems: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Iconify icon={icon} width={17} sx={{ color: '#0C8A4F' }} />
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: '#0C8A4F',
+            opacity: 0.75,
+          }}
+        >
+          {label}
+        </Typography>
+        <Typography
+          sx={{ fontSize: 14.5, fontWeight: 700, color: '#14172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          title={value}
+        >
+          {value || '—'}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+const DECLARATION_PARAGRAPHS = [
+  'I hereby confirm that I have conducted the required pre-screening of the borrower/applicant in accordance with the Company’s established policies and procedures, including full compliance with Know Your Customer (KYC) requirements and applicable regulatory standards.',
+  'I attest that all information, documents, and representations submitted in support of this application have been obtained through appropriate due diligence/KYC and are, to the best of my knowledge, complete, accurate, and truthful. I confirm that no material information has been knowingly omitted, withheld, or misrepresented.',
+  'I further declare that I have not engaged in, and will not engage in, any form of connivance, collusion, or undisclosed arrangement with the borrower/applicant or any related party that may influence, circumvent, or compromise the integrity of the application or the Company’s policies.',
+  'I affirm that this application has been prepared and endorsed in good faith, in accordance with Company policies, and within the scope of my responsibilities.',
+  'I understand that any false declaration, material omission, or breach of this statement may subject me to disciplinary action, up to and including termination, and may expose me to legal liability.',
+];
+
 function formatCurrency(value: string): string {
   if (!value) return '';
   return `₱${Number(value).toLocaleString()}`;
@@ -440,16 +490,33 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
             </Stack>
           </Box>
 
-          <Divider sx={{ borderColor: '#EEF0F5' }} />
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <SectionLabel>Account Officer Endorsement Declaration</SectionLabel>
+            <Stack spacing={1.5} sx={{ mt: 1.5, mb: 2 }}>
+              {DECLARATION_PARAGRAPHS.map((paragraph) => (
+                <Typography key={paragraph.slice(0, 24)} sx={{ fontSize: 13, color: '#3B4256', lineHeight: 1.65 }}>
+                  {paragraph}
+                </Typography>
+              ))}
+            </Stack>
 
-          <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>Prepared by</SectionLabel>
-            <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mt: 1 }}>
-              {accountOfficer}
-            </Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
-              Account Officer · {generatedLabel}
-            </Typography>
+            <Divider sx={{ borderColor: '#EEF0F5', mb: 2 }} />
+
+            <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#E7F8F0' }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                <Iconify icon="solar:verified-check-bold" width={17} sx={{ color: '#0C8A4F' }} />
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#0C8A4F' }}>Endorsed</Typography>
+                  <Typography sx={{ fontSize: 11.5, color: '#0C8A4F', opacity: 0.75 }}>
+                    Recorded automatically when this officer opened the Call Report step.
+                  </Typography>
+                </Box>
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <SignatureField icon="solar:user-id-bold-duotone" label="Account Officer" value={accountOfficer} />
+                <SignatureField icon="solar:clock-circle-bold-duotone" label="Date / Time" value={generatedLabel} />
+              </Stack>
+            </Box>
           </Box>
         </Stack>
       </DialogContent>
