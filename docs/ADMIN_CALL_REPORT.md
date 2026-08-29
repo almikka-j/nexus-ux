@@ -66,21 +66,25 @@ is no form library.
 | 2 | Application Validation — Confirm, Change or Verify | `application-validation-card.tsx` | 9 fixed `ValidationRow`s (Identity/Authorized Rep, Loan Facility, Loan Purpose, Primary Repayment Source, Business/Employment Info, Existing Loans/Obligations, Residence/Business Address, Collateral/Security Declaration, Co-maker/Guarantee), each a three-way Confirmed/Changed/Unable to Verify control that reveals its own "Changed Information" detail panel only when marked Changed. Existing Loans is a repeatable `ExistingLoanRow` list (`addExistingLoanRow`/`updateExistingLoanRow`/`removeExistingLoanRow`). Co-maker/Guarantee edits `callReport.comakerChange` via `setCallReportComakerChange` — see "Comaker sync" below. Ends with a free-text Material Changes/Clarifications field. |
 | 3 | AML / KYC Questions | `aml-kyc-card.tsx` | 6 fixed declaration questions (PEP, PGFC-related party, existing loans, payment history, returned checks, past-due obligations). |
 | 4 | Customer Understanding of Loan Terms & Requirements | `customer-understanding-card.tsx` | Customer Level of Understanding, Terms and Requirements Understood (multiselect), Concerns/Clarifications. |
-| 5 | Proposed Loan Package | `proposed-loan-package-card.tsx` | PDF's own section number is 6. Original Requested Amount defaults once from `application.financialInfo.desiredLoanAmount` via a guarded `useEffect`. Interest rate/basis, facility/product, computation type (+ conditional Other), proposed amount/amortization/term, other request. |
-| 6 | AO Preliminary Risk & Call Disposition | `risk-disposition-card.tsx` | PDF's own section number is 7. Primary Risk Driver is multiselect (more than one driver can genuinely apply); Call Disposition is single-select (the five outcomes are mutually exclusive results of one call, even though the source PDF renders both with the same checkbox glyph). Reason/Key Condition free text. |
+| 5 | Proposed Loan Package | `proposed-loan-package-card.tsx` | PDF's own section number is 6 (card title no longer shows section numbers — see "Section numbering" below). Original Requested Amount is a read-only callout (not a field) defaulting once from `application.financialInfo.desiredLoanAmount` via a guarded `useEffect` — it's the applicant's own stated amount, not something the officer edits here. Facility/product is a dropdown (`LOAN_FACILITY_OPTIONS`, same list as Application Validation's Loan Facility field). Fields read top-to-bottom: facility/product, interest rate + basis, computation type (+ conditional Other), proposed amount + term, estimated monthly amortization. The old free-text "Other Request" field was removed. |
+| 6 | AO Preliminary Risk & Call Disposition | `risk-disposition-card.tsx` | PDF's own section number is 7. AO Preliminary Risk is a single-select Low/Moderate/High/Unable to Determine rating (`preliminaryRiskLevel`) — the officer's own risk level, distinct from Primary Risk Driver (what causes the risk) and Call Disposition (what to do about it). Primary Risk Driver is multiselect (more than one driver can genuinely apply); Call Disposition is single-select (the five outcomes are mutually exclusive results of one call, even though the source PDF renders both with the same checkbox glyph). Reason/Key Condition free text. |
 | 7 | NEXUS System Validation / Exception Handoff | `system-validation-card.tsx` | PDF's own section number is 8 (first of two same-numbered sections — see "Section numbering" below). **Refresh AI Review** button computes and stores `aiSummary` (`buildCallSummary`), `aiExceptions` (`buildCallReportAiExceptions`), and `aiRecommendation` (`buildCallReportAiRecommendation(...).text`) onto `CallReport` — these are *not* recomputed on every render, unlike the old page's AI card. AO vs. System Assessment Variance (None/Noted, + conditional Explanation). |
 | 8 | Account Officer Endorsement Declaration | `endorsement-declaration-card.tsx` | PDF's own section number is 8 again (second occurrence). Renders 5 fixed attestation paragraphs read-only (not officer-edited), then Account Officer name (defaults once from `application.assignedOfficer`) + date/time. No Head-review field here — that belongs to a separate, not-yet-built Call Report Review step. |
 
 ### Section numbering
 
-The card headings reproduce the source PDF's own section numbers exactly,
-including its quirks: numbering goes 1 → 2 → 3 → 4 → **6** (Proposed Loan
-Package; the PDF has no independently-numbered section 5) → 7 → **8** (NEXUS
-System Validation) → **8 again** (Endorsement Declaration, unheaded/unnumbered
-in the on-page title but referred to as section 8 in the design spec). This
-is intentional fidelity to the source document, not a bug — do not
-"renumber" these headings to 1–8 sequential without checking the design spec
-first.
+Card headings no longer show the source PDF's section numbers (the
+"1. / 2. / 3. ..." prefixes were removed from every card title, along with
+the matching `SectionHeading`s in `call-report-result-modal.tsx`) — this
+table's own numbering above is just this doc's row order, not a rendered
+title prefix. The PDF's own section numbers still have the same quirks
+underneath (1 → 2 → 3 → 4 → **6** Proposed Loan Package, no independently-
+numbered section 5 → 7 → **8** NEXUS System Validation → **8 again**
+Endorsement Declaration) and are still referenced by code comments and this
+doc for cross-referencing the source document, but they are not part of the
+UI anymore. The numbered sub-items *inside* Application Validation
+(1. Identity, 2. Loan Facility, etc.) are unrelated — those are the PDF's
+own numbered checklist items within that one card and were left as-is.
 
 ## Comaker sync (`comakers` / `comakerChange`)
 

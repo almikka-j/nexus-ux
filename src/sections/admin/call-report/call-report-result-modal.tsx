@@ -29,6 +29,7 @@ import {
   PROPOSAL_COMPUTATION_TYPE_OPTIONS,
   RISK_DRIVER_OPTIONS,
   CALL_DISPOSITION_OPTIONS,
+  AO_PRELIMINARY_RISK_LEVEL_OPTIONS,
 } from './call-report-types';
 
 // ----------------------------------------------------------------------
@@ -297,6 +298,10 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           <Box>
             <SectionHeading>AO Preliminary Risk &amp; Call Disposition</SectionHeading>
             <FieldGrid columns={2}>
+              <ResultField
+                label="AO Preliminary Risk"
+                value={labelFor(AO_PRELIMINARY_RISK_LEVEL_OPTIONS, callReport.preliminaryRiskLevel)}
+              />
               <ResultField label="Primary Risk Driver" value={riskDriverLabels} />
               <ResultField label="Call Disposition" value={labelFor(CALL_DISPOSITION_OPTIONS, callReport.callDisposition)} />
             </FieldGrid>

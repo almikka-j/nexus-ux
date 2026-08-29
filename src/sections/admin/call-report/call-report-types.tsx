@@ -22,6 +22,7 @@ import type {
   LoanTermItem,
   ProposalInterestRateBasis,
   ProposalComputationType,
+  AoPreliminaryRiskLevel,
   RiskDriverItem,
   CallDispositionType,
 } from 'src/auth/admin-context';
@@ -161,6 +162,13 @@ export const PROPOSAL_COMPUTATION_TYPE_OPTIONS: Option<ProposalComputationType>[
   { value: 'diminishing-balance', label: 'Diminishing Balance' },
   { value: 'add-on', label: 'Add-on' },
   { value: 'other', label: 'Other' },
+];
+
+export const AO_PRELIMINARY_RISK_LEVEL_OPTIONS: Option<AoPreliminaryRiskLevel>[] = [
+  { value: 'low', label: 'Low' },
+  { value: 'moderate', label: 'Moderate' },
+  { value: 'high', label: 'High' },
+  { value: 'unable-to-determine', label: 'Unable to Determine' },
 ];
 
 export const RISK_DRIVER_OPTIONS: Option<RiskDriverItem>[] = [

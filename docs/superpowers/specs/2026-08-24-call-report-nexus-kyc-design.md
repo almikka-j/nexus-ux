@@ -184,6 +184,7 @@ export type CallReport = {
   otherRequest: string;
 
   // 7. AO Preliminary Risk & Call Disposition
+  preliminaryRiskLevel: AoPreliminaryRiskLevel | '';
   primaryRiskDrivers: RiskDriverItem[];
   callDisposition: CallDispositionType | '';
   reasonKeyCondition: string;

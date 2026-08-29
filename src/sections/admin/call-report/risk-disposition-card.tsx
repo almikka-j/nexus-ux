@@ -7,7 +7,15 @@ import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
 
-import { cardSx, fieldSx, RadioRow, ChipToggleGroup, RISK_DRIVER_OPTIONS, CALL_DISPOSITION_OPTIONS } from './call-report-types';
+import {
+  cardSx,
+  fieldSx,
+  RadioRow,
+  ChipToggleGroup,
+  AO_PRELIMINARY_RISK_LEVEL_OPTIONS,
+  RISK_DRIVER_OPTIONS,
+  CALL_DISPOSITION_OPTIONS,
+} from './call-report-types';
 
 // ----------------------------------------------------------------------
 // PDF section 7: AO Preliminary Risk & Call Disposition. Primary Risk
@@ -16,6 +24,12 @@ import { cardSx, fieldSx, RadioRow, ChipToggleGroup, RISK_DRIVER_OPTIONS, CALL_D
 // though the PDF renders both with the same checkbox glyph — the five
 // disposition outcomes are mutually exclusive results of one call. See
 // the design spec's own note on this interpretive call.
+//
+// AO Preliminary Risk Level is the officer's own risk rating (Low/
+// Moderate/High/Unable to Determine) — distinct from Primary Risk Driver
+// (what causes the risk) and Call Disposition (what to do about it).
+// Neither of those states an actual risk level, which the card's own
+// title promises.
 // ----------------------------------------------------------------------
 
 export function RiskDispositionCard() {
@@ -39,6 +53,13 @@ export function RiskDispositionCard() {
       </Typography>
 
       <Stack spacing={2.5}>
+        <RadioRow
+          label="AO Preliminary Risk"
+          value={callReport.preliminaryRiskLevel}
+          options={AO_PRELIMINARY_RISK_LEVEL_OPTIONS}
+          onChange={(value) => setCallReport({ preliminaryRiskLevel: value })}
+        />
+
         <Box>
           <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 0.75 }}>
             Primary Risk Driver

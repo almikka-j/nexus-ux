@@ -325,6 +325,7 @@ export type LoanTermItem =
 export type ProposalInterestRateBasis = 'monthly' | 'annual';
 export type ProposalComputationType = 'diminishing-balance' | 'add-on' | 'other';
 
+export type AoPreliminaryRiskLevel = 'low' | 'moderate' | 'high' | 'unable-to-determine';
 export type RiskDriverItem = 'character' | 'capacity' | 'collateral' | 'kyc' | 'documentation' | 'information-consistency';
 export type CallDispositionType =
   | 'proceed-to-next-process'
@@ -566,6 +567,13 @@ export type CallReport = {
   otherRequest: string;
 
   // 7. AO Preliminary Risk & Call Disposition
+  /**
+   * The officer's own preliminary risk rating for this application, based on
+   * the call — distinct from primaryRiskDrivers (what drives the risk) and
+   * callDisposition (what to do about it). Neither of those actually states
+   * a risk level, which the card's own title promises.
+   */
+  preliminaryRiskLevel: AoPreliminaryRiskLevel | '';
   primaryRiskDrivers: RiskDriverItem[];
   callDisposition: CallDispositionType | '';
   reasonKeyCondition: string;
@@ -1788,6 +1796,7 @@ function createInitialReview(): ApplicationReview {
       proposedLoanTermMonths: '',
       otherRequest: '',
 
+      preliminaryRiskLevel: '',
       primaryRiskDrivers: [],
       callDisposition: '',
       reasonKeyCondition: '',
