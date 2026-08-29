@@ -20,6 +20,14 @@ import { Iconify } from 'src/components/iconify';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { buildInitialCreditCheckingResult } from '../initial-credit-checking-risk';
+import {
+  CmapCasesTable,
+  BapNfisRecordsTable,
+  CibiResultsTable,
+  CicContractsTable,
+  LoandexRecordsTable,
+  PgfcExposureTable,
+} from '../bureau-results-tables';
 
 // ----------------------------------------------------------------------
 // Entirely computed at render time from existing state — no new fields are
@@ -63,21 +71,25 @@ function FieldRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-type BureauResultTone = 'clear' | 'review' | 'pending';
-
-function BureauResultRow({
-  bureau,
+// Header (bureau name, uploaded file, status chip) matches the old
+// BureauResultRow's exactly — only the body changed, from a canned summary
+// sentence to the real fact-chip table for that bureau (children).
+function BureauResultSection({
+  title,
   fileName,
   uploadedAt,
-  result,
-  tone,
+  needsReview,
+  reviewNote,
+  children,
 }: {
-  bureau: string;
+  title: string;
   fileName: string | null;
   uploadedAt: string | null;
-  result: string;
-  tone: BureauResultTone;
+  needsReview?: boolean;
+  reviewNote?: string;
+  children: React.ReactNode;
 }) {
+  const tone = !fileName ? 'pending' : needsReview ? 'review' : 'clear';
   const toneStyle = {
     clear: { label: 'Clear', bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold' },
     review: { label: 'Needs review', bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold' },
@@ -93,12 +105,12 @@ function BureauResultRow({
 
   return (
     <Stack
-      spacing={1}
+      spacing={1.25}
       sx={{ p: 1.5, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}>
         <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{bureau}</Typography>
+          <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0, sm: 0.75 }}>
             <Typography noWrap sx={{ fontSize: 11.5, color: '#8891A6', maxWidth: 220 }}>
               {fileName ?? 'No report uploaded'}
@@ -117,9 +129,10 @@ function BureauResultRow({
           sx={{ bgcolor: toneStyle.bg, color: toneStyle.color, fontWeight: 700, fontSize: 11.5 }}
         />
       </Stack>
-      {tone !== 'pending' && (
-        <Typography sx={{ fontSize: 13, color: '#3B4256', lineHeight: 1.55 }}>{result}</Typography>
+      {needsReview && reviewNote && (
+        <Typography sx={{ fontSize: 13, color: '#B32C22', lineHeight: 1.55 }}>{reviewNote}</Typography>
       )}
+      {fileName && children}
     </Stack>
   );
 }
@@ -234,50 +247,6 @@ export function CreditCheckingResultModal({
       ? { background: '#E7F8F0', color: '#0C8A4F' }
       : { background: '#FEF0D6', color: '#B36A05' };
 
-  const bureauReportResults: Array<{
-    bureau: string;
-    fileName: string | null;
-    uploadedAt: string | null;
-    clearResult: string;
-    reviewResult?: string;
-    needsReview?: boolean;
-  }> = [
-    {
-      bureau: 'CIBI',
-      fileName: cibiForm.reportFileName,
-      uploadedAt: cibiForm.reportUploadedAt,
-      clearResult: `Summary: The credit report for ${fullName} shows a CIBI Bureau Score of 600. Two accounts were reported: one active and one closed. Both accounts reflect payments made as agreed, with no recorded delinquency.`,
-    },
-    {
-      bureau: 'LOANDEX',
-      fileName: loandexUpload.fileName,
-      uploadedAt: loandexUpload.uploadedAt,
-      clearResult: `Summary: The LOANDEX report for ${fullName} shows one active loan account with regular payment activity and no past-due exposure reported.`,
-    },
-    {
-      bureau: 'CIC',
-      fileName: cicUpload.fileName,
-      uploadedAt: cicUpload.uploadedAt,
-      clearResult: `Summary: The CIC report for ${fullName} shows consistent borrower and account information, with no material discrepancy in the submitted credit data.`,
-    },
-    {
-      bureau: 'CMAP',
-      fileName: cmapUpload.fileName,
-      uploadedAt: cmapUpload.uploadedAt,
-      clearResult: `Summary: The CMAP report for ${fullName} shows no matching watch-list entry, court record, or adverse account record.`,
-      reviewResult: `Summary: The CMAP report for ${fullName} flagged: ${negativeFindingReason}. Requires officer validation.`,
-      needsReview: hasNegativeBureauFinding && negativeFindingBureau === 'CMAP',
-    },
-    {
-      bureau: 'NFIS / BAP',
-      fileName: nfisBapUpload.fileName,
-      uploadedAt: nfisBapUpload.uploadedAt,
-      clearResult: `Summary: The NFIS / BAP report for ${fullName} shows no cancelled credit card, adversely classified loan, or other negative-file indicator.`,
-      reviewResult: `Summary: The NFIS / BAP report for ${fullName} flagged: ${negativeFindingReason}. Requires officer validation.`,
-      needsReview: hasNegativeBureauFinding && negativeFindingBureau === 'NFIS',
-    },
-  ];
-
   const recommendationLines = negativeCreditReport.recommendationRemarks
     .split('\n')
     .map((line) => line.trim())
@@ -373,28 +342,37 @@ export function CreditCheckingResultModal({
               finding against the source document before making a credit decision.
             </Typography>
 
-            <Stack spacing={1.25}>
-              {bureauReportResults.map((report) => {
-                const tone: BureauResultTone = !report.fileName
-                  ? 'pending'
-                  : report.needsReview
-                    ? 'review'
-                    : 'clear';
-                const result = report.needsReview
-                    ? report.reviewResult ?? report.clearResult
-                    : report.clearResult;
-
-                return (
-                  <BureauResultRow
-                    key={report.bureau}
-                    bureau={report.bureau}
-                    fileName={report.fileName}
-                    uploadedAt={report.uploadedAt}
-                    result={result}
-                    tone={tone}
-                  />
-                );
-              })}
+            <Stack spacing={2}>
+              <BureauResultSection title="CIBI" fileName={cibiForm.reportFileName} uploadedAt={cibiForm.reportUploadedAt}>
+                <CibiResultsTable rows={creditChecking.cibiResults} />
+              </BureauResultSection>
+              <BureauResultSection title="LOANDEX" fileName={loandexUpload.fileName} uploadedAt={loandexUpload.uploadedAt}>
+                <LoandexRecordsTable rows={creditChecking.loandexRecords} />
+              </BureauResultSection>
+              <BureauResultSection title="CIC" fileName={cicUpload.fileName} uploadedAt={cicUpload.uploadedAt}>
+                <CicContractsTable rows={creditChecking.cicContracts} />
+              </BureauResultSection>
+              <BureauResultSection
+                title="CMAP"
+                fileName={cmapUpload.fileName}
+                uploadedAt={cmapUpload.uploadedAt}
+                needsReview={hasNegativeBureauFinding && negativeFindingBureau === 'CMAP'}
+                reviewNote={`Flagged: ${negativeFindingReason}. Requires officer validation.`}
+              >
+                <CmapCasesTable rows={creditChecking.cmapCases} />
+              </BureauResultSection>
+              <BureauResultSection
+                title="NFIS / BAP"
+                fileName={nfisBapUpload.fileName}
+                uploadedAt={nfisBapUpload.uploadedAt}
+                needsReview={hasNegativeBureauFinding && negativeFindingBureau === 'NFIS'}
+                reviewNote={`Flagged: ${negativeFindingReason}. Requires officer validation.`}
+              >
+                <BapNfisRecordsTable rows={creditChecking.bapNfisRecords} />
+              </BureauResultSection>
+              <BureauResultSection title="PGFC Existing Exposure" fileName={pgfcExposureUpload.fileName} uploadedAt={pgfcExposureUpload.uploadedAt}>
+                <PgfcExposureTable rows={creditChecking.pgfcExposureRecords} />
+              </BureauResultSection>
             </Stack>
 
             {showNegativeReport && (
