@@ -3,6 +3,7 @@
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
@@ -35,7 +36,7 @@ const RISK_STYLES: Record<CallReportRiskLevel, { bg: string; color: string; icon
   high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High risk' },
 };
 
-export function SystemValidationCard() {
+export function SystemValidationCard({ onViewResult }: { onViewResult: () => void }) {
   const { review, setCallReport } = useAdmin();
   const { callReport } = review;
   const { signUpData } = useRegistration();
@@ -143,6 +144,17 @@ export function SystemValidationCard() {
             </Stack>
           )}
         </Box>
+
+        <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+        <Button
+          onClick={onViewResult}
+          variant="outlined"
+          startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+          sx={{ ...outlinedNavyButtonSx, px: 2, alignSelf: 'flex-start' }}
+        >
+          View Call Report Result
+        </Button>
       </Stack>
     </Box>
   );

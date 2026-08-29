@@ -19,7 +19,6 @@ import type { CallReportComakerChange, ExistingLoanRow } from 'src/auth/admin-co
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
-import { outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
@@ -335,25 +334,8 @@ export function CallReportView() {
         <CustomerUnderstandingCard />
         <ProposedLoanPackageCard />
         <RiskDispositionCard />
-        <SystemValidationCard />
+        <SystemValidationCard onViewResult={() => setCallReportResultModalOpen(true)} />
         <EndorsementDeclarationCard />
-
-        <Box sx={cardSx}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-            Call Report Result
-          </Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-            View the full formatted report generated from everything entered above.
-          </Typography>
-          <Button
-            onClick={() => setCallReportResultModalOpen(true)}
-            variant="outlined"
-            startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-            sx={{ ...outlinedNavyButtonSx, px: 2 }}
-          >
-            View Call Report Result
-          </Button>
-        </Box>
 
         <Box sx={cardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
