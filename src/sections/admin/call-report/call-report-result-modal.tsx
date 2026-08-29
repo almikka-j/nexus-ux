@@ -375,7 +375,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
             )}
           </Box>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+          <Box>
             <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
               AI Review, Summary &amp; Recommendation
             </Typography>
