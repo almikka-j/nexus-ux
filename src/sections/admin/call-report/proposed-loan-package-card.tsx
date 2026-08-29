@@ -25,10 +25,11 @@ import {
 // PDF section 6 (the PDF's own section number): Proposed Loan Package.
 // Original Requested Amount is the applicant's own stated amount from the
 // application (defaulted once from application.financialInfo.desiredLoanAmount)
-// — read-only here, since this card is the officer's proposal, not a place
-// to edit what the applicant originally asked for. Proposed Facility /
-// Product reuses the same LOAN_FACILITY_OPTIONS list as Application
-// Validation's "Loan Facility" field, rather than free text.
+// — shown as a plain read-only callout, not a TextField, since this card is
+// the officer's proposal and this value isn't something to edit here (a
+// disabled TextField still looked like an editable field at a glance).
+// Proposed Facility / Product reuses the same LOAN_FACILITY_OPTIONS list as
+// Application Validation's "Loan Facility" field, rather than free text.
 // ----------------------------------------------------------------------
 
 export function ProposedLoanPackageCard() {
@@ -61,15 +62,14 @@ export function ProposedLoanPackageCard() {
       </Typography>
 
       <Stack spacing={2.5}>
-        <TextField
-          fullWidth
-          disabled
-          label="Original Requested Amount"
-          value={callReport.originalRequestedAmount}
-          InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
-          helperText="From the applicant's own submission — not editable here"
-          sx={fieldSx}
-        />
+        <Box sx={{ px: 1.75, py: 1.25, borderRadius: '10px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+          <Typography sx={{ fontSize: 11.5, color: '#8891A6', mb: 0.3 }}>
+            Original Requested Amount — from the applicant&apos;s own submission
+          </Typography>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+            {callReport.originalRequestedAmount ? `₱${Number(callReport.originalRequestedAmount).toLocaleString()}` : '—'}
+          </Typography>
+        </Box>
 
         <TextField
           select
