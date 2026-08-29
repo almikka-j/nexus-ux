@@ -128,14 +128,14 @@ export function ProposedLoanPackageCard() {
           )}
         </Box>
 
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} flexWrap="nowrap">
           <TextField
             fullWidth
             label="Proposed Loan Amount"
             value={callReport.proposedLoanAmount}
             onChange={(event) => setCallReport({ proposedLoanAmount: event.target.value })}
             InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
-            sx={fieldSx}
+            sx={{ ...fieldSx, flex: 1, minWidth: 0 }}
           />
           <TextField
             fullWidth
@@ -143,7 +143,7 @@ export function ProposedLoanPackageCard() {
             value={callReport.proposedLoanTermMonths}
             onChange={(event) => setCallReport({ proposedLoanTermMonths: event.target.value })}
             InputProps={{ endAdornment: <InputAdornment position="end">months</InputAdornment> }}
-            sx={fieldSx}
+            sx={{ ...fieldSx, flex: 1, minWidth: 0 }}
           />
         </Stack>
 
