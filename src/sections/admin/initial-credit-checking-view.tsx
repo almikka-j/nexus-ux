@@ -688,27 +688,14 @@ export function InitialCreditCheckingView() {
 
             <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              alignItems={{ xs: 'stretch', sm: 'center' }}
-              justifyContent="space-between"
-              spacing={1.5}
+            <Button
+              onClick={() => setResultModalOpen(true)}
+              variant="outlined"
+              startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+              sx={{ ...outlinedNavyButtonSx, px: 2, alignSelf: 'flex-start' }}
             >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
-                <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
-                  View the full formatted report for this assessment.
-                </Typography>
-              </Stack>
-              <Button
-                onClick={() => setResultModalOpen(true)}
-                variant="contained"
-                endIcon={<Iconify icon="solar:arrow-right-bold" width={16} />}
-                sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.25, flexShrink: 0, '&:hover': { bgcolor: '#14205A' } }}
-              >
-                View Initial Credit Checking Result
-              </Button>
-            </Stack>
+              View Initial Credit Checking Result
+            </Button>
           </Stack>
         </Box>
 
