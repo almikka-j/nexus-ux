@@ -15,9 +15,10 @@ import { cardSx, fieldSx, RadioRow, PROPOSAL_INTEREST_RATE_BASIS_OPTIONS, PROPOS
 
 // ----------------------------------------------------------------------
 // PDF section 6 (the PDF's own section number): Proposed Loan Package.
-// Original Requested Amount defaults once from the application's own
-// desired loan amount, same "default once, never overwrite an edit"
-// convention this codebase already uses elsewhere for prefilled fields.
+// Original Requested Amount is the applicant's own stated amount from the
+// application (defaulted once from application.financialInfo.desiredLoanAmount)
+// — read-only here, since this card is the officer's proposal, not a place
+// to edit what the applicant originally asked for.
 // ----------------------------------------------------------------------
 
 export function ProposedLoanPackageCard() {
@@ -52,10 +53,11 @@ export function ProposedLoanPackageCard() {
       <Stack spacing={2.5}>
         <TextField
           fullWidth
+          disabled
           label="Original Requested Amount"
           value={callReport.originalRequestedAmount}
-          onChange={(event) => setCallReport({ originalRequestedAmount: event.target.value })}
           InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
+          helperText="From the applicant's own submission — not editable here"
           sx={fieldSx}
         />
 
