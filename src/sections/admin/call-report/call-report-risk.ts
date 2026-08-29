@@ -9,6 +9,18 @@ import type { AoPreliminaryRiskLevel, CallReport, SystemVarianceStatus } from 's
 
 export type CallReportRiskLevel = 'good' | 'watch' | 'high';
 
+// Shared between SystemValidationCard and CallReportResultModal so the
+// "AI Recommendation / Risk Level" badge always looks identical in both
+// places instead of drifting into two separate style maps.
+export const CALL_REPORT_RISK_STYLES: Record<
+  CallReportRiskLevel,
+  { bg: string; color: string; icon: string; label: string }
+> = {
+  good: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Low risk' },
+  watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Needs a closer look' },
+  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High risk' },
+};
+
 const DISPOSITION_LEVELS: Partial<Record<CallReport['callDisposition'], CallReportRiskLevel>> = {
   'proceed-to-next-process': 'good',
   'proceed-subject-to-requirements': 'watch',

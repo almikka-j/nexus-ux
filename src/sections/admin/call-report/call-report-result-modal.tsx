@@ -34,7 +34,11 @@ import {
   AO_PRELIMINARY_RISK_LEVEL_OPTIONS,
 } from './call-report-types';
 import { buildCallSummary, buildCallReportAiExceptions } from './call-report-summary';
-import { buildCallReportAiRecommendation, buildCallReportVariance } from './call-report-risk';
+import {
+  buildCallReportAiRecommendation,
+  buildCallReportVariance,
+  CALL_REPORT_RISK_STYLES,
+} from './call-report-risk';
 
 // ----------------------------------------------------------------------
 // Matches CreditCheckingResultModal's design system exactly (SectionLabel,
@@ -132,6 +136,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
   const currentAiExceptions = buildCallReportAiExceptions(callReport);
   const currentAiRecommendation = buildCallReportAiRecommendation(callReport);
   const isCleared = currentAiRecommendation.level === 'good';
+  const riskStyle = CALL_REPORT_RISK_STYLES[currentAiRecommendation.level];
 
   const validationLabels: Record<string, string> = {
     confirmed: 'Confirmed',
@@ -386,7 +391,17 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
             <Stack spacing={1.5}>
               <NarrativeBlock label="AI SUMMARY" value={currentAiSummary} />
               <NarrativeBlock label="AI EXCEPTIONS / INCONSISTENCIES" value={currentAiExceptions} />
-              <NarrativeBlock label="AI RECOMMENDATION / RISK LEVEL" value={currentAiRecommendation.text} />
+              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: riskStyle.bg }}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                  <Iconify icon={riskStyle.icon} width={16} sx={{ color: riskStyle.color }} />
+                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
+                    AI Recommendation / Risk Level · {riskStyle.label}
+                  </Typography>
+                </Stack>
+                <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6 }}>
+                  {currentAiRecommendation.text}
+                </Typography>
+              </Box>
               <FieldRow
                 label="AO vs. System Assessment Variance"
                 value={
@@ -397,6 +412,17 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
                       : 'None — the AO Preliminary Risk rating matches the system assessment.'
                 }
               />
+            </Stack>
+
+            <Stack direction="row" spacing={1} sx={{ mt: 1.5, px: 0.5 }}>
+              <Iconify icon="solar:shield-warning-linear" width={15} sx={{ color: '#A0A7B5', mt: 0.15, flexShrink: 0 }} />
+              <Typography sx={{ fontSize: 11.5, color: '#98A2B3', lineHeight: 1.6 }}>
+                <Box component="span" sx={{ fontWeight: 700, color: '#8891A6' }}>AI Control Statement — </Box>
+                This AI-generated result is an advisory risk-screening output only. It does not
+                constitute loan approval, disapproval, or a policy waiver. All findings,
+                exceptions, and recommendations must be independently validated by authorized
+                Credit personnel.
+              </Typography>
             </Stack>
           </Box>
 

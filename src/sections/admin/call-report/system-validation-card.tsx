@@ -17,7 +17,7 @@ import { buildCallSummary, buildCallReportAiExceptions } from './call-report-sum
 import {
   buildCallReportAiRecommendation,
   buildCallReportVariance,
-  type CallReportRiskLevel,
+  CALL_REPORT_RISK_STYLES,
 } from './call-report-risk';
 
 // ----------------------------------------------------------------------
@@ -29,12 +29,6 @@ import {
 // convention as every other field on this page, rather than recomputed
 // silently on every render.
 // ----------------------------------------------------------------------
-
-const RISK_STYLES: Record<CallReportRiskLevel, { bg: string; color: string; icon: string; label: string }> = {
-  good: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Low risk' },
-  watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Needs a closer look' },
-  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High risk' },
-};
 
 export function SystemValidationCard({ onViewResult }: { onViewResult: () => void }) {
   const { review, setCallReport } = useAdmin();
@@ -56,7 +50,7 @@ export function SystemValidationCard({ onViewResult }: { onViewResult: () => voi
   };
 
   const currentRecommendation = buildCallReportAiRecommendation(callReport);
-  const riskStyle = RISK_STYLES[currentRecommendation.level];
+  const riskStyle = CALL_REPORT_RISK_STYLES[currentRecommendation.level];
   const currentVariance = buildCallReportVariance(callReport);
 
   return (
