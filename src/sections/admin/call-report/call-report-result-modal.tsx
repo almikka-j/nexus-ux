@@ -4,15 +4,16 @@ import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import {
   labelFor,
@@ -36,13 +37,36 @@ import { buildCallSummary, buildCallReportAiExceptions } from './call-report-sum
 import { buildCallReportAiRecommendation, buildCallReportVariance } from './call-report-risk';
 
 // ----------------------------------------------------------------------
+// Matches CreditCheckingResultModal's design system exactly (SectionLabel,
+// FieldRow, header layout, "Prepared by" footer) rather than the grid-based
+// ResultField/FieldGrid this modal used before, so the two result modals
+// read as the same product instead of two different designs.
+// ----------------------------------------------------------------------
 
-function ResultField({ label, value }: { label: string; value: string | null }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Box>
-      <Typography sx={{ fontSize: 11.5, color: '#8891A6', mb: 0.4 }}>{label}</Typography>
-      <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{value || '—'}</Typography>
-    </Box>
+    <Typography
+      sx={{
+        fontSize: 11.5,
+        fontWeight: 700,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        color: '#8891A6',
+      }}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+function FieldRow({ label, value }: { label: string; value: string | null }) {
+  return (
+    <Stack direction="row" spacing={2}>
+      <Typography sx={{ fontSize: 13.5, color: '#8891A6', width: 200, flexShrink: 0 }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value || '—'}</Typography>
+    </Stack>
   );
 }
 
@@ -59,32 +83,6 @@ function NarrativeBlock({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#14172A', mb: 1.5 }}>
-      {children}
-    </Typography>
-  );
-}
-
-function FieldGrid({ children, columns = 3 }: { children: React.ReactNode; columns?: number }) {
-  return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: `repeat(${columns}, minmax(0, 1fr))` },
-        gap: 2,
-        p: 2,
-        borderRadius: '12px',
-        bgcolor: '#F9FAFC',
-        border: '1px solid #EEF0F5',
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
-
 function formatCurrency(value: string): string {
   if (!value) return '';
   return `₱${Number(value).toLocaleString()}`;
@@ -95,18 +93,18 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
   const { application, signUpData } = useRegistration();
   const { callReport } = review;
 
+  if (!signUpData) return null;
+
+  const fullName = `${signUpData.firstName} ${signUpData.lastName}`;
+  const applicationNo = getLoanNumber(signUpData.email);
+
   // Account Officer and Date/Time are read-only, derived the same way
   // EndorsementDeclarationCard displays them — not officer-entered fields on
   // CallReport (accountOfficerName/accountOfficerDateTime are unused now).
   const accountOfficer = application.assignedOfficer || '—';
-  const accountOfficerDateTime = review.stepTimestamps.callReport
-    ? new Date(review.stepTimestamps.callReport).toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      })
+  const generatedAt = review.stepTimestamps.callReport ? new Date(review.stepTimestamps.callReport) : null;
+  const generatedLabel = generatedAt
+    ? `${generatedAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} · ${generatedAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
     : '—';
 
   const identityBasisLabels = callReport.identityBasis
@@ -132,7 +130,8 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
   // This modal has no refresh button of its own, so it always recomputes.
   const currentAiSummary = buildCallSummary(callReport, signUpData);
   const currentAiExceptions = buildCallReportAiExceptions(callReport);
-  const currentAiRecommendation = buildCallReportAiRecommendation(callReport).text;
+  const currentAiRecommendation = buildCallReportAiRecommendation(callReport);
+  const isCleared = currentAiRecommendation.level === 'good';
 
   const validationLabels: Record<string, string> = {
     confirmed: 'Confirmed',
@@ -142,49 +141,87 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" scroll="paper">
-      <DialogTitle sx={{ px: 2.5, py: 2 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-          <Box>
-            <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>Call report</Typography>
-            <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
-              Read-only record of the NEXUS Customer KYC &amp; Call Validation Report.
-            </Typography>
-          </Box>
-          <IconButton onClick={onClose} aria-label="Close call report">
-            <Iconify icon="mingcute:close-line" width={22} />
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
+        <Box>
+          <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#14172A' }}>Call Report</Typography>
+          <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
+            Report generated {generatedLabel}
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="PDF export coming soon">
+            <span>
+              <IconButton disabled sx={{ border: '1px solid #E1E4ED', borderRadius: '10px', px: 1.5 }}>
+                <Iconify icon="solar:file-download-bold" width={18} sx={{ color: '#8891A6' }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <IconButton onClick={onClose} sx={{ border: '1px solid #E1E4ED', borderRadius: '10px' }}>
+            <Iconify icon="solar:close-circle-bold" width={18} sx={{ color: '#8891A6' }} />
           </IconButton>
         </Stack>
-      </DialogTitle>
-      <Divider />
-      <DialogContent sx={{ p: 2.5 }}>
+      </Box>
+
+      <DialogContent sx={{ px: 3, pb: 3 }}>
         <Stack spacing={2.5}>
-          <Box>
-            <SectionHeading>Interaction Record</SectionHeading>
-            <FieldGrid columns={4}>
-              <ResultField label="Call / Visit Date" value={callReport.callVisitDate} />
-              <ResultField label="Time" value={callReport.callTime} />
-              <ResultField label="Interviewed Person" value={callReport.interviewedPerson} />
-              <ResultField label="Relationship to Borrower" value={callReport.relationshipToBorrower} />
-              <ResultField label="Interaction Type" value={labelFor(INTERACTION_TYPE_OPTIONS, callReport.interactionType)} />
-              <ResultField label="Identity Status" value={labelFor(IDENTITY_STATUS_OPTIONS, callReport.identityStatus)} />
-              <ResultField label="Basis of Identity Confirmation" value={identityBasisLabels} />
-            </FieldGrid>
+          {isCleared && (
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="flex-start"
+              sx={{ p: 2, borderRadius: '11px', bgcolor: '#E7F8F0' }}
+            >
+              <Iconify icon="solar:check-circle-bold" width={20} sx={{ color: '#0C8A4F', mt: 0.25 }} />
+              <Stack spacing={0.25}>
+                <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#0C8A4F' }}>
+                  Cleared — proceed to next process
+                </Typography>
+                <Typography sx={{ fontSize: 13, color: '#0C8A4F' }}>
+                  {currentAiRecommendation.text}
+                </Typography>
+              </Stack>
+            </Stack>
+          )}
+
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <SectionLabel>Call Report</SectionLabel>
+            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+              <FieldRow label="Application No." value={applicationNo} />
+              <FieldRow label="Client Name" value={fullName} />
+              <FieldRow label="Email Address" value={signUpData.email} />
+              <FieldRow label="Contact Number" value={signUpData.mobile || '—'} />
+              <FieldRow label="Account Officer" value={accountOfficer} />
+              <FieldRow label="Date / Time" value={generatedLabel} />
+            </Stack>
           </Box>
 
-          <Box>
-            <SectionHeading>Application Validation</SectionHeading>
-            <FieldGrid columns={3}>
-              <ResultField label="Identity / Authorized Representative" value={validationLabels[callReport.validation.identityAuthorizedRep]} />
-              <ResultField label="Loan Facility" value={validationLabels[callReport.validation.loanFacility]} />
-              <ResultField label="Loan Purpose" value={validationLabels[callReport.validation.loanPurpose]} />
-              <ResultField label="Primary Source of Repayment" value={validationLabels[callReport.validation.primaryRepaymentSource]} />
-              <ResultField label="Business / Employment Info" value={validationLabels[callReport.validation.businessEmploymentInfo]} />
-              <ResultField label="Existing Loans / Obligations" value={validationLabels[callReport.validation.existingLoansObligations]} />
-              <ResultField label="Residence / Business Address" value={validationLabels[callReport.validation.residenceBusinessAddress]} />
-              <ResultField label="Collateral / Security Declaration" value={validationLabels[callReport.validation.collateralSecurityDeclaration]} />
-              <ResultField label="Co-maker/Guarantee" value={validationLabels[callReport.validation.comakerGuarantee]} />
-            </FieldGrid>
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <SectionLabel>Interaction Record</SectionLabel>
+            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+              <FieldRow label="Call / Visit Date" value={callReport.callVisitDate} />
+              <FieldRow label="Time" value={callReport.callTime} />
+              <FieldRow label="Interviewed Person" value={callReport.interviewedPerson} />
+              <FieldRow label="Relationship to Borrower" value={callReport.relationshipToBorrower} />
+              <FieldRow label="Interaction Type" value={labelFor(INTERACTION_TYPE_OPTIONS, callReport.interactionType)} />
+              <FieldRow label="Identity Status" value={labelFor(IDENTITY_STATUS_OPTIONS, callReport.identityStatus)} />
+              <FieldRow label="Basis of Identity Confirmation" value={identityBasisLabels} />
+            </Stack>
+          </Box>
+
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <SectionLabel>Application Validation</SectionLabel>
+            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+              <FieldRow label="Identity / Authorized Representative" value={validationLabels[callReport.validation.identityAuthorizedRep]} />
+              <FieldRow label="Loan Facility" value={validationLabels[callReport.validation.loanFacility]} />
+              <FieldRow label="Loan Purpose" value={validationLabels[callReport.validation.loanPurpose]} />
+              <FieldRow label="Primary Source of Repayment" value={validationLabels[callReport.validation.primaryRepaymentSource]} />
+              <FieldRow label="Business / Employment Info" value={validationLabels[callReport.validation.businessEmploymentInfo]} />
+              <FieldRow label="Existing Loans / Obligations" value={validationLabels[callReport.validation.existingLoansObligations]} />
+              <FieldRow label="Residence / Business Address" value={validationLabels[callReport.validation.residenceBusinessAddress]} />
+              <FieldRow label="Collateral / Security Declaration" value={validationLabels[callReport.validation.collateralSecurityDeclaration]} />
+              <FieldRow label="Co-maker/Guarantee" value={validationLabels[callReport.validation.comakerGuarantee]} />
+            </Stack>
             {callReport.validation.identityAuthorizedRep === 'changed' && (
               <Box sx={{ mt: 1.5 }}>
                 <NarrativeBlock
@@ -242,42 +279,42 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
             )}
           </Box>
 
-          <Box>
-            <SectionHeading>AML / KYC Questions</SectionHeading>
-            <FieldGrid columns={3}>
-              <ResultField label="Politically Exposed Person" value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPep)} />
-              <ResultField
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <SectionLabel>AML / KYC Questions</SectionLabel>
+            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+              <FieldRow label="Politically Exposed Person" value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPep)} />
+              <FieldRow
                 label="PGFC-related Party"
                 value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPgfcRelatedParty)}
               />
-              <ResultField
+              <FieldRow
                 label="Has Existing Loans"
                 value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasExistingLoans)}
               />
-              <ResultField
+              <FieldRow
                 label="Payment History"
                 value={labelFor(PAYMENT_HISTORY_DESCRIPTOR_OPTIONS, callReport.amlPaymentHistory)}
               />
-              <ResultField
+              <FieldRow
                 label="Returned Checks"
                 value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasReturnedChecks)}
               />
-              <ResultField
+              <FieldRow
                 label="Past Due Obligations"
                 value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasPastDueObligations)}
               />
-            </FieldGrid>
+            </Stack>
           </Box>
 
-          <Box>
-            <SectionHeading>Customer Understanding</SectionHeading>
-            <FieldGrid columns={2}>
-              <ResultField
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <SectionLabel>Customer Understanding</SectionLabel>
+            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+              <FieldRow
                 label="Level of Understanding"
                 value={labelFor(UNDERSTANDING_LEVEL_OPTIONS, callReport.understandingLevel)}
               />
-              <ResultField label="Terms Understood" value={termsUnderstoodLabels} />
-            </FieldGrid>
+              <FieldRow label="Terms Understood" value={termsUnderstoodLabels} />
+            </Stack>
             {callReport.concernsClarifications && (
               <Box sx={{ mt: 1.5 }}>
                 <NarrativeBlock label="CONCERNS / CLARIFICATIONS" value={callReport.concernsClarifications} />
@@ -285,25 +322,23 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
             )}
           </Box>
 
-          <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-          <Box>
-            <SectionHeading>Proposed Loan Package</SectionHeading>
-            <FieldGrid columns={3}>
-              <ResultField label="Original Requested Amount" value={formatCurrency(callReport.originalRequestedAmount)} />
-              <ResultField
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <SectionLabel>Proposed Loan Package</SectionLabel>
+            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+              <FieldRow label="Original Requested Amount" value={formatCurrency(callReport.originalRequestedAmount)} />
+              <FieldRow
                 label="Interest Rate"
                 value={callReport.proposalInterestRate ? `${callReport.proposalInterestRate}%` : ''}
               />
-              <ResultField
+              <FieldRow
                 label="Interest Rate Basis"
                 value={labelFor(PROPOSAL_INTEREST_RATE_BASIS_OPTIONS, callReport.proposalInterestRateBasis)}
               />
-              <ResultField
+              <FieldRow
                 label="Proposed Facility / Product"
                 value={labelFor(LOAN_FACILITY_OPTIONS, callReport.proposedFacilityProduct)}
               />
-              <ResultField
+              <FieldRow
                 label="Computation Type"
                 value={
                   callReport.proposalComputationType === 'other'
@@ -311,28 +346,28 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
                     : labelFor(PROPOSAL_COMPUTATION_TYPE_OPTIONS, callReport.proposalComputationType)
                 }
               />
-              <ResultField label="Proposed Loan Amount" value={formatCurrency(callReport.proposedLoanAmount)} />
-              <ResultField
+              <FieldRow label="Proposed Loan Amount" value={formatCurrency(callReport.proposedLoanAmount)} />
+              <FieldRow
                 label="Estimated Monthly Amortization"
                 value={formatCurrency(callReport.estimatedMonthlyAmortization)}
               />
-              <ResultField
+              <FieldRow
                 label="Proposed Loan Term"
                 value={callReport.proposedLoanTermMonths ? `${callReport.proposedLoanTermMonths} months` : ''}
               />
-            </FieldGrid>
+            </Stack>
           </Box>
 
-          <Box>
-            <SectionHeading>AO Preliminary Risk &amp; Call Disposition</SectionHeading>
-            <FieldGrid columns={2}>
-              <ResultField
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <SectionLabel>AO Preliminary Risk &amp; Call Disposition</SectionLabel>
+            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+              <FieldRow
                 label="AO Preliminary Risk"
                 value={labelFor(AO_PRELIMINARY_RISK_LEVEL_OPTIONS, callReport.preliminaryRiskLevel)}
               />
-              <ResultField label="Primary Risk Driver" value={riskDriverLabels} />
-              <ResultField label="Call Disposition" value={labelFor(CALL_DISPOSITION_OPTIONS, callReport.callDisposition)} />
-            </FieldGrid>
+              <FieldRow label="Primary Risk Driver" value={riskDriverLabels} />
+              <FieldRow label="Call Disposition" value={labelFor(CALL_DISPOSITION_OPTIONS, callReport.callDisposition)} />
+            </Stack>
             {callReport.reasonKeyCondition && (
               <Box sx={{ mt: 1.5 }}>
                 <NarrativeBlock label="REASON / KEY CONDITION" value={callReport.reasonKeyCondition} />
@@ -340,13 +375,19 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
             )}
           </Box>
 
-          <Box>
-            <SectionHeading>AI review, summary &amp; recommendation</SectionHeading>
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+              AI Review, Summary &amp; Recommendation
+            </Typography>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5, mb: 2 }}>
+              Based on everything entered above, recomputed live so it always matches the current
+              report.
+            </Typography>
             <Stack spacing={1.5}>
               <NarrativeBlock label="AI SUMMARY" value={currentAiSummary} />
               <NarrativeBlock label="AI EXCEPTIONS / INCONSISTENCIES" value={currentAiExceptions} />
-              <NarrativeBlock label="AI RECOMMENDATION / RISK LEVEL" value={currentAiRecommendation} />
-              <ResultField
+              <NarrativeBlock label="AI RECOMMENDATION / RISK LEVEL" value={currentAiRecommendation.text} />
+              <FieldRow
                 label="AO vs. System Assessment Variance"
                 value={
                   currentVariance.status === ''
@@ -359,12 +400,16 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
             </Stack>
           </Box>
 
-          <Box>
-            <SectionHeading>Account Officer Endorsement Declaration</SectionHeading>
-            <FieldGrid columns={2}>
-              <ResultField label="Account Officer" value={accountOfficer} />
-              <ResultField label="Date / Time" value={accountOfficerDateTime} />
-            </FieldGrid>
+          <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+          <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
+            <SectionLabel>Prepared by</SectionLabel>
+            <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mt: 1 }}>
+              {accountOfficer}
+            </Typography>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+              Account Officer · {generatedLabel}
+            </Typography>
           </Box>
         </Stack>
       </DialogContent>
