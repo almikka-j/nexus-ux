@@ -128,15 +128,16 @@ export function ProposedLoanPackageCard() {
           )}
         </Box>
 
+        <TextField
+          fullWidth
+          label="Proposed Loan Amount"
+          value={callReport.proposedLoanAmount}
+          onChange={(event) => setCallReport({ proposedLoanAmount: event.target.value })}
+          InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
+          sx={fieldSx}
+        />
+
         <Stack direction="row" spacing={2} flexWrap="nowrap">
-          <TextField
-            fullWidth
-            label="Proposed Loan Amount"
-            value={callReport.proposedLoanAmount}
-            onChange={(event) => setCallReport({ proposedLoanAmount: event.target.value })}
-            InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
-            sx={{ ...fieldSx, flex: 1, minWidth: 0 }}
-          />
           <TextField
             fullWidth
             label="Proposed Loan Term"
@@ -145,16 +146,15 @@ export function ProposedLoanPackageCard() {
             InputProps={{ endAdornment: <InputAdornment position="end">months</InputAdornment> }}
             sx={{ ...fieldSx, flex: 1, minWidth: 0 }}
           />
+          <TextField
+            fullWidth
+            label="Estimated Monthly Amortization"
+            value={callReport.estimatedMonthlyAmortization}
+            onChange={(event) => setCallReport({ estimatedMonthlyAmortization: event.target.value })}
+            InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
+            sx={{ ...fieldSx, flex: 1, minWidth: 0 }}
+          />
         </Stack>
-
-        <TextField
-          fullWidth
-          label="Estimated Monthly Amortization"
-          value={callReport.estimatedMonthlyAmortization}
-          onChange={(event) => setCallReport({ estimatedMonthlyAmortization: event.target.value })}
-          InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
-          sx={fieldSx}
-        />
       </Stack>
     </Box>
   );
