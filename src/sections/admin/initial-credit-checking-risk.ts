@@ -5,7 +5,10 @@
 //
 // Translates the PDF template's "8. AUTOMATED DECISION LOGIC" 6-condition
 // table into real if/else branches (see
-// docs/superpowers/specs/2026-08-29-bureau-reports-results-design.md).
+// docs/superpowers/specs/2026-08-29-bureau-reports-results-design.md), and
+// the "AI RECOMMENDATION" block's field structure (Overall Assessment / AI
+// Risk Level / AI Summary sub-bullets / AI Recommended Action / Reason for
+// Recommendation / AI Review Basis / Required Verification or Next Steps).
 // Entirely computed, never stored — same "pure derivation" convention as
 // every other AI output in this app.
 
@@ -19,6 +22,23 @@ import type {
 } from 'src/auth/admin-context';
 
 export type InitialCreditCheckingRiskLevel = 'low' | 'moderate' | 'elevated' | 'high' | 'unable-to-determine';
+
+export type RecommendedActionCode =
+  | 'clear-to-proceed'
+  | 'proceed-subject-to-verification'
+  | 'for-further-credit-review'
+  | 'on-hold'
+  | 'policy-exception'
+  | 'does-not-meet-initial-rac';
+
+export const RECOMMENDED_ACTION_LABELS: Record<RecommendedActionCode, string> = {
+  'clear-to-proceed': 'CLEAR TO PROCEED',
+  'proceed-subject-to-verification': 'PROCEED SUBJECT TO VERIFICATION',
+  'for-further-credit-review': 'FOR FURTHER CREDIT REVIEW',
+  'on-hold': 'ON HOLD',
+  'policy-exception': 'POLICY EXCEPTION',
+  'does-not-meet-initial-rac': 'DOES NOT MEET INITIAL RAC',
+};
 
 export type ReviewBasisTag =
   | 'bureau-consistency'
@@ -48,7 +68,7 @@ const RISK_LEVEL_LABELS: Record<InitialCreditCheckingRiskLevel, string> = {
   moderate: 'MODERATE',
   elevated: 'ELEVATED',
   high: 'HIGH',
-  'unable-to-determine': 'UNABLE TO DETERMINE',
+  'unable-to-determine': 'UNABLE TO DETERMINE – INSUFFICIENT INFORMATION',
 };
 
 // Deterministic keyword match against each row's own status-like field —
@@ -98,9 +118,14 @@ export type BuildInitialCreditCheckingResultInput = {
 export type InitialCreditCheckingResult = {
   riskLevel: InitialCreditCheckingRiskLevel;
   overallAssessment: string;
-  summary: string;
-  recommendedAction: string;
+  favorableFindings: string[];
+  adverseFindings: string[];
+  discrepancies: string[];
+  missingInformation: string[];
+  recommendedAction: RecommendedActionCode;
+  reasonForRecommendation: string;
   reviewBasis: ReviewBasisTag[];
+  requiredVerification: string[];
 };
 
 export function buildInitialCreditCheckingResult(
@@ -148,59 +173,137 @@ export function buildInitialCreditCheckingResult(
     (row) => row.paymentStatus.trim().toLowerCase() !== 'no existing exposure'
   );
   const highDebtRatio = ratio !== null && ratio > 0.6;
+  // Stricter tier above the existing 60% "elevated" threshold: a requested
+  // amount exceeding a full year's income is treated as a deviation from
+  // standard lending policy, not just an elevated-risk indicator.
+  const exceedsPolicyDebtRatio = ratio !== null && ratio > 1.0;
 
-  const buildAssessment = (level: InitialCreditCheckingRiskLevel) =>
-    `The applicant is assessed as ${RISK_LEVEL_LABELS[level]} credit risk based on consolidated bureau results, existing exposure, payment history, legal findings, and credit scoring.`;
+  const buildAssessment = (level: InitialCreditCheckingRiskLevel, detail: string) =>
+    `The applicant is assessed as ${RISK_LEVEL_LABELS[level]} credit risk based on consolidated bureau results, existing exposure, payment history, legal findings, and credit scoring. ${detail}`.trim();
 
   // 1. ON HOLD — missing bureau result / incomplete data.
   if (!allBureauReportsUploaded) {
     return {
       riskLevel: 'unable-to-determine',
-      overallAssessment: buildAssessment('unable-to-determine'),
-      summary:
-        'One or more bureau reports have not been uploaded yet. Risk assessment cannot be completed until CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure reports are all on file.',
-      recommendedAction: 'Upload the remaining bureau reports above before proceeding.',
+      overallAssessment: buildAssessment(
+        'unable-to-determine',
+        'One or more required bureau reports have not been uploaded yet, so a complete risk determination cannot be made at this time.'
+      ),
+      favorableFindings: [],
+      adverseFindings: [],
+      discrepancies: [],
+      missingInformation: [
+        'One or more bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, PGFC Existing Exposure) have not been uploaded.',
+      ],
+      recommendedAction: 'on-hold',
+      reasonForRecommendation:
+        'The application is placed on hold because required bureau reports or KYC information are incomplete. A risk determination cannot be finalized until all reports are on file.',
       reviewBasis: ['data-completeness'],
+      requiredVerification: ['Upload the remaining bureau reports above before proceeding.'],
     };
   }
 
-  // 2. DOES NOT MEET INITIAL RAC / FOR FURTHER CREDIT REVIEW — court/legal
-  // findings or a negative status anywhere across the bureau tables.
+  // 2. DOES NOT MEET INITIAL RAC — court/legal findings or a negative status
+  // anywhere across the bureau tables.
   if (hasCourtCase || hasNegativeStatus) {
     const reviewBasis: ReviewBasisTag[] = [];
     if (hasCourtCase) reviewBasis.push('court-legal-findings');
     if (hasNegativeStatus) reviewBasis.push('delinquency-overdue-history');
     if (hasExistingExposure) reviewBasis.push('existing-exposure');
+    reviewBasis.push('policy-rac-alignment');
+
+    const adverseFindings: string[] = [];
+    if (hasCourtCase) adverseFindings.push('A court or legal case was found on record.');
+    if (hasNegativeStatus) adverseFindings.push('One or more accounts show a delinquent, overdue, or negative status.');
+
     return {
       riskLevel: 'high',
-      overallAssessment: buildAssessment('high'),
-      summary: `${totalRows} bureau record(s) reviewed across CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure. ${hasCourtCase ? 'A court/legal case was found on record. ' : ''}${hasNegativeStatus ? 'One or more accounts show a delinquent, overdue, or negative status.' : ''}`.trim(),
-      recommendedAction:
-        'Recommend further credit review before proceeding — the finding(s) above require independent validation by authorized Credit personnel.',
+      overallAssessment: buildAssessment(
+        'high',
+        `${totalRows} bureau record(s) were reviewed across CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure, and confirmed findings do not satisfy the applicable Risk Acceptance Criteria.`
+      ),
+      favorableFindings: [],
+      adverseFindings,
+      discrepancies: [],
+      missingInformation: [],
+      recommendedAction: 'does-not-meet-initial-rac',
+      reasonForRecommendation:
+        'A confirmed and validated adverse finding — court/legal record or delinquent status — does not satisfy the applicable Risk Acceptance Criteria. This finding requires independent validation by authorized Credit personnel before any further action.',
       reviewBasis,
+      requiredVerification: [
+        'Independent validation of the flagged finding(s) by authorized Credit personnel.',
+      ],
     };
   }
 
-  // 3. FOR FURTHER CREDIT REVIEW — existing PGFC exposure, or a high
-  // debt-to-income ratio relative to stated income.
+  // 3. POLICY EXCEPTION — requested amount exceeds a full year's income,
+  // a deviation from standard lending policy rather than merely elevated
+  // risk (see rule 4 below for the milder 60% threshold).
+  if (exceedsPolicyDebtRatio) {
+    return {
+      riskLevel: 'elevated',
+      overallAssessment: buildAssessment(
+        'elevated',
+        `Requested amount is approximately ${((ratio ?? 0) * 100).toFixed(0)}% of annual income for stated employment (${employmentStatus.toLowerCase()}), exceeding standard lending policy limits.`
+      ),
+      favorableFindings: hasExistingExposure ? [] : ['No adverse bureau findings were identified.'],
+      adverseFindings: [],
+      discrepancies: [
+        `Requested loan amount exceeds a full year of stated income (approximately ${((ratio ?? 0) * 100).toFixed(0)}% of annual income).`,
+      ],
+      missingInformation: [],
+      recommendedAction: 'policy-exception',
+      reasonForRecommendation:
+        'The requested loan amount deviates from standard PGFC credit policy relative to the applicant’s stated income. The finding may still be referred to authorized personnel for exception review.',
+      reviewBasis: ['credit-scoring', 'policy-rac-alignment'],
+      requiredVerification: [
+        'Refer to authorized Credit personnel for policy exception review.',
+        'Confirm stated income and employment details before proceeding.',
+      ],
+    };
+  }
+
+  // 4. FOR FURTHER CREDIT REVIEW — existing PGFC exposure, or a high
+  // debt-to-income ratio relative to stated income (below the policy-
+  // exception threshold above).
   if (hasExistingExposure || highDebtRatio) {
     const reviewBasis: ReviewBasisTag[] = ['credit-scoring'];
     if (hasExistingExposure) reviewBasis.push('existing-exposure', 'pgfc-payment-history');
+
+    const adverseFindings: string[] = [];
+    if (hasExistingExposure) adverseFindings.push('The applicant has existing PGFC exposure on record.');
+    if (highDebtRatio) {
+      adverseFindings.push(
+        `Requested amount is high relative to stated income (${employmentStatus.toLowerCase()}), approximately ${((ratio ?? 0) * 100).toFixed(0)}% of annual income.`
+      );
+    }
+
     return {
       riskLevel: 'elevated',
-      overallAssessment: buildAssessment('elevated'),
-      summary: `${hasExistingExposure ? 'The applicant has existing PGFC exposure on record. ' : ''}${highDebtRatio ? `Requested amount is high relative to stated income (${employmentStatus.toLowerCase()}), approximately ${((ratio ?? 0) * 100).toFixed(0)}% of annual income.` : ''}`.trim(),
-      recommendedAction: 'Recommend proceeding with added scrutiny — review existing exposure and debt-to-income indicators before final decision.',
+      overallAssessment: buildAssessment(
+        'elevated',
+        'Existing exposure and/or debt-to-income indicators warrant further credit review before a final decision.'
+      ),
+      favorableFindings: [],
+      adverseFindings,
+      discrepancies: [],
+      missingInformation: [],
+      recommendedAction: 'for-further-credit-review',
+      reasonForRecommendation:
+        'Elevated risk indicators — existing credit exposure and/or a high debt-to-income ratio — were identified. These do not constitute an outright adverse finding but warrant further credit review before a final decision.',
       reviewBasis,
+      requiredVerification: [
+        'Review existing exposure and debt-to-income indicators before final decision.',
+      ],
     };
   }
 
-  // 4. PROCEED SUBJECT TO VERIFICATION — a genuinely intermediate state: some
+  // 5. PROCEED SUBJECT TO VERIFICATION — a genuinely intermediate state: some
   // bureau activity is on record but not everything has been uploaded yet
   // (so rule 1 hasn't fired), and nothing adverse was found. With the current
   // canned-data reality every bureau always seeds exactly one clean row the
   // instant its file is uploaded, so once `allBureauReportsUploaded` is true
-  // this condition can no longer distinguish anything from rule 5 below —
+  // this condition can no longer distinguish anything from rule 6 below —
   // that combination now falls through to CLEAR TO PROCEED instead. This
   // branch is kept structurally in place in case a future data source (real
   // bureau integrations, partial/ambiguous records) produces a state that
@@ -212,21 +315,45 @@ export function buildInitialCreditCheckingResult(
   if (totalRows > 0 && !allBureauReportsUploaded) {
     return {
       riskLevel: 'moderate',
-      overallAssessment: buildAssessment('moderate'),
-      summary: `${totalRows} bureau record(s) reviewed across CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure. No adverse findings, but recorded activity should be verified against the application details before proceeding.`,
-      recommendedAction: 'Recommend proceeding to Call Report preparation, subject to verification of the recorded bureau activity above.',
+      overallAssessment: buildAssessment(
+        'moderate',
+        `${totalRows} bureau record(s) were reviewed across CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure with no adverse findings, but recorded activity should be verified before proceeding.`
+      ),
+      favorableFindings: ['No adverse bureau findings were identified.'],
+      adverseFindings: [],
+      discrepancies: ['Recorded bureau activity should be verified against the application details.'],
+      missingInformation: [],
+      recommendedAction: 'proceed-subject-to-verification',
+      reasonForRecommendation:
+        'No material adverse findings were identified, but some recorded bureau activity requires clarification or verification before it can be treated as fully consistent with the application.',
       reviewBasis: ['bureau-consistency'],
+      requiredVerification: [
+        'Verify the recorded bureau activity above against the application details.',
+      ],
     };
   }
 
-  // 5. CLEAR TO PROCEED — every report uploaded, nothing adverse anywhere,
+  // 6. CLEAR TO PROCEED — every report uploaded, nothing adverse anywhere,
   // income ratio acceptable. This is the common case now that every bureau
   // always seeds a clean canned row on upload.
   return {
     riskLevel: 'low',
-    overallAssessment: buildAssessment('low'),
-    summary: `All 6 bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, PGFC Existing Exposure) are on file with no adverse findings, court/legal records, or existing PGFC exposure. Requested amount is within an acceptable range for stated income (${employmentStatus.toLowerCase()}).`,
-    recommendedAction: 'Debt-to-income and bureau indicators are within an acceptable range. Recommend proceeding to Call Report preparation.',
+    overallAssessment: buildAssessment(
+      'low',
+      `All 6 bureau reports (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, PGFC Existing Exposure) are on file with no adverse findings, court/legal records, or existing PGFC exposure, and the requested amount is within an acceptable range for stated income (${employmentStatus.toLowerCase()}).`
+    ),
+    favorableFindings: [
+      'All 6 bureau reports are on file with no adverse findings.',
+      'No court/legal records or existing PGFC exposure were identified.',
+      'Debt-to-income ratio is within an acceptable range for stated income.',
+    ],
+    adverseFindings: [],
+    discrepancies: [],
+    missingInformation: [],
+    recommendedAction: 'clear-to-proceed',
+    reasonForRecommendation:
+      'Reports are complete and consistent, with no material adverse findings. Debt-to-income and bureau indicators are within an acceptable range, so the application may proceed to Call Report preparation.',
     reviewBasis: ['data-completeness', 'bureau-consistency'],
+    requiredVerification: [],
   };
 }

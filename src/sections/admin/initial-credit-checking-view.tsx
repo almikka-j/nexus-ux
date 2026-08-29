@@ -34,7 +34,11 @@ import { BureauReportsCard } from './bureau-reports-card';
 import { NegativeCreditReportCard } from './negative-credit-report-card';
 import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
 import { simulateBureauFinding } from './simulate-bureau-finding';
-import { buildInitialCreditCheckingResult, REVIEW_BASIS_LABELS } from './initial-credit-checking-risk';
+import {
+  buildInitialCreditCheckingResult,
+  REVIEW_BASIS_LABELS,
+  RECOMMENDED_ACTION_LABELS,
+} from './initial-credit-checking-risk';
 import type { InitialCreditCheckingRiskLevel } from './initial-credit-checking-risk';
 
 // ----------------------------------------------------------------------
@@ -115,6 +119,29 @@ const RISK_LEVEL_STYLES: Record<InitialCreditCheckingRiskLevel, { bg: string; co
   high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High' },
   'unable-to-determine': { bg: '#F5F6FA', color: '#8891A6', icon: 'solar:question-circle-bold', label: 'Unable to Determine' },
 };
+
+const NO_ADDITIONAL_VERIFICATION_LABEL = 'No additional verification identified during initial screening.';
+
+// One AI Summary sub-section ("Key favorable findings", "Key adverse
+// findings", etc.) — hidden entirely when empty, so a clean result doesn't
+// show three empty "adverse/discrepancy/missing" headings with nothing
+// under them.
+function AiSummaryGroup({ label, items }: { label: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <Box>
+      <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#5A6273', mb: 0.5 }}>{label}</Typography>
+      <Stack spacing={0.5}>
+        {items.map((item) => (
+          <Stack key={item} direction="row" spacing={1} alignItems="flex-start">
+            <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: '#C1C7D6', mt: 0.9, flexShrink: 0 }} />
+            <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{item}</Typography>
+          </Stack>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
 
 export function InitialCreditCheckingView() {
   const router = useRouter();
@@ -523,9 +550,15 @@ export function InitialCreditCheckingView() {
                   AI Summary
                 </Typography>
               </Stack>
-              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
-                {creditCheckingResult.summary}
-              </Typography>
+              <Stack spacing={1.25}>
+                <AiSummaryGroup label="Key favorable findings" items={creditCheckingResult.favorableFindings} />
+                <AiSummaryGroup label="Key adverse findings" items={creditCheckingResult.adverseFindings} />
+                <AiSummaryGroup
+                  label="Discrepancies or items requiring verification"
+                  items={creditCheckingResult.discrepancies}
+                />
+                <AiSummaryGroup label="Missing information" items={creditCheckingResult.missingInformation} />
+              </Stack>
             </Box>
 
             <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
@@ -535,8 +568,14 @@ export function InitialCreditCheckingView() {
                   AI Recommended Action
                 </Typography>
               </Stack>
+              <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A', lineHeight: 1.6, mb: 1.25 }}>
+                {RECOMMENDED_ACTION_LABELS[creditCheckingResult.recommendedAction]}
+              </Typography>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 0.5 }}>
+                Reason for Recommendation
+              </Typography>
               <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
-                {creditCheckingResult.recommendedAction}
+                {creditCheckingResult.reasonForRecommendation}
               </Typography>
             </Box>
 
@@ -551,14 +590,35 @@ export function InitialCreditCheckingView() {
               </Stack>
             </Box>
 
+            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>
+                Required Verification or Next Steps
+              </Typography>
+              {creditCheckingResult.requiredVerification.length === 0 ? (
+                <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
+                  {NO_ADDITIONAL_VERIFICATION_LABEL}
+                </Typography>
+              ) : (
+                <Stack spacing={0.5}>
+                  {creditCheckingResult.requiredVerification.map((item) => (
+                    <Stack key={item} direction="row" spacing={1} alignItems="flex-start">
+                      <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: '#C1C7D6', mt: 0.9, flexShrink: 0 }} />
+                      <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{item}</Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+
             <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F5F6FA' }}>
               <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#5A6273', mb: 0.5 }}>
-                AI Control
+                AI Control Statement
               </Typography>
               <Typography sx={{ fontSize: 12, color: '#667085', lineHeight: 1.6 }}>
-                The AI result is an advisory risk-screening output only. It shall not constitute
-                loan approval, disapproval, or a policy waiver. Any identified exception must be
-                independently validated by authorized Credit personnel.
+                This AI-generated result is an advisory risk-screening output only. It does not
+                constitute loan approval, disapproval, or a policy waiver. All findings,
+                exceptions, and recommendations must be independently validated by authorized
+                Credit personnel.
               </Typography>
             </Box>
           </Stack>
