@@ -402,16 +402,30 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
                   {currentAiRecommendation.text}
                 </Typography>
               </Box>
-              <FieldRow
-                label="AO vs. System Assessment Variance"
-                value={
-                  currentVariance.status === ''
-                    ? null
-                    : currentVariance.status === 'noted'
-                      ? `Variance Noted — ${callReport.varianceExplanation || currentVariance.explanation}`
-                      : 'None — the AO Preliminary Risk rating matches the system assessment.'
-                }
-              />
+              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>
+                  AO vs. System Assessment Variance
+                </Typography>
+                {currentVariance.status === '' ? (
+                  <Typography sx={{ fontSize: 13.5, color: '#8891A6', lineHeight: 1.6 }}>
+                    No AO Preliminary Risk rating entered yet, so no comparison has been made against
+                    the system assessment.
+                  </Typography>
+                ) : (
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <Iconify
+                      icon={currentVariance.status === 'noted' ? 'solar:danger-triangle-bold' : 'solar:check-circle-bold'}
+                      width={16}
+                      sx={{ color: currentVariance.status === 'noted' ? '#B36A05' : '#0C8A4F', mt: 0.15, flexShrink: 0 }}
+                    />
+                    <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
+                      {currentVariance.status === 'noted'
+                        ? callReport.varianceExplanation || currentVariance.explanation
+                        : 'None — the AO Preliminary Risk rating matches the system assessment.'}
+                    </Typography>
+                  </Stack>
+                )}
+              </Box>
             </Stack>
 
             <Stack direction="row" spacing={1} sx={{ mt: 1.5, px: 0.5 }}>
