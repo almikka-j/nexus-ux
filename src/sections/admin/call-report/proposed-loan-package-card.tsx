@@ -71,25 +71,6 @@ export function ProposedLoanPackageCard() {
           sx={fieldSx}
         />
 
-        <Stack direction="row" spacing={2} alignItems="flex-start">
-          <TextField
-            fullWidth
-            label="Interest Rate"
-            value={callReport.proposalInterestRate}
-            onChange={(event) => setCallReport({ proposalInterestRate: event.target.value })}
-            InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-            sx={fieldSx}
-          />
-          <Box sx={{ flex: 1 }}>
-            <RadioRow
-              label="Interest Rate Basis"
-              value={callReport.proposalInterestRateBasis}
-              options={PROPOSAL_INTEREST_RATE_BASIS_OPTIONS}
-              onChange={(value) => setCallReport({ proposalInterestRateBasis: value })}
-            />
-          </Box>
-        </Stack>
-
         <TextField
           select
           fullWidth
@@ -104,24 +85,6 @@ export function ProposedLoanPackageCard() {
             </MenuItem>
           ))}
         </TextField>
-
-        <Box>
-          <RadioRow
-            label="Computation Type"
-            value={callReport.proposalComputationType}
-            options={PROPOSAL_COMPUTATION_TYPE_OPTIONS}
-            onChange={(value) => setCallReport({ proposalComputationType: value })}
-          />
-          {callReport.proposalComputationType === 'other' && (
-            <TextField
-              fullWidth
-              label="Other"
-              value={callReport.proposalComputationTypeOther}
-              onChange={(event) => setCallReport({ proposalComputationTypeOther: event.target.value })}
-              sx={{ ...fieldSx, mt: 1.5 }}
-            />
-          )}
-        </Box>
 
         <Stack direction="row" spacing={2}>
           <TextField
@@ -142,14 +105,49 @@ export function ProposedLoanPackageCard() {
           />
         </Stack>
 
-        <TextField
-          fullWidth
-          label="Estimated Monthly Amortization"
-          value={callReport.estimatedMonthlyAmortization}
-          onChange={(event) => setCallReport({ estimatedMonthlyAmortization: event.target.value })}
-          InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
-          sx={fieldSx}
+        <Stack direction="row" spacing={2}>
+          <TextField
+            fullWidth
+            label="Interest Rate"
+            value={callReport.proposalInterestRate}
+            onChange={(event) => setCallReport({ proposalInterestRate: event.target.value })}
+            InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            label="Estimated Monthly Amortization"
+            value={callReport.estimatedMonthlyAmortization}
+            onChange={(event) => setCallReport({ estimatedMonthlyAmortization: event.target.value })}
+            InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
+            sx={fieldSx}
+          />
+        </Stack>
+
+        <RadioRow
+          label="Interest Rate Basis"
+          value={callReport.proposalInterestRateBasis}
+          options={PROPOSAL_INTEREST_RATE_BASIS_OPTIONS}
+          onChange={(value) => setCallReport({ proposalInterestRateBasis: value })}
         />
+
+        <Box>
+          <RadioRow
+            label="Computation Type"
+            value={callReport.proposalComputationType}
+            options={PROPOSAL_COMPUTATION_TYPE_OPTIONS}
+            onChange={(value) => setCallReport({ proposalComputationType: value })}
+          />
+          {callReport.proposalComputationType === 'other' && (
+            <TextField
+              fullWidth
+              label="Other"
+              value={callReport.proposalComputationTypeOther}
+              onChange={(event) => setCallReport({ proposalComputationTypeOther: event.target.value })}
+              sx={{ ...fieldSx, mt: 1.5 }}
+            />
+          )}
+        </Box>
       </Stack>
     </Box>
   );
