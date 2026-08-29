@@ -32,7 +32,8 @@ import {
   CALL_DISPOSITION_OPTIONS,
   AO_PRELIMINARY_RISK_LEVEL_OPTIONS,
 } from './call-report-types';
-import { buildCallReportVariance } from './call-report-risk';
+import { buildCallSummary, buildCallReportAiExceptions } from './call-report-summary';
+import { buildCallReportAiRecommendation, buildCallReportVariance } from './call-report-risk';
 
 // ----------------------------------------------------------------------
 
@@ -91,7 +92,7 @@ function formatCurrency(value: string): string {
 
 export function CallReportResultModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { review } = useAdmin();
-  const { application } = useRegistration();
+  const { application, signUpData } = useRegistration();
   const { callReport } = review;
 
   // Account Officer and Date/Time are read-only, derived the same way
@@ -124,6 +125,14 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
     .join(', ');
 
   const currentVariance = buildCallReportVariance(callReport);
+  // Computed live rather than read from callReport.aiSummary/aiExceptions/
+  // aiRecommendation — those stored fields only update when the officer
+  // clicks "Refresh AI Review" on SystemValidationCard, so reading them
+  // directly here would show stale text after any later edit to the report.
+  // This modal has no refresh button of its own, so it always recomputes.
+  const currentAiSummary = buildCallSummary(callReport, signUpData);
+  const currentAiExceptions = buildCallReportAiExceptions(callReport);
+  const currentAiRecommendation = buildCallReportAiRecommendation(callReport).text;
 
   const validationLabels: Record<string, string> = {
     confirmed: 'Confirmed',
@@ -334,9 +343,9 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           <Box>
             <SectionHeading>AI review, summary &amp; recommendation</SectionHeading>
             <Stack spacing={1.5}>
-              <NarrativeBlock label="AI SUMMARY" value={callReport.aiSummary} />
-              <NarrativeBlock label="AI EXCEPTIONS / INCONSISTENCIES" value={callReport.aiExceptions} />
-              <NarrativeBlock label="AI RECOMMENDATION / RISK LEVEL" value={callReport.aiRecommendation} />
+              <NarrativeBlock label="AI SUMMARY" value={currentAiSummary} />
+              <NarrativeBlock label="AI EXCEPTIONS / INCONSISTENCIES" value={currentAiExceptions} />
+              <NarrativeBlock label="AI RECOMMENDATION / RISK LEVEL" value={currentAiRecommendation} />
               <ResultField
                 label="AO vs. System Assessment Variance"
                 value={
