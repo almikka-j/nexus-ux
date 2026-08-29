@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
@@ -23,7 +22,7 @@ import { Iconify } from 'src/components/iconify';
 import { fileToDataUrl } from 'src/utils/file-to-data-url';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { FileThumbnail } from 'src/components/file-thumbnail';
-import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { adminCardSx, outlinedNavyButtonSx, StatusBadge } from 'src/components/admin-ui';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
@@ -116,41 +115,6 @@ const RISK_LEVEL_STYLES: Record<InitialCreditCheckingRiskLevel, { bg: string; co
   high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High' },
   'unable-to-determine': { bg: '#F5F6FA', color: '#8891A6', icon: 'solar:question-circle-bold', label: 'Unable to Determine' },
 };
-
-// Exact order from the "AI RECOMMENDATION" reference template's AI Risk
-// Level checkbox list.
-const ALL_RISK_LEVELS: InitialCreditCheckingRiskLevel[] = [
-  'low',
-  'moderate',
-  'elevated',
-  'high',
-  'unable-to-determine',
-];
-
-// Checkbox-list rendering of a fixed option set, matching the reference
-// template's "☐ Option" layout — only the computed value(s) are checked,
-// every other option still renders (unchecked) so the full set of
-// possibilities stays visible, not just the one that applied.
-function CheckboxLine({ label, checked }: { label: string; checked: boolean }) {
-  return (
-    <Stack direction="row" alignItems="center" spacing={0.5}>
-      <Checkbox
-        checked={checked}
-        disabled
-        size="small"
-        sx={{
-          p: 0.5,
-          color: '#C7CCDA',
-          '&.Mui-checked': { color: '#1C2A6E' },
-          '&.Mui-disabled': { color: checked ? '#1C2A6E' : '#C7CCDA' },
-        }}
-      />
-      <Typography sx={{ fontSize: 13, fontWeight: checked ? 700 : 500, color: checked ? '#14172A' : '#8891A6' }}>
-        {label}
-      </Typography>
-    </Stack>
-  );
-}
 
 export function InitialCreditCheckingView() {
   const router = useRouter();
@@ -537,27 +501,18 @@ export function InitialCreditCheckingView() {
           </Button>
 
           <Stack spacing={2}>
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>
-                Overall Assessment
-              </Typography>
-              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
-                {creditCheckingResult.overallAssessment}
-              </Typography>
-            </Box>
-
             <Box sx={{ p: 2, borderRadius: '11px', bgcolor: riskStyle.bg }}>
               <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color, mb: 1 }}>
-                AI Risk Level
+                Overall Assessment
               </Typography>
-              <Stack direction="row" flexWrap="wrap" columnGap={2.5} rowGap={0.5}>
-                {ALL_RISK_LEVELS.map((level) => (
-                  <CheckboxLine
-                    key={level}
-                    label={RISK_LEVEL_STYLES[level].label}
-                    checked={level === creditCheckingResult.riskLevel}
-                  />
-                ))}
+              <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6, mb: 1 }}>
+                {creditCheckingResult.overallAssessment}
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Iconify icon={riskStyle.icon} width={16} sx={{ color: riskStyle.color }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
+                  AI Risk Level: {riskStyle.label}
+                </Typography>
               </Stack>
             </Box>
 
@@ -585,17 +540,13 @@ export function InitialCreditCheckingView() {
               </Typography>
             </Box>
 
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+            <Box>
               <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>
                 AI Review Basis
               </Typography>
-              <Stack direction="row" flexWrap="wrap" columnGap={2.5} rowGap={0.5}>
-                {(Object.keys(REVIEW_BASIS_LABELS) as Array<keyof typeof REVIEW_BASIS_LABELS>).map((tag) => (
-                  <CheckboxLine
-                    key={tag}
-                    label={REVIEW_BASIS_LABELS[tag]}
-                    checked={creditCheckingResult.reviewBasis.includes(tag)}
-                  />
+              <Stack direction="row" flexWrap="wrap" gap={1}>
+                {creditCheckingResult.reviewBasis.map((tag) => (
+                  <StatusBadge key={tag} tone="neutral" label={REVIEW_BASIS_LABELS[tag]} />
                 ))}
               </Stack>
             </Box>
