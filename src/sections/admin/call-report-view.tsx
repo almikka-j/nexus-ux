@@ -384,7 +384,6 @@ export function CallReportView() {
       <CreditCheckingResultModal
         open={creditCheckingResultModalOpen}
         onClose={() => setCreditCheckingResultModalOpen(false)}
-        recommendationEditable={false}
       />
       <CallReportResultModal open={callReportResultModalOpen} onClose={() => setCallReportResultModalOpen(false)} />
 

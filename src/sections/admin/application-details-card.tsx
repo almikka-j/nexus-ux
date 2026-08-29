@@ -600,7 +600,6 @@ export function ApplicationDetailsCard({
           <CreditCheckingResultModal
             open={creditCheckingOpen}
             onClose={() => setCreditCheckingOpen(false)}
-            recommendationEditable={false}
           />
         )}
       </>

@@ -61,11 +61,13 @@ export type CreditChecking = {
    */
   decisionReason: string;
   /**
-   * The officer's own written recommendation, typed directly into
-   * CreditCheckingResultModal — distinct from the auto-generated
-   * "Recommendation" block there (buildAiRecommendation()/the negative-report
-   * remarks), which is derived/read-only. This is the officer's own words,
-   * carried on the generated report alongside that derived text.
+   * Unused — was the officer's own free-text recommendation, editable
+   * directly in CreditCheckingResultModal's "Recommendation & Remarks"
+   * section. That field was removed: remarks in the result modal now come
+   * only from flows like "Proceed with Justification"
+   * (justificationText/justificationDocument), not manual typing. Left in
+   * place rather than deleted, matching this file's convention of not
+   * tearing out state when only its UI is removed.
    */
   officerRecommendation: string;
   /**

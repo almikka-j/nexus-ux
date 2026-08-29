@@ -1,14 +1,11 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
-
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogContent from '@mui/material/DialogContent';
@@ -141,7 +138,6 @@ function BureauResultSection({
 type CreditCheckingResultModalProps = {
   open: boolean;
   onClose: () => void;
-  recommendationEditable?: boolean;
 };
 
 const NEGATIVE_SECTION_TITLES: Record<
@@ -153,15 +149,9 @@ const NEGATIVE_SECTION_TITLES: Record<
   closedCurrentAccounts: 'Closed Current Account',
 };
 
-export function CreditCheckingResultModal({
-  open,
-  onClose,
-  recommendationEditable = true,
-}: CreditCheckingResultModalProps) {
+export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResultModalProps) {
   const { signUpData, application } = useRegistration();
-  const { review, setCreditChecking } = useAdmin();
-  const [isRemarksSaving, setIsRemarksSaving] = useState(false);
-  const remarksSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { review } = useAdmin();
   const {
     creditChecking,
     negativeCreditReport,
@@ -172,13 +162,6 @@ export function CreditCheckingResultModal({
     nfisBapUpload,
     pgfcExposureUpload,
   } = review;
-
-  useEffect(
-    () => () => {
-      if (remarksSaveTimerRef.current) clearTimeout(remarksSaveTimerRef.current);
-    },
-    []
-  );
 
   if (!signUpData) return null;
 
@@ -234,17 +217,6 @@ export function CreditCheckingResultModal({
   const hasNegativeBureauFinding = creditChecking.bureauFindingStatus === 'negative';
   const negativeFindingBureau = creditChecking.bureauFindingBureau;
   const negativeFindingReason = creditChecking.bureauFindingReason;
-
-  const handleRecommendationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setCreditChecking({ officerRecommendation: event.target.value });
-    setIsRemarksSaving(true);
-
-    if (remarksSaveTimerRef.current) clearTimeout(remarksSaveTimerRef.current);
-    remarksSaveTimerRef.current = setTimeout(() => {
-      setIsRemarksSaving(false);
-      remarksSaveTimerRef.current = null;
-    }, 600);
-  };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
@@ -403,18 +375,14 @@ export function CreditCheckingResultModal({
             <AiRecommendationSummary result={creditCheckingResult} />
           </Box>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A' }}>
-              Recommendation &amp; Remarks
-            </Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5, mt: 0.5, mb: 1.5 }}>
-              The department&apos;s written finding, forwarded to the Credit Committee.
-            </Typography>
-
-            {(!!creditChecking.justificationText.trim() || !!creditChecking.justificationDocument) && (
+          {(!!creditChecking.justificationText.trim() || !!creditChecking.justificationDocument) && (
+            <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+              <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
+                Remarks
+              </Typography>
               <Stack
                 spacing={1}
-                sx={{ p: 1.75, mb: 1.5, borderRadius: '11px', bgcolor: '#FEF0D6' }}
+                sx={{ p: 1.75, borderRadius: '11px', bgcolor: '#FEF0D6' }}
               >
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Iconify icon="solar:shield-warning-bold" width={16} sx={{ color: '#B36A05' }} />
@@ -455,48 +423,8 @@ export function CreditCheckingResultModal({
                   </Stack>
                 )}
               </Stack>
-            )}
-
-            {recommendationEditable ? (
-              <TextField
-                fullWidth
-                multiline
-                minRows={4}
-                value={creditChecking.officerRecommendation ?? ''}
-                onChange={handleRecommendationChange}
-                placeholder="Enter the department's recommendation and supporting remarks"
-                sx={{
-                  '& .MuiOutlinedInput-root': { borderRadius: '11px', alignItems: 'flex-start' },
-                  '& textarea::placeholder': { color: '#98A2B3', opacity: 1 },
-                }}
-              />
-            ) : (
-              <Typography sx={{ fontSize: 14, color: '#3B4256', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
-                {creditChecking.officerRecommendation?.trim() || 'No recommendation or remarks recorded.'}
-              </Typography>
-            )}
-            {recommendationEditable && !!creditChecking.officerRecommendation?.trim() && (
-              <Stack
-                direction="row"
-                spacing={0.5}
-                alignItems="center"
-                justifyContent="flex-end"
-                aria-live="polite"
-                sx={{ mt: 1, minHeight: 18 }}
-              >
-                <Iconify
-                  icon={isRemarksSaving ? 'solar:clock-circle-linear' : 'solar:check-circle-bold'}
-                  width={15}
-                  sx={{ color: isRemarksSaving ? '#8891A6' : '#0C8A4F' }}
-                />
-                <Typography
-                  sx={{ fontSize: 12, fontWeight: 600, color: isRemarksSaving ? '#8891A6' : '#0C8A4F' }}
-                >
-                  {isRemarksSaving ? 'Saving…' : 'Saved locally'}
-                </Typography>
-              </Stack>
-            )}
-          </Box>
+            </Box>
+          )}
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
