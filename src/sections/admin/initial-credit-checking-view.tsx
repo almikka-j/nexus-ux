@@ -126,16 +126,16 @@ const NO_ADDITIONAL_VERIFICATION_LABEL = 'No additional verification identified 
 // findings", etc.) — hidden entirely when empty, so a clean result doesn't
 // show three empty "adverse/discrepancy/missing" headings with nothing
 // under them.
-function AiSummaryGroup({ label, items }: { label: string; items: string[] }) {
+function AiSummaryGroup({ label, items, color }: { label: string; items: string[]; color: string }) {
   if (items.length === 0) return null;
   return (
     <Box>
-      <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#5A6273', mb: 0.5 }}>{label}</Typography>
+      <Typography sx={{ fontSize: 12, fontWeight: 700, color, mb: 0.5 }}>{label}</Typography>
       <Stack spacing={0.5}>
         {items.map((item) => (
           <Stack key={item} direction="row" spacing={1} alignItems="flex-start">
-            <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: '#C1C7D6', mt: 0.9, flexShrink: 0 }} />
-            <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{item}</Typography>
+            <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: color, opacity: 0.5, mt: 0.9, flexShrink: 0 }} />
+            <Typography sx={{ fontSize: 13.5, color, lineHeight: 1.6 }}>{item}</Typography>
           </Stack>
         ))}
       </Stack>
@@ -532,32 +532,31 @@ export function InitialCreditCheckingView() {
               <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color, mb: 1 }}>
                 Overall Assessment
               </Typography>
-              <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6, mb: 1 }}>
+              <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6, mb: 1.5 }}>
                 {creditCheckingResult.overallAssessment}
               </Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
                 <Iconify icon={riskStyle.icon} width={16} sx={{ color: riskStyle.color }} />
                 <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
                   AI Risk Level: {riskStyle.label}
                 </Typography>
               </Stack>
-            </Box>
 
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Iconify icon="solar:document-text-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
-                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>
+                <Iconify icon="solar:document-text-bold-duotone" width={16} sx={{ color: riskStyle.color }} />
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
                   AI Summary
                 </Typography>
               </Stack>
               <Stack spacing={1.25}>
-                <AiSummaryGroup label="Key favorable findings" items={creditCheckingResult.favorableFindings} />
-                <AiSummaryGroup label="Key adverse findings" items={creditCheckingResult.adverseFindings} />
+                <AiSummaryGroup label="Key favorable findings" items={creditCheckingResult.favorableFindings} color={riskStyle.color} />
+                <AiSummaryGroup label="Key adverse findings" items={creditCheckingResult.adverseFindings} color={riskStyle.color} />
                 <AiSummaryGroup
                   label="Discrepancies or items requiring verification"
                   items={creditCheckingResult.discrepancies}
+                  color={riskStyle.color}
                 />
-                <AiSummaryGroup label="Missing information" items={creditCheckingResult.missingInformation} />
+                <AiSummaryGroup label="Missing information" items={creditCheckingResult.missingInformation} color={riskStyle.color} />
               </Stack>
             </Box>
 
@@ -574,12 +573,10 @@ export function InitialCreditCheckingView() {
               <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 0.5 }}>
                 Reason for Recommendation
               </Typography>
-              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6, mb: 1.5 }}>
                 {creditCheckingResult.reasonForRecommendation}
               </Typography>
-            </Box>
 
-            <Box>
               <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>
                 AI Review Basis
               </Typography>
