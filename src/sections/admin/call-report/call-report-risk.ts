@@ -1,4 +1,4 @@
-import type { CallReport } from 'src/auth/admin-context';
+import type { AoPreliminaryRiskLevel, CallReport, SystemVarianceStatus } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Mirrors initial-credit-checking-risk.ts's shape (level + text). Driven
@@ -65,5 +65,66 @@ export function buildCallReportAiRecommendation(callReport: CallReport): {
   return {
     level: 'high',
     text: `${amlFlagCount} AML/KYC items flagged for review — worth a closer look. No call disposition has been entered yet.`,
+  };
+}
+
+// Maps the officer's own AO Preliminary Risk rating (section 7,
+// AoPreliminaryRiskLevel) onto the same 3-tier scale the system's AI
+// recommendation uses (CallReportRiskLevel), so the two can be compared
+// directly. 'unable-to-determine' has no clear system-tier equivalent —
+// treated as its own case below rather than forced into good/watch/high.
+const AO_RISK_TO_SYSTEM_TIER: Record<Exclude<AoPreliminaryRiskLevel, 'unable-to-determine'>, CallReportRiskLevel> = {
+  low: 'good',
+  moderate: 'watch',
+  high: 'high',
+};
+
+const SYSTEM_TIER_LABELS: Record<CallReportRiskLevel, string> = {
+  good: 'Low risk',
+  watch: 'Needs a closer look',
+  high: 'High risk',
+};
+
+const AO_RISK_LABELS: Record<AoPreliminaryRiskLevel, string> = {
+  low: 'Low',
+  moderate: 'Moderate',
+  high: 'High',
+  'unable-to-determine': 'Unable to Determine',
+};
+
+/**
+ * AO vs. System Assessment Variance is computed automatically from the
+ * officer's AO Preliminary Risk rating vs. the system's own AI
+ * recommendation level — not an officer-entered field. A variance is
+ * "noted" whenever the two assessments land in different tiers, or
+ * whenever the officer marked their own risk as "Unable to Determine"
+ * while the system did reach a conclusion (or vice versa is moot, since
+ * the system always reaches a conclusion).
+ */
+export function buildCallReportVariance(callReport: CallReport): {
+  status: SystemVarianceStatus;
+  explanation: string;
+} {
+  const systemLevel = buildCallReportAiRecommendation(callReport).level;
+
+  if (!callReport.preliminaryRiskLevel) {
+    return { status: '', explanation: '' };
+  }
+
+  if (callReport.preliminaryRiskLevel === 'unable-to-determine') {
+    return {
+      status: 'noted',
+      explanation: `The officer marked AO Preliminary Risk as Unable to Determine, while the system assessment reached ${SYSTEM_TIER_LABELS[systemLevel]}.`,
+    };
+  }
+
+  const aoTier = AO_RISK_TO_SYSTEM_TIER[callReport.preliminaryRiskLevel];
+  if (aoTier === systemLevel) {
+    return { status: 'none', explanation: '' };
+  }
+
+  return {
+    status: 'noted',
+    explanation: `The officer's AO Preliminary Risk (${AO_RISK_LABELS[callReport.preliminaryRiskLevel]}) differs from the system assessment (${SYSTEM_TIER_LABELS[systemLevel]}).`,
   };
 }

@@ -578,7 +578,12 @@ export type CallReport = {
   callDisposition: CallDispositionType | '';
   reasonKeyCondition: string;
 
-  // 8. NEXUS System Validation / Exception Handoff
+  // 8. NEXUS System Validation / Exception Handoff (rendered on-page as
+  // "AI review, summary & recommendation"). aoVsSystemVariance/
+  // varianceExplanation are computed by buildCallReportVariance()
+  // (comparing preliminaryRiskLevel against the system's own AI
+  // recommendation level) on "Refresh AI Review" — not officer-entered,
+  // despite still being plain persisted fields like the rest of this shape.
   aiSummary: string;
   aiExceptions: string;
   aiRecommendation: string;

@@ -313,7 +313,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
           </Box>
 
           <Box>
-            <SectionHeading>NEXUS System Validation</SectionHeading>
+            <SectionHeading>AI review, summary &amp; recommendation</SectionHeading>
             <Stack spacing={1.5}>
               <NarrativeBlock label="AI SUMMARY" value={callReport.aiSummary} />
               <NarrativeBlock label="AI EXCEPTIONS / INCONSISTENCIES" value={callReport.aiExceptions} />

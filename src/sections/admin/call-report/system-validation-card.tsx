@@ -3,7 +3,6 @@
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
@@ -11,16 +10,22 @@ import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
 
-import { cardSx, fieldSx, RadioRow } from './call-report-types';
+import { cardSx } from './call-report-types';
 import { buildCallSummary, buildCallReportAiExceptions } from './call-report-summary';
-import { buildCallReportAiRecommendation, type CallReportRiskLevel } from './call-report-risk';
+import {
+  buildCallReportAiRecommendation,
+  buildCallReportVariance,
+  type CallReportRiskLevel,
+} from './call-report-risk';
 
 // ----------------------------------------------------------------------
-// PDF section 8: NEXUS System Validation / Exception Handoff. AI Summary
-// / AI Exceptions / AI Recommendation are computed on demand (via
-// "Refresh AI Review") and stored on CallReport, same convention as
-// every other field on this page, rather than recomputed silently on
-// every render.
+// PDF section 8: NEXUS System Validation / Exception Handoff — titled
+// "AI review, summary & recommendation" on-page instead, matching the
+// naming convention used for the equivalent AI section on Initial Credit
+// Checking. AI Summary / AI Exceptions / AI Recommendation are computed on
+// demand (via "Refresh AI Review") and stored on CallReport, same
+// convention as every other field on this page, rather than recomputed
+// silently on every render.
 // ----------------------------------------------------------------------
 
 const RISK_STYLES: Record<CallReportRiskLevel, { bg: string; color: string; icon: string; label: string }> = {
@@ -38,11 +43,19 @@ export function SystemValidationCard() {
     const summary = buildCallSummary(callReport, signUpData);
     const exceptions = buildCallReportAiExceptions(callReport);
     const recommendation = buildCallReportAiRecommendation(callReport);
-    setCallReport({ aiSummary: summary, aiExceptions: exceptions, aiRecommendation: recommendation.text });
+    const variance = buildCallReportVariance(callReport);
+    setCallReport({
+      aiSummary: summary,
+      aiExceptions: exceptions,
+      aiRecommendation: recommendation.text,
+      aoVsSystemVariance: variance.status,
+      varianceExplanation: variance.explanation,
+    });
   };
 
   const currentRecommendation = buildCallReportAiRecommendation(callReport);
   const riskStyle = RISK_STYLES[currentRecommendation.level];
+  const currentVariance = buildCallReportVariance(callReport);
 
   return (
     <Box sx={cardSx}>
@@ -57,7 +70,7 @@ export function SystemValidationCard() {
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
             <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              NEXUS System Validation / Exception Handoff
+              AI review, summary &amp; recommendation
             </Typography>
           </Stack>
           <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
@@ -113,26 +126,28 @@ export function SystemValidationCard() {
           </Typography>
         </Box>
 
-        <Box>
-          <RadioRow
-            label="AO vs. System Assessment Variance"
-            value={callReport.aoVsSystemVariance}
-            options={[
-              { value: 'none', label: 'None' },
-              { value: 'noted', label: 'Variance Noted' },
-            ]}
-            onChange={(value) => setCallReport({ aoVsSystemVariance: value })}
-          />
-          {callReport.aoVsSystemVariance === 'noted' && (
-            <TextField
-              fullWidth
-              multiline
-              minRows={2}
-              label="Explanation"
-              value={callReport.varianceExplanation}
-              onChange={(event) => setCallReport({ varianceExplanation: event.target.value })}
-              sx={{ ...fieldSx, mt: 1.5 }}
-            />
+        <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+          <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>
+            AO vs. System Assessment Variance
+          </Typography>
+          {currentVariance.status === '' ? (
+            <Typography sx={{ fontSize: 13.5, color: '#8891A6', lineHeight: 1.6 }}>
+              Enter an AO Preliminary Risk rating above and click &quot;Refresh AI Review&quot; to compare
+              it against the system assessment.
+            </Typography>
+          ) : (
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <Iconify
+                icon={currentVariance.status === 'noted' ? 'solar:danger-triangle-bold' : 'solar:check-circle-bold'}
+                width={16}
+                sx={{ color: currentVariance.status === 'noted' ? '#B36A05' : '#0C8A4F', mt: 0.15, flexShrink: 0 }}
+              />
+              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
+                {currentVariance.status === 'noted'
+                  ? callReport.varianceExplanation || currentVariance.explanation
+                  : 'None — the AO Preliminary Risk rating matches the system assessment.'}
+              </Typography>
+            </Stack>
           )}
         </Box>
       </Stack>
