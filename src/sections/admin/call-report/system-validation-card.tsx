@@ -3,12 +3,14 @@
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import { cardSx } from './call-report-types';
 import { buildCallSummary, buildCallReportAiExceptions } from './call-report-summary';
@@ -124,18 +126,13 @@ export function SystemValidationCard() {
           )}
         </Box>
 
+        <Divider sx={{ borderColor: '#EEF0F5' }} />
+
         <Button
           onClick={refreshAiReview}
           variant="outlined"
           startIcon={<Iconify icon="solar:refresh-bold" width={18} />}
-          sx={{
-            alignSelf: 'flex-start',
-            color: '#1C2A6E',
-            borderColor: '#C7CEEA',
-            borderRadius: '10px',
-            px: 2,
-            '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
-          }}
+          sx={{ ...outlinedNavyButtonSx, px: 2, alignSelf: 'flex-start' }}
         >
           Refresh AI Review
         </Button>
