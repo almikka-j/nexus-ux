@@ -197,7 +197,7 @@ export function RequirementDocRow({
         </Stack>
 
         <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1}>
-          {doc.status !== 'verified' && (
+          {doc.status !== 'verified' && !(doc.status === 'needs-review' && doc.reviewed) && (
             <Tooltip title={style.explanation} arrow>
               <span>
                 <StatusBadge

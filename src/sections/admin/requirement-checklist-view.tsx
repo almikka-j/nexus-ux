@@ -222,7 +222,7 @@ function buildSampleAppraisalGroups(
       uploadedAt,
       uploadedBy: officerName,
       remarks: '',
-      reviewed: true,
+      reviewed: false,
     })),
     reportId: null,
   }));
@@ -426,7 +426,7 @@ export function RequirementChecklistView() {
           fileUrl: '/assets/documents/sample-local-pdf.pdf',
           uploadedAt,
           uploadedBy: officerName,
-          reviewed: true,
+          reviewed: false,
         };
       }),
       appraisalGroups: buildSampleAppraisalGroups((meta) => meta.freshStatus, uploadedAt, officerName),
@@ -453,7 +453,7 @@ export function RequirementChecklistView() {
           fileUrl: '/assets/documents/sample-local-pdf.pdf',
           uploadedAt,
           uploadedBy: officerName,
-          reviewed: true,
+          reviewed: false,
         };
       }),
       appraisalGroups: buildSampleAppraisalGroups(() => 'verified', uploadedAt, officerName),

@@ -433,11 +433,16 @@ both types share, so the same row renders either kind without a type
 discriminator:
 
 - **Verified / Needs review** → completed documents do not show a Verified
-  chip. **Needs review** remains visible when the deterministic automated check
-  found an item requiring attention, with a tooltip explaining the state.
-  Checking the checkbox records reviewed-and-accepted immediately; remarks
-  remain optional in the three-dot menu. **View** opens the document file URL in a
-  new tab. Seeded and sample-fill records use
+  chip. **Needs review** is visible when the deterministic automated check
+  found an item requiring attention and the officer has not yet reviewed it,
+  with a tooltip explaining the state. Once the officer checks the reviewed
+  checkbox, the **Needs review** chip is hidden and replaced by the
+  **Reviewed** chip — reviewing is treated as resolving the automated
+  check's flag, not as a separate independent state shown alongside it.
+  (`doc.status` itself is untouched — only the chip visibility changes;
+  re-uploading or unchecking reviewed brings the Needs review chip back.)
+  Remarks remain optional in the three-dot menu. **View** opens the document
+  file URL in a new tab. Seeded and sample-fill records use
   `public/assets/documents/sample-local-pdf.pdf`, copied from the supplied
   `sample-local-pdf.pdf`, so their View actions open a real sample PDF.
   The checkbox toggles reviewed-and-accepted immediately and does not open the
