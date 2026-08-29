@@ -110,7 +110,7 @@ export function ProposedLoanPackageCard() {
           />
         </Stack>
 
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} alignItems="center">
           <TextField
             fullWidth
             label="Interest Rate"
@@ -119,21 +119,23 @@ export function ProposedLoanPackageCard() {
             InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
             sx={fieldSx}
           />
-          <TextField
-            fullWidth
-            label="Estimated Monthly Amortization"
-            value={callReport.estimatedMonthlyAmortization}
-            onChange={(event) => setCallReport({ estimatedMonthlyAmortization: event.target.value })}
-            InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
-            sx={fieldSx}
-          />
+          <Box sx={{ flex: 1 }}>
+            <RadioRow
+              label="Interest Rate Basis"
+              value={callReport.proposalInterestRateBasis}
+              options={PROPOSAL_INTEREST_RATE_BASIS_OPTIONS}
+              onChange={(value) => setCallReport({ proposalInterestRateBasis: value })}
+            />
+          </Box>
         </Stack>
 
-        <RadioRow
-          label="Interest Rate Basis"
-          value={callReport.proposalInterestRateBasis}
-          options={PROPOSAL_INTEREST_RATE_BASIS_OPTIONS}
-          onChange={(value) => setCallReport({ proposalInterestRateBasis: value })}
+        <TextField
+          fullWidth
+          label="Estimated Monthly Amortization"
+          value={callReport.estimatedMonthlyAmortization}
+          onChange={(event) => setCallReport({ estimatedMonthlyAmortization: event.target.value })}
+          InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
+          sx={fieldSx}
         />
 
         <Box>
