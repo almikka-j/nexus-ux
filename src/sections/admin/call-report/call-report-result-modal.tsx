@@ -31,6 +31,7 @@ import {
   CALL_DISPOSITION_OPTIONS,
   AO_PRELIMINARY_RISK_LEVEL_OPTIONS,
 } from './call-report-types';
+import { buildCallReportVariance } from './call-report-risk';
 
 // ----------------------------------------------------------------------
 
@@ -105,6 +106,8 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
     .map((value) => labelFor(RISK_DRIVER_OPTIONS, value))
     .filter((label): label is string => !!label)
     .join(', ');
+
+  const currentVariance = buildCallReportVariance(callReport);
 
   const validationLabels: Record<string, string> = {
     confirmed: 'Confirmed',
@@ -320,7 +323,13 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
               <NarrativeBlock label="AI RECOMMENDATION / RISK LEVEL" value={callReport.aiRecommendation} />
               <ResultField
                 label="AO vs. System Assessment Variance"
-                value={callReport.aoVsSystemVariance === 'noted' ? `Variance Noted — ${callReport.varianceExplanation}` : 'None'}
+                value={
+                  currentVariance.status === ''
+                    ? null
+                    : currentVariance.status === 'noted'
+                      ? `Variance Noted — ${callReport.varianceExplanation || currentVariance.explanation}`
+                      : 'None — the AO Preliminary Risk rating matches the system assessment.'
+                }
               />
             </Stack>
           </Box>
