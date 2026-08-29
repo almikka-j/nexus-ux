@@ -77,11 +77,12 @@ export function ProposedLoanPackageCard() {
           label="Proposed Facility / Product"
           value={callReport.proposedFacilityProduct}
           onChange={(event) => setCallReport({ proposedFacilityProduct: event.target.value })}
+          InputLabelProps={{ shrink: true }}
           SelectProps={{ displayEmpty: true }}
           sx={fieldSx}
         >
           <MenuItem value="" disabled>
-            <Typography sx={{ fontSize: 14, color: '#98A2B3' }}>Select a facility / product</Typography>
+            Select a facility / product
           </MenuItem>
           {LOAN_FACILITY_OPTIONS.map((option) => (
             <MenuItem key={option.value} value={option.value}>
