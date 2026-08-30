@@ -23,6 +23,13 @@ import { cardSx } from './call-report-types';
 // entered the Call Report step (review.stepTimestamps.callReport, set by
 // ApplicationReviewHeader's markStepEntered). Neither is something the
 // officer should be able to edit after the fact.
+//
+// Once callReportApprovalStatus === 'approved' (see
+// call-report-approval-bundle-view.tsx), a second signature row appears
+// below the Account Officer row in the same green box — Approved By
+// (callReportApprovedBy) and Approval Date/Time (callReportApprovedAt),
+// both stamped by the Approve action on the Call Report Approval screen.
+// Hidden entirely before approval.
 // ----------------------------------------------------------------------
 
 function SignatureField({ icon, label, value }: { icon: string; label: string; value: string }) {
@@ -121,6 +128,31 @@ export function EndorsementDeclarationCard() {
           <SignatureField icon="solar:user-id-bold-duotone" label="Account Officer" value={accountOfficer} />
           <SignatureField icon="solar:clock-circle-bold-duotone" label="Date / Time" value={dateTimeLabel} />
         </Stack>
+
+        {review.callReport.callReportApprovalStatus === 'approved' && (
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
+            <SignatureField
+              icon="solar:shield-check-bold-duotone"
+              label="Approved By"
+              value={review.callReport.callReportApprovedBy || '—'}
+            />
+            <SignatureField
+              icon="solar:clock-circle-bold-duotone"
+              label="Approval Date / Time"
+              value={
+                review.callReport.callReportApprovedAt
+                  ? new Date(review.callReport.callReportApprovedAt).toLocaleString(undefined, {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })
+                  : '—'
+              }
+            />
+          </Stack>
+        )}
       </Box>
     </Box>
   );

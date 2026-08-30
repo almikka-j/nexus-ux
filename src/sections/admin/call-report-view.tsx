@@ -15,7 +15,6 @@ import { paths } from 'src/routes/paths';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
-import type { CallReport, CallReportComakerChange, ExistingLoanRow } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -35,19 +34,10 @@ import { RiskDispositionCard } from './call-report/risk-disposition-card';
 import { SystemValidationCard } from './call-report/system-validation-card';
 import { EndorsementDeclarationCard } from './call-report/endorsement-declaration-card';
 import { cardSx } from './call-report/call-report-types';
-import { buildCallSummary, buildCallReportAiExceptions } from './call-report/call-report-summary';
-import { buildCallReportAiRecommendation, buildCallReportVariance } from './call-report/call-report-risk';
+import { SALES_REJECT_REASONS, buildDecisionReason } from './call-report/call-report-decline';
+import { buildSampleCallReportFields } from './call-report/sample-call-report';
 
 // ----------------------------------------------------------------------
-
-const SALES_REJECT_REASONS = [
-  'Insufficient income',
-  'Poor credit history',
-  'Incomplete documents',
-  'Employment not verifiable',
-  'Requested amount too high',
-  'Other',
-];
 
 export function CallReportView() {
   const router = useRouter();
@@ -63,9 +53,16 @@ export function CallReportView() {
 
   const canProceed = !!callReport.interactionType && !!callReport.identityStatus && !!callReport.callDisposition;
 
-  const handleProceed = () => {
+  const handleSubmitForApproval = () => {
     if (!signUpData) return;
-    setCallReport({ approved: true });
+    setCallReport({
+      callReportApprovalStatus: 'pending-approval',
+      callReportSubmittedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleContinueToRequirementChecklist = () => {
+    if (!signUpData) return;
     router.push(paths.admin.requirementChecklist(encodeURIComponent(signUpData.email)));
   };
 
@@ -77,149 +74,29 @@ export function CallReportView() {
 
   const confirmReasonDialog = () => {
     if (!signUpData || !reasonCategory) return;
-    const decisionReason = reasonRemarks.trim() ? `${reasonCategory} — ${reasonRemarks.trim()}` : reasonCategory;
-    setCallReport({ approved: false, decisionReason });
+    const decisionReason = buildDecisionReason(reasonCategory, reasonRemarks);
+    setCallReport({ decisionReason });
     closeReasonDialog();
     router.push(paths.admin.reconsideration(encodeURIComponent(signUpData.email)));
   };
 
   const handleFillSampleData = () => {
     if (!signUpData) return;
-    // Falls back to a non-zero sample amount/term when the application has
-    // none on file (e.g. a call report filled with sample data before any
-    // real financial info exists) — otherwise Original Requested Amount and
-    // every amount/term derived from it would sample-fill as "₱0"/"0 months",
-    // which reads as empty even though the field is technically populated.
-    const loanAmount = application.financialInfo?.desiredLoanAmount || 150000;
-    const loanTerm = application.financialInfo?.loanTermMonths || 24;
-
-    const sampleExistingLoan: ExistingLoanRow = {
-      id: crypto.randomUUID(),
-      lender: 'BDO Unibank',
-      loanType: 'Personal Loan',
-      outstandingBalance: '50000',
-      monthlyPayment: '5000',
-    };
-
-    const sampleComakerChange: CallReportComakerChange = {
-      completeName: 'Juan Dela Cruz',
-      completeAddress: 'Quezon City, Metro Manila',
-      contactNumber: '09171234567',
-      relationshipToBorrower: 'Sibling',
-      occupationEmployerName: 'ABC Corporation',
-      yearsInEmploymentBusiness: '5',
-      primaryIdTypeAndNumber: "Driver's License — N01-23-456789",
-      secondaryIdTypeAndNumber: 'UMID — 1234-5678901-2',
-      remarks: '',
-    };
-
-    const draft: CallReport = {
-      ...callReport,
-      interactionType: 'phone',
-      callVisitDate: new Date().toISOString().slice(0, 10),
-      callTime: '14:30',
-      interviewedPerson: signUpData.firstName,
-      relationshipToBorrower: 'Self',
-      identityStatus: 'confirmed',
-      identityBasis: ['app-data-matched', 'valid-government-id'],
-      identityBasisOther: '',
-      validation: {
-        identityAuthorizedRep: 'confirmed',
-        loanFacility: 'confirmed',
-        loanPurpose: 'changed',
-        primaryRepaymentSource: 'confirmed',
-        businessEmploymentInfo: 'confirmed',
-        existingLoansObligations: 'changed',
-        residenceBusinessAddress: 'confirmed',
-        collateralSecurityDeclaration: 'confirmed',
-        comakerGuarantee: 'changed',
-      },
-      materialChangesNotes: 'Client clarified the loan purpose and confirmed one existing loan not previously on file.',
-      identityAuthorizedRepChangedTo: '',
-      identityAuthorizedRepChangeReason: '',
-      loanFacilityChangedTo: '',
-      loanFacilityChangeReason: '',
-      loanPurposeChangedTo: 'home-renovation-construction',
-      loanPurposeOtherText: '',
-      workingCapitalUse: '',
-      workingCapitalUseOtherText: '',
-      loanTakeOutInfo: {
-        currentLender: '',
-        outstandingBalance: '',
-        estimatedPayoffAmount: '',
-        remainingLoanTerm: '',
-        reasonForTakeOut: '',
-        status: '',
-      },
-      primaryRepaymentSourceChangedTo: '',
-      repaymentSourceOtherText: '',
-      employerBusinessNameChanged: '',
-      employmentBusinessAddressChanged: '',
-      declaredMonthlyIncomeChanged: '',
-      employmentBusinessTenureChanged: '',
-      businessEmploymentOtherChange: '',
-      existingLoanRows: [sampleExistingLoan],
-      residenceBusinessAddressChangedTo: '',
-      residenceBusinessAddressChangeReason: '',
-      collateralDeclarationChangedTo: [],
-      collateralDeclarationOtherText: '',
-      comakerChange: sampleComakerChange,
-      comakers: [
-        {
-          id: crypto.randomUUID(),
-          name: sampleComakerChange.completeName,
-          relationshipToBorrower: sampleComakerChange.relationshipToBorrower,
-          address: sampleComakerChange.completeAddress,
-          contactNumber: sampleComakerChange.contactNumber,
-          occupation: sampleComakerChange.occupationEmployerName,
-          monthlyIncome: '',
-        },
-      ],
-      amlIsPep: 'no',
-      amlIsPgfcRelatedParty: 'no',
-      amlHasExistingLoans: 'yes',
-      amlPaymentHistory: 'on-time',
-      amlHasReturnedChecks: 'no',
-      amlHasPastDueObligations: 'no',
-      understandingLevel: 'fully-understood',
-      termsUnderstood: [
-        'interest-rate',
-        'loan-amount',
-        'loan-term',
-        'monthly-amortization',
-        'documentary-requirements',
-        'collateral-requirements',
-      ],
-      concernsClarifications: '',
-      originalRequestedAmount: String(loanAmount),
-      proposalInterestRate: '1.5',
-      proposalInterestRateBasis: 'monthly',
-      proposedFacilityProduct: 'clean-loan',
-      proposalComputationType: 'diminishing-balance',
-      proposalComputationTypeOther: '',
-      proposedLoanAmount: String(loanAmount),
-      estimatedMonthlyAmortization: loanTerm ? String(Math.round(loanAmount / loanTerm)) : '',
-      proposedLoanTermMonths: String(loanTerm),
-      otherRequest: '',
-      preliminaryRiskLevel: 'low',
-      primaryRiskDrivers: ['character'],
-      callDisposition: 'proceed-to-next-process',
-      reasonKeyCondition: 'Client cooperative, consistent answers, no major exceptions noted.',
-      accountOfficerName: application.assignedOfficer ?? 'Ramon Cruz',
-      accountOfficerDateTime: new Date().toISOString().slice(0, 16),
-    };
-
-    // Compute the AI review fields from the sample data itself, same
-    // builders "Refresh AI Review" uses, so the AI card shows real content
-    // immediately instead of the "click Refresh AI Review" empty state.
-    const variance = buildCallReportVariance(draft);
+    // Sample-fill leaves the report NOT submitted — the officer/tester
+    // still clicks "Submit for Approval" themselves to see the full
+    // approval flow, matching this app's convention of sample data
+    // filling fields, not skipping decision steps.
     setCallReport({
-      ...draft,
-      aiSummary: buildCallSummary(draft, signUpData),
-      aiExceptions: buildCallReportAiExceptions(draft),
-      aiRecommendation: buildCallReportAiRecommendation(draft).text,
-      aoVsSystemVariance: variance.status,
-      varianceExplanation: variance.explanation,
+      ...buildSampleCallReportFields({
+        firstName: signUpData.firstName,
+        assignedOfficer: application.assignedOfficer,
+        desiredLoanAmount: application.financialInfo?.desiredLoanAmount,
+        loanTermMonths: application.financialInfo?.loanTermMonths,
+      }),
+      callReportApprovalStatus: 'not-submitted',
+      callReportSubmittedAt: null,
+      callReportApprovedAt: null,
+      callReportApprovedBy: null,
     });
   };
 
@@ -315,6 +192,10 @@ export function CallReportView() {
       varianceExplanation: '',
       accountOfficerName: '',
       accountOfficerDateTime: '',
+      callReportApprovalStatus: 'not-submitted',
+      callReportSubmittedAt: null,
+      callReportApprovedAt: null,
+      callReportApprovedBy: null,
     });
   };
 
@@ -360,41 +241,65 @@ export function CallReportView() {
             Proceed application?
           </Typography>
           <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-            {canProceed
-              ? 'Approve the call report and decide whether to continue this application.'
-              : 'Complete Interaction Type, Identity Status, and Call Disposition before proceeding.'}
+            {callReport.callReportApprovalStatus === 'approved'
+              ? 'This call report has been approved.'
+              : callReport.callReportApprovalStatus === 'pending-approval'
+                ? 'This call report is awaiting a decision from the Call Report Approver.'
+                : canProceed
+                  ? 'Submit the call report for approval, or sales reject this application.'
+                  : 'Complete Interaction Type, Identity Status, and Call Disposition before submitting.'}
           </Typography>
 
-          <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
-            <Button
-              onClick={handleProceed}
-              disabled={!canProceed}
-              variant="contained"
-              startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
-              sx={{ bgcolor: '#12B76A', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#0C8A4F' } }}
-            >
-              Proceed to Requirement Checklist
-            </Button>
-            <Button
-              onClick={() => setDisapproveDialogOpen(true)}
-              variant="outlined"
-              startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
-              sx={{
-                color: '#5A6273',
-                borderColor: '#C7CCDA',
-                borderRadius: '10px',
-                px: 2.5,
-                '&:hover': { color: '#1C2A6E', borderColor: '#1C2A6E', bgcolor: '#F5F7FF' },
-              }}
-            >
-              Sales Reject
-            </Button>
-          </Stack>
-
-          {review.callReport.approved && (
-            <Typography sx={{ fontSize: 12.5, color: '#12B76A', fontWeight: 600, mt: 2 }}>
-              Call report approved.
-            </Typography>
+          {callReport.callReportApprovalStatus === 'approved' ? (
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1.25} alignItems="center">
+                <Iconify icon="solar:check-circle-bold-duotone" width={20} sx={{ color: '#0C8A4F' }} />
+                <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
+                  Approved by {callReport.callReportApprovedBy || 'the approver'}.
+                </Typography>
+              </Stack>
+              <Button
+                onClick={handleContinueToRequirementChecklist}
+                variant="contained"
+                startIcon={<Iconify icon="eva:arrow-ios-forward-fill" width={18} />}
+                sx={{ bgcolor: '#12B76A', borderRadius: '10px', px: 2.5, alignSelf: 'flex-start', '&:hover': { bgcolor: '#0C8A4F' } }}
+              >
+                Continue to Requirement Checklist
+              </Button>
+            </Stack>
+          ) : callReport.callReportApprovalStatus === 'pending-approval' ? (
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <Iconify icon="solar:clock-circle-bold-duotone" width={20} sx={{ color: '#B36A05' }} />
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
+                Submitted for approval — waiting on the Call Report Approver.
+              </Typography>
+            </Stack>
+          ) : (
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
+              <Button
+                onClick={handleSubmitForApproval}
+                disabled={!canProceed}
+                variant="contained"
+                startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
+                sx={{ bgcolor: '#12B76A', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#0C8A4F' } }}
+              >
+                Submit for Approval
+              </Button>
+              <Button
+                onClick={() => setDisapproveDialogOpen(true)}
+                variant="outlined"
+                startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
+                sx={{
+                  color: '#5A6273',
+                  borderColor: '#C7CCDA',
+                  borderRadius: '10px',
+                  px: 2.5,
+                  '&:hover': { color: '#1C2A6E', borderColor: '#1C2A6E', bgcolor: '#F5F7FF' },
+                }}
+              >
+                Sales Reject
+              </Button>
+            </Stack>
           )}
         </Box>
       </Stack>
