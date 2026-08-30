@@ -150,10 +150,21 @@ show the *stored* `aiSummary`/`aiExceptions` values, prompting "Click
 
 ## `CallReport` fields not shown on any card
 
-- `approved` — set by the Proceed/Sales Reject buttons, not edited on a card.
-- `decisionReason` — set by the Sales Reject dialog, not edited on a card.
+- `callReportApprovalStatus` (`'not-submitted' | 'pending-approval' |
+  'approved'`) — set by "Submit for Approval" and by the Call Report
+  Approval screen's Approve/Decline actions (see
+  `docs/160-request-call-report-approval.md`); not edited on a card
+  directly.
+- `callReportSubmittedAt`/`callReportApprovedAt`/`callReportApprovedBy` —
+  stamped by the same actions; `callReportApprovedBy`/
+  `callReportApprovedAt` are also displayed read-only on the Endorsement
+  Declaration card once approved (see "Account Officer Endorsement
+  Declaration" below).
+- `decisionReason` — set by the Sales Reject dialog (this page) or the
+  Call Report Approval screen's Decline dialog (same shared reason
+  helper — see below); not edited on a card.
 
-## Proceed gate
+## Submit for Approval gate
 
 ```ts
 const canProceed = !!callReport.interactionType && !!callReport.identityStatus && !!callReport.callDisposition;
@@ -162,14 +173,49 @@ const canProceed = !!callReport.interactionType && !!callReport.identityStatus &
 Requires Interaction Type (section 1), Identity Status (section 1), and Call
 Disposition (section 6) — no follow-up-date sub-condition (the old page's
 `followUpRequired` branch was tied to fields that no longer exist on
-`CallReport`).
+`CallReport`). This flag is unrelated to approval status — it only gates
+whether the 8 sections are complete enough to submit.
 
-**Sales Reject** remains available without completing these fields, and opens
-the same reason-dropdown + optional-remarks `ConfirmDialog` as Initial Credit
-Checking's own Sales Reject. Proceed calls `setCallReport({ approved: true })`
-then routes to `paths.admin.requirementChecklist(email)`; Sales Reject calls
-`setCallReport({ approved: false, decisionReason })` then routes to
-`paths.admin.reconsideration(email)`.
+**Clicking Call Report no longer routes straight to Requirement
+Checklist.** The button (relabeled from "Proceed to Requirement
+Checklist") now reads **"Submit for Approval"** — clicking it (while
+`canProceed`) sets `callReportApprovalStatus: 'pending-approval'` and
+stamps `callReportSubmittedAt`, but the officer stays on the same page.
+A second officer must approve it on the dedicated **Call Report -
+Approval** screen (`docs/160-request-call-report-approval.md`) before
+the application can move forward — there is no inline "Simulate:
+Another Officer Approves" shortcut on this page the way CI Fee/
+Appraisal Fee have; the dedicated approval screen is the only path.
+
+The "Proceed application?" card now shows one of three states,
+depending on `callReportApprovalStatus`:
+
+- **`'not-submitted'`** — the **"Submit for Approval"** / **"Sales
+  Reject"** button pair (unchanged from before, aside from the first
+  button's rename).
+- **`'pending-approval'`** — a waiting message ("Submitted for approval
+  — waiting on the Call Report Approver."), no buttons.
+- **`'approved'`** — an "Approved by {`callReportApprovedBy`}." message
+  plus a **"Continue to Requirement Checklist"** button
+  (`paths.admin.requirementChecklist(email)`). This does **not**
+  auto-navigate the instant approval happens — the officer must click it
+  themselves, since they may not even be on this tab when a different
+  session approves the submission.
+
+**Sales Reject is completely unchanged** — remains available at any
+time regardless of `callReportApprovalStatus` (even mid-`pending-approval`,
+an officer can still Sales Reject the application outright), opens the
+same reason-dropdown + optional-remarks `ConfirmDialog` as Initial
+Credit Checking's own Sales Reject, and does **not** touch
+`callReportApprovalStatus` at all — it bypasses the approval question
+entirely rather than "declining" a submission. Its reason list and
+`"{category} — {remarks}"` formatting now live in a small shared module,
+`src/sections/admin/call-report/call-report-decline.ts`
+(`SALES_REJECT_REASONS`, `buildDecisionReason()`), reused verbatim by
+the Call Report Approval screen's own Decline action — see
+`docs/160-request-call-report-approval.md`. Confirming Sales Reject
+calls `setCallReport({ decisionReason })` then routes to
+`paths.admin.reconsideration(email)`, same as always.
 
 ## Read-only mirrors elsewhere
 
@@ -186,16 +232,32 @@ then routes to `paths.admin.requirementChecklist(email)`; Sales Reject calls
 ## Sample data action
 
 `handleFillSampleData`/`handleClearSampleData` in `call-report-view.tsx`
-set/clear every field on `CallReport` across all 8 sections. Sample values
-are chosen to be internally consistent (e.g. `identityStatus: 'confirmed'`,
-`callDisposition: 'proceed-to-next-process'`, a single sample
-`ExistingLoanRow`, a single sample `CallReportComakerChange` whose derived
-`comakers` entry is built inline to match) and to satisfy `canProceed` so the
-button immediately demonstrates the "Remove Sample Data" state. Clearing
-resets Call Report fields only — it does not touch Application Details,
-Initial Credit Checking, or Requirement Checklist state. `aiSummary`/
-`aiExceptions`/`aiRecommendation` are cleared to `''` (not recomputed) since
-they are refresh-on-demand fields, not derived-on-render.
+set/clear every field on `CallReport` across all 8 sections.
+`handleFillSampleData` now delegates the actual field values to
+`buildSampleCallReportFields()`
+(`src/sections/admin/call-report/sample-call-report.ts`) — the same
+values it always used (internally consistent: `identityStatus:
+'confirmed'`, `callDisposition: 'proceed-to-next-process'`, a single
+sample `ExistingLoanRow`, a single sample `CallReportComakerChange`
+whose derived `comakers` entry is built inline to match), pulled into
+this shared file so the Call Report Approval list page's own auto-seed
+effect can produce an identical, real, complete-looking submission
+without duplicating the object — see
+`docs/160-request-call-report-approval.md`. The builder also computes
+real `aiSummary`/`aiExceptions`/`aiRecommendation`/`aoVsSystemVariance`/
+`varianceExplanation` values (via the same `buildCallSummary`/
+`buildCallReportAiExceptions`/`buildCallReportAiRecommendation`/
+`buildCallReportVariance` functions "Refresh AI Review" uses), not blank
+placeholders, so both call sites' seeded report shows real AI-review
+content immediately.
+
+`handleFillSampleData` satisfies `canProceed` (so the button immediately
+demonstrates its filled state) but leaves `callReportApprovalStatus:
+'not-submitted'` — sample-fill fills the 8 sections, it does not skip
+the "Submit for Approval" decision step. Clearing resets Call Report
+fields only (including the approval-status fields back to their initial
+values) — it does not touch Application Details, Initial Credit
+Checking, or Requirement Checklist state.
 
 ## Files
 
