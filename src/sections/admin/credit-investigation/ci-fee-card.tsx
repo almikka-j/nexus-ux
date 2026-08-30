@@ -141,6 +141,7 @@ export function CiFeeCard() {
         ciFeeAmount: amountDraft.trim(),
         ciFeeAmountDescription: descriptionDraft.trim(),
         ciFeeRemarks: remarksDraft.trim(),
+        ciFeeSubmittedAt: new Date().toISOString(),
       });
     }
     setFeeModalOpen(false);

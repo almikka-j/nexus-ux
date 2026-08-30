@@ -29,8 +29,8 @@ export function AdminNav() {
   const searchParams = useSearchParams();
   const searchStep = searchParams.get('step');
 
-  // Each expandable section (Application List, For Reconsideration) tracks
-  // its own expand/collapse state independently, keyed by title.
+  // Each expandable section (Application, Request) tracks its own
+  // expand/collapse state independently, keyed by title.
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(
       adminNavData

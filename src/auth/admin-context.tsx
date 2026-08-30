@@ -1015,6 +1015,53 @@ export const APPRAISER_ROSTER = [
 
 export type HeadApprovalStatus = 'pending' | 'approved' | 'declined';
 
+// ----------------------------------------------------------------------
+// Shared by CI Fee and Appraisal Fee — the officer-entered internal
+// record of how an *approved* fee was actually paid/deposited (method,
+// account, OR number, proof of deposit). Distinct from
+// Appraisal.paymentReceivedAt, which is a simulated timestamp for the
+// *client* having paid the appraisal fee via Sendit — that's a separate
+// concept this record doesn't read or write. See docs/210-request-payments.md.
+// ----------------------------------------------------------------------
+
+export type PaymentMethod = 'cash' | 'check' | 'bank-transfer' | 'gcash';
+
+export const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'check', label: 'Check' },
+  { value: 'bank-transfer', label: 'Bank Transfer' },
+  { value: 'gcash', label: 'GCash / E-wallet' },
+];
+
+// Fixed sample roster for the "Deposited To" picker — same convention as
+// APPRAISER_ROSTER, no real bank/accounting integration in this prototype.
+export const DEPOSITED_TO_ROSTER = ['BDO - Main Account', 'BPI - Main Account', 'Petty Cash'];
+
+export type PaymentDetails = {
+  paymentMethod: PaymentMethod | null;
+  depositedTo: string | null;
+  orNumber: string;
+  orDate: string;
+  attachmentFileName: string | null;
+  attachmentFileUrl: string | null;
+  remarks: string;
+  // Stamped by "Mark as Paid"; null means still pending payment.
+  paidAt: string | null;
+};
+
+export function createEmptyPaymentDetails(): PaymentDetails {
+  return {
+    paymentMethod: null,
+    depositedTo: null,
+    orNumber: '',
+    orDate: '',
+    attachmentFileName: null,
+    attachmentFileUrl: null,
+    remarks: '',
+    paidAt: null,
+  };
+}
+
 export type Appraisal = {
   // Whole-application batch state every bundle's individually-proposed
   // fee travels through together — see FeeApprovalStatus above.
@@ -1025,6 +1072,11 @@ export type Appraisal = {
   clientNotifiedAt: string | null;
   sentToOdooAt: string | null;
   paymentReceivedAt: string | null;
+  // The LMS's own internal payment record for the whole approved fee
+  // batch (one record, not per bundle — see createEmptyPaymentDetails
+  // above). Reset back to empty whenever the batch is declined or reset,
+  // same as every other batch-level fee field.
+  feePayment: PaymentDetails;
   reportBundles: AppraisalReportBundle[];
   headApprovalStatus: HeadApprovalStatus;
   headApprovalDeclineReason: string;
@@ -1041,12 +1093,24 @@ export type CreditInvestigation = {
   ciFeeAmount: string;
   ciFeeAmountDescription: string;
   ciFeeRemarks: string;
-  // Set when a pending CI Fee request is declined on the CI Fee Approval
-  // screen (src/sections/admin/ci-fee-approval-view.tsx) — declining resets
+  // Set when a pending CI Fee request is declined on the Credit
+  // Investigation - Fee Approval screen (src/sections/admin/ci-fee-approval-view.tsx) — declining resets
   // ciFeeStatus back to 'not-requested' (same re-entry point as a fresh
   // application) but keeps this reason on record, same convention as
   // decisionReason below.
   ciFeeDeclineReason: string;
+  // Stamped the moment ciFeeStatus becomes 'pending-approval' (a fresh
+  // request or a re-submission after decline) — added alongside the
+  // Payment page (docs/210-request-payments.md), which needs a "Requested On" date for
+  // CI Fee rows the same way Appraisal Fee already has feeSubmittedAt.
+  ciFeeSubmittedAt: string | null;
+  // Stamped the moment ciFeeStatus becomes 'approved' — added alongside
+  // the Payment page (docs/210-request-payments.md), which needs an "Approved On" date
+  // for CI Fee rows the same way Appraisal Fee already has feeApprovedAt.
+  ciFeeApprovedAt: string | null;
+  // The LMS's own internal payment record for this CI Fee — see
+  // Appraisal.feePayment above for the shared shape/rationale.
+  ciFeePayment: PaymentDetails;
   report: CiReport;
   decision: CreditCheckDecision;
   decisionReason: string;
@@ -1239,6 +1303,14 @@ type AdminContextValue = AdminState & {
   // tester can restart the fee request/approval/settlement cycle without
   // losing the bundle's assignment or an already-filled-in report.
   resetAppraisalFees: () => void;
+  // Payment (docs/210-request-payments.md) — one shared shape, two independent fee
+  // flows. setXPayment merges partial edits into the draft; markXAsPaid
+  // stamps paidAt, same "one final action, no separate save-draft state"
+  // convention the modal itself follows.
+  setCiFeePayment: (data: Partial<PaymentDetails>) => void;
+  markCiFeeAsPaid: () => void;
+  setAppraisalFeePayment: (data: Partial<PaymentDetails>) => void;
+  markAppraisalFeeAsPaid: () => void;
   addCreditInvestigationDocument: (
     label: string,
     uploadedBy: string,
@@ -1365,6 +1437,9 @@ function createInitialCreditInvestigation(): CreditInvestigation {
     ciFeeAmountDescription: '',
     ciFeeRemarks: '',
     ciFeeDeclineReason: '',
+    ciFeeSubmittedAt: null,
+    ciFeeApprovedAt: null,
+    ciFeePayment: createEmptyPaymentDetails(),
     report: createInitialCiReport(),
     decision: 'pending',
     decisionReason: '',
@@ -1416,6 +1491,7 @@ function createInitialAppraisal(): Appraisal {
     clientNotifiedAt: null,
     sentToOdooAt: null,
     paymentReceivedAt: null,
+    feePayment: createEmptyPaymentDetails(),
     reportBundles: [],
     headApprovalStatus: 'pending',
     headApprovalDeclineReason: '',
@@ -2606,6 +2682,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               ...prev.review.appraisal,
               feeApprovalStatus: 'declined',
               feeDeclineReason: reason,
+              // A declined batch's payment record (if any was somehow
+              // entered while pending) doesn't apply to whatever gets
+              // resubmitted/approved next — same reset every other
+              // batch-level fee field gets on decline/resubmit.
+              feePayment: createEmptyPaymentDetails(),
             },
           },
         })),
@@ -2623,6 +2704,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               clientNotifiedAt: null,
               sentToOdooAt: null,
               paymentReceivedAt: null,
+              feePayment: createEmptyPaymentDetails(),
               reportBundles: prev.review.appraisal.reportBundles.map((bundle) => ({
                 ...bundle,
                 feeNeeded: null,
@@ -2630,6 +2712,53 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                 feeDescription: '',
                 feeRemarks: '',
               })),
+            },
+          },
+        })),
+      setAppraisalFeePayment: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              feePayment: { ...prev.review.appraisal.feePayment, ...data },
+            },
+          },
+        })),
+      markAppraisalFeeAsPaid: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              feePayment: { ...prev.review.appraisal.feePayment, paidAt: new Date().toISOString() },
+            },
+          },
+        })),
+      setCiFeePayment: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditInvestigation: {
+              ...prev.review.creditInvestigation,
+              ciFeePayment: { ...prev.review.creditInvestigation.ciFeePayment, ...data },
+            },
+          },
+        })),
+      markCiFeeAsPaid: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            creditInvestigation: {
+              ...prev.review.creditInvestigation,
+              ciFeePayment: {
+                ...prev.review.creditInvestigation.ciFeePayment,
+                paidAt: new Date().toISOString(),
+              },
             },
           },
         })),

@@ -40,3 +40,6 @@ next-env.d.ts
 
 # git worktrees
 /.worktrees
+
+# personal task log — stays local only, never pushed
+/docs/240-tasks.md

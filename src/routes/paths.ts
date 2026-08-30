@@ -78,6 +78,15 @@ export const paths = {
     ciFeeApprovalBundle: () => '/admin/ci-fee-approval/current',
     appraisalAppraiser: '/admin/appraisal-appraiser',
     appraisalAppraiserBundle: (bundleId: string) => `/admin/appraisal-appraiser/${bundleId}`,
+    // Officer-facing read-only status list of every appraiser assignment
+    // (one row per AppraisalReportBundle) — distinct from
+    // appraisalAppraiser above, which is the Appraiser's own workspace.
+    // Assigning an appraiser still only happens via the Collateral titles
+    // table's Assign Appraiser modal on the Appraisal step page; this page
+    // never creates or edits a bundle, only lists them, so it links back
+    // into the same appraisalAppraiserBundle detail route rather than
+    // having its own.
+    appraisalRequest: '/admin/appraisal-request',
     appraisalFeeApproval: '/admin/appraisal-fee-approval',
     // There's no real per-application backend in this prototype — one live
     // session always means one live fee-approval request, so there's no
@@ -91,6 +100,16 @@ export const paths = {
     // route on; this only keeps the URL shape consistent with the
     // appraisalAppraiserBundle/appraisalFeeApprovalBundle list -> detail split.
     appraisalApproverBundle: () => '/admin/appraisal-approver/current',
+    // A single unified queue of every approved CI Fee / Appraisal Fee
+    // request awaiting payment — see docs/210-request-payments.md.
+    payment: '/admin/payment',
+    // list -> detail split, same convention as ciFeeApprovalBundle /
+    // appraisalFeeApprovalBundle above. `kind` is a real discriminator
+    // (not a dummy placeholder like those two) — there's still no real
+    // per-request ID in this prototype (at most one row of each kind per
+    // session), but which of the two fee types the detail page shows is
+    // meaningful, unlike "current".
+    paymentDetail: (kind: 'ci-fee' | 'appraisal-fee') => `/admin/payment/${kind}`,
     creditChecking: (id: string) => `/admin/applications/${id}/credit-checking`,
     reconsideration: (id: string) => `/admin/applications/${id}/reconsideration`,
     callReport: (id: string) => `/admin/applications/${id}/call-report`,

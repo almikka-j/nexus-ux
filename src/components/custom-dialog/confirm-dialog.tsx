@@ -37,7 +37,7 @@ export function ConfirmDialog({
 
 // Standard action-button colors for ConfirmDialog's `action` prop, so
 // individual call sites stop hand-writing bgcolor/hover per dialog —
-// see docs/UI_UX_AUDIT.md's "confirm dialogs hard-code color per call
+// see docs/220-ui-ux-audit.md's "confirm dialogs hard-code color per call
 // site" finding. Pass `tone="destructive"` for disapprove/reject/delete
 // confirmations; omit (or "default") for every other confirm action.
 export const confirmDialogActionToneSx = {

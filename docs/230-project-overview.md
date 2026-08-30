@@ -70,7 +70,7 @@ localStorage key: `hhc-lms-registration`
 SignUpData     { prefix?, firstName, middleName?, lastName, extensionName?, email, mobile,
                  password, marketingConsent, termsAccepted }
 // password stays '' permanently — the borrower is never asked to set one; see
-// docs/BORROWER_SIGNUP_FLOW.md. termsAccepted flips true from the Selfie
+// docs/020-borrower-application.md. termsAccepted flips true from the Selfie
 // screen's consent checkboxes, not a dedicated step.
 LoanType       'personal' | 'business'
 FinancialInfo  { desiredLoanAmount, loanTermMonths, employmentStatus, monthlyIncome, loanPurpose,
@@ -132,7 +132,7 @@ CreditChecking        { documentUploaded, documentName, decision, bureauFindingS
                         — aiSummary/aiRecommendation are NOT stored; computed at render
                         time in initial-credit-checking-view.tsx from the uploaded bureau
                         reports + application details (see
-                        docs/ADMIN_INITIAL_CREDIT_CHECKING.md). bureauFindingStatus
+                        docs/070-account-solicitation-initial-credit-checking.md). bureauFindingStatus
                         ('pending'|'clean'|'negative') is the simulated AI bureau-review
                         outcome; bureauFindingBureau ('NFIS'|'CMAP'|null) and
                         bureauFindingReason (string|null) name the specific policy
@@ -152,7 +152,7 @@ RequirementChecklist  { documents, appraisalGroups, collateralNotes, endorsed,
                         of checked/unchecked items); appraisalGroups is
                         AppraisalTctGroup[], one officer-added entry per pledged
                         property, each with its own 8-document set. See
-                        docs/ADMIN_REQUIREMENT_CHECKLIST.md.
+                        docs/090-account-solicitation-requirement-checklist.md.
 
 ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callReport, requirementChecklist, creditInvestigation }
 ```
@@ -258,7 +258,7 @@ screen rather than a fill button).
 
 ## Borrower flow
 
-> **Restructured 2026-07-16** — see `docs/BORROWER_SIGNUP_FLOW.md` for the
+> **Restructured 2026-07-16** — see `docs/020-borrower-application.md` for the
 > full step-by-step writeup. Summary: the flow is a **Loan Application
 > experience**, not account registration. The borrower is never asked to
 > manually create a password — Preliminary Application screens eligibility
@@ -618,7 +618,7 @@ This flow was built directly from a process-flow diagram the user provided
 recommendation text) — not a real AI integration.
 
 **Credit Investigation has its own dedicated doc:
-`docs/ADMIN_CREDIT_INVESTIGATION.md`.** It is the detail workspace for the
+`docs/100-credit-investigation.md`.** It is the detail workspace for the
 `creditInvestigation` step under the sidebar's "Comprehensive Credit
 Checking" section, sitting after Requirement Checklist in the pipeline —
 covering the grouped document checklist (including view-only Bureau &
@@ -627,7 +627,7 @@ Fee request/approval gate, and the CI Report's transcript-upload auto-fill.
 Update that file, not this section, when this screen changes.
 
 **Initial Credit Checking has its own dedicated doc:
-`docs/ADMIN_INITIAL_CREDIT_CHECKING.md`.** It covers the layout (stacked vs.
+`docs/070-account-solicitation-initial-credit-checking.md`.** It covers the layout (stacked vs.
 split), `ApplicationDetailsCard` (including the conditional Spouse information
 block), `BureauReportsCard` (the CIBI row's "Auto-filled" form + the 4
 plain-upload rows), the simulated bureau finding, the merged "AI review,
@@ -780,7 +780,7 @@ animation) — computed directly in `initial-credit-checking-view.tsx` from
 `application` (Application Details), same "pure computation, never stored"
 pattern as Call Report's `buildCallReportAiRecommendation()`
 (`call-report-risk.ts`).
-See `docs/ADMIN_INITIAL_CREDIT_CHECKING.md` for this card's current content
+See `docs/070-account-solicitation-initial-credit-checking.md` for this card's current content
 and gating (it now also always shows a risk-level read, merged in from the
 former standalone "Initial AI Recommendation" card).
 
@@ -842,7 +842,7 @@ only note surfaces on that page.
 **The "Approved?" card always renders, fully active from the start** — both
 buttons (Proceed to Call Report/Disapprove) are clickable regardless of
 bureau-upload status; bureau reports are supporting evidence, not a
-prerequisite to decide. See `docs/ADMIN_INITIAL_CREDIT_CHECKING.md`'s
+prerequisite to decide. See `docs/070-account-solicitation-initial-credit-checking.md`'s
 "Decision gate" section for the current behavior and history (it used to be
 dimmed and disabled until every bureau report was uploaded).
 
@@ -904,8 +904,8 @@ The admin shell renders one of two nav components depending on the current
   highlight. This exception applies only to horizontal navigation.
 - **`AdminNav`** (`nav-vertical.tsx`) — the original fixed left sidebar,
   selectable from the settings panel below, paired with its own separate
-  `AdminHeader` row (unchanged, still two rows in this mode). Two independent
-  collapsible sections (`src/layouts/admin/config-nav-admin.tsx`):
+  `AdminHeader` row (unchanged, still two rows in this mode).
+  `src/layouts/admin/config-nav-admin.tsx`:
 
 - **"Application"** — every forward-moving stage in one section
   (`applicationItems`, `config-nav-admin.tsx`): **Account Solicitation** (a
@@ -917,16 +917,20 @@ The admin shell renders one of two nav components depending on the current
   Reconsideration is deliberately **not** here — being sent to Reconsideration
   means the application was already rejected at Initial Credit Checking, so it
   isn't a forward step in "the process," it's an exception branch.
-- **"For Reconsideration"** — the rejected-track items: Reconsideration itself,
-  plus Negative List (since Negative List entries are populated *from*
-  Reconsideration's "No — Notify Client" outcome — see below). Negative List used
-  to be its own top-level sidebar item; it's nested here now that there's a
-  natural parent for it.
+- **Reconsideration and Negative List have no sidebar section at all** —
+  the "For Reconsideration" section that used to hold both
+  (`reconsiderationTrackItems`) was removed entirely. Both remain real
+  routes (Reconsideration is routed to directly from Initial Credit
+  Checking's "Not Approved" outcome; Negative List entries are populated
+  *from* Reconsideration's "No — Notify Client" outcome — see below), just
+  with no nav link to either. See `docs/130-sales-reject-application.md`.
 
-**"CI Fee Approval"** (`path: paths.admin.ciFeeApproval`) is nested as the
+**"Credit Investigation - Fee Approval"** (`path: paths.admin.ciFeeApproval`) is nested as the
 first entry (`approvalItems`, `config-nav-admin.tsx`) under a separate
 **"Request"** nav dropdown, alongside the Appraisal roster/fee-approval/
-approver screens (see `docs/ADMIN_APPRAISAL.md`) — a secondary/
+approver screens (see `docs/170-request-appraiser.md`,
+`docs/190-request-appraisal-fee-approval.md`, and
+`docs/200-request-appraisal-report-approval.md`) — a secondary/
 occasional-use group of Request-role screens, distinct from the main
 pipeline's "Comprehensive Credit Checking" queues. It offers a second,
 fuller-review way to approve or decline the live application's pending CI
@@ -936,8 +940,8 @@ into a detail page (`ci-fee-approval-bundle-view.tsx`, at
 `paths.admin.ciFeeApprovalBundle()`) with the fee breakdown and Approve/
 Decline actions — alongside the existing "Simulate: Another Officer
 Approves CI Fee" / "Simulate: Another Officer Declines CI Fee" page
-actions on Credit Investigation; see `docs/ADMIN_CREDIT_INVESTIGATION.md`'s
-"CI Fee Approval screens" section for the full detail.
+actions on Credit Investigation; see
+`docs/150-request-credit-investigation-fee-approval.md` for the full detail.
 
 Both section headers are **non-clickable labels** (`path: null` in
 `adminNavData` — no `href`, clicking anywhere on the row just toggles that
@@ -1007,16 +1011,18 @@ given step and the sidebar can't point at one specific applicant's page. Account
 Solicitation instead points at the unfiltered `paths.admin.accountSolicitation`,
 since it already covers all three of its underlying steps (Initial Credit
 Checking, Call Report, Requirement Checklist) in one unfiltered list — it has no
-`?step=` of its own. "For Reconsideration"'s Reconsideration sub-link works the
-same way as the filtered steps (`?step=reconsideration`); Negative List points at
-its own standalone route (`paths.admin.negativeList`) instead, since it isn't a
+`?step=` of its own. Reconsideration and Negative List have no sidebar
+link at all (see above) but keep the same route shapes they always
+had — Reconsideration would resolve the same way as the other filtered
+steps (`?step=reconsideration`) if linked to; Negative List has its own
+standalone route (`paths.admin.negativeList`) since it isn't a
 step-filtered view of the applications list at all.
 
 The three Comprehensive Credit Checking disciplines (Credit Investigation,
 Appraisal, Financial Evaluation — nested under "Application" alongside Account
 Solicitation) each have their own per-application detail page now — see
-`docs/ADMIN_CREDIT_INVESTIGATION.md`, `docs/ADMIN_APPRAISAL.md`, and
-`docs/ADMIN_FINANCIAL_EVALUATION.md`. Financial Evaluation's page has a
+`docs/100-credit-investigation.md`, `docs/110-appraisal.md`, and
+`docs/120-financial-evaluation.md`. Financial Evaluation's page has a
 read-only Document Checklist mirror, an AI summary, a Cash Flow Statement
 (Combined/Borrower Only income-expense form computing Debt Service Ratio),
 and a Proceed/Disapprove decision — but no fee/report flow, unlike Credit
@@ -1055,13 +1061,13 @@ pre-hydration default for the bare `/admin/credit-checking` URL.
 The **NEXUS KYC Call Report** — a structured, 8-section interview the officer
 fills out live while on the call with the borrower, matching the source
 PDF's own section numbering (which itself skips/repeats a few numbers — see
-`docs/ADMIN_CALL_REPORT.md`'s "Section numbering"). This replaced the prior
+`docs/080-account-solicitation-call-report.md`'s "Section numbering"). This replaced the prior
 12-section field model (`call-details-card.tsx` … `comaker-information-card.tsx`
 + `call-report-computations.ts`, all deleted) in the 2026-08-24 NEXUS KYC
 rebuild.
 
 **Call Report has its own dedicated maintenance doc:
-`docs/ADMIN_CALL_REPORT.md`.** It is the authoritative guide for the current
+`docs/080-account-solicitation-call-report.md`.** It is the authoritative guide for the current
 8-card page order, every section's fields and option lists, the Proceed
 gate, the `comakers`/`comakerChange` sync, sample-data behavior, and the
 read-only result-modal mirror.
@@ -1080,7 +1086,7 @@ Investigation's CI Report reads (see "Comaker sync" in the maintenance doc).
   `aml-kyc-card.tsx`, `customer-understanding-card.tsx`,
   `proposed-loan-package-card.tsx`, `risk-disposition-card.tsx`,
   `system-validation-card.tsx`, `endorsement-declaration-card.tsx` — the 8
-  section cards, one file each; see `docs/ADMIN_CALL_REPORT.md` for the full
+  section cards, one file each; see `docs/080-account-solicitation-call-report.md` for the full
   list, order, and per-card field notes.
 - `call-report-types.tsx` — every enum's `{value,label}` option list, plus
   shared `fieldSx`/`cardSx`, a `labelFor()` lookup helper, and the shared
@@ -1109,7 +1115,7 @@ Questions", "4. Customer Understanding…", then jump to "6. Proposed Loan
 Package" (the PDF has no independent section 5), "7. AO Preliminary Risk &
 Call Disposition", "8. NEXUS System Validation…", and a second, unnumbered
 "Account Officer Endorsement Declaration" section that the design spec also
-calls section 8. See `docs/ADMIN_CALL_REPORT.md` before "fixing" this
+calls section 8. See `docs/080-account-solicitation-call-report.md` before "fixing" this
 numbering.
 
 **Application Details is a compact summary with modal actions on Call Report.**
@@ -1207,7 +1213,7 @@ PDF button with a "PDF export coming soon" tooltip — visible as an affordance
 matching the reference design, but not wired to real PDF generation (no PDF
 library exists in this project); and a working X close button.
 
-**The 8 section cards, in order** (see `docs/ADMIN_CALL_REPORT.md` for full
+**The 8 section cards, in order** (see `docs/080-account-solicitation-call-report.md` for full
 field lists and option-list names):
 
 1. **Interaction Record** (`interaction-record-card.tsx`) — read-only Application No./Customer Name, Call/Visit Date + Time, Interviewed Person, Relationship to Borrower, Interaction Type, Identity Status, Basis of Identity Confirmation (multiselect + conditional Other).
@@ -1244,7 +1250,7 @@ groups, each carrying its own independent 8-document checklist. The page
 reviews these documents against what's on file, shows a merged AI
 review/summary/recommendation card, and either
 endorses the application onward or returns it to the applicant with a
-recorded reason. See `docs/ADMIN_REQUIREMENT_CHECKLIST.md` for the full
+recorded reason. See `docs/090-account-solicitation-requirement-checklist.md` for the full
 document breakdown and the Appraisal group model.
 
 Requirement Checklist renders the shared collapsible `ApplicationDetailsCard`
@@ -1257,7 +1263,7 @@ The active state also renders a sticky "Sections" jump-nav
 (`requirement-checklist-section-nav.tsx`) beside the content column on `md`+
 screens (stacked above it on mobile) — a quick-access list of the three cards
 with a status dot and received/total count each, so a long checklist stays
-easy to navigate. See `docs/ADMIN_REQUIREMENT_CHECKLIST.md`'s "Sticky section
+easy to navigate. See `docs/090-account-solicitation-requirement-checklist.md`'s "Sticky section
 nav" section for the layout details.
 
 Uploaded document rows use a compact review pattern: View opens the actual
@@ -1275,7 +1281,7 @@ neutral gray outlined negative/return action with a close icon, navy hover,
 smaller widths. The wording and validation gates remain process-specific.
 
 **Requirement Checklist has its own dedicated doc:
-`docs/ADMIN_REQUIREMENT_CHECKLIST.md`.** It covers the fixed document list
+`docs/090-account-solicitation-requirement-checklist.md`.** It covers the fixed document list
 (`requirement-checklist-docs.ts`), the `RequirementDoc` state shape, the
 `RequirementDocRow` View/Upload behavior, the progress counter and
 Endorse-gating rule, the AI summary/recommendation derivation
@@ -1369,7 +1375,7 @@ uploads, no decision state) since they're display-only.
   per-step path builder from `paths.admin` based on `row.step`.
 - **`ApplicantProfileView`** (`src/sections/admin/applicant-profile-view.tsx`,
   route `/admin/applications/profile/[email]`, full details in
-  `docs/ADMIN_APPLICANT_PROFILE.md`): a standalone, read-only **borrower**
+  `docs/065-admin-applicant-profile.md`): a standalone, read-only **borrower**
   profile, deliberately scoped to the person rather than any one
   application — a **User details** card first (avatar, name, email, mobile
   as its header, then personal/ID fields and uploaded documents), followed
@@ -1408,10 +1414,10 @@ state in `AdminContext.negativeList`): implements the diagram's "Populate
 record in Negative List" system box. `addToNegativeList()` fires from
 `ReconsiderationView`'s **No — Notify Client** path (the only point in the
 built flow where a client is definitively turned away) and records
-name/email/reason/timestamp, deduped by email. Viewable via the sidebar's
-**"For Reconsideration"** section (nested alongside Reconsideration itself — see
-"Two independent collapsible sidebar sections" above) — a simple read-only list,
-no search/remove yet since there's only ever one applicant in this prototype.
+name/email/reason/timestamp, deduped by email. Has no sidebar entry (see
+above) — only reachable at its own URL — a simple read-only list, no
+search/remove yet since there's only ever one applicant in this
+prototype.
 
 **Not yet built** (visible in the source flowchart but out of current scope):
 - Transaction types 4–8 (Compromised, Restructured, Rollover, Extension,
@@ -1430,7 +1436,7 @@ always available (no longer additionally gated on
 with its label and behavior driven by `allBureauReportsUploaded`. Note this
 action no longer gates the decision buttons themselves (Approve/No/For
 Reconsideration are always clickable — see
-`docs/ADMIN_INITIAL_CREDIT_CHECKING.md`'s "Decision gate" section) — it only
+`docs/070-account-solicitation-initial-credit-checking.md`'s "Decision gate" section) — it only
 controls whether the bureau reports/CIBI form are pre-filled for demo
 purposes. While not yet uploaded, one click (`handleFillSampleData`) fills the
 entire screen in one step: uploads the document, fills and submits the CIBI

@@ -114,6 +114,7 @@ export function CiFeeApprovalView() {
         ciFeeAmount: '3500',
         ciFeeAmountDescription: 'Field verification + report preparation fee',
         ciFeeDeclineReason: '',
+        ciFeeSubmittedAt: new Date().toISOString(),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

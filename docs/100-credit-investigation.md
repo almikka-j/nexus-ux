@@ -1,14 +1,16 @@
-# Admin — Credit Investigation
+# Credit Investigation (Step 4)
 
 > **Maintenance rule:** update this file whenever `credit-investigation-view.tsx`
 > or its supporting files (`credit-investigation-docs.ts`,
 > `credit-investigation-risk.ts`, `credit-investigation-transcript.ts`,
-> `credit-investigation/ci-fee-card.tsx`, `credit-investigation/ci-report-card.tsx`,
+> `credit-investigation/ci-report-card.tsx`,
 > `credit-investigation/credit-investigation-doc-row.tsx`,
-> `components/rich-text-field/rich-text-field.tsx`, `ci-fee-approval-view.tsx`,
-> `ci-fee-approval-bundle-view.tsx`) change. Companion to
-> `PROJECT_OVERVIEW.md` and `docs/ADMIN_REQUIREMENT_CHECKLIST.md` (the step
-> immediately before this one in the pipeline).
+> `components/rich-text-field/rich-text-field.tsx`) change. Companion to
+> `docs/230-project-overview.md` and
+> `docs/090-account-solicitation-requirement-checklist.md` (the step
+> immediately before this one in the pipeline), and
+> `docs/140-request-credit-investigation-fee.md` (the CI Fee card rendered on
+> this same page, now documented separately).
 
 ## What this is
 
@@ -18,12 +20,13 @@
 workspace for the `creditInvestigation` step under the sidebar's
 "Application" section (its Comprehensive Credit Checking sub-items) — that
 nav entry and the `ReviewStep` type value existed before this page did,
-deliberately scaffolded ahead of their workspace (see `PROJECT_OVERVIEW.md`'s
-admin flow section); this page is that workspace.
+deliberately scaffolded ahead of their workspace (see
+`docs/230-project-overview.md`'s admin flow section); this page is that
+workspace.
 
 Pipeline position: Initial Credit Checking → Call Report → Requirement
 Checklist → **Credit Investigation** → Appraisal → Financial Evaluation (see
-`docs/ADMIN_FINANCIAL_EVALUATION.md`). The live application's Credit
+`docs/120-financial-evaluation.md`). The live application's Credit
 Investigation queue row is always actionable, same as every other step in
 this pipeline — an admin can inspect/act on the live application at any step
 at will, regardless of whether Requirement Checklist has been endorsed yet.
@@ -54,7 +57,7 @@ to breathe without wrapping awkwardly.
    start-collapsed-on-open plus live-transition behavior as Document
    Checklist above, gated on `ciFeeStatus === 'approved'`
    (`credit-investigation-view.tsx`).
-5. **CI Fee** card.
+5. **CI Fee** card (see `docs/140-request-credit-investigation-fee.md`).
 6. **CI Report** card (visible once CI Fee is approved; otherwise a locked
    placeholder).
 7. **Proceed application?** decision card.
@@ -198,198 +201,11 @@ action available on this page.
 
 ## CI Fee
 
-`CiFeeCard`'s layout and decision flow were rebuilt to mirror Appraisal
-Fee's own card exactly (`appraisal-appraiser-bundle-view.tsx`'s "Appraisal
-Fee" section — see `docs/ADMIN_APPRAISAL.md`), replacing this card's
-earlier full-width tinted-status-banner-with-inline-buttons design. The
-card now opens with a compact header row: a **"CI Fee"** title +
-`StatusBadge` pill (`STATUS_BADGE_COPY`, one entry per `CiFeeStatus`
-value — `not-requested` → "Draft"/neutral, `pending-approval` → "For
-Approval"/warning, `approved` → "Approved"/success, `not-applicable` →
-"No Fee"/neutral), a one-line summary underneath once a request exists
-(`{amount} requested` while pending/approved, "No fee needed for this
-application." while not-applicable), and a single button on the right —
-**"Request CI Fee"** (contained, navy) while editable, **"View CI Fee"**
-(outlined) otherwise. Clicking it opens a `Dialog`; the Yes/No decision
-and the amount/description/remarks fields all live inside that modal now,
-not inline on the card itself (same `FeeNeededOption` selectable-pill
-component Appraisal Fee's own modal uses, reimplemented locally here —
-kept in sync manually rather than shared, same convention every other
-admin file that reuses this exact shape follows). Draft state
-(`needsFeeDraft`/`amountDraft`/`descriptionDraft`/`remarksDraft`) only
-commits to `review.creditInvestigation` when "Send Request" is clicked;
-closing the modal without sending discards it.
-
-**`feeEditable` is `ciFeeStatus === 'not-requested' || ciFeeStatus ===
-'not-applicable'`** — not just `'not-requested'` alone. This is the CI
-Fee equivalent of Appraisal Fee's own `feeEditable` set
-(`'not-submitted' | 'declined'`): an officer who marked "No CI Fee" can
-still reopen the modal and decide the application actually needs a fee
-after all, without a separate dedicated "Actually, this has a CI Fee"
-button the way the card's earlier design required — the same "Request CI
-Fee" button and modal handle both the first decision and any later
-reversal. Opening the modal on a `'not-applicable'` request defaults the
-Yes/No selector to "No" (matching its current state), same "default to
-what's already true" convention the fresh `'not-requested'` case uses
-defaulting to "Yes" (the common case).
-
-`review.creditInvestigation.ciFeeStatus: 'not-requested' | 'pending-approval'
-| 'approved' | 'not-applicable'`. While editable, the officer picks **Yes**
-(shows Request Amount / Request Amount Description / Remarks fields, then
-"Send Request" moves the status to `'pending-approval'`) or **No** (moves
-straight to `'not-applicable'` on Send). There is no separate approver role
-or login in this prototype, so approval/decline can't be self-served by the
-same officer who made the request — while `ciFeeStatus === 'pending-approval'`,
-the page registers two actions (via `useRegisterPageActions`) into the
-floating settings popover (bottom-right gear icon → Page actions), same
-convention as "Force Clean/Negative Bureau Finding" elsewhere in this app:
-
-- **"Simulate: Another Officer Approves CI Fee"** — sets
-  `ciFeeStatus: 'approved'` directly, no confirmation dialog.
-- **"Simulate: Another Officer Declines CI Fee"** — opens a `ConfirmDialog`
-  ("Reason for declining CI Fee") requiring a typed reason before its
-  Confirm button enables (same confirm-before-mutating,
-  reason-required convention as Disapprove elsewhere on this
-  page); confirming resets `ciFeeStatus: 'not-requested'`, clears the
-  amount/description/remarks fields, and records the typed reason in
-  `ciFeeDeclineReason` — the same re-entry point as an application that
-  never requested a fee, so the officer can re-request from the CI Fee card
-  with corrected terms.
-
-The CI Report card is locked (shown as a dashed placeholder) until
-`ciFeeStatus === 'approved'` or `'not-applicable'`.
-
-The page action **"Fill with Sample Data"/"Remove Sample Data"** is scoped
-to CI Fee + CI Report only — its label toggles on `isSampleFilled`
-(`review.creditInvestigation.report.transcriptFileName ===
-'sample-transcript.pdf'`), not on document completeness and, importantly,
-not on `ciFeeStatus`. `ciFeeStatus` alone can't be used as the signal
-because it also reaches `'pending-approval'`/`'approved'` via the normal,
-real "Yes, Request CI Fee" + approval workflow — unrelated to this dev
-shortcut — which would otherwise mislabel the action "Remove Sample Data"
-after genuine officer work and risk wiping a hand-filled CI Report.
-Instead the toggle keys off the literal `transcriptFileName` value that
-only `handleFillSampleData` itself ever writes (a real transcript upload
-never produces this exact filename). Filling sets `ciFeeStatus: 'approved'`
-with a sample amount/description, then
-populates a subset of `CiReport`: `subjectAsOf`, `residenceLeasedType`,
-`residenceLengthOfStay`, `employmentType`, `lengthOfService`, and
-`negativeRecordFinding` come from `buildTranscriptAutoFill()` (same
-deterministic helper the real transcript upload uses, seeded with a fixed
-`'sample-transcript.pdf'` filename); `employerName` ('Sample Employer
-Corp.'), `position` ('Staff Supervisor'), and `salary` ('35000') are
-hardcoded sample literals directly in `handleFillSampleData` — fields the
-auto-fill simulator doesn't cover; and `visitDate` (today's date),
-`recommendation` ('proceed-as-requested'), `recommendationNotes`, and the
-`transcriptFileName`/`transcriptUploadedAt` pair are also set directly by
-`handleFillSampleData` rather than sourced from `autoFill` (so the CI
-Report card shows the same "transcript uploaded" state and AI Summary
-block a real upload would produce). Clearing resets exactly those same
-fields back to blank plus `ciFeeStatus: 'not-requested'`. Both directions
-deliberately leave `employmentStatus`, `loanPurposeNotes`, and
-`residencePermanentAddress` untouched — those are owned by `CiReportCard`'s
-own one-time pre-fill effect (see CI Report below), not by this page
-action, so toggling sample data on and off can never fight that effect.
-
-**Dedicated CI Fee Approval screens** (`/admin/ci-fee-approval` ->
-`/admin/ci-fee-approval/current`,
-`src/sections/admin/ci-fee-approval-view.tsx` (list) ->
-`ci-fee-approval-bundle-view.tsx` (detail)) offer a second, fuller-review
-way to trigger the same two outcomes — nested as the first entry under the
-**"Request"** nav dropdown (`approvalItems`, `config-nav-admin.tsx` — the
-variable name is unchanged, only the rendered dropdown title moved from
-"Approval" to "Request"), alongside "Appraiser"/"Appraisal - Approver
-Fee"/"Appraisal - Approver Report" (see `docs/ADMIN_APPRAISAL.md`) rather
-than a page action buried in the settings popover. Framed as **"Fee
-Approvals,"** the CI Head/Approver's own personal workspace (small "CI
-HEAD / APPROVER" eyebrow label, first-person copy, no sample filler rows),
-not a generic admin-facing queue.
-
-Same list -> detail split as `appraisal-fee-approval-view.tsx` ->
-`appraisal-fee-approval-bundle-view.tsx` (an earlier single-page version of
-this screen — with a combined live+sample-row queue list, a `QueueRow`
-component, an `OutcomeScreen` completion state, and an optional
-`SampleApplicationEntry.ciFee` field — was replaced by this split;
-`SampleApplicationEntry` has no CI-fee-related field today). The list page
-(`ci-fee-approval-view.tsx`) is table-only, one row per pending request
-(`Applicant / Description / CI Fee Amount / Status`) — no "Appraisal
-No."/"Properties"/"Appraiser" columns, since `ciFeeStatus` lives on a
-single flat `review.creditInvestigation` object with no bundle/multi-
-property concept at all, unlike Appraisal. Clicking the row navigates to
-the detail page (`paths.admin.ciFeeApprovalBundle()`, a fixed `/current`
-placeholder segment — there's no real multi-application backend in this
-prototype, so there's no real request ID to route on, same reasoning as
-`appraisalFeeApprovalBundle()`).
-
-**The live application's row always renders, whenever a live application
-exists** (`!!signUpData`), regardless of `ciFeeStatus` — same convention
-`application-list-view.tsx` uses for its own live row (always present,
-only its actionability/status varies). An earlier version of this page
-gated the row behind `ciFeeStatus === 'pending-approval'`, so approving
-or declining the request made the row disappear entirely and the page
-fall back to an empty-state card; that gate was removed — only the
-`StatusBadge` tone/label (`CI_FEE_ROW_STATUS_COPY`, one entry per
-`CiFeeStatus` value: `not-requested`/`pending-approval`/`approved`/
-`not-applicable`) varies now. The only remaining empty state is "no live
-application at all" (`!signUpData`), showing "Nothing waiting on you yet"
-with a **"Go to Application List"** button.
-
-**This workspace always keeps one live, actionable "For Approval" CI Fee
-request in front of the approver — a decision never leaves it on a dead
-end.** Two things enforce this:
-
-- **Auto-seed on the list page**: same convention
-  `appraisal-fee-approval-view.tsx` uses — if the session hydrates with no
-  live application, `loadSample(SAMPLE_APPLICATION)` loads the shared
-  sample dataset; then, whenever `ciFeeStatus` is `'not-requested'` (a
-  fresh application, or right after a decline — `CiFeeStatus` has no
-  separate `'declined'` value) or `'not-applicable'`, it re-seeds a fresh
-  `pending-approval` request (₱3,500, "Field verification + report
-  preparation fee") directly into state, clearing `ciFeeDeclineReason`
-  too. Deliberately **excludes `'approved'`**: that's a real terminal
-  decision and must stick, not get silently undone the moment the
-  approver navigates back to this list.
-- **The detail page's own Decline handler re-seeds in place**, rather
-  than resetting to `'not-requested'` and waiting for the list page's
-  effect to notice on next visit — so declining shows a fresh, fully
-  actionable request immediately, on the same page, even if the approver
-  never navigates away (an earlier version left the detail page on a
-  genuine dead end — "No CI Fee has been requested for {name} yet.", no
-  buttons — until the approver went back to the list and back in). Repeat
-  declines re-arm every time.
-
-**The detail page** (`ci-fee-approval-bundle-view.tsx`) shows a header
-card (applicant name/App No./email, a `StatusBadge` for `ciFeeStatus`,
-Description/CI Fee Amount `FactChip`s — no "Properties" or "Requested On"
-chip, since CI Fee has no multi-property concept and no dedicated
-CI-fee-request timestamp field exists in `AdminContext`; no "View
-Documents" button either, since — unlike Appraisal, which gates fee
-approval on per-property document completeness — CI Fee is a flat fee
-amount/description with no equivalent document-completeness concept tied
-to the decision), then a "CI Fee Details" card with the fee breakdown.
-When `ciFeeStatus === 'pending-approval'`, it shows the same
-**"Approve CI Fee"** / **"Decline CI Fee"** pair as the inline page action
-on `credit-investigation-view.tsx`, each behind its own `ConfirmDialog` —
-Approve's ("Approve CI Fee?") just names the applicant/amount; Decline's
-("Reason for declining") requires the same typed reason as the inline
-page action. Both call plain `setCreditInvestigation({ ciFeeStatus: ...
-})` — CI Fee has no dedicated `approveCiFee()`/`declineCiFee()` context
-methods the way Appraisal does. An officer can act from whichever surface
-they're already on (this screen or the inline page action); both write
-the same `review.creditInvestigation` fields. `ciFeeStatus === 'approved'`
-shows a status message instead ("You already approved the CI Fee for
-{name}." or, right after acting, "Approved the CI Fee for {name}.") — the
-detail page only shows "Request not found" when there's no live
-application at all (`!signUpData`); `not-requested`/`not-applicable` are
-unreachable here in practice since the Decline handler and the list
-page's seed effect both re-arm past them immediately.
-
-`ciFeeDeclineReason: string` on `CreditInvestigation` (`admin-context.tsx`)
-follows the same per-decision-reason convention as `decisionReason` — it
-still records the last decline's reason, but no longer gates the
-auto-seed (an earlier version checked `!ciFeeDeclineReason` to avoid
-re-seeding right after a decline; that guard was removed once declining
-was changed to intentionally re-seed immediately instead).
+Now documented in its own file — see `docs/140-request-credit-investigation-fee.md`
+(the request-side `CiFeeCard`) and `docs/150-request-credit-investigation-fee-approval.md`
+(the dedicated Credit Investigation - Fee Approval screens). The CI Report card below is
+locked (shown as a dashed placeholder) until `ciFeeStatus === 'approved'`
+or `'not-applicable'`.
 
 ## CI Report
 
@@ -454,7 +270,8 @@ a reference CI Report layout. Full rationale and section-by-section spec:
   contact); shows "No data found. Please add comaker information on Call
   Report." when the array is empty. The write side of this data lives on
   Call Report's own Comaker card — see
-  `docs/ADMIN_CALL_REPORT.md`'s "The 12 section cards" table, section 12.
+  `docs/080-account-solicitation-call-report.md`'s "The 12 section cards"
+  table, section 12.
 - **Health and Habits** — `RichTextField`, blank by default.
 - **Comments** — `RichTextField`, blank by default.
 - **Recommendation** — kept unchanged from the original CI Report:
@@ -510,10 +327,10 @@ Two actions, both requiring no document/report completeness gate (matching
 this app's generally permissive decision-gate style elsewhere):
 
 - **Proceed** — records `creditInvestigation.decision: 'approved'`, routes
-  to Appraisal (`paths.admin.appraisal`).
+  to Appraisal (`paths.admin.appraisal`, see `docs/110-appraisal.md`).
 - **Disapprove** — `ConfirmDialog` with a required typed reason, records
-  `decision: 'rejected'` + `decisionReason`, routes to Reconsideration.
-  *(Placeholder routing.)*
+  `decision: 'rejected'` + `decisionReason`, routes to Reconsideration
+  (see `docs/130-sales-reject-application.md`). *(Placeholder routing.)*
 
 ## Queue unlocking
 

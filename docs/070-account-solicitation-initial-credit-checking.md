@@ -5,8 +5,8 @@
 > `bureau-results-tables.tsx`, `negative-credit-report-card.tsx`,
 > `initial-credit-checking-risk.ts`, `simulate-bureau-finding.ts`,
 > `officer-notes-history.tsx`) change — new fields, new cards, changed gating,
-> changed decision behavior. Companion to `PROJECT_OVERVIEW.md` (system-wide) and
-> `docs/BORROWER_SIGNUP_FLOW.md` (where the data this screen reads comes from).
+> changed decision behavior. Companion to `docs/230-project-overview.md` (system-wide) and
+> `docs/020-borrower-application.md` (where the data this screen reads comes from).
 
 ## What this is
 
@@ -354,8 +354,8 @@ Result" button have all since been unblocked — see "AI review card" above.
 
 ## Fabricated claims — what's real vs. simulated
 
-Consistent with the rest of this prototype (see `PROJECT_OVERVIEW.md`'s "No
-real backend" note and `docs/BORROWER_SIGNUP_FLOW.md`'s "Fabricated 'we did
+Consistent with the rest of this prototype (see `docs/230-project-overview.md`'s "No
+real backend" note and `docs/020-borrower-application.md`'s "Fabricated 'we did
 real work' claims" section), nothing on this screen calls a real bureau API or
 a real AI model:
 

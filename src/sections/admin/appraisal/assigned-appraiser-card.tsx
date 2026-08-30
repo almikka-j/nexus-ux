@@ -14,11 +14,10 @@ import DialogContent from '@mui/material/DialogContent';
 import { useAdmin } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, outlinedNavyButtonSx, TONE_COLORS, type SemanticTone } from 'src/components/admin-ui';
+import { adminCardSx, outlinedNavyButtonSx, TONE_COLORS } from 'src/components/admin-ui';
 
 import { AppraisalReportView } from './appraisal-report-view';
-
-import type { AppraisalReportBundle } from 'src/auth/admin-context';
+import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './appraisal-bundle-status';
 
 // ----------------------------------------------------------------------
 // Read-only summary of every report bundle's assigned appraiser, for the
@@ -26,36 +25,17 @@ import type { AppraisalReportBundle } from 'src/auth/admin-context';
 // without needing to open the Collateral table's per-row Appraiser
 // column or the Assign Appraiser modal. Renders the same bordered-row
 // list convention used for the per-bundle fee rows on the Appraiser's own
-// page (appraisal-appraiser-view.tsx), plus a per-bundle status derived
-// from the batch feeApprovalStatus + that
-// bundle's own report.uploadedAt: On Process / For Approval / For Report
-// render as a static pill, but once the report is actually submitted
-// there's no more "status" to show — that slot becomes a "View Report"
-// button instead, opening that bundle's AppraisalReportView inside a
-// Dialog. This page never renders the report inline — this modal is the
-// only place the Officer sees a submitted report's contents. Nothing
-// else on this card is editable — reassigning still only happens via the
-// Collateral table's Assign Appraiser modal.
+// page (appraisal-appraiser-view.tsx), plus a per-bundle status from the
+// shared getAppraisalBundleStatus() helper: On Process / For Approval /
+// For Report render as a static pill, but once the report is actually
+// submitted ('reported') there's no more "status" to show — that slot
+// becomes a "View Report" button instead, opening that bundle's
+// AppraisalReportView inside a Dialog. This page never renders the
+// report inline — this modal is the only place the Officer sees a
+// submitted report's contents. Nothing else on this card is editable —
+// reassigning still only happens via the Collateral table's Assign
+// Appraiser modal.
 // ----------------------------------------------------------------------
-
-const STATUS_COPY: Record<'on-process' | 'for-approval' | 'for-report', { label: string; tone: SemanticTone }> = {
-  'on-process': { label: 'On Process', tone: 'neutral' },
-  'for-approval': { label: 'For Approval', tone: 'warning' },
-  'for-report': { label: 'For Report', tone: 'info' },
-};
-
-// null means "reported" — the report is submitted, so there's no more
-// status to show; the caller renders a "View Report" button instead.
-function bundleStatus(
-  bundle: AppraisalReportBundle,
-  feeApprovalStatus: string,
-  feeSettled: boolean
-): keyof typeof STATUS_COPY | null {
-  if (bundle.report.uploadedAt) return null;
-  if (feeApprovalStatus === 'approved' && feeSettled) return 'for-report';
-  if (feeApprovalStatus === 'pending-approval') return 'for-approval';
-  return 'on-process';
-}
 
 export function AssignedAppraiserCard() {
   const { review } = useAdmin();
@@ -85,8 +65,8 @@ export function AssignedAppraiserCard() {
           const bundleTctNumbers = appraisalGroups
             .filter((group) => bundle.tctGroupIds.includes(group.id))
             .map((group) => group.tctNumber);
-          const status = bundleStatus(bundle, feeApprovalStatus, feeSettled);
-          const copy = status ? STATUS_COPY[status] : null;
+          const status = getAppraisalBundleStatus(bundle, feeApprovalStatus, feeSettled);
+          const copy = status === 'reported' ? null : APPRAISAL_BUNDLE_STATUS_COPY[status];
           const toneColors = copy ? TONE_COLORS[copy.tone] : null;
 
           return (

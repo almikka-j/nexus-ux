@@ -2,7 +2,7 @@
 
 This describes the complete borrower-facing journey, from landing on the
 Preliminary Application page to having a submitted loan application.
-Companion to `PROJECT_OVERVIEW.md` (the admin/review-flow side); update both
+Companion to `docs/230-project-overview.md` (the admin/review-flow side); update both
 when this flow changes.
 
 All state lives in `RegistrationContext` (`src/auth/registration-context.tsx`),
@@ -399,29 +399,7 @@ terminal/destination screen rather than part of the active form sequence.
 
 ### 5. Borrower Dashboard (`src/sections/borrower/dashboard-view.tsx`)
 
-Unchanged. `hasApplication = !!signUpData && !!application.personalInfo`.
-
-- **No application yet**: empty-state hero ("You don't have any loans yet")
-  with an "Apply for Loan" button → `/borrower/apply`, plus a "What you'll
-  need" checklist (valid ID, proof of income, bank details, desired amount)
-  and a "~5 minutes" estimate.
-- **Has an application**: shows Loan Number (`PGFC-######`, deterministic hash
-  of the applicant's email — see `src/utils/get-loan-number.ts`), a Loan Type
-  label, a status chip that is **always "Under Review"**, and (if financial
-  info exists) Total Loan Amount / Loan Term stats. A "Reset Application"
-  button calls `reset()`, wiping localStorage back to the empty state.
-
-  **Loan Type label side-effect:** since new sign-ups never set
-  `application.loanType` (see below), this label (`application.loanType ===
-  'business' ? 'Business Loan' : 'Personal Loan'`) always reads "Personal
-  Loan" for freshly-submitted applications — an accepted, unfixed cosmetic
-  side-effect of removing Loan Type from the borrower-facing flow, distinct
-  from the new "Business Owner" *income source* (which doesn't set
-  `loanType` either). **`application-details-card.tsx` has since been fixed**
-  to fall back to `financialInfo.employmentStatus === 'Business Owner'` (see
-  "Completion & admin visibility" below) — this dashboard label is a
-  separate component with its own copy of the same ternary and was not
-  touched by that fix.
+Now documented in its own file — see `docs/030-borrower-dashboard.md`.
 
 ## Loan Type removed from the primary flow
 

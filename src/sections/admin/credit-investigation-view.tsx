@@ -15,7 +15,7 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, createEmptyPaymentDetails } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 import type { CreditInvestigationDoc, RequirementDoc } from 'src/auth/admin-context';
 
@@ -257,6 +257,8 @@ export function CreditInvestigationView() {
       ciFeeAmount: '2500',
       ciFeeAmountDescription: 'Site visit + verification fee',
       ciFeeRemarks: '',
+      ciFeeSubmittedAt: new Date().toISOString(),
+      ciFeeApprovedAt: new Date().toISOString(),
     });
 
     const autoFill = buildTranscriptAutoFill(
@@ -287,6 +289,9 @@ export function CreditInvestigationView() {
       ciFeeAmount: '',
       ciFeeAmountDescription: '',
       ciFeeRemarks: '',
+      ciFeeSubmittedAt: null,
+      ciFeeApprovedAt: null,
+      ciFeePayment: createEmptyPaymentDetails(),
     });
 
     setCiReport({
@@ -320,8 +325,8 @@ export function CreditInvestigationView() {
         // there's no real second-officer login in this prototype, so both
         // outcomes are simulated here as explicit "as another officer" dev
         // shortcuts, same convention as "Force Clean/Negative Bureau
-        // Finding" on Initial Credit Checking. A dedicated CI Fee Approval
-        // screen offers the same two actions with a fuller review UI; these
+        // Finding" on Initial Credit Checking. A dedicated Credit
+        // Investigation - Fee Approval screen offers the same two actions with a fuller review UI; these
         // stay available inline so an officer never has to leave this page
         // just to accept or decline.
         ...(ciFeeStatus === 'pending-approval'
@@ -331,7 +336,8 @@ export function CreditInvestigationView() {
                 label: 'Simulate: Another Officer Approves CI Fee',
                 icon: 'solar:user-check-bold-duotone',
                 color: '#0C8A4F',
-                onClick: () => setCreditInvestigation({ ciFeeStatus: 'approved' }),
+                onClick: () =>
+                  setCreditInvestigation({ ciFeeStatus: 'approved', ciFeeApprovedAt: new Date().toISOString() }),
               },
               {
                 key: 'simulate-ci-fee-decline',
@@ -389,6 +395,9 @@ export function CreditInvestigationView() {
       ciFeeAmountDescription: '',
       ciFeeRemarks: '',
       ciFeeDeclineReason: declineCiFeeReason.trim(),
+      ciFeeSubmittedAt: null,
+      ciFeeApprovedAt: null,
+      ciFeePayment: createEmptyPaymentDetails(),
     });
     setDeclineCiFeeOpen(false);
     setDeclineCiFeeReason('');

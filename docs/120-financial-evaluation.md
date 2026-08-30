@@ -2,9 +2,9 @@
 
 > **Maintenance rule:** update this file whenever `financial-evaluation-view.tsx`,
 > `financial-evaluation-docs.ts`, `cash-flow-statement.ts`, or
-> `cash-flow-statement-card.tsx` change. Companion to `PROJECT_OVERVIEW.md`
-> and `docs/ADMIN_REQUIREMENT_CHECKLIST.md` (the screen that actually collects
-> these documents) and `docs/ADMIN_CREDIT_INVESTIGATION.md` (the sibling
+> `cash-flow-statement-card.tsx` change. Companion to `docs/230-project-overview.md`
+> and `docs/090-account-solicitation-requirement-checklist.md` (the screen that actually collects
+> these documents) and `docs/100-credit-investigation.md` (the sibling
 > process-stage detail page this one follows the same pattern as).
 
 ## What this is
@@ -40,14 +40,14 @@ this build. The page is:
 3. **Document Checklist card** — a read-only mirror of Financial Evaluation's
    10 documents, sourced from `review.requirementChecklist.documents` (the
    one screen that actually collects/edits them — see
-   `docs/ADMIN_REQUIREMENT_CHECKLIST.md`) and rendered via
+   `docs/090-account-solicitation-requirement-checklist.md`) and rendered via
    `ReadOnlyRequirementDocRow` (shared with Credit Investigation's page, at
    `credit-investigation/credit-investigation-doc-row.tsx` — a generic
    presentational component despite the CI-named path). Flat list, no
    subgroup nesting, matching how Requirement Checklist itself renders this
    tab. All 10 documents start already received/reviewed on a fresh session
    (`createInitialRequirementDocuments()` in `admin-context.tsx` — see
-   `docs/ADMIN_REQUIREMENT_CHECKLIST.md`'s "RequirementDoc state shape"
+   `docs/090-account-solicitation-requirement-checklist.md`'s "RequirementDoc state shape"
    section), so this card shows 10/10 on file by default rather than
    surfacing a missing document.
 4. **"AI review, summary & recommendation" card** — reuses
@@ -132,7 +132,7 @@ sourced from `signUpData`/`application.financialInfo.desiredLoanAmount` (the
 ## Decision: Proceed → Credit Scoring, Disapprove → Reconsideration
 
 Same shape as Credit Investigation's Proceed/Disapprove card
-(`docs/ADMIN_CREDIT_INVESTIGATION.md`'s "Proceed / Disapprove decision"),
+(`docs/100-credit-investigation.md`'s "Proceed / Disapprove decision"),
 stored on `review.cashFlowStatement.decision`/`decisionReason`
 (`CreditCheckDecision`, reused from `admin-context.tsx` — same type
 `creditInvestigation.decision` uses) rather than a separate slot, since Cash
@@ -152,7 +152,7 @@ gate on:
 ## Document metadata: `financial-evaluation-docs.ts`
 
 `FINANCIAL_EVALUATION_DOC_META` is its own independent array (not filtered
-out of a combined list) — see `docs/ADMIN_REQUIREMENT_CHECKLIST.md`'s "The
+out of a combined list) — see `docs/090-account-solicitation-requirement-checklist.md`'s "The
 fixed document list" section for the full split rationale. This page imports
 it directly rather than filtering `REQUIREMENT_DOC_META` by tab.
 

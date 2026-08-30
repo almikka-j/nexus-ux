@@ -3,7 +3,7 @@
 > **Maintenance rule:** update this file whenever `applicant-profile-view.tsx`
 > changes — new/removed sections, changed fabricated-history rules, changed
 > routing, or changes to how it's reached from `application-list-view.tsx`.
-> Companion to `PROJECT_OVERVIEW.md` and `docs/ADMIN_INITIAL_CREDIT_CHECKING.md`
+> Companion to `docs/230-project-overview.md` and `docs/070-account-solicitation-initial-credit-checking.md`
 > (source of `bureauFindingStatus`/`stepTimestamps` referenced below).
 
 ## What this is
@@ -169,7 +169,7 @@ image-vs-non-image), where `DocumentPreview` assumes a plain `<img>`.
 
 ## Fabricated claims — what's real vs. simulated
 
-Consistent with the rest of this prototype (see `PROJECT_OVERVIEW.md`'s "No
+Consistent with the rest of this prototype (see `docs/230-project-overview.md`'s "No
 real backend" note):
 
 - Everything under **User details** is real submitted data (or absent,

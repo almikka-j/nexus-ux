@@ -39,6 +39,7 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { SAMPLE_APPLICATION } from './sample-application';
 import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
+import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './appraisal/appraisal-bundle-status';
 
 // ----------------------------------------------------------------------
 // This is the Appraiser's own workspace — framed as personal work ("My
@@ -94,13 +95,6 @@ import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report'
 // table/Assign Appraiser modal — claiming/assigning is the Officer's
 // action there, not something this page needs to offer a shortcut into.)
 // ----------------------------------------------------------------------
-
-const STATUS_COPY: Record<'on-process' | 'for-approval' | 'for-report' | 'reported', { label: string; tone: SemanticTone }> = {
-  'on-process': { label: 'On Process', tone: 'neutral' },
-  'for-approval': { label: 'For Approval', tone: 'warning' },
-  'for-report': { label: 'For Report', tone: 'info' },
-  reported: { label: 'Reported', tone: 'success' },
-};
 
 const FEE_STATUS_COPY: Record<'no-fee' | 'not-submitted' | 'pending-approval' | 'approved' | 'settled' | 'declined', { label: string; tone: SemanticTone }> = {
   'no-fee': { label: 'No Fee', tone: 'neutral' },
@@ -266,6 +260,7 @@ export function AppraisalAppraiserView() {
               ciFeeAmount: '2500',
               ciFeeAmountDescription: 'Credit investigation fee',
               ciFeeRemarks: '',
+              ciFeeSubmittedAt: new Date().toISOString(),
             }),
         },
       ],
@@ -424,14 +419,8 @@ export function AppraisalAppraiserView() {
                       const bundleTctNumbers = appraisalGroups
                         .filter((group) => bundle.tctGroupIds.includes(group.id))
                         .map((group) => group.tctNumber);
-                      const status = bundle.report.uploadedAt
-                        ? 'reported'
-                        : bundle.feeNeeded === 'no' || (feeApprovalStatus === 'approved' && feeSettled)
-                          ? 'for-report'
-                          : feeApprovalStatus === 'pending-approval'
-                            ? 'for-approval'
-                            : 'on-process';
-                      const copy = STATUS_COPY[status];
+                      const status = getAppraisalBundleStatus(bundle, feeApprovalStatus, feeSettled);
+                      const copy = APPRAISAL_BUNDLE_STATUS_COPY[status];
                       const toneColors = TONE_COLORS[copy.tone];
 
                       const feeStatusKey =

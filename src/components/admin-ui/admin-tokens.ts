@@ -2,7 +2,7 @@
 // Canonical design tokens for the admin app — one color/shape per
 // semantic meaning, so every chip, badge, card, and button converges on
 // the same values instead of each screen picking its own near-identical
-// hex. See docs/UI_UX_AUDIT.md for the audit that produced this list.
+// hex. See docs/220-ui-ux-audit.md for the audit that produced this list.
 // ----------------------------------------------------------------------
 
 import type { ReviewStep } from 'src/auth/admin-context';

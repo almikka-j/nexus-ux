@@ -5,9 +5,9 @@
 > under `src/sections/admin/call-report/` changes — new/removed/renamed
 > fields, changed card order, changed `canProceed` gating, changed sample-data
 > values, or changes to `call-report-result-modal.tsx` /
-> `credit-checking-result-modal.tsx`. Companion to `PROJECT_OVERVIEW.md`,
-> `docs/ADMIN_INITIAL_CREDIT_CHECKING.md`, and
-> `docs/ADMIN_REQUIREMENT_CHECKLIST.md`.
+> `credit-checking-result-modal.tsx`. Companion to `docs/230-project-overview.md`,
+> `docs/070-account-solicitation-initial-credit-checking.md`, and
+> `docs/090-account-solicitation-requirement-checklist.md`.
 
 ## What this is
 

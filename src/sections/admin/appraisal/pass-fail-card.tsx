@@ -21,7 +21,7 @@ import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 // ----------------------------------------------------------------------
 // Manual Pass/Fail judgment call, gated on Head Approval
 // (`headApprovalStatus === 'approved'`, decided entirely on the
-// "Appraisal - Approver Report" page now — this card's parent view
+// "Appraisal - Report Approval" page now — this card's parent view
 // doesn't render any Head Approval UI of its own). Pass routes forward
 // to the Credit Scoring stub, which is effectively where this
 // appraisal's own page ends — Pass is the terminal action; Fail requires

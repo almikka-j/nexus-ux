@@ -5,7 +5,7 @@ import { AppraisalFeeApprovalBundleView } from 'src/sections/admin/appraisal-fee
 // ----------------------------------------------------------------------
 
 export const metadata: Metadata = {
-  title: 'Appraisal Fee Approval | HHC LMS',
+  title: 'Appraisal - Fee Approval | HHC LMS',
 };
 
 export default function Page() {

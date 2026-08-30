@@ -13,7 +13,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, createEmptyPaymentDetails } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -140,7 +140,7 @@ export function CiFeeApprovalBundleView() {
 
   const confirmApprove = () => {
     setConfirmOpen(false);
-    setCreditInvestigation({ ciFeeStatus: 'approved' });
+    setCreditInvestigation({ ciFeeStatus: 'approved', ciFeeApprovedAt: new Date().toISOString() });
     setJustApproved(true);
   };
 
@@ -164,6 +164,9 @@ export function CiFeeApprovalBundleView() {
       ciFeeAmountDescription: 'Field verification + report preparation fee',
       ciFeeRemarks: '',
       ciFeeDeclineReason: declineReason.trim(),
+      ciFeeSubmittedAt: new Date().toISOString(),
+      ciFeeApprovedAt: null,
+      ciFeePayment: createEmptyPaymentDetails(),
     });
     setDeclineOpen(false);
     setDeclineReason('');

@@ -5,7 +5,7 @@
 > `credit-investigation-docs.ts`, `financial-evaluation-docs.ts`,
 > `requirement-checklist-risk.ts`) change — new/removed documents, changed
 > categories, changed gating, changed decision behavior. Companion to
-> `PROJECT_OVERVIEW.md` (system-wide) and `docs/ADMIN_INITIAL_CREDIT_CHECKING.md`
+> `docs/230-project-overview.md` (system-wide) and `docs/070-account-solicitation-initial-credit-checking.md`
 > (the sibling screen earlier in the same review pipeline).
 
 ## What this is
@@ -54,7 +54,7 @@ centered at some fixed pixel width. This was needed because the two-column
 layout's 240px sticky sidebar ate enough of a constrained `Container`'s width
 that `ApplicationDetailsCard`'s `FactChip` values (e.g. Date filed) still
 crowded onto a second line even with the `whiteSpace: 'nowrap'` + ellipsis
-treatment (see `PROJECT_OVERVIEW.md`'s Application Details card description)
+treatment (see `docs/230-project-overview.md`'s Application Details card description)
 — going full-width (rather than picking a wider fixed `maxWidth`) is what
 finally gives the sidebar+card row enough room while staying visually
 consistent with the nav bar above it.
@@ -492,7 +492,7 @@ endorse" and "Clear the N outstanding item(s) above" based on this same
 ## "Fill with Sample Data" / "Remove Sample Data" page action
 
 Registered as a page action into the shared settings popover (see
-`page-actions-context.tsx`/`PROJECT_OVERVIEW.md`'s "Page actions" section),
+`page-actions-context.tsx`/`docs/230-project-overview.md`'s "Page actions" section),
 same pattern as Initial Credit Checking's and Call Report's sample-data
 actions, no `NODE_ENV` gate. Label and behavior are driven by
 `allRequiredReceived` (the same boolean gating the Endorse button):
@@ -735,8 +735,8 @@ confirmation screen, not an actual message sent to anyone.
 
 ## Fabricated claims — what's real vs. simulated
 
-Consistent with the rest of this prototype (see `PROJECT_OVERVIEW.md`'s "No
-real backend" note and `docs/BORROWER_SIGNUP_FLOW.md`'s "Fabricated 'we did
+Consistent with the rest of this prototype (see `docs/230-project-overview.md`'s "No
+real backend" note and `docs/020-borrower-application.md`'s "Fabricated 'we did
 real work' claims" section), nothing on this screen calls a real document
 parser or a real AI model:
 

@@ -5,7 +5,7 @@ import { AppraisalApproverView } from 'src/sections/admin/appraisal-approver-vie
 // ----------------------------------------------------------------------
 
 export const metadata: Metadata = {
-  title: 'Appraisal Approver | HHC LMS',
+  title: 'Appraisal - Report Approval | HHC LMS',
 };
 
 export default function Page() {

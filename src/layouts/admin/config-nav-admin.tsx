@@ -14,9 +14,14 @@ import { paths } from 'src/routes/paths';
 //
 // Reconsideration is deliberately NOT included — being sent to
 // Reconsideration means the application was already rejected at Initial
-// Credit Checking, so it isn't a forward step in "the process." It lives
-// under the separate "For Reconsideration" section below instead, alongside
-// the Negative List it can feed into.
+// Credit Checking, so it isn't a forward step in "the process." There is
+// no nav entry for it (or Negative List) at all — the "For Reconsideration"
+// sidebar section that used to hold both was removed; both pages are still
+// real routes (`paths.admin.applicationsByStep('reconsideration')`,
+// `paths.admin.negativeList`), just reached without a sidebar link now
+// (Reconsideration itself is routed to directly from Initial Credit
+// Checking's own "Not Approved" outcome). See
+// `docs/130-sales-reject-application.md`.
 export const applicationItems = [
   { title: 'Account Solicitation', step: null, path: paths.admin.accountSolicitation },
   {
@@ -36,32 +41,23 @@ export const applicationItems = [
   },
 ];
 
-// Rejected-track items: applications sent to Reconsideration after being
-// turned down at Initial Credit Checking, and the Negative List that
-// Reconsideration's "No — Notify Client" outcome feeds into. Grouped
-// separately from the main forward-moving process above.
-export const reconsiderationTrackItems = [
-  { title: 'Reconsideration', step: 'reconsideration', path: paths.admin.applicationsByStep('reconsideration') },
-  { title: 'Negative List', step: null, path: paths.admin.negativeList },
-];
-
 // Request-role screens: each is a dedicated queue for one specific
 // role/decision in the appraisal (and CI Fee) request flow — the
 // Appraiser's own "My Assignments" workspace, then the two Approver
 // decision queues (Appraisal Fee, then Appraisal Report) — not a step in
-// the main forward-moving pipeline above. Grouped together the same way
-// "For Reconsideration" groups the rejected-track screens, under the
-// "Request" nav label (was "Approval" — renamed since this group now also
-// contains the Appraiser's own workspace, not just approve/decline
-// queues). None of these are filtered by `step` (that's
-// `application-list-view.tsx`'s ?step= mechanism); each has its own
-// dedicated view/route with its own row-filtering logic, so `step: null`
-// throughout, same as "Negative List" above.
+// the main forward-moving pipeline above. Grouped under the "Request" nav
+// label (was "Approval" — renamed since this group now also contains the
+// Appraiser's own workspace, not just approve/decline queues). None of
+// these are filtered by `step` (that's `application-list-view.tsx`'s
+// ?step= mechanism); each has its own dedicated view/route with its own
+// row-filtering logic, so `step: null` throughout.
 export const approvalItems = [
-  { title: 'CI Fee Approval', step: null, path: paths.admin.ciFeeApproval },
+  { title: 'Credit Investigation - Fee Approval', step: null, path: paths.admin.ciFeeApproval },
   { title: 'Appraiser', step: null, path: paths.admin.appraisalAppraiser },
-  { title: 'Appraisal - Approver Fee', step: null, path: paths.admin.appraisalFeeApproval },
-  { title: 'Appraisal - Approver Report', step: null, path: paths.admin.appraisalApprover },
+  { title: 'Appraisal - Request', step: null, path: paths.admin.appraisalRequest },
+  { title: 'Appraisal - Fee Approval', step: null, path: paths.admin.appraisalFeeApproval },
+  { title: 'Appraisal - Report Approval', step: null, path: paths.admin.appraisalApprover },
+  { title: 'Payment Verification', step: null, path: paths.admin.payment },
 ];
 
 export const adminNavData = [
@@ -75,13 +71,6 @@ export const adminNavData = [
     path: null,
     icon: <Iconify width={24} icon="solar:document-text-bold-duotone" />,
     children: applicationItems,
-  },
-  {
-    title: 'For Reconsideration',
-    // Also a non-clickable section label, same pattern as "Application List".
-    path: null,
-    icon: <Iconify width={24} icon="solar:shield-cross-bold-duotone" />,
-    children: reconsiderationTrackItems,
   },
   {
     title: 'Request',
@@ -113,10 +102,7 @@ export function getAdminReviewStep(pathname: string, searchStep: string | null) 
 }
 
 export function isAdminNavChildActive(
-  child:
-    | (typeof applicationItems)[number]
-    | (typeof reconsiderationTrackItems)[number]
-    | (typeof approvalItems)[number],
+  child: (typeof applicationItems)[number] | (typeof approvalItems)[number],
   pathname: string,
   searchStep: string | null
 ) {
