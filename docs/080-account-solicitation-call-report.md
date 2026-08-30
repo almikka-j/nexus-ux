@@ -224,7 +224,12 @@ calls `setCallReport({ decisionReason })` then routes to
   the Call Report page's own **View Call Report Result** button and from
   `ApplicationDetailsCard`'s **View Call Report** action on other review
   steps (e.g. Requirement Checklist). Must be updated whenever a `CallReport`
-  field is added, removed, or renamed.
+  field is added, removed, or renamed. Its own Endorsement Declaration section
+  mirrors `endorsement-declaration-card.tsx` exactly, including the
+  conditional **Approved By** / **Approval Date / Time** second signature row
+  once `callReportApprovalStatus === 'approved'` — so approving a Call Report
+  on the Call Report - Report Approval screen is reflected here too, e.g. when
+  an officer clicks **View Call Report** from Requirement Checklist.
 - `call-report/credit-checking-result-modal.tsx` (`CreditCheckingResultModal`)
   — shows the Initial Credit Checking decision/notes, not `CallReport` data;
   unaffected by Call Report field changes.

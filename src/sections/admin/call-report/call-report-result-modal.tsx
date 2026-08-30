@@ -516,6 +516,31 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
                 <SignatureField icon="solar:user-id-bold-duotone" label="Account Officer" value={accountOfficer} />
                 <SignatureField icon="solar:clock-circle-bold-duotone" label="Date / Time" value={generatedLabel} />
               </Stack>
+
+              {callReport.callReportApprovalStatus === 'approved' && (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
+                  <SignatureField
+                    icon="solar:shield-check-bold-duotone"
+                    label="Approved By"
+                    value={callReport.callReportApprovedBy || '—'}
+                  />
+                  <SignatureField
+                    icon="solar:clock-circle-bold-duotone"
+                    label="Approval Date / Time"
+                    value={
+                      callReport.callReportApprovedAt
+                        ? new Date(callReport.callReportApprovedAt).toLocaleString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })
+                        : '—'
+                    }
+                  />
+                </Stack>
+              )}
             </Box>
           </Box>
         </Stack>
