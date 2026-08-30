@@ -943,7 +943,7 @@ Approves CI Fee" / "Simulate: Another Officer Declines CI Fee" page
 actions on Credit Investigation; see
 `docs/150-request-credit-investigation-fee-approval.md` for the full detail.
 
-**"Call Report - Approval"** (`path: paths.admin.callReportApproval`) sits directly
+**"Call Report - Report Approval"** (`path: paths.admin.callReportApproval`) sits directly
 after Credit Investigation - Fee Approval in the same `approvalItems` list —
 the second-officer approval gate Call Report's own "Submit for Approval"
 action feeds into (list `call-report-approval-view.tsx` -> detail

@@ -5,7 +5,7 @@ import { CallReportApprovalBundleView } from 'src/sections/admin/call-report-app
 // ----------------------------------------------------------------------
 
 export const metadata: Metadata = {
-  title: 'Call Report - Approval | HHC LMS',
+  title: 'Call Report - Report Approval | HHC LMS',
 };
 
 export default function Page() {

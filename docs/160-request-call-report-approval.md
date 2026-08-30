@@ -11,7 +11,7 @@
 ## What this is
 
 **Dedicated Call Report Approval screens**, nav label **"Call Report -
-Approval"** (`/admin/call-report-approval` -> `/admin/call-report-approval/current`,
+Report Approval"** (`/admin/call-report-approval` -> `/admin/call-report-approval/current`,
 `src/sections/admin/call-report-approval-view.tsx` (list) ->
 `call-report-approval-bundle-view.tsx` (detail)) are the second-officer
 review step Call Report's own "Submit for Approval" action feeds into.

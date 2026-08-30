@@ -53,7 +53,7 @@ export const applicationItems = [
 // row-filtering logic, so `step: null` throughout.
 export const approvalItems = [
   { title: 'Credit Investigation - Fee Approval', step: null, path: paths.admin.ciFeeApproval },
-  { title: 'Call Report - Approval', step: null, path: paths.admin.callReportApproval },
+  { title: 'Call Report - Report Approval', step: null, path: paths.admin.callReportApproval },
   { title: 'Appraiser', step: null, path: paths.admin.appraisalAppraiser },
   { title: 'Appraisal - Request', step: null, path: paths.admin.appraisalRequest },
   { title: 'Appraisal - Fee Approval', step: null, path: paths.admin.appraisalFeeApproval },
