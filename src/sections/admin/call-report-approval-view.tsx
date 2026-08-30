@@ -47,15 +47,23 @@ import type { CallReportApprovalStatus } from 'src/auth/admin-context';
 //
 // Same auto-load-and-seed convention as ci-fee-approval-view.tsx: if the
 // session hydrates with no live application, load the shared sample
-// dataset. Then, whenever callReportApprovalStatus isn't
-// 'pending-approval', re-seed a fresh submitted Call Report — the FULL
-// 8 sections, via the same buildSampleCallReportFields() builder
-// call-report-view.tsx's own "Fill with Sample Data" uses (see
-// sample-call-report.ts), not just the 3 canProceed fields — so "View
+// dataset. Then, only when the Call Report is genuinely EMPTY (none of
+// the 3 canProceed fields — interactionType/identityStatus/
+// callDisposition — are set) and isn't already 'pending-approval', seed
+// a fresh submitted Call Report — the FULL 8 sections, via the same
+// buildSampleCallReportFields() builder call-report-view.tsx's own
+// "Fill with Sample Data" uses (see sample-call-report.ts) — so "View
 // Call Report Result" on the detail page shows a real, complete-looking
-// report immediately, not a mostly-empty one. Deliberately excludes
-// 'approved': that's a real terminal decision and must stick, not get
-// silently undone the moment the approver navigates back to this list.
+// report immediately, not a mostly-empty one. If the report already has
+// real content (hand-filled or sample-filled) but hasn't been submitted,
+// only the status fields are stamped — the officer's actual field
+// values are never touched. Deliberately excludes 'approved': that's a
+// real terminal decision and must stick, not get silently undone the
+// moment the approver navigates back to this list. Also never resurrects
+// a just-Declined application: a non-empty decisionReason alongside
+// 'not-submitted' means Decline ran, and per
+// docs/160-request-call-report-approval.md decline leaves nothing to
+// re-arm.
 // ----------------------------------------------------------------------
 
 const CALL_REPORT_ROW_STATUS_COPY: Record<CallReportApprovalStatus, { label: string; tone: SemanticTone }> = {
@@ -69,6 +77,10 @@ export function CallReportApprovalView() {
   const { signUpData, application, hydrated, loadSample } = useRegistration();
   const { review, setCallReport } = useAdmin();
   const { callReportApprovalStatus, callReportSubmittedAt } = review.callReport;
+  const isCallReportEmpty =
+    !review.callReport.interactionType &&
+    !review.callReport.identityStatus &&
+    !review.callReport.callDisposition;
 
   const hasApplication = !!signUpData && !!application.personalInfo;
 
@@ -81,7 +93,11 @@ export function CallReportApprovalView() {
       loadSample(SAMPLE_APPLICATION);
       return;
     }
-    if (callReportApprovalStatus !== 'pending-approval') {
+    if (callReportApprovalStatus === 'pending-approval') return;
+    // Never overwrite a declined-but-untouched report — see Finding 2 below,
+    // this guard also covers Finding 1: don't resurrect after Decline.
+    if (callReportApprovalStatus === 'not-submitted' && review.callReport.decisionReason) return;
+    if (isCallReportEmpty) {
       setCallReport({
         ...buildSampleCallReportFields({
           firstName: signUpData?.firstName ?? '',
@@ -92,9 +108,17 @@ export function CallReportApprovalView() {
         callReportApprovalStatus: 'pending-approval',
         callReportSubmittedAt: new Date().toISOString(),
       });
+    } else {
+      // Report has real content (hand-filled or sample-filled) but hasn't
+      // been submitted yet — only stamp the status fields, never touch the
+      // officer's actual field values.
+      setCallReport({
+        callReportApprovalStatus: 'pending-approval',
+        callReportSubmittedAt: new Date().toISOString(),
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, hasApplication, callReportApprovalStatus]);
+  }, [hydrated, hasApplication, callReportApprovalStatus, isCallReportEmpty]);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
   const rowStatusCopy = CALL_REPORT_ROW_STATUS_COPY[callReportApprovalStatus];
