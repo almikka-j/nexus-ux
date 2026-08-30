@@ -107,13 +107,12 @@ new report view was built for this screen.
 When `callReportApprovalStatus === 'pending-approval'`, it shows
 **"Approve Call Report"** / **"Decline"**:
 
-- **Approve** opens a `ConfirmDialog` with a required **Approver Name**
-  `TextField` — there's no real second-officer login in this prototype,
-  so typing the name is how "who approved this" gets captured. The
-  confirm button stays disabled until the name is non-empty after
-  `.trim()`. Confirming calls `setCallReport({ callReportApprovalStatus:
-  'approved', callReportApprovedAt: <ISO timestamp>,
-  callReportApprovedBy: <trimmed name> })`.
+- **Approve** is a single click — no dialog, no typed name. There's no
+  real second-officer login in this prototype, so rather than ask the
+  user to type an approver name, clicking **"Approve Call Report"**
+  immediately calls `setCallReport({ callReportApprovalStatus: 'approved',
+  callReportApprovedAt: <ISO timestamp>, callReportApprovedBy: 'Jaime
+  Reyes' })` — a fixed dummy name standing in for "who approved this."
 - **Decline** reuses the **exact same** reason-dropdown + optional-
   remarks flow as Call Report's own "Sales Reject" button
   (`SALES_REJECT_REASONS`/`buildDecisionReason()`, both from

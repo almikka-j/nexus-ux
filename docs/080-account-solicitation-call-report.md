@@ -225,11 +225,20 @@ calls `setCallReport({ decisionReason })` then routes to
   `ApplicationDetailsCard`'s **View Call Report** action on other review
   steps (e.g. Requirement Checklist). Must be updated whenever a `CallReport`
   field is added, removed, or renamed. Its own Endorsement Declaration section
-  mirrors `endorsement-declaration-card.tsx` exactly, including the
-  conditional **Approved By** / **Approval Date / Time** second signature row
-  once `callReportApprovalStatus === 'approved'` — so approving a Call Report
-  on the Call Report - Report Approval screen is reflected here too, e.g. when
-  an officer clicks **View Call Report** from Requirement Checklist.
+  mirrors `endorsement-declaration-card.tsx`'s conditional **Approved By** /
+  **Approval Date / Time** second signature row once `callReportApprovalStatus
+  === 'approved'` — so approving a Call Report on the Call Report - Report
+  Approval screen is reflected here too, e.g. when an officer clicks
+  **View Call Report** from Requirement Checklist. Unlike the card, this
+  modal also has a **display-only fallback**: for an application saved
+  before the approval gate existed (so it never got
+  `callReportApprovalStatus`/`callReportApprovedBy` populated) but whose
+  Call Report was clearly already generated (`review.stepTimestamps
+  .callReport` is set), it shows the same row with a fixed dummy name
+  ("Jaime Reyes") and the report's own generated date instead of leaving
+  the row blank. This fallback is local to the modal — it does not write
+  anything back to `callReport`, and `endorsement-declaration-card.tsx`
+  itself still only ever shows the real `callReportApprovedBy`.
 - `call-report/credit-checking-result-modal.tsx` (`CreditCheckingResultModal`)
   — shows the Initial Credit Checking decision/notes, not `CallReport` data;
   unaffected by Call Report field changes.

@@ -161,6 +161,29 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
     ? `${generatedAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} · ${generatedAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
     : '—';
 
+  // Applications saved before the Call Report Approval gate existed never
+  // got callReportApprovalStatus/callReportApprovedBy/callReportApprovedAt
+  // populated, even though they've already moved past Call Report (e.g.
+  // already sitting at Requirement Checklist). Rather than show a blank
+  // Approved By row for that pre-existing data, fall back to a dummy
+  // approver name/date whenever the report has clearly already been
+  // generated (review.stepTimestamps.callReport is set) but isn't marked
+  // 'approved' yet.
+  const isApproved = callReport.callReportApprovalStatus === 'approved';
+  const showApproverFallback = !isApproved && !!generatedAt;
+  const approvedByLabel = isApproved ? callReport.callReportApprovedBy || '—' : 'Jaime Reyes';
+  const approvedAtLabel = isApproved
+    ? callReport.callReportApprovedAt
+      ? new Date(callReport.callReportApprovedAt).toLocaleString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : '—'
+    : generatedLabel;
+
   const identityBasisLabels = callReport.identityBasis
     .map((value) => labelFor(IDENTITY_BASIS_OPTIONS, value))
     .filter((label): label is string => !!label)
@@ -517,28 +540,10 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
                 <SignatureField icon="solar:clock-circle-bold-duotone" label="Date / Time" value={generatedLabel} />
               </Stack>
 
-              {callReport.callReportApprovalStatus === 'approved' && (
+              {(isApproved || showApproverFallback) && (
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
-                  <SignatureField
-                    icon="solar:shield-check-bold-duotone"
-                    label="Approved By"
-                    value={callReport.callReportApprovedBy || '—'}
-                  />
-                  <SignatureField
-                    icon="solar:clock-circle-bold-duotone"
-                    label="Approval Date / Time"
-                    value={
-                      callReport.callReportApprovedAt
-                        ? new Date(callReport.callReportApprovedAt).toLocaleString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })
-                        : '—'
-                    }
-                  />
+                  <SignatureField icon="solar:shield-check-bold-duotone" label="Approved By" value={approvedByLabel} />
+                  <SignatureField icon="solar:clock-circle-bold-duotone" label="Approval Date / Time" value={approvedAtLabel} />
                 </Stack>
               )}
             </Box>

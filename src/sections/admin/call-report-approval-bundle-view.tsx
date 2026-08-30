@@ -60,8 +60,6 @@ export function CallReportApprovalBundleView() {
   const { callReportApprovalStatus, callReportSubmittedAt } = review.callReport;
 
   const [resultModalOpen, setResultModalOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [approverName, setApproverName] = useState('');
   const [declineOpen, setDeclineOpen] = useState(false);
   const [reasonCategory, setReasonCategory] = useState('');
   const [reasonRemarks, setReasonRemarks] = useState('');
@@ -91,20 +89,15 @@ export function CallReportApprovalBundleView() {
   const isPending = callReportApprovalStatus === 'pending-approval';
   const submittedOnLabel = callReportSubmittedAt ? new Date(callReportSubmittedAt).toLocaleString() : '—';
 
-  const closeConfirm = () => {
-    setConfirmOpen(false);
-    setApproverName('');
-  };
-
-  const confirmApprove = () => {
-    if (!approverName.trim()) return;
+  // No real second-officer login in this prototype — approving stamps a
+  // fixed dummy name instead of asking the user to type one, so "Approve
+  // Call Report" is a single click with no intermediate dialog.
+  const handleApprove = () => {
     setCallReport({
       callReportApprovalStatus: 'approved',
       callReportApprovedAt: new Date().toISOString(),
-      callReportApprovedBy: approverName.trim(),
+      callReportApprovedBy: 'Jaime Reyes',
     });
-    setConfirmOpen(false);
-    setApproverName('');
     setJustApproved(true);
   };
 
@@ -216,7 +209,7 @@ export function CallReportApprovalBundleView() {
               </Typography>
               <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
                 <Button
-                  onClick={() => setConfirmOpen(true)}
+                  onClick={handleApprove}
                   variant="contained"
                   startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
                   sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#14205A' } }}
@@ -257,39 +250,6 @@ export function CallReportApprovalBundleView() {
       </Stack>
 
       <CallReportResultModal open={resultModalOpen} onClose={() => setResultModalOpen(false)} />
-
-      <ConfirmDialog
-        open={confirmOpen}
-        onClose={closeConfirm}
-        title="Approve Call Report?"
-        content={
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
-              Approving unlocks Requirement Checklist for <strong>{applicantName}</strong>. This
-              can’t be undone from here.
-            </Typography>
-            <TextField
-              autoFocus
-              fullWidth
-              label="Approver Name"
-              placeholder="Type your name"
-              value={approverName}
-              onChange={(event) => setApproverName(event.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
-            />
-          </Stack>
-        }
-        action={
-          <Button
-            variant="contained"
-            disabled={!approverName.trim()}
-            onClick={confirmApprove}
-            sx={confirmDialogActionToneSx.default}
-          >
-            Approve
-          </Button>
-        }
-      />
 
       <ConfirmDialog
         open={declineOpen}
