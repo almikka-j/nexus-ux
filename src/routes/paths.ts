@@ -76,6 +76,12 @@ export const paths = {
     // consistent with the list -> detail split every other fee-approval flow
     // uses.
     ciFeeApprovalBundle: () => '/admin/ci-fee-approval/current',
+    callReportApproval: '/admin/call-report-approval',
+    // Same fixed-placeholder-segment convention as ciFeeApprovalBundle —
+    // no real multi-application backend, so there's no real request ID to
+    // route on; this only keeps the URL shape consistent with the other
+    // approval flows' list -> detail split.
+    callReportApprovalBundle: () => '/admin/call-report-approval/current',
     appraisalAppraiser: '/admin/appraisal-appraiser',
     appraisalAppraiserBundle: (bundleId: string) => `/admin/appraisal-appraiser/${bundleId}`,
     // Officer-facing read-only status list of every appraiser assignment
