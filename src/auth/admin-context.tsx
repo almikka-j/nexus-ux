@@ -493,8 +493,18 @@ export type PreliminaryRecommendation =
   | 'hold'
   | 'do-not-proceed';
 
+export type CallReportApprovalStatus = 'not-submitted' | 'pending-approval' | 'approved';
+
 export type CallReport = {
-  approved: boolean;
+  callReportApprovalStatus: CallReportApprovalStatus;
+  callReportSubmittedAt: string | null;
+  callReportApprovedAt: string | null;
+  // The approver's typed name — there is no real second-officer login in
+  // this prototype (same convention as Appraisal's/CI Fee's simulated
+  // approvals), so this is how "who approved this Call Report" is
+  // captured. Set only by the Call Report Approval screen's Approve
+  // action; null until then.
+  callReportApprovedBy: string | null;
   decisionReason: string;
 
   // 1. Interaction Record
@@ -1815,7 +1825,10 @@ function createInitialReview(): ApplicationReview {
     reconsideration: { notes: '', decision: 'pending' },
     negativeCreditReport: createInitialNegativeCreditReport(),
     callReport: {
-      approved: false,
+      callReportApprovalStatus: 'not-submitted',
+      callReportSubmittedAt: null,
+      callReportApprovedAt: null,
+      callReportApprovedBy: null,
       decisionReason: '',
 
       interactionType: '',
