@@ -45,9 +45,10 @@ the compact aging values and Step 1 pill remain in the row above. Large
 The right-column cards, in order:
 
 1. **`BureauReportsCard`** — the CIBI form + 5 bureau-report upload slots
-   (LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure), each
-   auto-populating a read-only results table with one canned sample row the
-   instant that bureau's file is uploaded. See "Bureau reports" below.
+   (LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure). Every bureau
+   accepts multiple uploaded files, and each file auto-populates its own
+   read-only results table with a few canned sample rows the instant it's
+   uploaded. See "Bureau reports" below.
 2. **"Officer notes"** — add a structured, attributed note or open the complete
    note history. See "Officer notes" below.
 3. **"AI review, summary & recommendation"** — see "AI review card" below.
@@ -59,22 +60,18 @@ The former inline `NegativeCreditReportCard` is no longer rendered on this
 page. Negative findings are summarized inside `CreditCheckingResultModal`,
 which remains available from the "View Initial Credit Checking Result" button.
 
-Each Bureau Report row shows a concise, applicant-personalized report summary
-directly below its title after a document is uploaded, for all five bureaus
-(CIBI, LOANDEX, CIC, CMAP, NFIS/BAP). Each summary's wording is kept in sync
-with that bureau's `clearResult` copy in the Initial Credit Checking Result
-modal's Bureau Reports Result row, minus that modal's "Summary: " prefix
-(redundant inline on this card). Rows without an uploaded report retain their
-existing upload/API guidance instead.
-
-Uploaded Bureau Report rows follow the Requirement Checklist document-card
-interaction pattern without its acceptance checkbox or Remarks workflow:
-personalized summary, outlined **View** action, and a bordered
-three-dot menu containing **Replace file** and **Delete file**. Files are
-stored as data URLs so View opens the actual uploaded report in a new tab.
-The filename is not repeated beside the action buttons; instead, filename and
-localized upload date appear as muted metadata beneath the personalized
-summary, matching Requirement Checklist document rows.
+Each Bureau Report row now accepts **multiple uploaded files** (all 6
+bureaus, CIBI included) — see "Bureau reports" below for the full
+multi-file shape. The row header shows a file count ("N files uploaded")
+instead of one summary line; below the header, each uploaded file gets its
+own collapsible sub-panel (filename, row count, upload date, **View** action,
+and a bordered three-dot menu with **Replace file** / **Delete file**),
+expandable to reveal that file's own results table. The first uploaded file
+(or the most recently added one) starts expanded; the rest start collapsed,
+and each toggles independently. Files are stored as data URLs so **View**
+opens the actual uploaded report in a new tab. Rows without any uploaded
+file show a primary **Upload report** button (CIBI: **Upload document**,
+gated on "Sent") instead of the file list.
 
 ## Application details card
 
@@ -161,52 +158,80 @@ Upload ID (`step-personal-info.tsx`); the two are separate components with
 separate color/label choices, not shared.
 
 All 6 bureau sections — CMAP, BAP/NFIS, CIBI, CIC, LOANDEX, and PGFC Existing
-Exposure — now have **read-only, auto-filling results tables**
+Exposure — accept **multiple uploaded files per bureau**, and each uploaded
+file has its own **read-only, auto-filling results table**
 (`src/sections/admin/bureau-results-tables.tsx`) matching the columns from the
 "PGFC – Integrated Initial Credit Checking Results" reference template:
 `CmapCasesTable`, `BapNfisRecordsTable`, `CibiResultsTable`,
 `CicContractsTable`, `LoandexRecordsTable`, and `PgfcExposureTable`. There is
-no more officer data entry here: the instant a bureau's file is uploaded
-(whether by hand or via "Fill with Sample Data"), that bureau's array is
-seeded with exactly **one realistic canned sample row**
-(`createCmapSampleCase()`/`createBapNfisSampleRecord()`/
-`createCibiSampleResult()`/`createCicSampleContract()`/
-`createLoandexSampleRecord()`/`createPgfcSampleExposureRecord()` in
-`admin-context.tsx`), rendered as disabled `TextField`s — no Add/Remove
-buttons anywhere. Replacing an already-uploaded file does not stack a second
-row (the seed only fires while the array is still empty); deleting the file
-("Delete file" in the row's menu) resets the array back to `[]`. CIBI's
-sample additionally pulls `facilityType`/`originalAmount`/
-`monthlyAmortization` from the CIBI intake form's `creditType`/
-`financedAmount`/`installment` at the moment its report is uploaded. Rows are
-backed by six arrays on `CreditChecking` (`cmapCases`, `bapNfisRecords`,
-`cibiResults`, `cicContracts`, `loandexRecords`, `pgfcExposureRecords` — each
-row a `{id, ...fields}` object), populated entirely by the six upload
-setters (`setCmapUpload`/`setNfisBapUpload`/`setCicUpload`/
-`setLoandexUpload`/`setPgfcExposureUpload`/`setCibiForm`) — there are no
-`add*`/`remove*`/`update*` setters on `useAdmin()` for these rows. An empty
-table (only reachable transiently, before that bureau's upload lands) shows a
-dashed-border empty-state message (e.g. "No CMAP court/legal cases recorded
-yet.") instead of nothing.
+no officer data entry here: the instant a file is added to a bureau (by hand,
+"Add files"/"Upload report", or via "Fill with Sample Data"), that file is
+seeded with **2–3 realistic canned sample rows** (1 row for CMAP/PGFC — see
+below) via `seedBureauRows()` in `admin-context.tsx`, which dispatches to the
+same per-bureau factories as before (`createCmapSampleCase()`/
+`createBapNfisSampleRecord()`/`createCibiSampleResult()`/
+`createCicSampleContract()`/`createLoandexSampleRecord()`/
+`createPgfcSampleExposureRecord()`), then varies the 2nd/3rd row's
+non-status descriptive fields via `decorateBureauRow()` so a multi-row table
+doesn't repeat one identical record — every status/paymentStatus/
+contractStatus/accountStatus field stays exactly as the single-row factory
+set it, so seeded files still read as clean. Row count per file is a
+deterministic hash of that file's name (`sampleRowCount()`, same
+hash-not-random rationale as `simulate-bureau-finding.ts`), so re-adding the
+same filename always seeds the same count. CMAP and PGFC Existing Exposure
+are the two exceptions: a clean check is genuinely a single "no case"/"no
+exposure" record, so every file for those two bureaus seeds exactly 1 row
+regardless of the hash. CIBI's rows additionally pull `facilityType`/
+`originalAmount`/`monthlyAmortization` from the CIBI intake form's
+`creditType`/`financedAmount`/`installment` at the moment the file is added.
 
-Each of the six bureau results tables is revealed only once that bureau's own
-file is uploaded — LOANDEX, CIC, CMAP, NFIS/BAP, and **PGFC Existing
-Exposure** all reveal on their single file upload, exactly the same shape
-(`SimpleBureauRow`, `src/sections/admin/bureau-reports-card.tsx` — PGFC is no
-longer an always-visible, upload-less section); **CIBI specifically reveals
+State shape: each bureau holds an array of `BureauReportFile` entries
+(`{id, fileName, fileData, uploadedAt, rows}`) — `loandexFiles`, `cicFiles`,
+`cmapFiles`, `nfisBapFiles`, `pgfcExposureFiles` on `ApplicationReview`, plus
+`cibiForm.reportFiles` for CIBI's returned report. There are three setters on
+`useAdmin()`, generic across all six bureaus via a `BureauFileKind` union
+(`'cibi' | 'loandex' | 'cic' | 'cmap' | 'nfisBap' | 'pgfcExposure'`):
+`addBureauReportFiles(kind, files)` appends one or more newly-seeded files;
+`replaceBureauReportFile(kind, id, file)` swaps a file's document and
+**re-seeds fresh rows** (a replaced file is treated as a new document, not a
+re-scan of the same one); `removeBureauReportFile(kind, id)` drops one file
+(and its rows) entirely. `useAdmin().bureauResultRows` exposes the six
+row arrays flattened across every uploaded file for that bureau
+(`cmapCases`, `bapNfisRecords`, `cibiResults`, `cicContracts`,
+`loandexRecords`, `pgfcExposureRecords`) — this is what
+`initial-credit-checking-risk.ts` and `CreditCheckingResultModal` read; they
+never see the per-file shape. An empty table (only reachable transiently,
+before any file for that bureau is uploaded) shows a dashed-border
+empty-state message (e.g. "No CMAP court/legal cases recorded yet.") instead
+of nothing.
+
+Each bureau row (`BureauFileList` in `bureau-reports-card.tsx`, shared by
+`SimpleBureauRow` and `CibiRow`) shows a header (icon, title, status badge,
+"N files uploaded", and an **Add files** button once at least one file
+exists, else a primary **Upload report**/**Upload document** button) followed
+by one collapsible sub-panel per uploaded file (`BureauFilePanel`) — filename,
+row count, upload date, outlined **View**, and a bordered three-dot menu with
+**Replace file**/**Delete file**, expanding to reveal that file's own results
+table. The first/most-recently-added file starts expanded; the rest start
+collapsed, and each toggles independently. The file `<input>` accepts
+multiple files at once (`multiple` attribute) so "Add files"/"Upload report"
+can attach several files in one picker action; **CIBI specifically reveals
 on its report upload** ("Upload document", the step after "Create Report" →
 "Submit to CIBI"), not on the intake form's submission alone — submitting the
-form only marks it "Sent" and does not by itself show `CibiResultsTable`.
+form only marks it "Sent" and does not by itself show any CIBI file rows.
 
-`allBureauReportsUploaded` = all 6 of `cibiForm.reportFileName`,
-`loandexUpload.fileName`, `cicUpload.fileName`, `cmapUpload.fileName`,
-`nfisBapUpload.fileName`, `pgfcExposureUpload.fileName` are set. This drives:
+`allBureauReportsUploaded` = all 6 of `cibiForm.reportFiles.length`,
+`loandexFiles.length`, `cicFiles.length`, `cmapFiles.length`,
+`nfisBapFiles.length`, `pgfcExposureFiles.length` are `> 0` (at least one file
+per bureau — not tied to any specific file count). This drives:
 - Whether the simulated bureau-finding effect runs (see below).
 - Whether `buildInitialCreditCheckingResult()` can compute a real risk level
-  at all — while any upload is missing it short-circuits to the dedicated
+  at all — while any bureau has zero files it short-circuits to the dedicated
   "Unable to Determine" level rather than switching wording, as the old
   before/after-upload fallback text used to (see "AI review card" below).
-- The Fill/Remove Sample Data floating button's label and action.
+- The Fill/Remove Sample Data floating button's label and action. "Fill with
+  Sample Data" seeds one file per bureau, except **CMAP, which gets two**
+  files, so the multi-file UI is visible immediately after using it.
 
 **It no longer gates whether the AI Risk Level/Summary/Recommended Action
 render at all, the Proceed to Call Report/Disapprove decision, or the "View
@@ -215,11 +240,13 @@ card" below.
 
 ## Simulated bureau finding
 
-A `useEffect` (lines ~96–119) runs once bureau uploads are complete and
+A `useEffect` runs once bureau uploads are complete and
 `creditChecking.bureauFindingStatus` is still `'pending'`. Calls
 `simulateBureauFinding()` — a deterministic hash of the applicant's email plus
-every uploaded filename, **not** `Math.random()`, so the same applicant with
-the same filenames always gets the same simulated result on every reload.
+every uploaded filename **across every file of every bureau** (each bureau
+can now hold several), **not** `Math.random()`, so the same applicant with
+the same set of uploaded filenames always gets the same simulated result on
+every reload.
 
 `simulateBureauFinding()` returns `{ status, bureau, reason }`, not just a
 bare `'clean' | 'negative'` string. On a negative outcome, a second hash picks
@@ -262,15 +289,18 @@ Negative always sets `bureauFindingBureau: 'CMAP'` /
    status. The modal itself already degrades gracefully without bureau
    reports: `isCleared` requires `allBureauReportsUploaded`, so the green
    "Cleared" banner is hidden until the review is complete.
-   Its **Bureau Reports Result** section shows one narrative summary row for each
-   uploaded source (CIBI, LOANDEX, CIC, CMAP, NFIS/BAP), including its filename,
-   upload date, status, and extracted finding. Missing reports show only the
-   "Not uploaded" status label and no summary text;
-   a negative simulated finding flags exactly one of CMAP/NFIS-BAP for officer
-   review — whichever `bureauFindingBureau` names — showing that row's
-   specific flagged reason text (`bureauFindingReason`). The copy
-   explicitly tells officers to validate these simulated findings against the
-   source documents before deciding. A separate **Recommendation & Remarks**
+   Its **Bureau Reports Result** section shows one block per bureau (CIBI,
+   LOANDEX, CIC, CMAP, NFIS/BAP, PGFC Existing Exposure) with a status chip
+   ("Not uploaded" / "Clear" / "Needs review") and a "N files uploaded" count,
+   then — for each of that bureau's uploaded files — its own filename, upload
+   date, and results table. A bureau with zero files shows only the "Not
+   uploaded" chip and no file blocks. A negative simulated finding flags
+   exactly one of CMAP/NFIS-BAP for officer review — whichever
+   `bureauFindingBureau` names — showing that section's specific flagged
+   reason text (`bureauFindingReason`), independent of how many files that
+   bureau has. The copy explicitly tells officers to validate these simulated
+   findings against the source documents before deciding. A separate
+   **Recommendation & Remarks**
    field stores the department's written finding for forwarding to the Credit
    Committee. Its inline status changes from "Saving…" to "Saved locally" so
    officers can confirm that the local-storage update completed. This field is

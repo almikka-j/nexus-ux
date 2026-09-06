@@ -87,22 +87,14 @@ export type CreditChecking = {
    * way to surface it next to justificationDocument.
    */
   justificationText: string;
-  /**
-   * Six new repeatable-row results tables, one per bureau report section
-   * (CMAP, BAP/NFIS, CIBI, CIC, LOANDEX, PGFC Existing Exposure) — see
-   * docs/superpowers/specs/2026-08-29-bureau-reports-results-design.md.
-   * Each array auto-populates with exactly one canned, read-only sample row
-   * the instant that bureau's upload's `fileName` becomes non-null — there
-   * is no officer-editable entry flow. PGFC Existing Exposure has its own
-   * upload gate (`pgfcExposureUpload`, below) exactly like the other five
-   * bureaus.
-   */
-  cmapCases: CmapCase[];
-  bapNfisRecords: BapNfisRecord[];
-  cibiResults: CibiResult[];
-  cicContracts: CicContract[];
-  loandexRecords: LoandexRecord[];
-  pgfcExposureRecords: PgfcExposureRecord[];
+  // The six per-bureau results tables are no longer stored here. Each bureau
+  // now holds an array of uploaded report files (`cibiForm.reportFiles`,
+  // `loandexFiles`, `cicFiles`, `cmapFiles`, `nfisBapFiles`,
+  // `pgfcExposureFiles` on `ApplicationReview`), and each file carries its
+  // own seeded sample rows. `useAdmin().bureauResultRows` exposes the
+  // flattened-across-files arrays (`cmapCases`, `bapNfisRecords`, …) that the
+  // risk engine and result modal consume, so those consumers didn't need to
+  // learn the per-file shape.
 };
 
 export type CmapCase = {
@@ -197,14 +189,49 @@ export type CibiForm = {
   terms: string;
   installment: string;
   submitted: boolean;
-  reportFile: string | null;
-  reportFileName: string | null;
-  reportUploadedAt: string | null;
+  /**
+   * The returned CIBI report(s). The Create Report / Submit to CIBI intake
+   * flow above is unchanged; only the returned document became multi-file —
+   * an officer can attach more than one report file, each carrying its own
+   * seeded `CibiResult` rows. Was `reportFile`/`reportFileName`/
+   * `reportUploadedAt` (three scalars) before multi-file support.
+   */
+  reportFiles: BureauReportFile[];
 };
 
-// Shared shape for the non-CIBI bureau report uploads (LOANDEX, CIC, CMAP,
-// NFIS/BAP) — per the source diagram's callout, only CIBI has an API
-// integration, so these are all just document dropzones, no data-entry form.
+// One uploaded bureau report file plus the sample results-table rows seeded
+// for it. Every bureau (CIBI's returned report, LOANDEX, CIC, CMAP, NFIS/BAP,
+// PGFC Existing Exposure) now holds an *array* of these — an officer can
+// upload multiple files per bureau, and each file renders its own results
+// table (see bureau-reports-card.tsx / bureau-results-tables.tsx). `rows`
+// holds 2–3 canned rows of that bureau's row type, seeded when the file is
+// added and re-seeded fresh when the file is replaced; there is still no
+// officer-editable entry flow. Replaced the single `BureauUpload` object
+// (`{fileName, fileData, uploadedAt}`) that each bureau held before.
+export type BureauReportFile = {
+  id: string;
+  fileName: string;
+  fileData: string;
+  uploadedAt: string;
+  rows: BureauResultRow[];
+};
+
+export type BureauResultRow =
+  | CmapCase
+  | BapNfisRecord
+  | CibiResult
+  | CicContract
+  | LoandexRecord
+  | PgfcExposureRecord;
+
+/** Which bureau an `addBureauReportFiles`/`replaceBureauReportFile`/
+ * `removeBureauReportFile` call targets. `'cibi'` maps to
+ * `cibiForm.reportFiles`; the rest map to the same-named `*Files` array on
+ * `ApplicationReview`. */
+export type BureauFileKind = 'cibi' | 'loandex' | 'cic' | 'cmap' | 'nfisBap' | 'pgfcExposure';
+
+// Retained (unused) alias — kept rather than deleted, matching this file's
+// convention of not tearing out exported names other code may still import.
 export type BureauUpload = {
   fileName: string | null;
   fileData: string | null;
@@ -1191,6 +1218,57 @@ export type CashFlowStatement = {
   decisionReason: string;
 };
 
+// ----------------------------------------------------------------------
+// Financial Evaluation's Bank Statement card — the officer records each of
+// the applicant's bank statements (depository bank, account, month range),
+// with inline-editable Deposit and Account Daily Balance rows. All derived
+// values (total deposits, average daily balance) are computed at render time
+// in bank-statement.ts — nothing derived is stored. Data-entry only.
+// ----------------------------------------------------------------------
+export type BankStatementDeposit = {
+  id: string;
+  date: string; // 'yyyy-mm-dd', free-text like every other input in this app
+  amount: string; // numeric string
+};
+
+export type BankStatementDailyBalance = {
+  id: string;
+  periodFrom: string; // 'yyyy-mm-dd'
+  periodTo: string; // 'yyyy-mm-dd'
+  balance: string; // numeric string
+};
+
+export type BankStatement = {
+  id: string;
+  depositoryBank: string;
+  accountName: string;
+  accountNumber: string;
+  monthFrom: string; // 'January'..'December', '' = unset
+  monthTo: string;
+  deposits: BankStatementDeposit[];
+  dailyBalances: BankStatementDailyBalance[];
+};
+
+// ----------------------------------------------------------------------
+// Financial Evaluation's Financial Summary card — a light workspace for the
+// three legacy sub-tools (Financial Statement, Bank Loans, Financial
+// Highlights). This build only tracks, per item, a manually-set status and a
+// free-text Remarks note; the legacy deep data-entry forms and XLS/PDF
+// report views are a future follow-up, not modeled here.
+// ----------------------------------------------------------------------
+export type FinancialSummaryStatus = 'not-started' | 'in-progress' | 'complete';
+
+export type FinancialSummaryItem = {
+  status: FinancialSummaryStatus;
+  remarks: string;
+};
+
+export type FinancialSummary = {
+  financialStatement: FinancialSummaryItem;
+  bankLoans: FinancialSummaryItem;
+  financialHighlights: FinancialSummaryItem;
+};
+
 export type ReviewStep =
   | 'creditChecking'
   | 'reconsideration'
@@ -1212,11 +1290,11 @@ export type NegativeListEntry = {
 export type ApplicationReview = {
   creditChecking: CreditChecking;
   cibiForm: CibiForm;
-  loandexUpload: LoandexUpload;
-  cicUpload: BureauUpload;
-  cmapUpload: BureauUpload;
-  nfisBapUpload: BureauUpload;
-  pgfcExposureUpload: BureauUpload;
+  loandexFiles: BureauReportFile[];
+  cicFiles: BureauReportFile[];
+  cmapFiles: BureauReportFile[];
+  nfisBapFiles: BureauReportFile[];
+  pgfcExposureFiles: BureauReportFile[];
   reconsideration: Reconsideration;
   negativeCreditReport: NegativeCreditReport;
   callReport: CallReport;
@@ -1224,6 +1302,8 @@ export type ApplicationReview = {
   creditInvestigation: CreditInvestigation;
   appraisal: Appraisal;
   cashFlowStatement: CashFlowStatement;
+  bankStatements: BankStatement[];
+  financialSummary: FinancialSummary;
   stepTimestamps: StepTimestamps;
 };
 
@@ -1238,11 +1318,32 @@ type AdminContextValue = AdminState & {
   setAdminUser: (user: AdminUser) => void;
   setCreditChecking: (data: Partial<CreditChecking>) => void;
   setCibiForm: (data: Partial<CibiForm>) => void;
-  setLoandexUpload: (data: Partial<LoandexUpload>) => void;
-  setCicUpload: (data: Partial<BureauUpload>) => void;
-  setCmapUpload: (data: Partial<BureauUpload>) => void;
-  setNfisBapUpload: (data: Partial<BureauUpload>) => void;
-  setPgfcExposureUpload: (data: Partial<BureauUpload>) => void;
+  /** Append one or more uploaded report files to a bureau; each new file is
+   * seeded with 2–3 canned sample rows of that bureau's row type. */
+  addBureauReportFiles: (kind: BureauFileKind, files: Array<{ fileName: string; fileData: string }>) => void;
+  /** Swap a file's document, discarding its old sample rows and seeding fresh
+   * ones (a replaced file is treated as a new document). */
+  replaceBureauReportFile: (
+    kind: BureauFileKind,
+    id: string,
+    file: { fileName: string; fileData: string }
+  ) => void;
+  /** Remove one uploaded file (and its seeded rows) from a bureau. */
+  removeBureauReportFile: (kind: BureauFileKind, id: string) => void;
+  /**
+   * The six per-bureau results-table row arrays, flattened across every
+   * uploaded file for that bureau. This is what `initial-credit-checking-risk.ts`
+   * and `CreditCheckingResultModal` consume — they never see the per-file
+   * shape. Recomputed (memoized) whenever any bureau's file array changes.
+   */
+  bureauResultRows: {
+    cmapCases: CmapCase[];
+    bapNfisRecords: BapNfisRecord[];
+    cibiResults: CibiResult[];
+    cicContracts: CicContract[];
+    loandexRecords: LoandexRecord[];
+    pgfcExposureRecords: PgfcExposureRecord[];
+  };
   setReconsideration: (data: Partial<Reconsideration>) => void;
   setNegativeCreditReport: (
     data: Partial<Pick<NegativeCreditReport, 'thru' | 'negativeRecordText' | 'recommendationRemarks' | 'submitted'>>
@@ -1273,6 +1374,37 @@ type AdminContextValue = AdminState & {
   addCashFlowOtherLoan: () => void;
   removeCashFlowOtherLoan: (id: string) => void;
   updateCashFlowOtherLoan: (id: string, data: Partial<CashFlowOtherLoan>) => void;
+  // Financial Evaluation → Bank Statement card. The card generates the id
+  // for a new statement (crypto.randomUUID()) and passes it in, so it can
+  // open its drawer on that id without the setter returning anything.
+  addBankStatement: (id: string) => void;
+  updateBankStatement: (
+    id: string,
+    data: Partial<Omit<BankStatement, 'id' | 'deposits' | 'dailyBalances' | 'files'>>
+  ) => void;
+  removeBankStatement: (id: string) => void;
+  addBankStatementDeposit: (id: string) => void;
+  updateBankStatementDeposit: (
+    id: string,
+    depositId: string,
+    data: Partial<Omit<BankStatementDeposit, 'id'>>
+  ) => void;
+  removeBankStatementDeposit: (id: string, depositId: string) => void;
+  addBankStatementDailyBalance: (id: string) => void;
+  updateBankStatementDailyBalance: (
+    id: string,
+    balanceId: string,
+    data: Partial<Omit<BankStatementDailyBalance, 'id'>>
+  ) => void;
+  removeBankStatementDailyBalance: (id: string, balanceId: string) => void;
+  /** Dev/QA: append one fully-populated sample bank statement. */
+  fillBankStatementSample: () => void;
+  /** Dev/QA: drop every bank statement. */
+  clearBankStatements: () => void;
+  setFinancialSummaryItem: (
+    key: keyof FinancialSummary,
+    data: Partial<FinancialSummaryItem>
+  ) => void;
   createAppraisalReportBundle: (
     tctGroupIds: string[],
     appraiserType: AppraiserType,
@@ -1492,6 +1624,71 @@ function createInitialCashFlowStatement(): CashFlowStatement {
   };
 }
 
+// Routes a nested bank-statement mutation to the one statement it targets —
+// every add/update/remove for deposits, daily balances, and files goes
+// through here so the 10 nested setters don't each re-spread `bankStatements`.
+// Mirrors `updateBureauFiles` from the bureau-reports multi-file work.
+function updateOneBankStatement(
+  review: ApplicationReview,
+  id: string,
+  updater: (statement: BankStatement) => BankStatement
+): ApplicationReview {
+  return {
+    ...review,
+    bankStatements: review.bankStatements.map((statement) =>
+      statement.id === id ? updater(statement) : statement
+    ),
+  };
+}
+
+function createBankStatement(id: string): BankStatement {
+  return {
+    id,
+    depositoryBank: '',
+    accountName: '',
+    accountNumber: '',
+    monthFrom: '',
+    monthTo: '',
+    deposits: [],
+    dailyBalances: [],
+  };
+}
+
+// Dev/QA "Fill with Sample Data" — one realistic, fully-populated bank
+// statement (6 monthly deposits, 3 quarterly average-balance rows).
+function createSampleBankStatement(): BankStatement {
+  return {
+    id: crypto.randomUUID(),
+    depositoryBank: 'BDO Unibank',
+    accountName: 'Juan A. Dela Cruz',
+    accountNumber: '0012-3456-7890',
+    monthFrom: 'January',
+    monthTo: 'June',
+    deposits: [
+      { id: crypto.randomUUID(), date: '2026-01-15', amount: '185000' },
+      { id: crypto.randomUUID(), date: '2026-02-16', amount: '172500' },
+      { id: crypto.randomUUID(), date: '2026-03-16', amount: '198000' },
+      { id: crypto.randomUUID(), date: '2026-04-15', amount: '164000' },
+      { id: crypto.randomUUID(), date: '2026-05-15', amount: '210000' },
+      { id: crypto.randomUUID(), date: '2026-06-15', amount: '176000' },
+    ],
+    dailyBalances: [
+      { id: crypto.randomUUID(), periodFrom: '2026-01-01', periodTo: '2026-02-28', balance: '312000' },
+      { id: crypto.randomUUID(), periodFrom: '2026-03-01', periodTo: '2026-04-30', balance: '287500' },
+      { id: crypto.randomUUID(), periodFrom: '2026-05-01', periodTo: '2026-06-30', balance: '341000' },
+    ],
+  };
+}
+
+function createInitialFinancialSummary(): FinancialSummary {
+  const blank: FinancialSummaryItem = { status: 'not-started', remarks: '' };
+  return {
+    financialStatement: { ...blank },
+    bankLoans: { ...blank },
+    financialHighlights: { ...blank },
+  };
+}
+
 function createInitialAppraisal(): Appraisal {
   return {
     feeApprovalStatus: 'not-submitted',
@@ -1654,11 +1851,11 @@ function createAppraisalReportBundle(
   };
 }
 
-// One canned sample row per bureau results table — populated automatically
-// the instant that bureau's report file is uploaded (see the setCmapUpload/
-// setCicUpload/setLoandexUpload/setNfisBapUpload/setPgfcExposureUpload/
-// setCibiForm setters below), replacing the old officer-driven manual
-// add/remove/edit flow. Fields carry realistic-looking dummy values (real
+// Canned sample rows for a bureau results table — 2–3 rows are seeded per
+// uploaded report file (see `seedBureauRows` below and the
+// `addBureauReportFiles`/`replaceBureauReportFile` setters), replacing the
+// old officer-driven manual add/remove/edit flow. Fields carry
+// realistic-looking dummy values (real
 // bank/institution names, dates, case numbers, peso amounts) rather than a
 // bare '—' or a "No ___ on record" placeholder phrase — a genuine "nothing
 // wrong" bureau result for an existing credit facility still has a real
@@ -1768,6 +1965,112 @@ function createPgfcSampleExposureRecord(): PgfcExposureRecord {
   };
 }
 
+// Small deterministic hash so the same filename always seeds the same row
+// count (2 or 3) — keeps a QA pass reproducible, same rationale as
+// simulate-bureau-finding.ts's hash-not-random choice.
+function sampleRowCount(fileName: string): number {
+  let h = 0;
+  for (let i = 0; i < fileName.length; i += 1) h = (h * 31 + fileName.charCodeAt(i)) >>> 0;
+  return 2 + (h % 2); // 2 or 3
+}
+
+// Alternate descriptive-field values for the 2nd/3rd seeded row of a file, so
+// a multi-row table doesn't repeat one identical record. Every status /
+// paymentStatus / contractStatus / accountStatus field (the ones the risk
+// engine pattern-matches for "clean") is left exactly as the single-row
+// factories set it — only non-status descriptive fields vary — so seeding
+// sample files still produces a clean/Low read.
+function decorateBureauRow(row: BureauResultRow, index: number): BureauResultRow {
+  if (index === 0) return row;
+  if ('defendantSubject' in row) return row; // CMAP: a clean check has no case to vary
+  if ('lendingInstitution' in row) {
+    const banks = ['Security Bank', 'RCBC', 'China Bank Savings'];
+    const facilities = ['Auto Loan', 'Home Loan'];
+    return {
+      ...row,
+      lendingInstitution: banks[index % banks.length],
+      facility: facilities[(index - 1) % facilities.length],
+      originalLoanAmount: index === 1 ? '₱250,000.00' : '₱1,200,000.00',
+      outstandingBalance: index === 1 ? '₱62,000.00' : '₱410,000.00',
+    };
+  }
+  if ('provider' in row) {
+    return { ...row, facilityType: index === 1 ? 'Credit Card' : 'Salary Loan' };
+  }
+  if ('contractCode' in row) {
+    return {
+      ...row,
+      contractCode: `CIC-2024-${1000 + index * 137}-${2200 + index * 31}`,
+      contractType: index === 1 ? 'Personal Loan' : 'Credit Card',
+    };
+  }
+  if ('bankInstitution' in row) {
+    const banks = ['Metrobank', 'UnionBank', 'PNB'];
+    return {
+      ...row,
+      bankInstitution: banks[index % banks.length],
+      loanFacility: index === 1 ? 'Salary Loan' : 'Credit Line',
+    };
+  }
+  return row; // PGFC: "no existing exposure" doesn't meaningfully vary
+}
+
+// The 2–3 sample rows for one uploaded file of a given bureau. CIBI's rows
+// still pull facilityType/originalAmount/monthlyAmortization from the CIBI
+// intake form (creditType/financedAmount/installment) at the moment the file
+// is added.
+function seedBureauRows(
+  kind: BureauFileKind,
+  fileName: string,
+  cibi: { creditType: string; financedAmount: string; installment: string }
+): BureauResultRow[] {
+  const count = sampleRowCount(fileName);
+  const make = (): BureauResultRow => {
+    switch (kind) {
+      case 'cmap':
+        return createCmapSampleCase();
+      case 'nfisBap':
+        return createBapNfisSampleRecord();
+      case 'cibi':
+        return createCibiSampleResult(cibi.creditType, cibi.financedAmount, cibi.installment);
+      case 'cic':
+        return createCicSampleContract();
+      case 'loandex':
+        return createLoandexSampleRecord();
+      case 'pgfcExposure':
+        return createPgfcSampleExposureRecord();
+      default:
+        return createLoandexSampleRecord();
+    }
+  };
+  // CMAP and PGFC clean checks are genuinely single-record ("no case",
+  // "no exposure") — don't fabricate a second identical no-record row.
+  const effectiveCount = kind === 'cmap' || kind === 'pgfcExposure' ? 1 : count;
+  return Array.from({ length: effectiveCount }, (_, i) => decorateBureauRow(make(), i));
+}
+
+// Maps a BureauFileKind to a mutation of the file array it owns. `'cibi'`
+// lives on `cibiForm.reportFiles`; the rest are top-level `*Files` arrays.
+function updateBureauFiles(
+  review: ApplicationReview,
+  kind: BureauFileKind,
+  updater: (files: BureauReportFile[]) => BureauReportFile[]
+): ApplicationReview {
+  if (kind === 'cibi') {
+    return { ...review, cibiForm: { ...review.cibiForm, reportFiles: updater(review.cibiForm.reportFiles) } };
+  }
+  const key = (
+    {
+      loandex: 'loandexFiles',
+      cic: 'cicFiles',
+      cmap: 'cmapFiles',
+      nfisBap: 'nfisBapFiles',
+      pgfcExposure: 'pgfcExposureFiles',
+    } as const
+  )[kind];
+  return { ...review, [key]: updater(review[key]) };
+}
+
 // Factory (not a shared constant) so `resetReview()` gets a fresh object each
 // call — reusing one constant reference across resets risks accidental
 // mutation-sharing bugs if any setter ever mutated in place instead of
@@ -1786,12 +2089,6 @@ function createInitialReview(): ApplicationReview {
       officerRecommendation: '',
       justificationDocument: null,
       justificationText: '',
-      cmapCases: [],
-      bapNfisRecords: [],
-      cibiResults: [],
-      cicContracts: [],
-      loandexRecords: [],
-      pgfcExposureRecords: [],
     },
     cibiForm: {
       firstName: '',
@@ -1813,15 +2110,13 @@ function createInitialReview(): ApplicationReview {
       terms: '',
       installment: '',
       submitted: false,
-      reportFile: null,
-      reportFileName: null,
-      reportUploadedAt: null,
+      reportFiles: [],
     },
-    loandexUpload: { fileName: null, fileData: null, uploadedAt: null },
-    cicUpload: { fileName: null, fileData: null, uploadedAt: null },
-    cmapUpload: { fileName: null, fileData: null, uploadedAt: null },
-    nfisBapUpload: { fileName: null, fileData: null, uploadedAt: null },
-    pgfcExposureUpload: { fileName: null, fileData: null, uploadedAt: null },
+    loandexFiles: [],
+    cicFiles: [],
+    cmapFiles: [],
+    nfisBapFiles: [],
+    pgfcExposureFiles: [],
     reconsideration: { notes: '', decision: 'pending' },
     negativeCreditReport: createInitialNegativeCreditReport(),
     callReport: {
@@ -1937,6 +2232,8 @@ function createInitialReview(): ApplicationReview {
     creditInvestigation: createInitialCreditInvestigation(),
     appraisal: createInitialAppraisal(),
     cashFlowStatement: createInitialCashFlowStatement(),
+    bankStatements: [],
+    financialSummary: createInitialFinancialSummary(),
     stepTimestamps: {},
   };
 }
@@ -1972,18 +2269,23 @@ function readStoredState(): AdminState {
           ...initialState.review.creditChecking,
           ...storedReview.creditChecking,
         },
-        cibiForm: { ...initialState.review.cibiForm, ...storedReview.cibiForm },
-        loandexUpload: {
-          ...initialState.review.loandexUpload,
-          ...storedReview.loandexUpload,
+        // Per-bureau file arrays: trust the stored array when present (it's a
+        // list of user uploads, not a keyed default set), else the empty
+        // initial. `reportFiles` lives inside cibiForm.
+        cibiForm: {
+          ...initialState.review.cibiForm,
+          ...storedReview.cibiForm,
+          reportFiles: Array.isArray(storedReview.cibiForm?.reportFiles)
+            ? storedReview.cibiForm.reportFiles
+            : [],
         },
-        cicUpload: { ...initialState.review.cicUpload, ...storedReview.cicUpload },
-        cmapUpload: { ...initialState.review.cmapUpload, ...storedReview.cmapUpload },
-        nfisBapUpload: {
-          ...initialState.review.nfisBapUpload,
-          ...storedReview.nfisBapUpload,
-        },
-        pgfcExposureUpload: { ...initialState.review.pgfcExposureUpload, ...storedReview.pgfcExposureUpload },
+        loandexFiles: Array.isArray(storedReview.loandexFiles) ? storedReview.loandexFiles : [],
+        cicFiles: Array.isArray(storedReview.cicFiles) ? storedReview.cicFiles : [],
+        cmapFiles: Array.isArray(storedReview.cmapFiles) ? storedReview.cmapFiles : [],
+        nfisBapFiles: Array.isArray(storedReview.nfisBapFiles) ? storedReview.nfisBapFiles : [],
+        pgfcExposureFiles: Array.isArray(storedReview.pgfcExposureFiles)
+          ? storedReview.pgfcExposureFiles
+          : [],
         callReport: {
           ...initialState.review.callReport,
           ...storedReview.callReport,
@@ -2153,6 +2455,25 @@ function readStoredState(): AdminState {
           ...storedReview.cashFlowStatement,
           otherLoans: storedReview.cashFlowStatement?.otherLoans ?? [],
         },
+        // A list of officer-entered records — trust the stored array wholesale
+        // (not a keyed default set), same as the bureau file arrays.
+        bankStatements: Array.isArray(storedReview.bankStatements) ? storedReview.bankStatements : [],
+        financialSummary: {
+          ...initialState.review.financialSummary,
+          ...storedReview.financialSummary,
+          financialStatement: {
+            ...initialState.review.financialSummary.financialStatement,
+            ...storedReview.financialSummary?.financialStatement,
+          },
+          bankLoans: {
+            ...initialState.review.financialSummary.bankLoans,
+            ...storedReview.financialSummary?.bankLoans,
+          },
+          financialHighlights: {
+            ...initialState.review.financialSummary.financialHighlights,
+            ...storedReview.financialSummary?.financialHighlights,
+          },
+        },
       },
     };
   } catch {
@@ -2178,6 +2499,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...state,
       hydrated,
+      bureauResultRows: {
+        cmapCases: state.review.cmapFiles.flatMap((f) => f.rows) as CmapCase[],
+        bapNfisRecords: state.review.nfisBapFiles.flatMap((f) => f.rows) as BapNfisRecord[],
+        cibiResults: state.review.cibiForm.reportFiles.flatMap((f) => f.rows) as CibiResult[],
+        cicContracts: state.review.cicFiles.flatMap((f) => f.rows) as CicContract[],
+        loandexRecords: state.review.loandexFiles.flatMap((f) => f.rows) as LoandexRecord[],
+        pgfcExposureRecords: state.review.pgfcExposureFiles.flatMap((f) => f.rows) as PgfcExposureRecord[],
+      },
       setAdminUser: (adminUser) => setState((prev) => ({ ...prev, adminUser })),
       setCreditChecking: (data) =>
         setState((prev) => ({
@@ -2185,139 +2514,62 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           review: { ...prev.review, creditChecking: { ...prev.review.creditChecking, ...data } },
         })),
       setCibiForm: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: { ...prev.review, cibiForm: { ...prev.review.cibiForm, ...data } },
+        })),
+      addBureauReportFiles: (kind, files) =>
         setState((prev) => {
-          const nextForm = { ...prev.review.cibiForm, ...data };
-          const shouldSeed =
-            !!nextForm.reportFileName && prev.review.creditChecking.cibiResults.length === 0;
-          const shouldClear = data.reportFileName === null;
+          const cibi = {
+            creditType: prev.review.cibiForm.creditType,
+            financedAmount: prev.review.cibiForm.financedAmount,
+            installment: prev.review.cibiForm.installment,
+          };
+          const uploadedAt = new Date().toISOString();
+          const newEntries: BureauReportFile[] = files.map((f) => ({
+            id: crypto.randomUUID(),
+            fileName: f.fileName,
+            fileData: f.fileData,
+            uploadedAt,
+            rows: seedBureauRows(kind, f.fileName, cibi),
+          }));
           return {
             ...prev,
-            review: {
-              ...prev.review,
-              cibiForm: nextForm,
-              creditChecking: {
-                ...prev.review.creditChecking,
-                cibiResults: shouldSeed
-                  ? [
-                      createCibiSampleResult(
-                        nextForm.creditType,
-                        nextForm.financedAmount,
-                        nextForm.installment
-                      ),
-                    ]
-                  : shouldClear
-                    ? []
-                    : prev.review.creditChecking.cibiResults,
-              },
-            },
+            review: updateBureauFiles(prev.review, kind, (existing) => [...existing, ...newEntries]),
           };
         }),
-      setLoandexUpload: (data) =>
+      replaceBureauReportFile: (kind, id, file) =>
         setState((prev) => {
-          const nextUpload = { ...prev.review.loandexUpload, ...data };
-          const shouldSeed = !!nextUpload.fileName && prev.review.creditChecking.loandexRecords.length === 0;
-          const shouldClear = data.fileName === null;
+          const cibi = {
+            creditType: prev.review.cibiForm.creditType,
+            financedAmount: prev.review.cibiForm.financedAmount,
+            installment: prev.review.cibiForm.installment,
+          };
           return {
             ...prev,
-            review: {
-              ...prev.review,
-              loandexUpload: nextUpload,
-              creditChecking: {
-                ...prev.review.creditChecking,
-                loandexRecords: shouldSeed
-                  ? [createLoandexSampleRecord()]
-                  : shouldClear
-                    ? []
-                    : prev.review.creditChecking.loandexRecords,
-              },
-            },
+            review: updateBureauFiles(prev.review, kind, (existing) =>
+              existing.map((entry) =>
+                entry.id === id
+                  ? {
+                      ...entry,
+                      fileName: file.fileName,
+                      fileData: file.fileData,
+                      uploadedAt: new Date().toISOString(),
+                      // A replaced file is a new document — re-seed fresh rows.
+                      rows: seedBureauRows(kind, file.fileName, cibi),
+                    }
+                  : entry
+              )
+            ),
           };
         }),
-      setCicUpload: (data) =>
-        setState((prev) => {
-          const nextUpload = { ...prev.review.cicUpload, ...data };
-          const shouldSeed = !!nextUpload.fileName && prev.review.creditChecking.cicContracts.length === 0;
-          const shouldClear = data.fileName === null;
-          return {
-            ...prev,
-            review: {
-              ...prev.review,
-              cicUpload: nextUpload,
-              creditChecking: {
-                ...prev.review.creditChecking,
-                cicContracts: shouldSeed
-                  ? [createCicSampleContract()]
-                  : shouldClear
-                    ? []
-                    : prev.review.creditChecking.cicContracts,
-              },
-            },
-          };
-        }),
-      setCmapUpload: (data) =>
-        setState((prev) => {
-          const nextUpload = { ...prev.review.cmapUpload, ...data };
-          const shouldSeed = !!nextUpload.fileName && prev.review.creditChecking.cmapCases.length === 0;
-          const shouldClear = data.fileName === null;
-          return {
-            ...prev,
-            review: {
-              ...prev.review,
-              cmapUpload: nextUpload,
-              creditChecking: {
-                ...prev.review.creditChecking,
-                cmapCases: shouldSeed
-                  ? [createCmapSampleCase()]
-                  : shouldClear
-                    ? []
-                    : prev.review.creditChecking.cmapCases,
-              },
-            },
-          };
-        }),
-      setNfisBapUpload: (data) =>
-        setState((prev) => {
-          const nextUpload = { ...prev.review.nfisBapUpload, ...data };
-          const shouldSeed = !!nextUpload.fileName && prev.review.creditChecking.bapNfisRecords.length === 0;
-          const shouldClear = data.fileName === null;
-          return {
-            ...prev,
-            review: {
-              ...prev.review,
-              nfisBapUpload: nextUpload,
-              creditChecking: {
-                ...prev.review.creditChecking,
-                bapNfisRecords: shouldSeed
-                  ? [createBapNfisSampleRecord()]
-                  : shouldClear
-                    ? []
-                    : prev.review.creditChecking.bapNfisRecords,
-              },
-            },
-          };
-        }),
-      setPgfcExposureUpload: (data) =>
-        setState((prev) => {
-          const nextUpload = { ...prev.review.pgfcExposureUpload, ...data };
-          const shouldSeed =
-            !!nextUpload.fileName && prev.review.creditChecking.pgfcExposureRecords.length === 0;
-          const shouldClear = data.fileName === null;
-          return {
-            ...prev,
-            review: {
-              ...prev.review,
-              pgfcExposureUpload: nextUpload,
-              creditChecking: {
-                ...prev.review.creditChecking,
-                pgfcExposureRecords: shouldSeed
-                  ? [createPgfcSampleExposureRecord()]
-                  : shouldClear
-                    ? []
-                    : prev.review.creditChecking.pgfcExposureRecords,
-              },
-            },
-          };
-        }),
+      removeBureauReportFile: (kind, id) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateBureauFiles(prev.review, kind, (existing) =>
+            existing.filter((entry) => entry.id !== id)
+          ),
+        })),
       setReconsideration: (data) =>
         setState((prev) => ({
           ...prev,
@@ -2599,6 +2851,106 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               otherLoans: prev.review.cashFlowStatement.otherLoans.map((loan) =>
                 loan.id === id ? { ...loan, ...data } : loan
               ),
+            },
+          },
+        })),
+      addBankStatement: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            bankStatements: [...prev.review.bankStatements, createBankStatement(id)],
+          },
+        })),
+      updateBankStatement: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateOneBankStatement(prev.review, id, (statement) => ({ ...statement, ...data })),
+        })),
+      removeBankStatement: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            bankStatements: prev.review.bankStatements.filter((statement) => statement.id !== id),
+          },
+        })),
+      addBankStatementDeposit: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateOneBankStatement(prev.review, id, (statement) => ({
+            ...statement,
+            deposits: [...statement.deposits, { id: crypto.randomUUID(), date: '', amount: '' }],
+          })),
+        })),
+      updateBankStatementDeposit: (id, depositId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateOneBankStatement(prev.review, id, (statement) => ({
+            ...statement,
+            deposits: statement.deposits.map((deposit) =>
+              deposit.id === depositId ? { ...deposit, ...data } : deposit
+            ),
+          })),
+        })),
+      removeBankStatementDeposit: (id, depositId) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateOneBankStatement(prev.review, id, (statement) => ({
+            ...statement,
+            deposits: statement.deposits.filter((deposit) => deposit.id !== depositId),
+          })),
+        })),
+      addBankStatementDailyBalance: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateOneBankStatement(prev.review, id, (statement) => ({
+            ...statement,
+            dailyBalances: [
+              ...statement.dailyBalances,
+              { id: crypto.randomUUID(), periodFrom: '', periodTo: '', balance: '' },
+            ],
+          })),
+        })),
+      updateBankStatementDailyBalance: (id, balanceId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateOneBankStatement(prev.review, id, (statement) => ({
+            ...statement,
+            dailyBalances: statement.dailyBalances.map((balance) =>
+              balance.id === balanceId ? { ...balance, ...data } : balance
+            ),
+          })),
+        })),
+      removeBankStatementDailyBalance: (id, balanceId) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateOneBankStatement(prev.review, id, (statement) => ({
+            ...statement,
+            dailyBalances: statement.dailyBalances.filter((balance) => balance.id !== balanceId),
+          })),
+        })),
+      fillBankStatementSample: () =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            bankStatements: [...prev.review.bankStatements, createSampleBankStatement()],
+          },
+        })),
+      clearBankStatements: () =>
+        setState((prev) => ({
+          ...prev,
+          review: { ...prev.review, bankStatements: [] },
+        })),
+      setFinancialSummaryItem: (key, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            financialSummary: {
+              ...prev.review.financialSummary,
+              [key]: { ...prev.review.financialSummary[key], ...data },
             },
           },
         })),

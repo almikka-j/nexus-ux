@@ -29,11 +29,9 @@ import type {
 // disabled input reads as an empty/unfilled field even when it holds real
 // data, where a plain label-over-value chip reads as a completed record.
 // Chips share the row's width via flex (no horizontal scroll, no wrapping)
-// so the whole record stays on one line at any container width. The one
-// free-text field per bureau (remarks / status-remarks) is pulled out of
-// the chip row entirely — long prose forced into an equal-width chip would
-// either overflow or squeeze every other field — and rendered as a plain
-// wrapped text line beneath the row instead.
+// so the whole record, including its remarks/status-remarks field, stays on
+// one line at any container width. Long values remain available through the
+// same hover tooltip used by every other result field.
 // ----------------------------------------------------------------------
 
 function FactChip({ label, value }: { label: string; value: string }) {
@@ -89,15 +87,6 @@ function FactChipRow({ children }: { children: React.ReactNode }) {
   );
 }
 
-function RemarksLine({ label, value }: { label: string; value: string }) {
-  return (
-    <Box sx={{ px: 1.75, py: 1.1, borderRadius: '10px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-      <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#9AA2B4', mb: 0.3 }}>{label}</Typography>
-      <Typography sx={{ fontSize: 13, color: '#14172A', lineHeight: 1.5 }}>{value || '—'}</Typography>
-    </Box>
-  );
-}
-
 function EmptyState({ label }: { label: string }) {
   return (
     <Box
@@ -131,8 +120,8 @@ export function CmapCasesTable({ rows }: { rows: CmapCase[] }) {
                 <FactChip label="Case No." value={row.caseNo} />
                 <FactChip label="Date Filed" value={row.dateFiled} />
                 <FactChip label="Status" value={row.status} />
+                <FactChip label="Credit Risk Remarks" value={row.creditRiskRemarks} />
               </FactChipRow>
-              <RemarksLine label="Credit Risk Remarks" value={row.creditRiskRemarks} />
             </Stack>
           ))}
         </Stack>
@@ -158,8 +147,8 @@ export function BapNfisRecordsTable({ rows }: { rows: BapNfisRecord[] }) {
                 <FactChip label="Maturity / Date Closed" value={row.maturityDate} />
                 <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
                 <FactChip label="Payment History" value={row.paymentHistory} />
+                <FactChip label="Status / Remarks" value={row.statusRemarks} />
               </FactChipRow>
-              <RemarksLine label="Status / Remarks" value={row.statusRemarks} />
             </Stack>
           ))}
         </Stack>
@@ -185,8 +174,8 @@ export function CibiResultsTable({ rows }: { rows: CibiResult[] }) {
                 <FactChip label="Overdue Amount" value={row.overdueAmount} />
                 <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
                 <FactChip label="Payment Status" value={row.paymentStatus} />
+                <FactChip label="Remarks" value={row.remarks} />
               </FactChipRow>
-              <RemarksLine label="Remarks" value={row.remarks} />
             </Stack>
           ))}
         </Stack>
@@ -212,8 +201,8 @@ export function CicContractsTable({ rows }: { rows: CicContract[] }) {
                 <FactChip label="Overdue Amount" value={row.overdueAmount} />
                 <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
                 <FactChip label="Contract Status" value={row.contractStatus} />
+                <FactChip label="Remarks" value={row.remarks} />
               </FactChipRow>
-              <RemarksLine label="Remarks" value={row.remarks} />
             </Stack>
           ))}
         </Stack>
@@ -239,8 +228,8 @@ export function LoandexRecordsTable({ rows }: { rows: LoandexRecord[] }) {
                 <FactChip label="Overdue Amount" value={row.overdueAmount} />
                 <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
                 <FactChip label="Account Status" value={row.accountStatus} />
+                <FactChip label="Remarks" value={row.remarks} />
               </FactChipRow>
-              <RemarksLine label="Remarks" value={row.remarks} />
             </Stack>
           ))}
         </Stack>
@@ -266,8 +255,8 @@ export function PgfcExposureTable({ rows }: { rows: PgfcExposureRecord[] }) {
                 <FactChip label="Last Payment Date" value={row.lastPaymentDate} />
                 <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
                 <FactChip label="Payment Status" value={row.paymentStatus} />
+                <FactChip label="Remarks" value={row.remarks} />
               </FactChipRow>
-              <RemarksLine label="Remarks" value={row.remarks} />
             </Stack>
           ))}
         </Stack>

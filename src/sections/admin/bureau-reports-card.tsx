@@ -38,33 +38,38 @@ import {
   PgfcExposureTable,
 } from './bureau-results-tables';
 
-import type { CibiForm, BureauUpload } from 'src/auth/admin-context';
+import type {
+  CibiForm,
+  BureauFileKind,
+  BureauReportFile,
+  CmapCase,
+  BapNfisRecord,
+  CibiResult,
+  CicContract,
+  LoandexRecord,
+  PgfcExposureRecord,
+} from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
-// Compact, space-saving "Bureau Reports" card — one row per bureau instead of
-// a full card each. CIBI is the only bureau with a data-entry form (per the
-// source diagram's callout), so its row behaves differently from the other
-// four: "Create Report" expands a collapsible form inline; once submitted,
-// the row shows a "Sent" status pill plus a separate "Upload document"
-// action for the returned CIBI report file. LOANDEX/CIC/CMAP/NFIS-BAP are
-// plain manual-upload rows, same as before, just restyled to match.
+// Compact, space-saving "Bureau Reports" card — one row per bureau. Every
+// bureau now accepts MULTIPLE report files (was one file each): CIBI is still
+// the only bureau with a data-entry form (its "Create Report" → "Submit to
+// CIBI" intake flow is unchanged), but the returned report — like the other
+// five bureaus' uploads — is now an array of files. Each uploaded file
+// renders its own results table (2–3 canned sample rows), shown in a
+// per-file collapsible sub-panel below the bureau header (Layout B from the
+// brainstorm). File list, add/replace/delete, and the collapsible panels are
+// all handled by the shared `BureauFileList` below, used by both the CIBI
+// row and the five `SimpleBureauRow`s.
 //
 // Consolidation note (UI/UX audit): these rows were NOT refactored onto
-// `RequirementDocRow` directly. RequirementDocRow's `doc` prop requires the
+// `RequirementDocRow` directly — `RequirementDocRow`'s `doc` prop needs the
 // full `RequirementDoc` shape (status/aiNote/fileUrl/remarks/reviewed/
-// uploadedBy — see requirement-doc-row.tsx), but the state backing these
-// rows is `BureauUpload` (`admin-context.tsx`), a deliberately slim
-// `{fileName, fileData, uploadedAt}` shape with none of those fields.
-// `BureauUpload` is also read directly by `credit-checking-result-modal.tsx`
-// (outside this file's ownership), so widening it to match `RequirementDoc`
-// would mean editing admin-context.tsx's state shape and a second unrelated
-// consumer file — both out of scope for this pass. Instead, every row below
-// was rebuilt to use the exact same shared tokens/components RequirementDocRow
-// uses (`StatusBadge`, `TONE_COLORS` via StatusBadge, `outlinedNavyButtonSx`,
-// `iconButtonBorderedSx`, same 13px-radius bordered shell, same Menu/MenuItem
-// styling), plus a synthetic verified/missing StatusBadge that didn't exist
-// here before — so visually these rows are indistinguishable from
-// RequirementDocRow's, even though the underlying component is separate.
+// uploadedBy), where these rows are backed by `BureauReportFile[]`
+// (`admin-context.tsx`), a slim `{id, fileName, fileData, uploadedAt, rows}`
+// shape. Instead every row uses the exact same shared tokens/components
+// `RequirementDocRow` uses (`StatusBadge`, `outlinedNavyButtonSx`,
+// `iconButtonBorderedSx`, the 13px-radius bordered shell, the Menu styling).
 // ----------------------------------------------------------------------
 
 const GENDERS = ['Male', 'Female'];
@@ -133,126 +138,79 @@ function Field({
   );
 }
 
-function BureauRow({
-  title,
-  uploadDetails,
-  uploaded,
-  bureauFindingStatus,
-  resultsTable,
-  children,
+// ----------------------------------------------------------------------
+// One collapsible sub-panel per uploaded file (Layout B). Collapsed header:
+// chevron + filename + row count + View + 3-dot menu (Replace / Delete).
+// Expanded body: that file's results table.
+// ----------------------------------------------------------------------
+function BureauFilePanel({
+  file,
+  bureauTitle,
+  open,
+  onToggle,
+  onReplace,
+  onDelete,
+  renderTable,
 }: {
-  title: string;
-  uploadDetails?: string;
-  /** Drives whether the badge renders at all — hidden entirely when false. */
-  uploaded: boolean;
-  /**
-   * Once uploaded, the badge reflects the shared (simulated) bureau finding
-   * for the whole application — not per-bureau — rather than always reading
-   * "Verified" the moment a file is attached. `'pending'` (all 5 bureau
-   * uploads aren't complete yet, so no finding has been computed) shows
-   * "Uploaded" instead of a clean/negative verdict.
-   */
-  bureauFindingStatus: 'pending' | 'clean' | 'negative';
-  /** Rendered inside this same bordered shell, below the header row —
-   * matches CIBI's card, where its results table lives inside CibiRow's
-   * own outer Box rather than as a separate sibling card underneath. */
-  resultsTable?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  const isNegative = uploaded && bureauFindingStatus === 'negative';
-  // No badge at all before a file is attached — unlike RequirementDocRow's
-  // "Missing" chip, an unattached bureau report isn't a violation to flag,
-  // it just hasn't been done yet.
-  const badgeTone = isNegative ? 'error' : bureauFindingStatus === 'clean' ? 'success' : 'info';
-  const badgeLabel = isNegative ? 'Negative' : bureauFindingStatus === 'clean' ? 'Clear' : 'Uploaded';
-
-  return (
-    // Same 13px-radius bordered white shell as RequirementDocRow's row container.
-    <Box sx={{ borderRadius: '13px', border: '1px solid #EBEDF3', bgcolor: 'common.white', overflow: 'hidden' }}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        spacing={1.5}
-        sx={{ p: 2 }}
-      >
-        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
-          {/* Plain leading icon (no boxed avatar) — matches RequirementDocRow's
-              icon treatment for its non-checkbox rows instead of this card's
-              previous 38x38 icon-avatar box. */}
-          <Iconify
-            icon={
-              isNegative
-                ? 'solar:danger-triangle-bold'
-                : uploaded
-                  ? 'solar:check-circle-bold'
-                  : 'solar:file-text-linear'
-            }
-            width={20}
-            sx={{ color: isNegative ? '#F04438' : uploaded ? '#12B76A' : '#C7CCDA', flexShrink: 0 }}
-          />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
-            {uploadDetails && (
-              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
-                {uploadDetails}
-              </Typography>
-            )}
-          </Box>
-        </Stack>
-
-        <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1}>
-          {uploaded && <StatusBadge tone={badgeTone} label={badgeLabel} />}
-          {children}
-        </Stack>
-      </Stack>
-      {resultsTable && (
-        <Box sx={{ p: 2.5, pt: 0 }}>{resultsTable}</Box>
-      )}
-    </Box>
-  );
-}
-
-function SimpleBureauRow({
-  title,
-  upload,
-  onUpload,
-  resultsTable,
-}: {
-  title: string;
-  upload: BureauUpload;
-  onUpload: (data: Partial<BureauUpload>) => void;
-  resultsTable?: React.ReactNode;
+  file: BureauReportFile;
+  bureauTitle: string;
+  open: boolean;
+  onToggle: () => void;
+  onReplace: (data: { fileName: string; fileData: string }) => void;
+  onDelete: () => void;
+  renderTable: (file: BureauReportFile) => React.ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
-  const { review } = useAdmin();
 
-  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const fileData = await fileToDataUrl(file);
-    onUpload({ fileName: file.name, fileData, uploadedAt: new Date().toISOString() });
+  const handleReplace = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = event.target.files?.[0];
+    if (!picked) return;
+    const fileData = await fileToDataUrl(picked);
+    onReplace({ fileName: picked.name, fileData });
     event.target.value = '';
   };
 
   return (
-    <BureauRow
-      title={title}
-      uploaded={!!upload.fileName}
-      bureauFindingStatus={review.creditChecking.bureauFindingStatus}
-      uploadDetails={
-        upload.fileName
-          ? `${upload.fileName} · Uploaded ${formatUploadedAt(upload.uploadedAt) ?? 'date unavailable'}`
-          : undefined
-      }
-      resultsTable={upload.fileName ? resultsTable : undefined}
-    >
-      <input ref={inputRef} type="file" accept="image/*,.pdf" hidden onChange={handleUpload} />
-      {upload.fileName ? (
-        <>
+    <Box sx={{ borderTop: '1px solid #F0F1F5' }}>
+      <input ref={inputRef} type="file" accept="image/*,.pdf" hidden onChange={handleReplace} />
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        sx={{ px: 2, py: 1.25, cursor: 'pointer' }}
+        onClick={onToggle}
+      >
+        <Iconify
+          icon="eva:chevron-right-fill"
+          width={16}
+          sx={{
+            color: '#8891A6',
+            flexShrink: 0,
+            transition: 'transform 0.15s ease',
+            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+          }}
+        />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography noWrap sx={{ fontSize: 12.75, fontWeight: 700, color: '#14172A' }}>
+            {file.fileName}
+          </Typography>
+          <Typography sx={{ fontSize: 11, color: '#A0A7B5', mt: 0.25 }}>
+            {file.rows.length} {file.rows.length === 1 ? 'row' : 'rows'} · Uploaded{' '}
+            {formatUploadedAt(file.uploadedAt) ?? 'date unavailable'}
+          </Typography>
+        </Box>
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
+          onClick={(event) => event.stopPropagation()}
+        >
           <Button
-            onClick={() => upload.fileData && window.open(upload.fileData, '_blank', 'noopener,noreferrer')}
-            disabled={!upload.fileData}
+            onClick={() =>
+              file.fileData && window.open(file.fileData, '_blank', 'noopener,noreferrer')
+            }
+            disabled={!file.fileData}
             variant="outlined"
             size="small"
             startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
@@ -262,7 +220,7 @@ function SimpleBureauRow({
           </Button>
           <IconButton
             onClick={(event) => setMenuAnchor(event.currentTarget)}
-            aria-label={`More actions for ${title}`}
+            aria-label={`More actions for ${file.fileName}`}
             size="small"
             sx={iconButtonBorderedSx}
           >
@@ -287,7 +245,7 @@ function SimpleBureauRow({
             <MenuItem
               onClick={() => {
                 setMenuAnchor(null);
-                onUpload({ fileName: null, fileData: null, uploadedAt: null });
+                onDelete();
               }}
               sx={{ fontSize: 13.5, color: '#B32C22', '&:hover': { bgcolor: TONE_COLORS.error.bg } }}
             >
@@ -295,18 +253,196 @@ function SimpleBureauRow({
               Delete file
             </MenuItem>
           </Menu>
-        </>
-      ) : (
-        <Button
-          onClick={() => inputRef.current?.click()}
-          variant="contained"
-          size="small"
-          sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', px: 2, '&:hover': { bgcolor: '#14205A' } }}
-        >
-          Upload report
-        </Button>
-      )}
-    </BureauRow>
+        </Stack>
+      </Stack>
+      <Collapse in={open} timeout="auto" unmountOnExit>
+        <Box sx={{ px: 2.5, pb: 2.5, pt: 0.5 }}>
+          <Typography sx={{ fontSize: 11, color: '#A0A7B5', mb: 1 }}>
+            {bureauTitle} results extracted from {file.fileName}
+          </Typography>
+          {renderTable(file)}
+        </Box>
+      </Collapse>
+    </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+// The multi-file list for one bureau: header row (icon, title, status badge,
+// file count, "Add files"), then one BureauFilePanel per uploaded file. Used
+// by both SimpleBureauRow and CibiRow.
+// ----------------------------------------------------------------------
+function BureauFileList({
+  kind,
+  title,
+  files,
+  renderTable,
+  headerAction,
+  emptyHint,
+}: {
+  kind: BureauFileKind;
+  title: string;
+  files: BureauReportFile[];
+  renderTable: (file: BureauReportFile) => React.ReactNode;
+  /** Extra element rendered in the header before "Add files" (CIBI's
+   * "Create Report" / "Sent" badge). */
+  headerAction?: React.ReactNode;
+  /** Muted line shown under the title while no file has been uploaded. */
+  emptyHint?: string;
+}) {
+  const { review, addBureauReportFiles, replaceBureauReportFile, removeBureauReportFile } = useAdmin();
+  const addInputRef = useRef<HTMLInputElement>(null);
+  const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
+
+  const bureauFindingStatus = review.creditChecking.bureauFindingStatus;
+  const hasFiles = files.length > 0;
+  const isNegative = hasFiles && bureauFindingStatus === 'negative';
+  const badgeTone = isNegative ? 'error' : bureauFindingStatus === 'clean' ? 'success' : 'info';
+  const badgeLabel = isNegative ? 'Negative' : bureauFindingStatus === 'clean' ? 'Clear' : 'Uploaded';
+
+  // First file starts expanded; each toggles independently. When a brand-new
+  // file lands and nothing is open yet, open the newest one.
+  useEffect(() => {
+    setOpenIds((prev) => {
+      const next = new Set(Array.from(prev).filter((id) => files.some((f) => f.id === id)));
+      if (next.size === 0 && files.length > 0) next.add(files[files.length - 1].id);
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files.length]);
+
+  const toggle = (id: string) =>
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const handleAdd = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(event.target.files ?? []);
+    if (picked.length === 0) return;
+    const entries = await Promise.all(
+      picked.map(async (f) => ({ fileName: f.name, fileData: await fileToDataUrl(f) }))
+    );
+    addBureauReportFiles(kind, entries);
+    event.target.value = '';
+  };
+
+  return (
+    <Box
+      sx={{
+        borderRadius: '13px',
+        border: '1px solid #EBEDF3',
+        bgcolor: 'common.white',
+        overflow: 'hidden',
+      }}
+    >
+      <input
+        ref={addInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        multiple
+        hidden
+        onChange={handleAdd}
+      />
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        spacing={1.5}
+        sx={{ p: 2 }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
+          <Iconify
+            icon={
+              isNegative
+                ? 'solar:danger-triangle-bold'
+                : hasFiles
+                  ? 'solar:check-circle-bold'
+                  : 'solar:file-text-linear'
+            }
+            width={20}
+            sx={{
+              color: isNegative ? '#F04438' : hasFiles ? '#12B76A' : '#C7CCDA',
+              flexShrink: 0,
+            }}
+          />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
+            {hasFiles ? (
+              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
+                {files.length} {files.length === 1 ? 'file' : 'files'} uploaded
+              </Typography>
+            ) : (
+              emptyHint && (
+                <Typography sx={{ fontSize: 12, color: '#8891A6', mt: 0.25 }}>{emptyHint}</Typography>
+              )
+            )}
+          </Box>
+        </Stack>
+
+        <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1}>
+          {hasFiles && <StatusBadge tone={badgeTone} label={badgeLabel} />}
+          {headerAction}
+          {hasFiles ? (
+            <Button
+              onClick={() => addInputRef.current?.click()}
+              variant="outlined"
+              size="small"
+              startIcon={<Iconify icon="solar:add-circle-bold-duotone" width={16} />}
+              sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
+            >
+              Add files
+            </Button>
+          ) : (
+            <Button
+              onClick={() => addInputRef.current?.click()}
+              variant="contained"
+              size="small"
+              sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', px: 2, '&:hover': { bgcolor: '#14205A' } }}
+            >
+              Upload report
+            </Button>
+          )}
+        </Stack>
+      </Stack>
+
+      {files.map((file) => (
+        <BureauFilePanel
+          key={file.id}
+          file={file}
+          bureauTitle={title}
+          open={openIds.has(file.id)}
+          onToggle={() => toggle(file.id)}
+          onReplace={(data) => replaceBureauReportFile(kind, file.id, data)}
+          onDelete={() => removeBureauReportFile(kind, file.id)}
+          renderTable={renderTable}
+        />
+      ))}
+    </Box>
+  );
+}
+
+function SimpleBureauRow({
+  kind,
+  title,
+  renderTable,
+}: {
+  kind: Exclude<BureauFileKind, 'cibi'>;
+  title: string;
+  renderTable: (file: BureauReportFile) => React.ReactNode;
+}) {
+  const { review } = useAdmin();
+  const filesByKind: Record<Exclude<BureauFileKind, 'cibi'>, BureauReportFile[]> = {
+    loandex: review.loandexFiles,
+    cic: review.cicFiles,
+    cmap: review.cmapFiles,
+    nfisBap: review.nfisBapFiles,
+    pgfcExposure: review.pgfcExposureFiles,
+  };
+
+  return (
+    <BureauFileList kind={kind} title={title} files={filesByKind[kind]} renderTable={renderTable} />
   );
 }
 
@@ -315,8 +451,6 @@ function CibiRow() {
   const { review, setCibiForm } = useAdmin();
   const { cibiForm } = review;
   const [formOpen, setFormOpen] = useState(false);
-  const [reportMenuAnchor, setReportMenuAnchor] = useState<HTMLElement | null>(null);
-  const reportInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-populate from real applicant data the first time the form is opened
   // with an empty form — same fields/logic as the original CibiFormCard.
@@ -373,148 +507,42 @@ function CibiRow() {
     setFormOpen(false);
   };
 
-  const handleReportUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const dataUrl = await fileToDataUrl(file);
-    setCibiForm({
-      reportFile: dataUrl,
-      reportFileName: file.name,
-      reportUploadedAt: new Date().toISOString(),
-    });
-    event.target.value = '';
-  };
+  const headerAction = !cibiForm.submitted ? (
+    <Button
+      onClick={() => setFormOpen((prev) => !prev)}
+      variant="contained"
+      size="small"
+      endIcon={
+        <Iconify
+          icon="eva:chevron-down-fill"
+          width={16}
+          sx={{
+            transition: 'transform 0.15s ease',
+            transform: formOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+          }}
+        />
+      }
+      sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', px: 2, '&:hover': { bgcolor: '#14205A' } }}
+    >
+      Create Report
+    </Button>
+  ) : (
+    <StatusBadge tone="success" label="Sent" icon="solar:check-circle-bold" />
+  );
 
   return (
-    // Same 13px-radius bordered white shell as RequirementDocRow/BureauRow.
-    <Box sx={{ borderRadius: '13px', border: '1px solid #EBEDF3', bgcolor: 'common.white', overflow: 'hidden' }}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        spacing={1.5}
-        sx={{ p: 2 }}
-      >
-        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
-          {/* Plain leading icon, matching RequirementDocRow/BureauRow — no
-              boxed icon-avatar. */}
-          <Iconify
-            icon={cibiForm.reportFileName ? 'solar:check-circle-bold' : 'solar:document-text-bold-duotone'}
-            width={20}
-            sx={{ color: cibiForm.reportFileName ? '#12B76A' : '#8891A6', flexShrink: 0 }}
-          />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>CIBI</Typography>
-            {cibiForm.reportFileName ? (
-              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.5 }}>
-                {cibiForm.reportFileName} · Uploaded{' '}
-                {formatUploadedAt(cibiForm.reportUploadedAt) ?? 'date unavailable'}
-              </Typography>
-            ) : (
-              <Typography sx={{ fontSize: 12, color: '#8891A6' }}>API integration available</Typography>
-            )}
-          </Box>
-        </Stack>
-
-        {!cibiForm.submitted && (
-          <Button
-            onClick={() => setFormOpen((prev) => !prev)}
-            variant="contained"
-            size="small"
-            endIcon={
-              <Iconify
-                icon="eva:chevron-down-fill"
-                width={16}
-                sx={{ transition: 'transform 0.15s ease', transform: formOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-              />
-            }
-            sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', px: 2, '&:hover': { bgcolor: '#14205A' } }}
-          >
-            Create Report
-          </Button>
-        )}
-
-        {cibiForm.submitted && (
-          <Stack direction="row" alignItems="center" justifyContent="flex-end" spacing={1}>
-            <StatusBadge tone="success" label="Sent" icon="solar:check-circle-bold" />
-            <input
-              ref={reportInputRef}
-              type="file"
-              accept="image/*,.pdf"
-              hidden
-              onChange={handleReportUpload}
-            />
-            {cibiForm.reportFileName ? (
-              <>
-                <Button
-                  onClick={() =>
-                    cibiForm.reportFile &&
-                    window.open(cibiForm.reportFile, '_blank', 'noopener,noreferrer')
-                  }
-                  disabled={!cibiForm.reportFile}
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Iconify icon="solar:eye-bold-duotone" width={16} />}
-                  sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
-                >
-                  View
-                </Button>
-                <IconButton
-                  onClick={(event) => setReportMenuAnchor(event.currentTarget)}
-                  aria-label="More actions for CIBI report"
-                  size="small"
-                  sx={iconButtonBorderedSx}
-                >
-                  <Iconify icon="eva:more-vertical-fill" width={18} />
-                </IconButton>
-                <Menu
-                  anchorEl={reportMenuAnchor}
-                  open={Boolean(reportMenuAnchor)}
-                  onClose={() => setReportMenuAnchor(null)}
-                  slotProps={{ paper: { sx: { mt: 0.5, minWidth: 175, borderRadius: '10px' } } }}
-                >
-                  <MenuItem
-                    onClick={() => {
-                      setReportMenuAnchor(null);
-                      reportInputRef.current?.click();
-                    }}
-                    sx={{ fontSize: 13.5 }}
-                  >
-                    <Iconify icon="solar:refresh-bold-duotone" width={17} sx={{ mr: 1.25 }} />
-                    Replace file
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      setReportMenuAnchor(null);
-                      setCibiForm({
-                        reportFile: null,
-                        reportFileName: null,
-                        reportUploadedAt: null,
-                      });
-                    }}
-                    sx={{ fontSize: 13.5, color: '#B32C22', '&:hover': { bgcolor: TONE_COLORS.error.bg } }}
-                  >
-                    <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
-                    Delete file
-                  </MenuItem>
-                </Menu>
-              </>
-            ) : (
-              <Button
-                onClick={() => reportInputRef.current?.click()}
-                variant="contained"
-                size="small"
-                sx={{ bgcolor: '#1C2A6E', borderRadius: '9px', px: 2, '&:hover': { bgcolor: '#14205A' } }}
-              >
-                Upload document
-              </Button>
-            )}
-          </Stack>
-        )}
-      </Stack>
+    <Box>
+      <BureauFileList
+        kind="cibi"
+        title="CIBI"
+        files={cibiForm.reportFiles}
+        renderTable={(file) => <CibiResultsTable rows={file.rows as CibiResult[]} />}
+        headerAction={headerAction}
+        emptyHint="API integration available"
+      />
 
       <Collapse in={formOpen} timeout="auto" unmountOnExit>
-        <Box sx={{ p: 2.5, pt: 0 }}>
+        <Box sx={{ mt: 1.5 }}>
           <Box sx={{ p: 2.5, borderRadius: '12px', bgcolor: '#FAFBFD', border: '1px solid #EEF0F5' }}>
             <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 2 }}>
               CIBI is currently the only bureau with an API integration — fields we already have on
@@ -741,67 +769,47 @@ function CibiRow() {
           </Box>
         </Box>
       </Collapse>
-
-      <Collapse in={!!cibiForm.reportFileName} timeout="auto" unmountOnExit>
-        <Box sx={{ p: 2.5, pt: 0 }}>
-          <CibiResultsTable rows={review.creditChecking.cibiResults} />
-        </Box>
-      </Collapse>
     </Box>
   );
 }
 
 export function BureauReportsCard() {
-  const {
-    review,
-    setLoandexUpload,
-    setCicUpload,
-    setCmapUpload,
-    setNfisBapUpload,
-    setPgfcExposureUpload,
-  } = useAdmin();
-  const { loandexUpload, cicUpload, cmapUpload, nfisBapUpload, pgfcExposureUpload, creditChecking } = review;
-
   return (
     <Box sx={adminCardSx}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
         Bureau Reports
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-        Upload the returned reports. All are required to make a decision.
+        Upload the returned reports. You can attach multiple files per bureau; each file shows its own
+        results table. All bureaus are required to make a decision.
       </Typography>
 
       <Stack spacing={1.5}>
         <CibiRow />
         <SimpleBureauRow
+          kind="loandex"
           title="LOANDEX"
-          upload={loandexUpload}
-          onUpload={setLoandexUpload}
-          resultsTable={<LoandexRecordsTable rows={creditChecking.loandexRecords} />}
+          renderTable={(file) => <LoandexRecordsTable rows={file.rows as LoandexRecord[]} />}
         />
         <SimpleBureauRow
+          kind="cic"
           title="CIC"
-          upload={cicUpload}
-          onUpload={setCicUpload}
-          resultsTable={<CicContractsTable rows={creditChecking.cicContracts} />}
+          renderTable={(file) => <CicContractsTable rows={file.rows as CicContract[]} />}
         />
         <SimpleBureauRow
+          kind="cmap"
           title="CMAP"
-          upload={cmapUpload}
-          onUpload={setCmapUpload}
-          resultsTable={<CmapCasesTable rows={creditChecking.cmapCases} />}
+          renderTable={(file) => <CmapCasesTable rows={file.rows as CmapCase[]} />}
         />
         <SimpleBureauRow
+          kind="nfisBap"
           title="NFIS / BAP"
-          upload={nfisBapUpload}
-          onUpload={setNfisBapUpload}
-          resultsTable={<BapNfisRecordsTable rows={creditChecking.bapNfisRecords} />}
+          renderTable={(file) => <BapNfisRecordsTable rows={file.rows as BapNfisRecord[]} />}
         />
         <SimpleBureauRow
+          kind="pgfcExposure"
           title="PGFC Existing Exposure"
-          upload={pgfcExposureUpload}
-          onUpload={setPgfcExposureUpload}
-          resultsTable={<PgfcExposureTable rows={creditChecking.pgfcExposureRecords} />}
+          renderTable={(file) => <PgfcExposureTable rows={file.rows as PgfcExposureRecord[]} />}
         />
       </Stack>
     </Box>

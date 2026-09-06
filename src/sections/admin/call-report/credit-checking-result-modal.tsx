@@ -13,6 +13,16 @@ import DialogContent from '@mui/material/DialogContent';
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
+import type {
+  BureauReportFile,
+  CmapCase,
+  BapNfisRecord,
+  CibiResult,
+  CicContract,
+  LoandexRecord,
+  PgfcExposureRecord,
+} from 'src/auth/admin-context';
+
 import { Iconify } from 'src/components/iconify';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
@@ -69,37 +79,31 @@ function FieldRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Header (bureau name, uploaded file, status chip) matches the old
-// BureauResultRow's exactly — only the body changed, from a canned summary
-// sentence to the real fact-chip table for that bureau (children).
+// Header (bureau name, status chip) matches the old BureauResultRow's — the
+// body now renders one block per uploaded file (each bureau can hold several)
+// with that file's own name, upload date, and results table.
 function BureauResultSection({
   title,
-  fileName,
-  uploadedAt,
+  files,
   needsReview,
   reviewNote,
-  children,
+  renderTable,
 }: {
   title: string;
-  fileName: string | null;
-  uploadedAt: string | null;
+  files: BureauReportFile[];
   needsReview?: boolean;
   reviewNote?: string;
-  children: React.ReactNode;
+  renderTable: (file: BureauReportFile) => React.ReactNode;
 }) {
-  const tone = !fileName ? 'pending' : needsReview ? 'review' : 'clear';
+  const hasFiles = files.length > 0;
+  const tone = !hasFiles ? 'pending' : needsReview ? 'review' : 'clear';
   const toneStyle = {
     clear: { label: 'Clear', bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold' },
     review: { label: 'Needs review', bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold' },
     pending: { label: 'Not uploaded', bg: '#F5F6FA', color: '#667085', icon: 'solar:file-remove-bold' },
   }[tone];
-  const uploadedLabel = uploadedAt
-    ? new Date(uploadedAt).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    : null;
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 
   return (
     <Stack
@@ -109,16 +113,11 @@ function BureauResultSection({
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}>
         <Box sx={{ minWidth: 0 }}>
           <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0, sm: 0.75 }}>
-            <Typography noWrap sx={{ fontSize: 11.5, color: '#8891A6', maxWidth: 220 }}>
-              {fileName ?? 'No report uploaded'}
-            </Typography>
-            {fileName && (
-              <Typography sx={{ fontSize: 11.5, color: '#8891A6', whiteSpace: 'nowrap' }}>
-                · {uploadedLabel ? `Uploaded ${uploadedLabel}` : 'Upload date unavailable'}
-              </Typography>
-            )}
-          </Stack>
+          <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>
+            {hasFiles
+              ? `${files.length} ${files.length === 1 ? 'file' : 'files'} uploaded`
+              : 'No report uploaded'}
+          </Typography>
         </Box>
         <Chip
           size="small"
@@ -130,7 +129,19 @@ function BureauResultSection({
       {needsReview && reviewNote && (
         <Typography sx={{ fontSize: 13, color: '#B32C22', lineHeight: 1.55 }}>{reviewNote}</Typography>
       )}
-      {fileName && children}
+      {files.map((file) => (
+        <Stack key={file.id} spacing={0.75}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0, sm: 0.75 }}>
+            <Typography noWrap sx={{ fontSize: 11.5, fontWeight: 700, color: '#5b6270', maxWidth: 260 }}>
+              {file.fileName}
+            </Typography>
+            <Typography sx={{ fontSize: 11.5, color: '#8891A6', whiteSpace: 'nowrap' }}>
+              · Uploaded {fmtDate(file.uploadedAt)}
+            </Typography>
+          </Stack>
+          {renderTable(file)}
+        </Stack>
+      ))}
     </Stack>
   );
 }
@@ -151,16 +162,16 @@ const NEGATIVE_SECTION_TITLES: Record<
 
 export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResultModalProps) {
   const { signUpData, application } = useRegistration();
-  const { review } = useAdmin();
+  const { review, bureauResultRows } = useAdmin();
   const {
     creditChecking,
     negativeCreditReport,
     cibiForm,
-    loandexUpload,
-    cicUpload,
-    cmapUpload,
-    nfisBapUpload,
-    pgfcExposureUpload,
+    loandexFiles,
+    cicFiles,
+    cmapFiles,
+    nfisBapFiles,
+    pgfcExposureFiles,
   } = review;
 
   if (!signUpData) return null;
@@ -182,20 +193,20 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
     : '—';
 
   const allBureauReportsUploaded =
-    !!cibiForm.reportFileName &&
-    !!loandexUpload.fileName &&
-    !!cicUpload.fileName &&
-    !!cmapUpload.fileName &&
-    !!nfisBapUpload.fileName &&
-    !!pgfcExposureUpload.fileName;
+    cibiForm.reportFiles.length > 0 &&
+    loandexFiles.length > 0 &&
+    cicFiles.length > 0 &&
+    cmapFiles.length > 0 &&
+    nfisBapFiles.length > 0 &&
+    pgfcExposureFiles.length > 0;
 
   const creditCheckingResult = buildInitialCreditCheckingResult({
-    cmapCases: creditChecking.cmapCases,
-    bapNfisRecords: creditChecking.bapNfisRecords,
-    cibiResults: creditChecking.cibiResults,
-    cicContracts: creditChecking.cicContracts,
-    loandexRecords: creditChecking.loandexRecords,
-    pgfcExposureRecords: creditChecking.pgfcExposureRecords,
+    cmapCases: bureauResultRows.cmapCases,
+    bapNfisRecords: bureauResultRows.bapNfisRecords,
+    cibiResults: bureauResultRows.cibiResults,
+    cicContracts: bureauResultRows.cicContracts,
+    loandexRecords: bureauResultRows.loandexRecords,
+    pgfcExposureRecords: bureauResultRows.pgfcExposureRecords,
     allBureauReportsUploaded,
     desiredLoanAmount: application.financialInfo?.desiredLoanAmount ?? 0,
     monthlyIncome: application.financialInfo?.monthlyIncome ?? 0,
@@ -297,36 +308,40 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
             </Typography>
 
             <Stack spacing={2}>
-              <BureauResultSection title="CIBI" fileName={cibiForm.reportFileName} uploadedAt={cibiForm.reportUploadedAt}>
-                <CibiResultsTable rows={creditChecking.cibiResults} />
-              </BureauResultSection>
-              <BureauResultSection title="LOANDEX" fileName={loandexUpload.fileName} uploadedAt={loandexUpload.uploadedAt}>
-                <LoandexRecordsTable rows={creditChecking.loandexRecords} />
-              </BureauResultSection>
-              <BureauResultSection title="CIC" fileName={cicUpload.fileName} uploadedAt={cicUpload.uploadedAt}>
-                <CicContractsTable rows={creditChecking.cicContracts} />
-              </BureauResultSection>
+              <BureauResultSection
+                title="CIBI"
+                files={cibiForm.reportFiles}
+                renderTable={(file) => <CibiResultsTable rows={file.rows as CibiResult[]} />}
+              />
+              <BureauResultSection
+                title="LOANDEX"
+                files={loandexFiles}
+                renderTable={(file) => <LoandexRecordsTable rows={file.rows as LoandexRecord[]} />}
+              />
+              <BureauResultSection
+                title="CIC"
+                files={cicFiles}
+                renderTable={(file) => <CicContractsTable rows={file.rows as CicContract[]} />}
+              />
               <BureauResultSection
                 title="CMAP"
-                fileName={cmapUpload.fileName}
-                uploadedAt={cmapUpload.uploadedAt}
+                files={cmapFiles}
                 needsReview={hasNegativeBureauFinding && negativeFindingBureau === 'CMAP'}
                 reviewNote={`Flagged: ${negativeFindingReason}. Requires officer validation.`}
-              >
-                <CmapCasesTable rows={creditChecking.cmapCases} />
-              </BureauResultSection>
+                renderTable={(file) => <CmapCasesTable rows={file.rows as CmapCase[]} />}
+              />
               <BureauResultSection
                 title="NFIS / BAP"
-                fileName={nfisBapUpload.fileName}
-                uploadedAt={nfisBapUpload.uploadedAt}
+                files={nfisBapFiles}
                 needsReview={hasNegativeBureauFinding && negativeFindingBureau === 'NFIS'}
                 reviewNote={`Flagged: ${negativeFindingReason}. Requires officer validation.`}
-              >
-                <BapNfisRecordsTable rows={creditChecking.bapNfisRecords} />
-              </BureauResultSection>
-              <BureauResultSection title="PGFC Existing Exposure" fileName={pgfcExposureUpload.fileName} uploadedAt={pgfcExposureUpload.uploadedAt}>
-                <PgfcExposureTable rows={creditChecking.pgfcExposureRecords} />
-              </BureauResultSection>
+                renderTable={(file) => <BapNfisRecordsTable rows={file.rows as BapNfisRecord[]} />}
+              />
+              <BureauResultSection
+                title="PGFC Existing Exposure"
+                files={pgfcExposureFiles}
+                renderTable={(file) => <PgfcExposureTable rows={file.rows as PgfcExposureRecord[]} />}
+              />
             </Stack>
 
             {showNegativeReport && (

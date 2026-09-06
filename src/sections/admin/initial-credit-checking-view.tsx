@@ -116,11 +116,9 @@ export function InitialCreditCheckingView() {
     adminUser,
     setCreditChecking,
     setCibiForm,
-    setLoandexUpload,
-    setCicUpload,
-    setCmapUpload,
-    setNfisBapUpload,
-    setPgfcExposureUpload,
+    addBureauReportFiles,
+    removeBureauReportFile,
+    bureauResultRows,
     resetNegativeCreditReport,
   } = useAdmin();
   // Sales Reject requires the officer to pick a reason (and optionally add
@@ -144,15 +142,15 @@ export function InitialCreditCheckingView() {
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
 
-  const { creditChecking, cibiForm, loandexUpload, cicUpload, cmapUpload, nfisBapUpload, pgfcExposureUpload } =
+  const { creditChecking, cibiForm, loandexFiles, cicFiles, cmapFiles, nfisBapFiles, pgfcExposureFiles } =
     review;
   const allBureauReportsUploaded =
-    !!cibiForm.reportFileName &&
-    !!loandexUpload.fileName &&
-    !!cicUpload.fileName &&
-    !!cmapUpload.fileName &&
-    !!nfisBapUpload.fileName &&
-    !!pgfcExposureUpload.fileName;
+    cibiForm.reportFiles.length > 0 &&
+    loandexFiles.length > 0 &&
+    cicFiles.length > 0 &&
+    cmapFiles.length > 0 &&
+    nfisBapFiles.length > 0 &&
+    pgfcExposureFiles.length > 0;
 
   // Simulated AI review of the bureau uploads — see simulate-bureau-finding.ts
   // for why this is a deterministic hash rather than Math.random(). Runs
@@ -164,14 +162,18 @@ export function InitialCreditCheckingView() {
     if (!allBureauReportsUploaded) return;
     if (creditChecking.bureauFindingStatus !== 'pending') return;
 
-    const finding = simulateBureauFinding([
-      signUpData.email,
-      cibiForm.reportFileName ?? '',
-      loandexUpload.fileName ?? '',
-      cicUpload.fileName ?? '',
-      cmapUpload.fileName ?? '',
-      nfisBapUpload.fileName ?? '',
-    ]);
+    // Hash every uploaded filename across every bureau (each bureau can now
+    // hold multiple files) plus the applicant email — still deterministic,
+    // so the same set of uploads always yields the same simulated finding.
+    const allFileNames = [
+      ...cibiForm.reportFiles,
+      ...loandexFiles,
+      ...cicFiles,
+      ...cmapFiles,
+      ...nfisBapFiles,
+      ...pgfcExposureFiles,
+    ].map((f) => f.fileName);
+    const finding = simulateBureauFinding([signUpData.email, ...allFileNames]);
     setCreditChecking({
       bureauFindingStatus: finding.status,
       bureauFindingBureau: finding.bureau,
@@ -181,16 +183,16 @@ export function InitialCreditCheckingView() {
   }, [
     allBureauReportsUploaded,
     creditChecking.bureauFindingStatus,
-    cibiForm.reportFileName,
-    loandexUpload.fileName,
-    cicUpload.fileName,
-    cmapUpload.fileName,
-    nfisBapUpload.fileName,
+    cibiForm.reportFiles.length,
+    loandexFiles.length,
+    cicFiles.length,
+    cmapFiles.length,
+    nfisBapFiles.length,
+    pgfcExposureFiles.length,
   ]);
 
   const handleFillSampleData = () => {
     if (!signUpData) return;
-    const uploadedAt = new Date().toISOString();
     const loanAmount = application.financialInfo?.desiredLoanAmount ?? 0;
     const loanTermMonths = application.financialInfo?.loanTermMonths ?? 0;
     const amount = loanAmount ? String(loanAmount) : '';
@@ -225,21 +227,23 @@ export function InitialCreditCheckingView() {
       terms,
       installment: computeInstallment(amount, terms),
       submitted: true,
-      reportFile: '/assets/documents/sample-local-pdf.pdf',
-      reportFileName: 'sample-local-pdf.pdf',
-      reportUploadedAt: uploadedAt,
     });
 
-    const sampleReport = {
-      fileName: 'sample-local-pdf.pdf',
-      fileData: '/assets/documents/sample-local-pdf.pdf',
-      uploadedAt,
-    };
-    setLoandexUpload(sampleReport);
-    setCicUpload(sampleReport);
-    setCmapUpload(sampleReport);
-    setNfisBapUpload(sampleReport);
-    setPgfcExposureUpload(sampleReport);
+    // Seed one sample file per bureau — except CMAP, which gets two, so the
+    // multi-file UI is visible immediately after "Fill with Sample Data".
+    // addBureauReportFiles reads the CIBI form for CIBI's row seeding, so it
+    // must run after setCibiForm above (both queue on the same setState
+    // batch, applied in order).
+    const oneFile = [{ fileName: 'sample-local-pdf.pdf', fileData: '/assets/documents/sample-local-pdf.pdf' }];
+    addBureauReportFiles('cibi', oneFile);
+    addBureauReportFiles('loandex', oneFile);
+    addBureauReportFiles('cic', oneFile);
+    addBureauReportFiles('cmap', [
+      { fileName: 'cmap-report-a.pdf', fileData: '/assets/documents/sample-local-pdf.pdf' },
+      { fileName: 'cmap-report-b.pdf', fileData: '/assets/documents/sample-local-pdf.pdf' },
+    ]);
+    addBureauReportFiles('nfisBap', oneFile);
+    addBureauReportFiles('pgfcExposure', oneFile);
   };
 
   // Undoes exactly what handleFillSampleData sets — scoped to only the
@@ -277,16 +281,22 @@ export function InitialCreditCheckingView() {
       terms: '',
       installment: '',
       submitted: false,
-      reportFile: null,
-      reportFileName: null,
-      reportUploadedAt: null,
     });
 
-    setLoandexUpload({ fileName: null, fileData: null, uploadedAt: null });
-    setCicUpload({ fileName: null, fileData: null, uploadedAt: null });
-    setCmapUpload({ fileName: null, fileData: null, uploadedAt: null });
-    setNfisBapUpload({ fileName: null, fileData: null, uploadedAt: null });
-    setPgfcExposureUpload({ fileName: null, fileData: null, uploadedAt: null });
+    // Drop every uploaded file from every bureau.
+    (['cibi', 'loandex', 'cic', 'cmap', 'nfisBap', 'pgfcExposure'] as const).forEach((kind) => {
+      const files =
+        kind === 'cibi'
+          ? review.cibiForm.reportFiles
+          : {
+              loandex: review.loandexFiles,
+              cic: review.cicFiles,
+              cmap: review.cmapFiles,
+              nfisBap: review.nfisBapFiles,
+              pgfcExposure: review.pgfcExposureFiles,
+            }[kind];
+      files.forEach((f) => removeBureauReportFile(kind, f.id));
+    });
   };
 
   useRegisterPageActions(
@@ -334,19 +344,29 @@ export function InitialCreditCheckingView() {
           : []),
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [allBureauReportsUploaded, isSplitLayout]
+      [
+        allBureauReportsUploaded,
+        isSplitLayout,
+        // handleClearSampleData closes over the current file arrays.
+        cibiForm.reportFiles.length,
+        loandexFiles.length,
+        cicFiles.length,
+        cmapFiles.length,
+        nfisBapFiles.length,
+        pgfcExposureFiles.length,
+      ]
     )
   );
 
   if (!signUpData || !application.personalInfo) return null;
 
   const creditCheckingResult = buildInitialCreditCheckingResult({
-    cmapCases: creditChecking.cmapCases,
-    bapNfisRecords: creditChecking.bapNfisRecords,
-    cibiResults: creditChecking.cibiResults,
-    cicContracts: creditChecking.cicContracts,
-    loandexRecords: creditChecking.loandexRecords,
-    pgfcExposureRecords: creditChecking.pgfcExposureRecords,
+    cmapCases: bureauResultRows.cmapCases,
+    bapNfisRecords: bureauResultRows.bapNfisRecords,
+    cibiResults: bureauResultRows.cibiResults,
+    cicContracts: bureauResultRows.cicContracts,
+    loandexRecords: bureauResultRows.loandexRecords,
+    pgfcExposureRecords: bureauResultRows.pgfcExposureRecords,
     allBureauReportsUploaded,
     desiredLoanAmount: application.financialInfo?.desiredLoanAmount ?? 0,
     monthlyIncome: application.financialInfo?.monthlyIncome ?? 0,

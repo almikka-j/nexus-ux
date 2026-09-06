@@ -43,3 +43,6 @@ next-env.d.ts
 
 # personal task log — stays local only, never pushed
 /docs/240-tasks.md
+
+# superpowers brainstorming (visual companion mockups)
+.superpowers/
