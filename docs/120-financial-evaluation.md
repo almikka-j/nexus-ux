@@ -356,7 +356,9 @@ inputs, `StatusBadge` pills for totals, `TONE_COLORS`).
 - `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` carrying
   the legacy report content but styled to this app's report convention
   (the same tokens the Financial Statement / Bank Loan reports use — a
-  `#F9FAFC` bordered meta fact-block, a `#EEF1FE` table head, light
+  a 3-column meta header (Borrower's Name / Amount of Loan / Computation
+  Type — same stacked-label-over-value layout as the Cash Flow form's own
+  header), a `#EEF1FE` table head, light
   `#F1F3F8` uppercase section-header rows for **Source of Income** /
   **Less Expenses** / **Other Loans**, `#FAFBFD` zebra striping — *not* a
   solid navy banner). The full line-item table covers every
