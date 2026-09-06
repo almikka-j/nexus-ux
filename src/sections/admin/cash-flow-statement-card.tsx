@@ -884,17 +884,22 @@ export function CashFlowStatementReport({ open, onClose }: { open: boolean; onCl
       <Divider />
 
       <DialogContent sx={{ p: 3 }}>
-        {/* Meta — same fact-block treatment as the other report modals */}
-        <Box
-          sx={{
-            p: 2,
-            mb: 2.5,
-            borderRadius: '11px',
-            bgcolor: '#F9FAFC',
-            border: '1px solid #EEF0F5',
-          }}
-        >
-          <Stack spacing={0.75}>
+        {/* Meta — the app's report field-block treatment
+            (credit-checking-result-modal.tsx's FieldRow convention) */}
+        <Box sx={{ p: 2.5, mb: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+          <Typography
+            sx={{
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: '#8891A6',
+              mb: 1.5,
+            }}
+          >
+            Cash Flow Statement
+          </Typography>
+          <Stack spacing={1.25}>
             <ReportMeta label="Borrower's Name" value={applicantName} />
             <ReportMeta
               label="Amount of Loan"
@@ -1029,10 +1034,10 @@ const reportCellSx = {
 function ReportMeta({ label, value }: { label: string; value: string }) {
   return (
     <Stack direction="row" spacing={2}>
-      <Typography sx={{ fontSize: 12.5, color: '#8891A6', width: 140, flexShrink: 0 }}>
+      <Typography sx={{ fontSize: 13.5, color: '#8891A6', width: 140, flexShrink: 0 }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>{value}</Typography>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value}</Typography>
     </Stack>
   );
 }
