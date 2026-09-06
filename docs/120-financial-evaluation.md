@@ -3,7 +3,11 @@
 > **Maintenance rule:** update this file whenever `financial-evaluation-view.tsx`,
 > `financial-evaluation-docs.ts`, `cash-flow-statement.ts`,
 > `cash-flow-statement-card.tsx`, `bank-statement.ts`, `bank-statement-card.tsx`,
-> `bank-statement-modal.tsx`, or `financial-summary-card.tsx` change. Companion to `docs/230-project-overview.md`
+> `bank-statement-modal.tsx`, `financial-summary-card.tsx`,
+> `financial-summary-calcs.ts`, `financial-statement-modal.tsx`,
+> `financial-statement-report.tsx`, `bank-loans-modal.tsx`,
+> `bank-loan-report.tsx`, `financial-highlights-modal.tsx`, or
+> `financial-highlights-report.tsx` change. Companion to `docs/230-project-overview.md`
 > and `docs/090-account-solicitation-requirement-checklist.md` (the screen that actually collects
 > these documents) and `docs/100-credit-investigation.md` (the sibling
 > process-stage detail page this one follows the same pattern as).
@@ -76,41 +80,143 @@ this build. The page is:
 A card (`FinancialSummaryCard` in `financial-summary-card.tsx`) — same
 `adminCardSx` + `CollapsibleSection` shell as the other cards, defaults
 expanded, with a `{completeCount} / 3` badge once any item is past
-not-started.
+not-started. It hosts the three legacy sub-tools — **Financial Statement**,
+**Bank Loans**, **Financial Highlights** — each as an always-expanded
+bordered row with:
+- a status pill (`TextField select` — **Not started** / **In progress** /
+  **Complete**, tone-colored from `TONE_COLORS`, officer-set),
+- an always-visible Remarks `TextField` (`minRows={2}`),
+- a **Manage** button → the sub-tool's data-entry modal,
+- a **View** button → the sub-tool's on-screen report modal.
 
-**Purpose / rationale.** The legacy source system has a "Financial Summary"
-screen with three sub-tools — **Financial Statement** (per-period income
-statement / balance sheet / ratios, with its own big report view), **Bank
-Loans** (existing bank + PGFC loan balances, proposed loan, DSCR
-computation, report view), and **Financial Highlights** (a wide key-metrics
-table, report view). Building all three end-to-end is a large,
-multi-spec effort. This card is the **scoped first slice**: it tracks, per
-item, a **status** the officer sets and a **Remarks** note — no deep
-data-entry forms, no XLS/PDF report views (those are a future follow-up, and
-there are no "Manage" / "View" actions on the card).
+Card-local state `{ activeTool, activeMode }` drives which of the 6 modals is
+open. Everything persists on change. **Not a decision gate** — the "Endorse
+to Credit Scoring" / "Disapprove" buttons stay always-clickable.
 
-**Layout** (always-expanded sub-cards). Three bordered rows
-(`#EBEDF3`, 13px), one per item: name, a compact `TextField select` styled as
-a status pill — **Not started** (neutral / gray), **In progress** (info /
-blue), **Complete** (success / green), tone-colored from `TONE_COLORS` — a
-muted one-line description, and an always-visible multi-line Remarks
-`TextField` (`minRows={2}`). Everything persists on change.
+**No XLS/PDF export.** The legacy reports had XLS + PDF buttons; those are
+not reproduced. All report figures are pure client-side arithmetic
+recomputed on render — nothing derived is stored.
 
-**State** — `review.financialSummary: FinancialSummary` (`admin-context.tsx`),
-a new top-level `ApplicationReview` slot, seeded by
-`createInitialFinancialSummary()` (all three items
-`{ status: 'not-started', remarks: '' }`) and per-item deep-merged in
-`readStoredState()`. Shape:
-`FinancialSummary { financialStatement, bankLoans, financialHighlights }`,
-each a `FinancialSummaryItem { status: 'not-started' | 'in-progress' |
-'complete'; remarks: string }`.
+### The 5-period model
 
-**Setter** — one, `setFinancialSummaryItem(key, data)` on `useAdmin()`,
-merging `Partial<FinancialSummaryItem>` into the named item.
+Every sub-tool works across a fixed period set
+(`FINANCIAL_PERIODS` in `admin-context.tsx`): `2023`, `2024`, `2025`,
+`interim`, `projected` (labelled "Interim" / "Projected", each "12 Mos." in
+reports). `FinancialStatement` and `FinancialHighlights` are
+`Record<FinancialPeriod, …>`; the modals switch periods with a button-group
+selector (the app has no `Tabs` component).
 
-**Not a decision gate.** Informational only — the "Endorse to Credit
-Scoring" / "Disapprove" buttons stay always-clickable, consistent with the
-Bank Statement and Bureau Reports cards.
+### Financial Statement (sub-tool 1)
+
+**State** — `review.financialStatement: FinancialStatement`
+(`Record<FinancialPeriod, FinancialStatementPeriod>`). Each period record is
+12 free-text numeric strings: `grossSales`, `salesReturns`,
+`costOfGoodsSold`, `operatingExpenses`, `otherIncomeExpense` (signed —
+negatives allowed), `interestExpense`, `provisionForTaxes`, `currentAssets`,
+`nonCurrentAssets`, `currentLiabilities`, `nonCurrentLiabilities`, `equity`.
+Setter: `setFinancialStatementField(period, field, value)`.
+
+**Form** (`financial-statement-modal.tsx`) — `<Dialog maxWidth="lg">`,
+period selector, an **Income Statement** grid (7 ₱ fields) and a
+**Balance Sheet** grid (5 ₱ fields), with live mini-summaries (Net Sales,
+Gross Profit, Operating Income, NIBT, NIAT / Total Assets, Total
+Liabilities, Total Equity) and a **tally chip** (Assets = Liabilities +
+Equity → "Matched" green, else "Off by ₱X" amber).
+
+**Report** (`financial-statement-report.tsx`) — read-only wide table:
+- **Income Statement** — Gross Sales, Net Sales (`grossSales − salesReturns`),
+  Cost of Goods Sold, Gross Profit (`netSales − COGS`), Operating Expenses,
+  Operating Income (`grossProfit − opex`), Other Income (Expense), Interest
+  Expense, Net Income Before Tax (`opInc + otherInc − interest`), Provision
+  for Taxes, Net Income After Tax (`NIBT − tax`) — each column shows the ₱
+  value, **% of Sales** (÷ grossSales), and **Growth** vs. the prior actual
+  period (`cur/prior − 1`; blank for 2023 and for Interim/Projected which
+  have no direct prior).
+- **Balance Sheet** — Total Current Assets, Total Assets, Total Current
+  Liabilities, Total Liabilities, Total Equity, Total Liabilities & Equity,
+  plus a tally row ("Matched" / "Off by ₱X").
+- **Ratios** — Net Working Capital, Net Worth, Current Ratio, Quick Ratio,
+  Days' Receivable / Inventory / Payable, ROE, ROA, GPM, Operating Margin,
+  Return on Sales, Total Assets/Equity, Debt/Equity, Debt/Asset, Interest
+  Coverage, Debt Service Coverage. Divide-by-zero → `—`.
+- **Approximations** (documented on the report footer, matching legacy which
+  also shows 0): **Quick Ratio = Current Ratio** (no inventory balance
+  field); **Days' Receivable / Inventory / Payable = 0** (no
+  receivable/inventory/payable balance fields); **Debt Service Coverage ≈
+  `(NIAT + interest) / interest`** (no principal-due field).
+
+### Bank Loans (sub-tool 2)
+
+**State** — `review.bankLoans: BankLoans` =
+`{ bankRows: BankLoanRow[], pgfcRows: BankLoanRow[], proposed: PgfcProposedLoan }`.
+`BankLoanRow` = `{ id, institution, facility, approvedAmount,
+amountPreviousYear, amountOutstanding, balanceAsOfDate, projectionAmount,
+security, dateGranted, expiry, term, interestRate, principalPaid }`.
+`PgfcProposedLoan` = `{ projectionAmount, interestRate,
+principalPaymentAsOfDate, interestPaymentAsOfDate,
+projectedPrincipalPaymentDec, projectedInterestDec }`. Setters:
+`addBankLoanRow(kind)` / `updateBankLoanRow(kind, id, data)` /
+`removeBankLoanRow(kind, id)` (`kind: 'bank' | 'pgfc'`) and
+`setPgfcProposedLoan(data)`.
+
+**Form** (`bank-loans-modal.tsx`) — `<Dialog maxWidth="lg">`, three
+sections: **Bank Loans** and **PGFC Loan Balance** (each an inline-editable
+row list with an Add button, same pattern as Bank Statement's deposits) and
+the **PGFC Proposed Loan** 6-field grid.
+
+**Report** (`bank-loan-report.tsx`) — read-only:
+- **Computation of DSCR** — rows "DSCR 100% / 50% / 20% / Based on
+  Amortization" with an *as of Date* and *Projection* column, plus a
+  "Depreciation" row (`—` — not tracked). `serviceableIncome` = latest
+  actual EBITDA (`financialHighlights['2025'].ebitda`), falling back to
+  `FinancialStatement['2025']` NIAT + interest. Debt service is an
+  **interest-only proxy** (`Σ amountOutstanding × interestRate/100`);
+  `DSCR X% = serviceableIncome × X/100 ÷ debtService`. "Based on
+  Amortization" uses an add-on proxy (`Σ approvedAmount/term × 12`).
+  Legacy `NaN` cells become `—`.
+- **Bank Loan** wide table — one row per `bankRows` entry + a **Total**, one
+  per `pgfcRows` + a **Total**, a **Grand Total (balance)**, a **PGFC
+  (proposed)** row, and a **Grand Total** (balances + proposed projection).
+  Horizontal-scroll container.
+
+### Financial Highlights (sub-tool 3)
+
+**State** — `review.financialHighlights: FinancialHighlights`
+(`Record<FinancialPeriod, FinancialHighlightsPeriod>`). Each period record is
+the **officer-typed** fields only: `daysInventory`, `daysReceivable`,
+`daysPayable`, `ebitda`, `totalLoans`, `annualDebtService`, `rating` (free
+text), `adjustedRate` (%). Setter: `setFinancialHighlightsField(period,
+field, value)`.
+
+**Derived rows** (`deriveHighlightsRow` in `financial-summary-calcs.ts`, not
+stored) — Gross Sales, Net Income, Current/Total Assets, Current/Total
+Liabilities, Equity, Current Ratio, Debt-Equity Ratio, Acid Ratio, GPM, NPM
+come straight from `FinancialStatement[period]`; Revenue Over Total Loans =
+`grossSales / totalLoans`; Debt Service Coverage Ratio =
+`ebitda / annualDebtService`.
+
+**Form** (`financial-highlights-modal.tsx`) — `<Dialog maxWidth="lg">`,
+period selector, the 8 typed fields plus a read-only **"Derived from
+Financial Statement"** preview strip so the officer sees the whole row.
+
+**Report** (`financial-highlights-report.tsx`) — the full wide metrics table
+(rows = every metric, columns = the 5 periods), read-only,
+horizontal-scroll, with a "Prepared by · {timestamp}" footer.
+
+### Cross-tool reads
+
+- Financial Highlights derives ~12 of its rows from `FinancialStatement`;
+  cells with no source data show `0` / `—` (never NaN).
+- Bank Loan DSCR reads `FinancialHighlights['2025'].ebitda` with a Financial
+  Statement fallback.
+- No writes across tools; no effect hooks — all render-time computation.
+
+### Pure computation — `financial-summary-calcs.ts`
+
+`parseNum` (tolerant), `safeDiv` (null on ÷0), `computeIncomeStatement`,
+`computeBalanceSheet`, `computeRatios`, `computeGrowth`, `computePctOfSales`,
+`computeBankLoanTotals`, `computeDscr`, `deriveHighlightsRow`, and the
+formatters `fRatio` (`0.00` / `—`), `fPct` (`15.00%` / `—`), `fDays`.
 
 ## Bank Statement
 
@@ -325,7 +431,10 @@ it directly rather than filtering `REQUIREMENT_DOC_META` by tab.
 - **Bank Statement data doesn't feed the Cash Flow Statement** — the two
   cards are independent for now. Rolling entered deposits/balances into the
   Cash Flow computation is a possible follow-up.
-- **Financial Summary is status + remarks only** — the legacy Financial
-  Statement / Bank Loans / Financial Highlights deep data-entry forms and
-  their XLS/PDF report views are not built. Each is a large sub-feature
-  (its own spec/plan) when it's picked up.
+- **Financial Summary reports are on-screen only** — the three sub-tools'
+  forms and report views are fully built, but the legacy XLS/PDF export
+  buttons are not reproduced (no real backend). A handful of legacy ratios
+  (Quick Ratio, Days' Receivable/Inventory/Payable, Depreciation, the DSCR
+  engine) are approximated because this build lacks the source fields — the
+  approximations are documented inline on the reports and in the Financial
+  Summary section above.

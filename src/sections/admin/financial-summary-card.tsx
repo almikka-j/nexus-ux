@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -11,18 +12,29 @@ import Typography from '@mui/material/Typography';
 import { useAdmin } from 'src/auth/admin-context';
 import type { FinancialSummary, FinancialSummaryStatus } from 'src/auth/admin-context';
 
-import { TONE_COLORS, adminCardSx } from 'src/components/admin-ui';
+import { Iconify } from 'src/components/iconify';
+import { TONE_COLORS, adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { CollapsibleSection } from 'src/components/collapsible-section';
 
+import { BankLoanReport } from './bank-loan-report';
+import { BankLoansModal } from './bank-loans-modal';
+import { FinancialStatementModal } from './financial-statement-modal';
+import { FinancialStatementReport } from './financial-statement-report';
+import { FinancialHighlightsModal } from './financial-highlights-modal';
+import { FinancialHighlightsReport } from './financial-highlights-report';
+
 // ----------------------------------------------------------------------
-// Financial Evaluation's Financial Summary card — a light workspace for the
+// Financial Evaluation's Financial Summary card — the workspace for the
 // three legacy sub-tools (Financial Statement, Bank Loans, Financial
-// Highlights). This build tracks only, per item, a manually-set status and a
-// free-text Remarks note (Layout A: always-expanded sub-cards, remarks
-// always visible). The legacy deep data-entry forms and XLS/PDF report views
-// are a future follow-up — there are no "Manage" / "View" actions here.
-// Informational: does not gate the page's Endorse / Disapprove decision.
+// Highlights). Each always-expanded sub-card keeps a manually-set status and
+// a Remarks note, and opens a deep data-entry form (Manage) and an
+// on-screen report view (View). All report figures are pure client-side
+// arithmetic (financial-summary-calcs.ts) — no XLS/PDF export. Informational:
+// does not gate the page's Endorse / Disapprove decision.
 // ----------------------------------------------------------------------
+
+type ActiveTool = keyof FinancialSummary | null;
+type ActiveMode = 'manage' | 'view';
 
 const ITEMS: { key: keyof FinancialSummary; label: string; description: string }[] = [
   {
@@ -97,6 +109,14 @@ export function FinancialSummaryCard() {
   const summary = review.financialSummary;
 
   const [expanded, setExpanded] = useState(true);
+  const [activeTool, setActiveTool] = useState<ActiveTool>(null);
+  const [activeMode, setActiveMode] = useState<ActiveMode>('manage');
+
+  const openTool = (tool: keyof FinancialSummary, mode: ActiveMode) => {
+    setActiveTool(tool);
+    setActiveMode(mode);
+  };
+  const closeTool = () => setActiveTool(null);
 
   const completeCount = ITEMS.filter((item) => summary[item.key].status === 'complete').length;
   const startedCount = ITEMS.filter((item) => summary[item.key].status !== 'not-started').length;
@@ -128,8 +148,8 @@ export function FinancialSummaryCard() {
       >
         <Stack spacing={1.5}>
           <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
-            Track the three financial work products. Deep data entry and reports are handled outside
-            this card — record status and remarks here.
+            The three financial work products. Use <strong>Manage</strong> to enter data and{' '}
+            <strong>View</strong> for the computed report; the status and remarks are yours to set.
           </Typography>
 
           {ITEMS.map((item) => {
@@ -153,10 +173,30 @@ export function FinancialSummaryCard() {
                   <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A', flex: 1 }}>
                     {item.label}
                   </Typography>
-                  <StatusSelect
-                    value={state.status}
-                    onChange={(next) => setFinancialSummaryItem(item.key, { status: next })}
-                  />
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Button
+                      onClick={() => openTool(item.key, 'manage')}
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Iconify icon="solar:pen-bold" width={15} />}
+                      sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
+                    >
+                      Manage
+                    </Button>
+                    <Button
+                      onClick={() => openTool(item.key, 'view')}
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Iconify icon="solar:eye-bold-duotone" width={15} />}
+                      sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
+                    >
+                      View
+                    </Button>
+                    <StatusSelect
+                      value={state.status}
+                      onChange={(next) => setFinancialSummaryItem(item.key, { status: next })}
+                    />
+                  </Stack>
                 </Stack>
                 <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mb: 1.25 }}>
                   {item.description}
@@ -184,6 +224,25 @@ export function FinancialSummaryCard() {
           })}
         </Stack>
       </CollapsibleSection>
+
+      <FinancialStatementModal
+        open={activeTool === 'financialStatement' && activeMode === 'manage'}
+        onClose={closeTool}
+      />
+      <FinancialStatementReport
+        open={activeTool === 'financialStatement' && activeMode === 'view'}
+        onClose={closeTool}
+      />
+      <BankLoansModal open={activeTool === 'bankLoans' && activeMode === 'manage'} onClose={closeTool} />
+      <BankLoanReport open={activeTool === 'bankLoans' && activeMode === 'view'} onClose={closeTool} />
+      <FinancialHighlightsModal
+        open={activeTool === 'financialHighlights' && activeMode === 'manage'}
+        onClose={closeTool}
+      />
+      <FinancialHighlightsReport
+        open={activeTool === 'financialHighlights' && activeMode === 'view'}
+        onClose={closeTool}
+      />
     </Box>
   );
 }

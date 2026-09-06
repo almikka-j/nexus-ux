@@ -1038,9 +1038,14 @@ Solicitation) each have their own per-application detail page now — see
 `docs/100-credit-investigation.md`, `docs/110-appraisal.md`, and
 `docs/120-financial-evaluation.md`. Financial Evaluation's page has a
 read-only Document Checklist mirror, an AI summary, a **Financial Summary
-card** (status pill + Remarks per legacy sub-tool — Financial Statement /
-Bank Loans / Financial Highlights; the deep forms and report views are a
-future follow-up), a **Bank Statement card**
+card** — the three legacy sub-tools (Financial Statement, Bank Loans,
+Financial Highlights) each with a status pill + Remarks, a **Manage**
+data-entry modal (per-period income statement / balance sheet; bank + PGFC
+loan rows + proposed loan; per-period highlights fields) and a **View**
+on-screen report (income statement with % of sales & growth + balance sheet
+tally + ratios; DSCR computation + bank-loan totals; the wide metrics
+table). All report figures are pure client-side arithmetic
+(`financial-summary-calcs.ts`); no XLS/PDF export. A **Bank Statement card**
 (officer records each bank statement — Depository Bank dropdown of PH banks,
 account name/number, month range, and inline-editable Deposit and Daily
 Balance rows — all edited in a centered modal, not a separate page; a

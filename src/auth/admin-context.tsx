@@ -1250,11 +1250,12 @@ export type BankStatement = {
 };
 
 // ----------------------------------------------------------------------
-// Financial Evaluation's Financial Summary card — a light workspace for the
-// three legacy sub-tools (Financial Statement, Bank Loans, Financial
-// Highlights). This build only tracks, per item, a manually-set status and a
-// free-text Remarks note; the legacy deep data-entry forms and XLS/PDF
-// report views are a future follow-up, not modeled here.
+// Financial Evaluation's Financial Summary card — a workspace for the three
+// legacy sub-tools (Financial Statement, Bank Loans, Financial Highlights).
+// Each row keeps a manually-set status + Remarks note, and opens a deep
+// data-entry form (Manage) and an on-screen report view (View). All report
+// figures are pure client-side arithmetic (financial-summary-calcs.ts) —
+// nothing derived is stored. No XLS/PDF export.
 // ----------------------------------------------------------------------
 export type FinancialSummaryStatus = 'not-started' | 'in-progress' | 'complete';
 
@@ -1268,6 +1269,83 @@ export type FinancialSummary = {
   bankLoans: FinancialSummaryItem;
   financialHighlights: FinancialSummaryItem;
 };
+
+// The fixed period set every Financial Summary sub-tool works across.
+export const FINANCIAL_PERIODS = ['2023', '2024', '2025', 'interim', 'projected'] as const;
+export type FinancialPeriod = (typeof FINANCIAL_PERIODS)[number];
+export const FINANCIAL_PERIOD_LABELS: Record<FinancialPeriod, string> = {
+  '2023': '2023',
+  '2024': '2024',
+  '2025': '2025',
+  interim: 'Interim',
+  projected: 'Projected',
+};
+
+// --- Financial Statement (sub-tool 1) — one record per period. Every value
+// is a free-text numeric string (blank/garbage → 0 for arithmetic).
+export type FinancialStatementPeriod = {
+  grossSales: string;
+  salesReturns: string;
+  costOfGoodsSold: string;
+  operatingExpenses: string;
+  otherIncomeExpense: string; // signed — negatives allowed
+  interestExpense: string;
+  provisionForTaxes: string;
+  currentAssets: string;
+  nonCurrentAssets: string;
+  currentLiabilities: string;
+  nonCurrentLiabilities: string;
+  equity: string;
+};
+export type FinancialStatement = Record<FinancialPeriod, FinancialStatementPeriod>;
+export type FinancialStatementField = keyof FinancialStatementPeriod;
+
+// --- Bank Loans (sub-tool 2)
+export type BankLoanRow = {
+  id: string;
+  institution: string;
+  facility: string;
+  approvedAmount: string;
+  amountPreviousYear: string;
+  amountOutstanding: string;
+  balanceAsOfDate: string; // 'yyyy-mm-dd'
+  projectionAmount: string;
+  security: string;
+  dateGranted: string; // 'yyyy-mm-dd'
+  expiry: string; // 'yyyy-mm-dd'
+  term: string; // months
+  interestRate: string; // %
+  principalPaid: string;
+};
+export type PgfcProposedLoan = {
+  projectionAmount: string;
+  interestRate: string; // %
+  principalPaymentAsOfDate: string; // 'yyyy-mm-dd'
+  interestPaymentAsOfDate: string; // 'yyyy-mm-dd'
+  projectedPrincipalPaymentDec: string;
+  projectedInterestDec: string;
+};
+export type BankLoans = {
+  bankRows: BankLoanRow[];
+  pgfcRows: BankLoanRow[];
+  proposed: PgfcProposedLoan;
+};
+export type BankLoanKind = 'bank' | 'pgfc';
+
+// --- Financial Highlights (sub-tool 3) — the officer-typed fields; the rest
+// of the table is derived from FinancialStatement at render time.
+export type FinancialHighlightsPeriod = {
+  daysInventory: string;
+  daysReceivable: string;
+  daysPayable: string;
+  ebitda: string;
+  totalLoans: string;
+  annualDebtService: string;
+  rating: string; // free text
+  adjustedRate: string; // %
+};
+export type FinancialHighlights = Record<FinancialPeriod, FinancialHighlightsPeriod>;
+export type FinancialHighlightsField = keyof FinancialHighlightsPeriod;
 
 export type ReviewStep =
   | 'creditChecking'
@@ -1304,6 +1382,9 @@ export type ApplicationReview = {
   cashFlowStatement: CashFlowStatement;
   bankStatements: BankStatement[];
   financialSummary: FinancialSummary;
+  financialStatement: FinancialStatement;
+  bankLoans: BankLoans;
+  financialHighlights: FinancialHighlights;
   stepTimestamps: StepTimestamps;
 };
 
@@ -1404,6 +1485,20 @@ type AdminContextValue = AdminState & {
   setFinancialSummaryItem: (
     key: keyof FinancialSummary,
     data: Partial<FinancialSummaryItem>
+  ) => void;
+  setFinancialStatementField: (
+    period: FinancialPeriod,
+    field: FinancialStatementField,
+    value: string
+  ) => void;
+  addBankLoanRow: (kind: BankLoanKind) => void;
+  updateBankLoanRow: (kind: BankLoanKind, id: string, data: Partial<Omit<BankLoanRow, 'id'>>) => void;
+  removeBankLoanRow: (kind: BankLoanKind, id: string) => void;
+  setPgfcProposedLoan: (data: Partial<PgfcProposedLoan>) => void;
+  setFinancialHighlightsField: (
+    period: FinancialPeriod,
+    field: FinancialHighlightsField,
+    value: string
   ) => void;
   createAppraisalReportBundle: (
     tctGroupIds: string[],
@@ -1687,6 +1782,84 @@ function createInitialFinancialSummary(): FinancialSummary {
     bankLoans: { ...blank },
     financialHighlights: { ...blank },
   };
+}
+
+function createBlankFinancialStatementPeriod(): FinancialStatementPeriod {
+  return {
+    grossSales: '',
+    salesReturns: '',
+    costOfGoodsSold: '',
+    operatingExpenses: '',
+    otherIncomeExpense: '',
+    interestExpense: '',
+    provisionForTaxes: '',
+    currentAssets: '',
+    nonCurrentAssets: '',
+    currentLiabilities: '',
+    nonCurrentLiabilities: '',
+    equity: '',
+  };
+}
+
+function createInitialFinancialStatement(): FinancialStatement {
+  return FINANCIAL_PERIODS.reduce((acc, period) => {
+    acc[period] = createBlankFinancialStatementPeriod();
+    return acc;
+  }, {} as FinancialStatement);
+}
+
+function createInitialBankLoans(): BankLoans {
+  return {
+    bankRows: [],
+    pgfcRows: [],
+    proposed: {
+      projectionAmount: '',
+      interestRate: '',
+      principalPaymentAsOfDate: '',
+      interestPaymentAsOfDate: '',
+      projectedPrincipalPaymentDec: '',
+      projectedInterestDec: '',
+    },
+  };
+}
+
+function createBankLoanRow(): BankLoanRow {
+  return {
+    id: crypto.randomUUID(),
+    institution: '',
+    facility: '',
+    approvedAmount: '',
+    amountPreviousYear: '',
+    amountOutstanding: '',
+    balanceAsOfDate: '',
+    projectionAmount: '',
+    security: '',
+    dateGranted: '',
+    expiry: '',
+    term: '',
+    interestRate: '',
+    principalPaid: '',
+  };
+}
+
+function createBlankFinancialHighlightsPeriod(): FinancialHighlightsPeriod {
+  return {
+    daysInventory: '',
+    daysReceivable: '',
+    daysPayable: '',
+    ebitda: '',
+    totalLoans: '',
+    annualDebtService: '',
+    rating: '',
+    adjustedRate: '',
+  };
+}
+
+function createInitialFinancialHighlights(): FinancialHighlights {
+  return FINANCIAL_PERIODS.reduce((acc, period) => {
+    acc[period] = createBlankFinancialHighlightsPeriod();
+    return acc;
+  }, {} as FinancialHighlights);
 }
 
 function createInitialAppraisal(): Appraisal {
@@ -2234,6 +2407,9 @@ function createInitialReview(): ApplicationReview {
     cashFlowStatement: createInitialCashFlowStatement(),
     bankStatements: [],
     financialSummary: createInitialFinancialSummary(),
+    financialStatement: createInitialFinancialStatement(),
+    bankLoans: createInitialBankLoans(),
+    financialHighlights: createInitialFinancialHighlights(),
     stepTimestamps: {},
   };
 }
@@ -2474,6 +2650,36 @@ function readStoredState(): AdminState {
             ...storedReview.financialSummary?.financialHighlights,
           },
         },
+        // Per-period deep merge so a session saved before a field was added
+        // still fills the gap; guarantees all 5 period keys exist.
+        financialStatement: FINANCIAL_PERIODS.reduce((acc, period) => {
+          acc[period] = {
+            ...initialState.review.financialStatement[period],
+            ...storedReview.financialStatement?.[period],
+          };
+          return acc;
+        }, {} as FinancialStatement),
+        bankLoans: {
+          ...initialState.review.bankLoans,
+          ...storedReview.bankLoans,
+          bankRows: Array.isArray(storedReview.bankLoans?.bankRows)
+            ? storedReview.bankLoans.bankRows
+            : [],
+          pgfcRows: Array.isArray(storedReview.bankLoans?.pgfcRows)
+            ? storedReview.bankLoans.pgfcRows
+            : [],
+          proposed: {
+            ...initialState.review.bankLoans.proposed,
+            ...storedReview.bankLoans?.proposed,
+          },
+        },
+        financialHighlights: FINANCIAL_PERIODS.reduce((acc, period) => {
+          acc[period] = {
+            ...initialState.review.financialHighlights[period],
+            ...storedReview.financialHighlights?.[period],
+          };
+          return acc;
+        }, {} as FinancialHighlights),
       },
     };
   } catch {
@@ -2951,6 +3157,83 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             financialSummary: {
               ...prev.review.financialSummary,
               [key]: { ...prev.review.financialSummary[key], ...data },
+            },
+          },
+        })),
+      setFinancialStatementField: (period, field, value) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            financialStatement: {
+              ...prev.review.financialStatement,
+              [period]: { ...prev.review.financialStatement[period], [field]: value },
+            },
+          },
+        })),
+      addBankLoanRow: (kind) =>
+        setState((prev) => {
+          const key = kind === 'bank' ? 'bankRows' : 'pgfcRows';
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              bankLoans: {
+                ...prev.review.bankLoans,
+                [key]: [...prev.review.bankLoans[key], createBankLoanRow()],
+              },
+            },
+          };
+        }),
+      updateBankLoanRow: (kind, id, data) =>
+        setState((prev) => {
+          const key = kind === 'bank' ? 'bankRows' : 'pgfcRows';
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              bankLoans: {
+                ...prev.review.bankLoans,
+                [key]: prev.review.bankLoans[key].map((row) =>
+                  row.id === id ? { ...row, ...data } : row
+                ),
+              },
+            },
+          };
+        }),
+      removeBankLoanRow: (kind, id) =>
+        setState((prev) => {
+          const key = kind === 'bank' ? 'bankRows' : 'pgfcRows';
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              bankLoans: {
+                ...prev.review.bankLoans,
+                [key]: prev.review.bankLoans[key].filter((row) => row.id !== id),
+              },
+            },
+          };
+        }),
+      setPgfcProposedLoan: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            bankLoans: {
+              ...prev.review.bankLoans,
+              proposed: { ...prev.review.bankLoans.proposed, ...data },
+            },
+          },
+        })),
+      setFinancialHighlightsField: (period, field, value) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            financialHighlights: {
+              ...prev.review.financialHighlights,
+              [period]: { ...prev.review.financialHighlights[period], [field]: value },
             },
           },
         })),
