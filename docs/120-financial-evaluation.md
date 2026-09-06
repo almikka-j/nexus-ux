@@ -79,19 +79,14 @@ this build. The page is:
 
 A card (`FinancialSummaryCard` in `financial-summary-card.tsx`) — same
 `adminCardSx` + `CollapsibleSection` shell as the other cards, defaults
-expanded, with a `{completeCount} / 3` badge once any item is past
-not-started. It hosts the three legacy sub-tools — **Financial Statement**,
-**Bank Loans**, **Financial Highlights** — each as an always-expanded
-bordered row with:
-- a status pill (`TextField select` — **Not started** / **In progress** /
-  **Complete**, tone-colored from `TONE_COLORS`, officer-set),
-- an always-visible Remarks `TextField` (`minRows={2}`),
-- a **Manage** button → the sub-tool's data-entry modal,
-- a **View** button → the sub-tool's on-screen report modal.
-
-Card-local state `{ activeTool, activeMode }` drives which of the 6 modals is
-open. Everything persists on change. **Not a decision gate** — the "Endorse
-to Credit Scoring" / "Disapprove" buttons stay always-clickable.
+expanded. It hosts the three legacy sub-tools — **Financial Statement**,
+**Bank Loans**, **Financial Highlights** — each a bordered row with just its
+name, a one-line description, and a **Manage** button (→ the sub-tool's
+data-entry modal) and a **View** button (→ the sub-tool's on-screen report
+modal). No per-row status pill or Remarks — the card holds **no state** of
+its own; card-local `{ activeTool, activeMode }` only tracks which of the 6
+modals is open. **Not a decision gate** — the "Endorse to Credit Scoring" /
+"Disapprove" buttons stay always-clickable.
 
 **No XLS/PDF export.** The legacy reports had XLS + PDF buttons; those are
 not reproduced. All report figures are pure client-side arithmetic
@@ -333,14 +328,26 @@ consistent with Initial Credit Checking's Bureau Reports.
 
 ## Cash Flow Statement
 
-An editable **Combined / Borrower Only** two-column form (`CashFlowStatementCard`
-in `cash-flow-statement-card.tsx`) computing Total Income, Total Expenses,
-Income Available for Debt Service, Monthly Amortization, Net Income, and
-Debt Service Ratio for the proposed loan — spec'd from a reference screen
-from a different system, then adapted to this app's own visual language
-(label-above-field, ₱-prefixed `NumericFormat` inputs, `StatusBadge` pills
-for totals, `TONE_COLORS` — not the reference's spreadsheet-style
-label-beside-field layout or solid navy section banner).
+An editable **Combined / Borrower Only** two-column form computing Total
+Income, Total Expenses, Income Available for Debt Service, Monthly
+Amortization, Net Income, and Debt Service Ratio for the proposed loan —
+spec'd from a reference screen from a different system, then adapted to this
+app's own visual language (label-above-field, ₱-prefixed `NumericFormat`
+inputs, `StatusBadge` pills for totals, `TONE_COLORS`).
+
+`cash-flow-statement-card.tsx` exports three components:
+- `CashFlowStatementCard` — a thin card (`adminCardSx` + `CollapsibleSection`
+  "Cash Flow Statement", "Saved" badge once `savedAt` is set) with one row
+  carrying a **Manage** and a **View report** button. Matches the Financial
+  Summary card's Manage / View pattern. Card-local `mode: 'manage' | 'view'
+  | null` drives the two modals.
+- `CashFlowStatementModal` — the full data-entry form
+  (`<Dialog maxWidth="lg" scroll="paper">`). Its `DialogActions` carry a
+  **Save Record** button (stamps `savedAt`) and a **Done** close.
+- `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` showing
+  only the computed result rows (Total Income, Total Expenses, Income
+  Available for Debt Service, Total of Other Loans, Monthly Amortization, Net
+  Income, Debt Service Ratio) for both columns.
 
 **State** — `review.cashFlowStatement: CashFlowStatement` (`admin-context.tsx`),
 a new top-level `ApplicationReview` slot alongside `creditInvestigation`/

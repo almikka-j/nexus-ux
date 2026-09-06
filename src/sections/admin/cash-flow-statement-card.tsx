@@ -7,11 +7,15 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { useAdmin } from 'src/auth/admin-context';
@@ -243,13 +247,11 @@ function SubtotalRow({ label, combined, borrowerOnly }: { label: string; combine
   );
 }
 
-export function CashFlowStatementCard() {
+export function CashFlowStatementModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { signUpData, application } = useRegistration();
   const { review, setCashFlowStatement, addCashFlowOtherLoan, removeCashFlowOtherLoan, updateCashFlowOtherLoan } =
     useAdmin();
   const cashFlow = review.cashFlowStatement;
-
-  const [expanded, setExpanded] = useState(true);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
   const loanAmount = application.financialInfo?.desiredLoanAmount ?? null;
@@ -335,13 +337,26 @@ export function CashFlowStatementCard() {
   const fmtPercent = (value: number | null) => (value === null ? '—' : `${value.toFixed(2)}%`);
 
   return (
-    <Box sx={adminCardSx}>
-      <CollapsibleSection
-        title="Cash Flow Statement"
-        expanded={expanded}
-        onToggle={() => setExpanded((prev) => !prev)}
-        badge={cashFlow.savedAt && <StatusBadge tone="success" label="Saved" icon="solar:check-circle-bold" />}
-      >
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" scroll="paper">
+      <DialogTitle sx={{ p: 3, pb: 2 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+          <Box>
+            <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>
+              Cash Flow Statement
+            </Typography>
+            <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
+              Combined / Borrower Only — Debt Service Ratio for the proposed loan
+            </Typography>
+          </Box>
+          <IconButton onClick={onClose} aria-label="Close Cash Flow Statement">
+            <Iconify icon="mingcute:close-line" width={22} />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+
+      <Divider />
+
+      <DialogContent sx={{ p: 3 }}>
         <Stack spacing={3}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={4}>
@@ -685,26 +700,274 @@ export function CashFlowStatementCard() {
               borrowerOnly={fmtPercent(debtServiceRatioBorrowerOnly)}
             />
           </Stack>
-
-          <Stack direction="row" justifyContent="flex-end">
-            <Button
-              onClick={() => patch({ savedAt: new Date().toISOString() })}
-              variant="contained"
-              startIcon={<Iconify icon="solar:diskette-bold" width={18} />}
-              sx={{
-                bgcolor: TONE_COLORS.info.solid,
-                borderRadius: '10px',
-                px: 3,
-                boxShadow: 'none',
-                fontWeight: 700,
-                '&:hover': { bgcolor: TONE_COLORS.info.solidHover, boxShadow: 'none' },
-              }}
-            >
-              Save Record
-            </Button>
-          </Stack>
         </Stack>
+      </DialogContent>
+
+      <Divider />
+
+      <DialogActions sx={{ p: 2.5, gap: 1 }}>
+        <Button
+          onClick={() => patch({ savedAt: new Date().toISOString() })}
+          variant="outlined"
+          startIcon={<Iconify icon="solar:diskette-bold" width={18} />}
+          sx={{
+            color: TONE_COLORS.info.solid,
+            borderColor: '#C7CEEA',
+            borderRadius: '10px',
+            px: 2.5,
+            fontWeight: 700,
+            '&:hover': { borderColor: TONE_COLORS.info.solid, bgcolor: 'rgba(28,42,110,0.04)' },
+          }}
+        >
+          Save Record
+        </Button>
+        <Button
+          onClick={onClose}
+          variant="contained"
+          sx={{
+            bgcolor: '#1C2A6E',
+            borderRadius: '10px',
+            px: 3,
+            fontWeight: 700,
+            boxShadow: 'none',
+            '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+          }}
+        >
+          Done
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ----------------------------------------------------------------------
+// Read-only report — the computed Cash Flow results (both columns), no
+// inputs. Opened from the card's "View report".
+// ----------------------------------------------------------------------
+export function CashFlowStatementReport({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { signUpData, application } = useRegistration();
+  const { review } = useAdmin();
+  const cashFlow = review.cashFlowStatement;
+  const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '—';
+  const loanAmount = application.financialInfo?.desiredLoanAmount ?? null;
+
+  const totalIncomeCombined = computeTotalIncome(
+    cashFlow.fixedIncomeCombined,
+    cashFlow.variableIncomeCombined,
+    cashFlow.otherIncomeCombined,
+    cashFlow.lessDeductionsCombined
+  );
+  const totalIncomeBorrowerOnly = computeTotalIncome(
+    cashFlow.fixedIncomeBorrowerOnly,
+    cashFlow.variableIncomeBorrowerOnly,
+    cashFlow.otherIncomeBorrowerOnly,
+    cashFlow.lessDeductionsBorrowerOnly
+  );
+  const subtotalCombined = computeExpenseSubtotal(
+    cashFlow.fixedExpenseCombined,
+    cashFlow.utilitiesCombined,
+    cashFlow.transportCombined,
+    cashFlow.otherExpenseCombined,
+    cashFlow.miscExpensesCombined
+  );
+  const subtotalBorrowerOnly = computeExpenseSubtotal(
+    cashFlow.fixedExpenseBorrowerOnly,
+    cashFlow.utilitiesBorrowerOnly,
+    cashFlow.transportBorrowerOnly,
+    cashFlow.otherExpenseBorrowerOnly,
+    cashFlow.miscExpensesBorrowerOnly
+  );
+  const totalExpensesCombined = computeTotalExpenses(
+    subtotalCombined,
+    computeAdjustedExpenseAmount(subtotalCombined, cashFlow.adjustedExpensePercentCombined)
+  );
+  const totalExpensesBorrowerOnly = computeTotalExpenses(
+    subtotalBorrowerOnly,
+    computeAdjustedExpenseAmount(subtotalBorrowerOnly, cashFlow.adjustedExpensePercentBorrowerOnly)
+  );
+  const incomeAvailableCombined = computeIncomeAvailableForDebtService(totalIncomeCombined, totalExpensesCombined);
+  const incomeAvailableBorrowerOnly = computeIncomeAvailableForDebtService(
+    totalIncomeBorrowerOnly,
+    totalExpensesBorrowerOnly
+  );
+  const totalOtherLoansCombined = computeTotalOtherLoans(cashFlow.otherLoans, 'combined');
+  const totalOtherLoansBorrowerOnly = computeTotalOtherLoans(cashFlow.otherLoans, 'borrowerOnly');
+  const monthlyAmortizationCombined = computeMonthlyAmortization(
+    cashFlow.computationType,
+    cashFlow.principalCombined,
+    cashFlow.interestRateCombined,
+    cashFlow.termCombined
+  );
+  const monthlyAmortizationBorrowerOnly = computeMonthlyAmortization(
+    cashFlow.computationType,
+    cashFlow.principalBorrowerOnly,
+    cashFlow.interestRateBorrowerOnly,
+    cashFlow.termBorrowerOnly
+  );
+  const netIncomeCombined = computeNetIncome(
+    incomeAvailableCombined,
+    totalOtherLoansCombined,
+    monthlyAmortizationCombined
+  );
+  const netIncomeBorrowerOnly = computeNetIncome(
+    incomeAvailableBorrowerOnly,
+    totalOtherLoansBorrowerOnly,
+    monthlyAmortizationBorrowerOnly
+  );
+  const dsrCombined = computeDebtServiceRatio(
+    monthlyAmortizationCombined,
+    totalOtherLoansCombined,
+    incomeAvailableCombined
+  );
+  const dsrBorrowerOnly = computeDebtServiceRatio(
+    monthlyAmortizationBorrowerOnly,
+    totalOtherLoansBorrowerOnly,
+    incomeAvailableBorrowerOnly
+  );
+
+  const fmt = (value: number) => fCurrency(value) || '₱0.00';
+  const fmtOrBlank = (value: number | null) => (value === null ? '—' : fCurrency(value) || '₱0.00');
+  const fmtPercent = (value: number | null) => (value === null ? '—' : `${value.toFixed(2)}%`);
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" scroll="paper">
+      <DialogTitle sx={{ p: 3, pb: 2 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+          <Box>
+            <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>
+              Cash Flow Statement Report
+            </Typography>
+            <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
+              {applicantName}
+              {loanAmount !== null ? ` · Loan ${fCurrency(loanAmount)}` : ''}
+              {` · ${COMPUTATION_TYPE_LABELS[cashFlow.computationType]}`}
+            </Typography>
+          </Box>
+          <IconButton onClick={onClose} aria-label="Close Cash Flow Statement Report">
+            <Iconify icon="mingcute:close-line" width={22} />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+
+      <Divider />
+
+      <DialogContent sx={{ p: 3 }}>
+        <Stack spacing={1}>
+          <ColumnHeaders />
+          <TotalRow label="Total Income" combined={fmt(totalIncomeCombined)} borrowerOnly={fmt(totalIncomeBorrowerOnly)} />
+          <SubtotalRow label="Sub-total Expenses" combined={fmt(subtotalCombined)} borrowerOnly={fmt(subtotalBorrowerOnly)} />
+          <TotalRow label="Total Expenses" combined={fmt(totalExpensesCombined)} borrowerOnly={fmt(totalExpensesBorrowerOnly)} />
+          <TotalRow
+            label="Income Available for Debt Service"
+            combined={fmt(incomeAvailableCombined)}
+            borrowerOnly={fmt(incomeAvailableBorrowerOnly)}
+          />
+          <SubtotalRow
+            label="Total of Other Loans"
+            combined={fmt(totalOtherLoansCombined)}
+            borrowerOnly={fmt(totalOtherLoansBorrowerOnly)}
+          />
+          <SubtotalRow
+            label="Monthly Amortization"
+            combined={fmtOrBlank(monthlyAmortizationCombined)}
+            borrowerOnly={fmtOrBlank(monthlyAmortizationBorrowerOnly)}
+          />
+          <TotalRow label="Net Income" combined={fmt(netIncomeCombined)} borrowerOnly={fmt(netIncomeBorrowerOnly)} />
+          <TotalRow
+            label="Debt Service Ratio"
+            combined={fmtPercent(dsrCombined)}
+            borrowerOnly={fmtPercent(dsrBorrowerOnly)}
+          />
+        </Stack>
+      </DialogContent>
+
+      <Divider />
+
+      <DialogActions sx={{ p: 2.5 }}>
+        <Button
+          onClick={onClose}
+          variant="contained"
+          sx={{
+            bgcolor: '#1C2A6E',
+            borderRadius: '10px',
+            px: 3,
+            fontWeight: 700,
+            boxShadow: 'none',
+            '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ----------------------------------------------------------------------
+// Thin card on the Financial Evaluation page — Manage opens the full form
+// modal, View report opens the read-only results. Matches the Financial
+// Summary card's Manage / View pattern.
+// ----------------------------------------------------------------------
+export function CashFlowStatementCard() {
+  const { review } = useAdmin();
+  const [expanded, setExpanded] = useState(true);
+  const [mode, setMode] = useState<'manage' | 'view' | null>(null);
+
+  return (
+    <Box sx={adminCardSx}>
+      <CollapsibleSection
+        title="Cash Flow Statement"
+        expanded={expanded}
+        onToggle={() => setExpanded((prev) => !prev)}
+        badge={
+          review.cashFlowStatement.savedAt ? (
+            <StatusBadge tone="success" label="Saved" icon="solar:check-circle-bold" />
+          ) : undefined
+        }
+      >
+        <Box
+          sx={{
+            borderRadius: '13px',
+            border: '1px solid #EBEDF3',
+            bgcolor: 'common.white',
+            p: 2,
+          }}
+        >
+          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={1}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
+                Cash Flow Statement
+              </Typography>
+              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.25 }}>
+                Combined / Borrower Only income-expense form computing Debt Service Ratio.
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button
+                onClick={() => setMode('manage')}
+                variant="outlined"
+                size="small"
+                startIcon={<Iconify icon="solar:pen-bold" width={15} />}
+                sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
+              >
+                Manage
+              </Button>
+              <Button
+                onClick={() => setMode('view')}
+                variant="outlined"
+                size="small"
+                startIcon={<Iconify icon="solar:eye-bold-duotone" width={15} />}
+                sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
+              >
+                View report
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
       </CollapsibleSection>
+
+      <CashFlowStatementModal open={mode === 'manage'} onClose={() => setMode(null)} />
+      <CashFlowStatementReport open={mode === 'view'} onClose={() => setMode(null)} />
     </Box>
   );
 }

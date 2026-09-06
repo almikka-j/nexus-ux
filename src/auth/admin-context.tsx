@@ -1252,23 +1252,11 @@ export type BankStatement = {
 // ----------------------------------------------------------------------
 // Financial Evaluation's Financial Summary card — a workspace for the three
 // legacy sub-tools (Financial Statement, Bank Loans, Financial Highlights).
-// Each row keeps a manually-set status + Remarks note, and opens a deep
-// data-entry form (Manage) and an on-screen report view (View). All report
-// figures are pure client-side arithmetic (financial-summary-calcs.ts) —
-// nothing derived is stored. No XLS/PDF export.
+// Each row opens a deep data-entry form (Manage) and an on-screen report
+// view (View). All report figures are pure client-side arithmetic
+// (financial-summary-calcs.ts) — nothing derived is stored. No XLS/PDF
+// export. The card itself holds no state — the three sub-tool slots below do.
 // ----------------------------------------------------------------------
-export type FinancialSummaryStatus = 'not-started' | 'in-progress' | 'complete';
-
-export type FinancialSummaryItem = {
-  status: FinancialSummaryStatus;
-  remarks: string;
-};
-
-export type FinancialSummary = {
-  financialStatement: FinancialSummaryItem;
-  bankLoans: FinancialSummaryItem;
-  financialHighlights: FinancialSummaryItem;
-};
 
 // The fixed period set every Financial Summary sub-tool works across.
 export const FINANCIAL_PERIODS = ['2023', '2024', '2025', 'interim', 'projected'] as const;
@@ -1382,7 +1370,6 @@ export type ApplicationReview = {
   appraisal: Appraisal;
   cashFlowStatement: CashFlowStatement;
   bankStatements: BankStatement[];
-  financialSummary: FinancialSummary;
   financialStatement: FinancialStatement;
   bankLoans: BankLoans;
   financialHighlights: FinancialHighlights;
@@ -1483,10 +1470,6 @@ type AdminContextValue = AdminState & {
   fillBankStatementSample: () => void;
   /** Dev/QA: drop every bank statement. */
   clearBankStatements: () => void;
-  setFinancialSummaryItem: (
-    key: keyof FinancialSummary,
-    data: Partial<FinancialSummaryItem>
-  ) => void;
   setFinancialStatementField: (
     period: FinancialPeriod,
     field: FinancialStatementField,
@@ -1773,15 +1756,6 @@ function createSampleBankStatement(): BankStatement {
       { id: crypto.randomUUID(), periodFrom: '2026-03-01', periodTo: '2026-04-30', balance: '287500' },
       { id: crypto.randomUUID(), periodFrom: '2026-05-01', periodTo: '2026-06-30', balance: '341000' },
     ],
-  };
-}
-
-function createInitialFinancialSummary(): FinancialSummary {
-  const blank: FinancialSummaryItem = { status: 'not-started', remarks: '' };
-  return {
-    financialStatement: { ...blank },
-    bankLoans: { ...blank },
-    financialHighlights: { ...blank },
   };
 }
 
@@ -2408,7 +2382,6 @@ function createInitialReview(): ApplicationReview {
     appraisal: createInitialAppraisal(),
     cashFlowStatement: createInitialCashFlowStatement(),
     bankStatements: [],
-    financialSummary: createInitialFinancialSummary(),
     financialStatement: createInitialFinancialStatement(),
     bankLoans: createInitialBankLoans(),
     financialHighlights: createInitialFinancialHighlights(),
@@ -2636,22 +2609,6 @@ function readStoredState(): AdminState {
         // A list of officer-entered records — trust the stored array wholesale
         // (not a keyed default set), same as the bureau file arrays.
         bankStatements: Array.isArray(storedReview.bankStatements) ? storedReview.bankStatements : [],
-        financialSummary: {
-          ...initialState.review.financialSummary,
-          ...storedReview.financialSummary,
-          financialStatement: {
-            ...initialState.review.financialSummary.financialStatement,
-            ...storedReview.financialSummary?.financialStatement,
-          },
-          bankLoans: {
-            ...initialState.review.financialSummary.bankLoans,
-            ...storedReview.financialSummary?.bankLoans,
-          },
-          financialHighlights: {
-            ...initialState.review.financialSummary.financialHighlights,
-            ...storedReview.financialSummary?.financialHighlights,
-          },
-        },
         // Per-period deep merge so a session saved before a field was added
         // still fills the gap; guarantees all 5 period keys exist.
         financialStatement: FINANCIAL_PERIODS.reduce((acc, period) => {
@@ -3150,17 +3107,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         setState((prev) => ({
           ...prev,
           review: { ...prev.review, bankStatements: [] },
-        })),
-      setFinancialSummaryItem: (key, data) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            financialSummary: {
-              ...prev.review.financialSummary,
-              [key]: { ...prev.review.financialSummary[key], ...data },
-            },
-          },
         })),
       setFinancialStatementField: (period, field, value) =>
         setState((prev) => ({

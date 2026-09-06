@@ -1039,19 +1039,22 @@ Solicitation) each have their own per-application detail page now — see
 `docs/120-financial-evaluation.md`. Financial Evaluation's page has a
 read-only Document Checklist mirror, an AI summary, a **Financial Summary
 card** — the three legacy sub-tools (Financial Statement, Bank Loans,
-Financial Highlights) each with a status pill + Remarks, a **Manage**
-data-entry modal (per-period income statement / balance sheet; bank + PGFC
-loan rows + proposed loan; per-period highlights fields) and a **View**
-on-screen report (income statement with % of sales & growth + balance sheet
-tally + ratios; DSCR computation + bank-loan totals; the wide metrics
-table). All report figures are pure client-side arithmetic
-(`financial-summary-calcs.ts`); no XLS/PDF export. A **Bank Statement card**
+Financial Highlights), each row just a **Manage** data-entry modal
+(Financial Statement is a two-level modal: a list of the 5 period rows, then
+per period an income statement with a live computed column + balance sheet
+with a tally chip; bank + PGFC loan rows + proposed loan; per-period
+highlights fields) and a **View** on-screen report (income statement with %
+of sales & growth + balance sheet tally + ratios; DSCR computation +
+bank-loan totals; the wide metrics table). All report figures are pure
+client-side arithmetic (`financial-summary-calcs.ts`); no XLS/PDF export. A
+**Bank Statement card**
 (officer records each bank statement — Depository Bank dropdown of PH banks,
 account name/number, month range, and inline-editable Deposit and Daily
 Balance rows — all edited in a centered modal, not a separate page; a
 **Fill with Sample Data** / **Remove Sample Data** floating-settings action
-seeds/clears one populated sample statement), a Cash Flow Statement
-(Combined/Borrower Only income-expense form computing Debt Service Ratio),
+seeds/clears one populated sample statement), a **Cash Flow Statement card**
+(same Manage / View-report pattern — Manage opens the Combined/Borrower Only
+income-expense form as a modal; View opens the read-only computed results),
 and a Proceed/Disapprove decision — but no fee/report flow, unlike Credit
 Investigation and Appraisal.
 
