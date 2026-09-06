@@ -110,28 +110,41 @@ selector (the app has no `Tabs` component).
 
 **State** — `review.financialStatement: FinancialStatement`
 (`Record<FinancialPeriod, FinancialStatementPeriod>`). Each period record is
-12 free-text numeric strings: `grossSales`, `salesReturns`,
-`costOfGoodsSold`, `operatingExpenses`, `otherIncomeExpense` (signed —
-negatives allowed), `interestExpense`, `provisionForTaxes`, `currentAssets`,
+13 free-text numeric strings: `grossSales`, `salesReturns` (kept for the Net
+Sales formula but not surfaced in the form — legacy flows Gross Sales
+straight to Net Sale), `costOfGoodsSold`, `operatingExpenses`,
+`otherIncomeExpense` (signed — negatives allowed), `interestExpense`,
+`provisionForTaxes`, `depreciation` (feeds a real EBITDA), `currentAssets`,
 `nonCurrentAssets`, `currentLiabilities`, `nonCurrentLiabilities`, `equity`.
 Setter: `setFinancialStatementField(period, field, value)`.
 
-**Form** (`financial-statement-modal.tsx`) — `<Dialog maxWidth="lg">`,
-period selector, an **Income Statement** grid (7 ₱ fields) and a
-**Balance Sheet** grid (5 ₱ fields), with live mini-summaries (Net Sales,
-Gross Profit, Operating Income, NIBT, NIAT / Total Assets, Total
-Liabilities, Total Equity) and a **tally chip** (Assets = Liabilities +
-Equity → "Matched" green, else "Off by ₱X" amber).
+**Form** (`financial-statement-modal.tsx`) — a **two-level** `<Dialog
+maxWidth="lg">` matching the legacy period-row model (minus the
+separate-page navigation):
+- *Level 1 (landing):* the 5 period rows (2023 … Projected), each with a
+  "Filled / Empty" chip and a **Manage** button.
+- *Level 2 (period form):* a back arrow, then **INCOME STATEMENT** —
+  7 editable ₱ inputs on the left (Gross Sales, Cost of Goods Sold,
+  Operating Expenses, Other Income (Expense), Interest Expense (Expense),
+  Provision for Taxes, Depreciation) with the **live computed** column on the
+  right (Net Sale, Gross Profit, Operating Income Before Other Income
+  (Expenses), Operating Income, Net Income Before Tax, Net Income After Tax,
+  EBITDA) — and **BALANCE SHEET** — 5 editable ₱ inputs, each paired with its
+  computed total, plus an Assets = Liabilities + Equity **tally chip**.
+  Everything persists on keystroke — no "save income statement first"
+  gating (that legacy staged-save constraint is dropped).
 
-**Report** (`financial-statement-report.tsx`) — read-only wide table:
-- **Income Statement** — Gross Sales, Net Sales (`grossSales − salesReturns`),
-  Cost of Goods Sold, Gross Profit (`netSales − COGS`), Operating Expenses,
-  Operating Income (`grossProfit − opex`), Other Income (Expense), Interest
-  Expense, Net Income Before Tax (`opInc + otherInc − interest`), Provision
-  for Taxes, Net Income After Tax (`NIBT − tax`) — each column shows the ₱
-  value, **% of Sales** (÷ grossSales), and **Growth** vs. the prior actual
-  period (`cur/prior − 1`; blank for 2023 and for Interim/Projected which
-  have no direct prior).
+**Report** (`financial-statement-report.tsx`) — read-only comparative wide
+table (opened from the card's **View**):
+- **Income Statement** — Gross Sales, Net Sales, Cost of Goods Sold, Gross
+  Profit, Operating Expenses, Operating Income Before Other Income
+  (Expenses) (`grossProfit − opex`), Other Income (Expense), Operating
+  Income (`+ otherInc`), Interest Expense, Net Income Before Tax
+  (`opInc − interest`), Provision for Taxes, Net Income After Tax
+  (`NIBT − tax`), Depreciation, EBITDA (`opInc + interest + depreciation`)
+  — each column shows the ₱ value, **% of Sales** (÷ grossSales), and
+  **Growth** vs. the prior actual period (`cur/prior − 1`; blank for 2023
+  and for Interim/Projected which have no direct prior).
 - **Balance Sheet** — Total Current Assets, Total Assets, Total Current
   Liabilities, Total Liabilities, Total Equity, Total Liabilities & Equity,
   plus a tally row ("Matched" / "Off by ₱X").
@@ -143,7 +156,8 @@ Equity → "Matched" green, else "Off by ₱X" amber).
   also shows 0): **Quick Ratio = Current Ratio** (no inventory balance
   field); **Days' Receivable / Inventory / Payable = 0** (no
   receivable/inventory/payable balance fields); **Debt Service Coverage ≈
-  `(NIAT + interest) / interest`** (no principal-due field).
+  `(NIAT + interest) / interest`** (no principal-due field). Depreciation and
+  EBITDA are now real (Depreciation is an entered field).
 
 ### Bank Loans (sub-tool 2)
 
@@ -167,10 +181,11 @@ the **PGFC Proposed Loan** 6-field grid.
 **Report** (`bank-loan-report.tsx`) — read-only:
 - **Computation of DSCR** — rows "DSCR 100% / 50% / 20% / Based on
   Amortization" with an *as of Date* and *Projection* column, plus a
-  "Depreciation" row (`—` — not tracked). `serviceableIncome` = latest
-  actual EBITDA (`financialHighlights['2025'].ebitda`), falling back to
-  `FinancialStatement['2025']` NIAT + interest. Debt service is an
-  **interest-only proxy** (`Σ amountOutstanding × interestRate/100`);
+  **"Depreciation"** row (the 2025 Financial Statement's `depreciation`).
+  `serviceableIncome` = latest actual EBITDA
+  (`financialHighlights['2025'].ebitda` when entered, else the 2025 Financial
+  Statement's `operating income + interest + depreciation`). Debt service is
+  an **interest-only proxy** (`Σ amountOutstanding × interestRate/100`);
   `DSCR X% = serviceableIncome × X/100 ÷ debtService`. "Based on
   Amortization" uses an add-on proxy (`Σ approvedAmount/term × 12`).
   Legacy `NaN` cells become `—`.
@@ -433,8 +448,9 @@ it directly rather than filtering `REQUIREMENT_DOC_META` by tab.
   Cash Flow computation is a possible follow-up.
 - **Financial Summary reports are on-screen only** — the three sub-tools'
   forms and report views are fully built, but the legacy XLS/PDF export
-  buttons are not reproduced (no real backend). A handful of legacy ratios
-  (Quick Ratio, Days' Receivable/Inventory/Payable, Depreciation, the DSCR
-  engine) are approximated because this build lacks the source fields — the
-  approximations are documented inline on the reports and in the Financial
-  Summary section above.
+  buttons are not reproduced (no real backend). A few legacy ratios (Quick
+  Ratio, Days' Receivable/Inventory/Payable, and the DSCR engine) are
+  approximated because this build lacks the source fields — documented
+  inline on the reports and in the Financial Summary section above.
+  Depreciation / EBITDA are real (Depreciation is an entered Income
+  Statement field).

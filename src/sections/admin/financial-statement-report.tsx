@@ -74,12 +74,15 @@ export function FinancialStatementReport({
     { label: 'Cost of Goods Sold', value: (p) => parseNum(statement[p].costOfGoodsSold), pct: true },
     { label: 'Gross Profit', value: (p) => computeIncomeStatement(statement[p]).grossProfit, pct: true },
     { label: 'Operating Expenses', value: (p) => parseNum(statement[p].operatingExpenses), pct: true },
-    { label: 'Operating Income', value: (p) => computeIncomeStatement(statement[p]).operatingIncome, pct: true },
+    { label: 'Operating Income Before Other Income (Expenses)', value: (p) => computeIncomeStatement(statement[p]).operatingIncomeBeforeOther, pct: true },
     { label: 'Other Income (Expense)', value: (p) => parseNum(statement[p].otherIncomeExpense), pct: true },
+    { label: 'Operating Income', value: (p) => computeIncomeStatement(statement[p]).operatingIncome, pct: true },
     { label: 'Interest Expense', value: (p) => parseNum(statement[p].interestExpense), pct: true },
     { label: 'Net Income Before Tax', value: (p) => computeIncomeStatement(statement[p]).netIncomeBeforeTax, pct: true },
     { label: 'Provision for Taxes', value: (p) => parseNum(statement[p].provisionForTaxes), pct: true },
     { label: 'Net Income After Tax', value: (p) => computeIncomeStatement(statement[p]).netIncomeAfterTax, pct: true },
+    { label: 'Depreciation', value: (p) => parseNum(statement[p].depreciation), pct: true },
+    { label: 'EBITDA', value: (p) => computeIncomeStatement(statement[p]).ebitda, pct: true },
   ];
 
   const balanceRows: { label: string; value: (p: FinancialPeriod) => number }[] = [

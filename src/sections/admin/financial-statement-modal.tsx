@@ -24,47 +24,61 @@ import {
   FINANCIAL_PERIOD_LABELS,
   type FinancialPeriod,
   type FinancialStatementField,
+  type FinancialStatementPeriod,
 } from 'src/auth/admin-context';
 
 import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
-import { TONE_COLORS } from 'src/components/admin-ui';
+import { TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
 
-import { computeIncomeStatement, computeBalanceSheet } from './financial-summary-calcs';
+import { parseNum, computeIncomeStatement, computeBalanceSheet } from './financial-summary-calcs';
 
 // ----------------------------------------------------------------------
-// Financial Statement sub-tool — per-period income-statement + balance-sheet
-// entry, one period at a time via a period selector (the legacy "Manage per
-// year" model without the separate page). Every field persists on keystroke;
-// live mini-summaries + a balance-sheet tally chip update as you type.
+// Financial Statement sub-tool — a two-level modal matching the legacy
+// period-row model, minus the separate-page navigation:
+//
+//   Level 1 (landing): the 5 period rows (2023 … Projected), each with a
+//   "Filled / Empty" chip and a "Manage" button.
+//   Level 2 (period form): that period's Income Statement (editable inputs
+//   left, live computed values right) and Balance Sheet (editable inputs
+//   paired with computed totals + a tally chip). Every field persists on
+//   keystroke — no "save income statement first" gating.
+//
 // Opened from the Financial Summary card's "Manage" on the Financial
-// Statement row.
+// Statement row. The card's "View" opens the comparative report separately.
 // ----------------------------------------------------------------------
 
 const fieldSx = {
   '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14, bgcolor: 'common.white' },
 };
 
-const INCOME_FIELDS: { field: FinancialStatementField; label: string; allowNegative?: boolean }[] = [
-  { field: 'grossSales', label: 'Gross Sales' },
-  { field: 'salesReturns', label: 'Sales Returns / Discounts' },
+// Legacy income-statement inputs & labels (no separate Sales Returns field —
+// Gross Sales flows straight to Net Sale).
+const INCOME_INPUTS: { field: FinancialStatementField; label: string; allowNegative?: boolean }[] = [
+  { field: 'grossSales', label: 'Gross Sales', allowNegative: false },
   { field: 'costOfGoodsSold', label: 'Cost of Goods Sold' },
   { field: 'operatingExpenses', label: 'Operating Expenses' },
   { field: 'otherIncomeExpense', label: 'Other Income (Expense)', allowNegative: true },
-  { field: 'interestExpense', label: 'Interest Expense' },
+  { field: 'interestExpense', label: 'Interest Expense (Expense)' },
   { field: 'provisionForTaxes', label: 'Provision for Taxes' },
+  { field: 'depreciation', label: 'Depreciation' },
 ];
 
-const BALANCE_FIELDS: { field: FinancialStatementField; label: string }[] = [
-  { field: 'currentAssets', label: 'Current Assets' },
-  { field: 'nonCurrentAssets', label: 'Non-Current Assets' },
-  { field: 'currentLiabilities', label: 'Current Liabilities' },
-  { field: 'nonCurrentLiabilities', label: 'Non-Current Liabilities' },
-  { field: 'equity', label: 'Equity' },
+const BALANCE_INPUTS: {
+  field: FinancialStatementField;
+  label: string;
+  totalLabel: string;
+  total: (bs: ReturnType<typeof computeBalanceSheet>) => number;
+}[] = [
+  { field: 'currentAssets', label: 'Current Assets', totalLabel: 'Total Current Assets', total: (bs) => bs.totalCurrentAssets },
+  { field: 'nonCurrentAssets', label: 'Non-Current Assets', totalLabel: 'Total Assets', total: (bs) => bs.totalAssets },
+  { field: 'currentLiabilities', label: 'Current Liabilities', totalLabel: 'Total Current Liabilities', total: (bs) => bs.totalCurrentLiabilities },
+  { field: 'nonCurrentLiabilities', label: 'Non-Current Liabilities', totalLabel: 'Total Liabilities', total: (bs) => bs.totalLiabilities },
+  { field: 'equity', label: 'Equity', totalLabel: 'Total Equity', total: (bs) => bs.totalEquity },
 ];
 
-function MoneyField({
+function MoneyInput({
   label,
   value,
   onValueChange,
@@ -76,8 +90,8 @@ function MoneyField({
   allowNegative?: boolean;
 }) {
   return (
-    <Stack spacing={0.75}>
-      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#3B4256' }}>{label}</Typography>
+    <Stack spacing={0.6}>
+      <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#3B4256' }}>{label}</Typography>
       <NumericFormat
         fullWidth
         size="small"
@@ -92,9 +106,7 @@ function MoneyField({
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <Typography sx={{ fontSize: 14, fontWeight: 700, color: TONE_COLORS.info.solid }}>
-                ₱
-              </Typography>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: TONE_COLORS.info.solid }}>₱</Typography>
             </InputAdornment>
           ),
         }}
@@ -104,13 +116,33 @@ function MoneyField({
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function ComputedField({ label, value }: { label: string; value: string }) {
   return (
-    <Stack direction="row" justifyContent="space-between" sx={{ py: 0.4 }}>
-      <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>{label}</Typography>
-      <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#14172A' }}>{value}</Typography>
+    <Stack spacing={0.6}>
+      <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#8891A6' }}>{label}</Typography>
+      <Box
+        sx={{
+          px: 1.5,
+          py: '9px',
+          borderRadius: '10px',
+          bgcolor: '#F1F3F8',
+          border: '1px solid #E1E4ED',
+          fontSize: 13.5,
+          fontWeight: 700,
+          color: '#14172A',
+          minHeight: 40,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        {value}
+      </Box>
     </Stack>
   );
+}
+
+function periodFilled(p: FinancialStatementPeriod): boolean {
+  return Object.values(p).some((v) => parseNum(v) !== 0);
 }
 
 type FinancialStatementModalProps = {
@@ -120,26 +152,41 @@ type FinancialStatementModalProps = {
 
 export function FinancialStatementModal({ open, onClose }: FinancialStatementModalProps) {
   const { review, setFinancialStatementField } = useAdmin();
-  const [period, setPeriod] = useState<FinancialPeriod>('2023');
+  const [editing, setEditing] = useState<FinancialPeriod | null>(null);
 
-  const data = review.financialStatement[period];
-  const inc = computeIncomeStatement(data);
-  const bs = computeBalanceSheet(data);
+  const handleClose = () => {
+    setEditing(null);
+    onClose();
+  };
+
   const money = (n: number) => fCurrency(n) || '₱0.00';
 
+  const data = editing ? review.financialStatement[editing] : null;
+  const inc = data ? computeIncomeStatement(data) : null;
+  const bs = data ? computeBalanceSheet(data) : null;
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" scroll="paper">
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg" scroll="paper">
       <DialogTitle sx={{ p: 3, pb: 2 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-          <Box>
-            <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>
-              Financial Statement
-            </Typography>
-            <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
-              Income statement &amp; balance sheet · one period at a time
-            </Typography>
-          </Box>
-          <IconButton onClick={onClose} aria-label="Close Financial Statement">
+          <Stack direction="row" alignItems="center" spacing={1}>
+            {editing && (
+              <IconButton onClick={() => setEditing(null)} aria-label="Back to period list" size="small">
+                <Iconify icon="solar:alt-arrow-left-linear" width={20} />
+              </IconButton>
+            )}
+            <Box>
+              <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>
+                Financial Statement{editing ? ` · ${FINANCIAL_PERIOD_LABELS[editing]}` : ''}
+              </Typography>
+              <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
+                {editing
+                  ? 'Income statement & balance sheet — computed values update as you type'
+                  : 'Pick a period to enter its income statement & balance sheet'}
+              </Typography>
+            </Box>
+          </Stack>
+          <IconButton onClick={handleClose} aria-label="Close Financial Statement">
             <Iconify icon="mingcute:close-line" width={22} />
           </IconButton>
         </Stack>
@@ -148,113 +195,185 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
       <Divider />
 
       <DialogContent sx={{ p: 3 }}>
-        <Stack direction="row" spacing={1} flexWrap="wrap" rowGap={1} sx={{ mb: 3 }}>
-          {FINANCIAL_PERIODS.map((p) => (
-            <Button
-              key={p}
-              onClick={() => setPeriod(p)}
-              variant={p === period ? 'contained' : 'outlined'}
-              size="small"
-              sx={{
-                borderRadius: '9px',
-                px: 2,
-                boxShadow: 'none',
-                ...(p === period
-                  ? { bgcolor: '#1C2A6E', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }
-                  : { color: '#5A6273', borderColor: '#C7CCDA' }),
-              }}
-            >
-              {FINANCIAL_PERIOD_LABELS[p]}
-            </Button>
-          ))}
-        </Stack>
-
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={7}>
-            <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#5A6273', letterSpacing: '0.05em', textTransform: 'uppercase', mb: 1.5 }}>
-              Income Statement
-            </Typography>
-            <Grid container spacing={2}>
-              {INCOME_FIELDS.map(({ field, label, allowNegative }) => (
-                <Grid item xs={12} sm={6} key={field}>
-                  <MoneyField
-                    label={label}
-                    value={data[field]}
-                    onValueChange={(value) => setFinancialStatementField(period, field, value)}
-                    allowNegative={allowNegative}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          </Grid>
-
-          <Grid item xs={12} md={5}>
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 800, color: '#8891A6', letterSpacing: '0.05em', textTransform: 'uppercase', mb: 1 }}>
-                Income summary
-              </Typography>
-              <SummaryRow label="Net Sales" value={money(inc.netSales)} />
-              <SummaryRow label="Gross Profit" value={money(inc.grossProfit)} />
-              <SummaryRow label="Operating Income" value={money(inc.operatingIncome)} />
-              <SummaryRow label="Net Income Before Tax" value={money(inc.netIncomeBeforeTax)} />
-              <SummaryRow label="Net Income After Tax" value={money(inc.netIncomeAfterTax)} />
-            </Box>
-          </Grid>
-
-          <Grid item xs={12} md={7}>
-            <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#5A6273', letterSpacing: '0.05em', textTransform: 'uppercase', mb: 1.5 }}>
-              Balance Sheet
-            </Typography>
-            <Grid container spacing={2}>
-              {BALANCE_FIELDS.map(({ field, label }) => (
-                <Grid item xs={12} sm={6} key={field}>
-                  <MoneyField
-                    label={label}
-                    value={data[field]}
-                    onValueChange={(value) => setFinancialStatementField(period, field, value)}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          </Grid>
-
-          <Grid item xs={12} md={5}>
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 800, color: '#8891A6', letterSpacing: '0.05em', textTransform: 'uppercase', mb: 1 }}>
-                Balance summary
-              </Typography>
-              <SummaryRow label="Total Assets" value={money(bs.totalAssets)} />
-              <SummaryRow label="Total Liabilities" value={money(bs.totalLiabilities)} />
-              <SummaryRow label="Total Equity" value={money(bs.totalEquity)} />
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ pt: 1 }}>
-                <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>Tally</Typography>
-                <Chip
-                  size="small"
-                  icon={
-                    <Iconify
-                      icon={bs.tallyMatched ? 'solar:check-circle-bold' : 'solar:danger-triangle-bold'}
-                      width={13}
-                    />
-                  }
-                  label={bs.tallyMatched ? 'Matched' : `Off by ${money(Math.abs(bs.tallyDelta))}`}
+        {!editing && (
+          <Stack spacing={1.25}>
+            {FINANCIAL_PERIODS.map((p) => {
+              const filled = periodFilled(review.financialStatement[p]);
+              return (
+                <Box
+                  key={p}
                   sx={{
-                    fontWeight: 700,
-                    fontSize: 11.5,
-                    bgcolor: bs.tallyMatched ? TONE_COLORS.success.bg : TONE_COLORS.warning.bg,
-                    color: bs.tallyMatched ? TONE_COLORS.success.text : TONE_COLORS.warning.text,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 2,
+                    borderRadius: '13px',
+                    border: '1px solid #EBEDF3',
+                    bgcolor: 'common.white',
                   }}
-                />
-              </Stack>
+                >
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', flex: 1 }}>
+                    {FINANCIAL_PERIOD_LABELS[p]}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={filled ? 'Filled' : 'Empty'}
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: 11,
+                      bgcolor: filled ? TONE_COLORS.success.bg : TONE_COLORS.neutral.bg,
+                      color: filled ? TONE_COLORS.success.text : TONE_COLORS.neutral.text,
+                    }}
+                  />
+                  <Button
+                    onClick={() => setEditing(p)}
+                    variant="contained"
+                    size="small"
+                    startIcon={<Iconify icon="solar:pen-bold" width={15} />}
+                    sx={{
+                      bgcolor: '#1C2A6E',
+                      borderRadius: '9px',
+                      px: 2,
+                      boxShadow: 'none',
+                      '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+                    }}
+                  >
+                    Manage
+                  </Button>
+                </Box>
+              );
+            })}
+          </Stack>
+        )}
+
+        {editing && data && inc && bs && (
+          <Stack spacing={3}>
+            <Box>
+              <Box
+                sx={{
+                  bgcolor: '#1C2A6E',
+                  color: 'common.white',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  px: 2,
+                  py: 1,
+                  borderRadius: '8px',
+                  mb: 2,
+                }}
+              >
+                Income Statement
+              </Box>
+              <Grid container spacing={2.5}>
+                <Grid item xs={12} md={6}>
+                  <Stack spacing={2}>
+                    {INCOME_INPUTS.map(({ field, label, allowNegative }) => (
+                      <MoneyInput
+                        key={field}
+                        label={label}
+                        value={data[field]}
+                        onValueChange={(value) => setFinancialStatementField(editing, field, value)}
+                        allowNegative={allowNegative}
+                      />
+                    ))}
+                  </Stack>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Stack spacing={2}>
+                    <ComputedField label="Net Sale" value={money(inc.netSales)} />
+                    <ComputedField label="Gross Profit" value={money(inc.grossProfit)} />
+                    <ComputedField
+                      label="Operating Income Before Other Income (Expenses)"
+                      value={money(inc.operatingIncomeBeforeOther)}
+                    />
+                    <ComputedField label="Operating Income" value={money(inc.operatingIncome)} />
+                    <ComputedField label="Net Income Before Tax" value={money(inc.netIncomeBeforeTax)} />
+                    <ComputedField label="Net Income After Tax" value={money(inc.netIncomeAfterTax)} />
+                    <ComputedField label="EBITDA" value={money(inc.ebitda)} />
+                  </Stack>
+                </Grid>
+              </Grid>
             </Box>
-          </Grid>
-        </Grid>
+
+            <Box>
+              <Box
+                sx={{
+                  bgcolor: '#1C2A6E',
+                  color: 'common.white',
+                  fontSize: 13,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  px: 2,
+                  py: 1,
+                  borderRadius: '8px',
+                  mb: 2,
+                }}
+              >
+                Balance Sheet
+              </Box>
+              <Grid container spacing={2.5}>
+                {BALANCE_INPUTS.map(({ field, label, totalLabel, total }) => (
+                  <Grid item xs={12} sm={6} key={field}>
+                    <Stack spacing={1}>
+                      <MoneyInput
+                        label={label}
+                        value={data[field]}
+                        onValueChange={(value) => setFinancialStatementField(editing, field, value)}
+                      />
+                      <Stack direction="row" justifyContent="space-between" sx={{ px: 0.5 }}>
+                        <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>{totalLabel}</Typography>
+                        <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#14172A' }}>
+                          {money(total(bs))}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Grid>
+                ))}
+                <Grid item xs={12}>
+                  <Stack direction="row" alignItems="center" spacing={1.5} sx={{ pt: 1 }}>
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>
+                      Assets vs Liabilities &amp; Equity
+                    </Typography>
+                    <Chip
+                      size="small"
+                      icon={
+                        <Iconify
+                          icon={bs.tallyMatched ? 'solar:check-circle-bold' : 'solar:danger-triangle-bold'}
+                          width={13}
+                        />
+                      }
+                      label={bs.tallyMatched ? 'Matched' : `Off by ${money(Math.abs(bs.tallyDelta))}`}
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: 11.5,
+                        bgcolor: bs.tallyMatched ? TONE_COLORS.success.bg : TONE_COLORS.warning.bg,
+                        color: bs.tallyMatched ? TONE_COLORS.success.text : TONE_COLORS.warning.text,
+                      }}
+                    />
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Box>
+          </Stack>
+        )}
       </DialogContent>
 
       <Divider />
 
       <DialogActions sx={{ p: 2.5 }}>
+        {editing ? (
+          <Button
+            onClick={() => setEditing(null)}
+            variant="outlined"
+            sx={{ ...outlinedNavyButtonSx, px: 3 }}
+          >
+            Back to periods
+          </Button>
+        ) : null}
         <Button
-          onClick={onClose}
+          onClick={handleClose}
           variant="contained"
           sx={{
             bgcolor: '#1C2A6E',

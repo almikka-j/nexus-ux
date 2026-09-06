@@ -38,20 +38,31 @@ export function safeDiv(numerator: number, denominator: number): number | null {
 export type IncomeStatementTotals = {
   netSales: number;
   grossProfit: number;
-  operatingIncome: number;
+  operatingIncomeBeforeOther: number; // = grossProfit − operatingExpenses
+  operatingIncome: number; // = operatingIncomeBeforeOther + otherIncomeExpense
   netIncomeBeforeTax: number;
   netIncomeAfterTax: number;
+  ebitda: number; // operatingIncome + interest + depreciation (add-backs)
 };
 
 export function computeIncomeStatement(p: FinancialStatementPeriod): IncomeStatementTotals {
   const grossSales = parseNum(p.grossSales);
   const netSales = grossSales - parseNum(p.salesReturns);
   const grossProfit = netSales - parseNum(p.costOfGoodsSold);
-  const operatingIncome = grossProfit - parseNum(p.operatingExpenses);
-  const netIncomeBeforeTax =
-    operatingIncome + parseNum(p.otherIncomeExpense) - parseNum(p.interestExpense);
+  const operatingIncomeBeforeOther = grossProfit - parseNum(p.operatingExpenses);
+  const operatingIncome = operatingIncomeBeforeOther + parseNum(p.otherIncomeExpense);
+  const netIncomeBeforeTax = operatingIncome - parseNum(p.interestExpense);
   const netIncomeAfterTax = netIncomeBeforeTax - parseNum(p.provisionForTaxes);
-  return { netSales, grossProfit, operatingIncome, netIncomeBeforeTax, netIncomeAfterTax };
+  const ebitda = operatingIncome + parseNum(p.interestExpense) + parseNum(p.depreciation);
+  return {
+    netSales,
+    grossProfit,
+    operatingIncomeBeforeOther,
+    operatingIncome,
+    netIncomeBeforeTax,
+    netIncomeAfterTax,
+    ebitda,
+  };
 }
 
 export type BalanceSheetTotals = {
@@ -182,6 +193,7 @@ function addOnAnnualAmortization(rows: BankLoanRow[]): number {
 
 export type DscrReport = {
   serviceableIncome: number;
+  depreciation: number;
   asOf: { pct100: number | null; pct50: number | null; pct20: number | null; amortization: number | null };
   projection: {
     pct100: number | null;
@@ -194,20 +206,19 @@ export type DscrReport = {
 /**
  * DSCR report figures. The legacy engine isn't fully documented, so this is
  * an interest-only debt-service proxy with a percentage-scaled numerator.
- * `serviceableIncome` = latest actual EBITDA (Financial Highlights), falling
- * back to Financial Statement's (net income after tax + interest expense).
+ * `serviceableIncome` = latest actual EBITDA — the officer-entered Highlights
+ * EBITDA when present, else computed from the 2025 Financial Statement
+ * (operating income + interest + depreciation add-backs).
  */
 export function computeDscr(
   bankLoans: BankLoans,
   highlights: FinancialHighlights,
   statement: FinancialStatement
 ): DscrReport {
+  const inc2025 = computeIncomeStatement(statement['2025']);
   const ebitda2025 = parseNum(highlights['2025'].ebitda);
-  const fsFallback = (() => {
-    const inc = computeIncomeStatement(statement['2025']);
-    return inc.netIncomeAfterTax + parseNum(statement['2025'].interestExpense);
-  })();
-  const serviceableIncome = ebitda2025 !== 0 ? ebitda2025 : fsFallback;
+  const serviceableIncome = ebitda2025 !== 0 ? ebitda2025 : inc2025.ebitda;
+  const depreciation = parseNum(statement['2025'].depreciation);
 
   const debtServiceAsOf =
     interestOnlyDebtService(bankLoans.bankRows) + interestOnlyDebtService(bankLoans.pgfcRows);
@@ -228,6 +239,7 @@ export function computeDscr(
 
   return {
     serviceableIncome,
+    depreciation,
     asOf: {
       pct100: scaled(serviceableIncome, 100, debtServiceAsOf),
       pct50: scaled(serviceableIncome, 50, debtServiceAsOf),

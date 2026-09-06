@@ -1285,12 +1285,13 @@ export const FINANCIAL_PERIOD_LABELS: Record<FinancialPeriod, string> = {
 // is a free-text numeric string (blank/garbage → 0 for arithmetic).
 export type FinancialStatementPeriod = {
   grossSales: string;
-  salesReturns: string;
+  salesReturns: string; // legacy has no separate field — kept for Net Sales math, defaults ''
   costOfGoodsSold: string;
   operatingExpenses: string;
   otherIncomeExpense: string; // signed — negatives allowed
   interestExpense: string;
   provisionForTaxes: string;
+  depreciation: string; // feeds real EBITDA (operating income + depreciation)
   currentAssets: string;
   nonCurrentAssets: string;
   currentLiabilities: string;
@@ -1793,6 +1794,7 @@ function createBlankFinancialStatementPeriod(): FinancialStatementPeriod {
     otherIncomeExpense: '',
     interestExpense: '',
     provisionForTaxes: '',
+    depreciation: '',
     currentAssets: '',
     nonCurrentAssets: '',
     currentLiabilities: '',

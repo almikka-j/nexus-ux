@@ -132,15 +132,16 @@ export function BankLoanReport({ open, onClose }: { open: boolean; onClose: () =
               <Box component="tr">
                 <Box component="td" sx={{ ...cellSx, fontWeight: 700, color: '#14172A' }}>Depreciation</Box>
                 <Box component="td" sx={cellSx} />
-                <Box component="td" sx={numCellSx}>—</Box>
-                <Box component="td" sx={numCellSx}>—</Box>
+                <Box component="td" sx={numCellSx}>{money(dscr.depreciation)}</Box>
+                <Box component="td" sx={numCellSx}>{money(dscr.depreciation)}</Box>
               </Box>
             </Box>
           </Box>
         </Box>
         <Typography sx={{ fontSize: 11, color: '#98A2B3', mb: 3 }}>
-          Serviceable income {money(dscr.serviceableIncome)} (latest EBITDA, or net income + interest
-          fallback). Debt service is an interest-only proxy; Depreciation is not tracked in this build.
+          Serviceable income {money(dscr.serviceableIncome)} — latest EBITDA (Financial Highlights, or
+          the 2025 Financial Statement: operating income + interest + depreciation). Debt service is an
+          interest-only proxy.
         </Typography>
 
         <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#1C2A6E', mb: 1.5 }}>Bank Loan</Typography>
