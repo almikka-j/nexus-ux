@@ -353,22 +353,20 @@ inputs, `StatusBadge` pills for totals, `TONE_COLORS`).
 - `CashFlowStatementModal` — the full data-entry form
   (`<Dialog maxWidth="lg" scroll="paper">`). Its `DialogActions` carry a
   **Save Record** button (stamps `savedAt`) and a **Done** close.
-- `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` carrying
-  the legacy report content but styled to this app's report convention
-  (the same tokens the Financial Statement / Bank Loan reports use — a
-  a 3-column meta header (Borrower's Name / Amount of Loan / Computation
-  Type — same stacked-label-over-value layout as the Cash Flow form's own
-  header), a `#EEF1FE` table head, light
-  `#F1F3F8` uppercase section-header rows for **Source of Income** /
-  **Less Expenses** / **Other Loans**, `#FAFBFD` zebra striping — *not* a
-  solid navy banner). The full line-item table covers every
-  Source-of-Income and Less-Expenses input row plus Sub-total, Add: Adjusted
-  Expense (with the entered %s), Total Expenses, Income Available for Debt
-  Service, each Other Loan, Total of Other Loans, PGFC Loan – Principal &
-  Interest (proposed monthly amortization annualised), Total Loans, Net
-  Income, Debt Service Ratio, and Percentage of Net Income Over Gross for
-  both Combined / Borrower Only columns, with a "Prepared by {timestamp}" /
-  "Noted by" footer. Zero and computed-blank values render as `—`.
+- `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` that
+  **reuses the Cash Flow form's own layout components** rather than a
+  separate table style: the 3-column meta header (Borrower's Name / Amount
+  of Loan / Computation Type), then `SubsectionLabel` + `ColumnHeaders` +
+  `SubtotalRow` / `TotalRow` (the label + two info-tone `StatusBadge` pills
+  row) separated by `<Divider />`, exactly as the Manage form renders its
+  results. Sections: Source of Income → Total Income; Less Expenses →
+  Sub-total, Add: Adjusted Expense (with the entered %s), Total Expenses,
+  Income Available for Debt Service; Other Loans → Total of Other Loans,
+  PGFC Loan – Principal & Interest (proposed monthly amortization
+  annualised), Total Loans; then Net Income, Debt Service Ratio, and
+  Percentage of Net Income Over Gross. A "Prepared by {timestamp}" /
+  "Noted by" footer above a `1px #EEF0F5` rule. Blank inputs render as `—`;
+  computed totals show `₱0.00`.
 
 **State** — `review.cashFlowStatement: CashFlowStatement` (`admin-context.tsx`),
 a new top-level `ApplicationReview` slot alongside `creditInvestigation`/
