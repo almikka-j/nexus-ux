@@ -1,8 +1,25 @@
 # Bank Statement card — Financial Evaluation
 
 **Date:** 2026-09-07
-**Status:** Design approved, pending spec review
+**Status:** Implemented
 **Area:** Admin → Financial Evaluation (`src/sections/admin/financial-evaluation-view.tsx`)
+
+> **Revision (post-implementation):**
+> 1. The add/edit surface is a **centered `Dialog`**
+>    (`bank-statement-modal.tsx`, `<Dialog fullWidth maxWidth="md"
+>    scroll="paper">` — the admin app's `CreditCheckingResultModal` / "Full
+>    application" modal convention), **not** the right-anchored `Drawer` this
+>    spec describes below. Read every "Drawer" / "right-anchored" reference
+>    as "modal" / "centered `Dialog`", and `bank-statement-drawer.tsx` as
+>    `bank-statement-modal.tsx` / `BankStatementDrawer` as
+>    `BankStatementModal`.
+> 2. The **Attachments** section was dropped as unused — there is no
+>    `BankStatementFile` type, no `files` field on `BankStatement`, and no
+>    `addBankStatementFiles` / `removeBankStatementFile` setters. Ignore
+>    every attachment reference below. Nested setters number 6, not 10.
+> Everything else (fields, inline Deposit/Daily-Balance rows, totals,
+> delete-if-blank, "Done" footer, state slice, `updateOneBankStatement`
+> helper) is as described.
 
 ## Problem
 

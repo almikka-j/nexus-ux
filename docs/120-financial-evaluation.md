@@ -1,8 +1,9 @@
 # Admin — Financial Evaluation
 
 > **Maintenance rule:** update this file whenever `financial-evaluation-view.tsx`,
-> `financial-evaluation-docs.ts`, `cash-flow-statement.ts`, or
-> `cash-flow-statement-card.tsx` change. Companion to `docs/230-project-overview.md`
+> `financial-evaluation-docs.ts`, `cash-flow-statement.ts`,
+> `cash-flow-statement-card.tsx`, `bank-statement.ts`, `bank-statement-card.tsx`,
+> `bank-statement-modal.tsx`, or `financial-summary-card.tsx` change. Companion to `docs/230-project-overview.md`
 > and `docs/090-account-solicitation-requirement-checklist.md` (the screen that actually collects
 > these documents) and `docs/100-credit-investigation.md` (the sibling
 > process-stage detail page this one follows the same pattern as).
@@ -61,10 +62,153 @@ this build. The page is:
    never `'high'` — there is no in-page action able to clear an outstanding
    item, only Requirement Checklist can. Defaults expanded (no fee gate to
    collapse it behind, unlike Credit Investigation's).
-5. **Cash Flow Statement card** (`cash-flow-statement-card.tsx`) — see its
+5. **Financial Summary card** (`financial-summary-card.tsx`) — see its own
+   section below.
+6. **Bank Statement card** (`bank-statement-card.tsx`) — see its own section
+   below.
+7. **Cash Flow Statement card** (`cash-flow-statement-card.tsx`) — see its
    own section below.
-6. **"Proceed application?" decision card** — same shape as Credit
+8. **"Proceed application?" decision card** — same shape as Credit
    Investigation's Proceed/Disapprove, see "Decision" below.
+
+## Financial Summary
+
+A card (`FinancialSummaryCard` in `financial-summary-card.tsx`) — same
+`adminCardSx` + `CollapsibleSection` shell as the other cards, defaults
+expanded, with a `{completeCount} / 3` badge once any item is past
+not-started.
+
+**Purpose / rationale.** The legacy source system has a "Financial Summary"
+screen with three sub-tools — **Financial Statement** (per-period income
+statement / balance sheet / ratios, with its own big report view), **Bank
+Loans** (existing bank + PGFC loan balances, proposed loan, DSCR
+computation, report view), and **Financial Highlights** (a wide key-metrics
+table, report view). Building all three end-to-end is a large,
+multi-spec effort. This card is the **scoped first slice**: it tracks, per
+item, a **status** the officer sets and a **Remarks** note — no deep
+data-entry forms, no XLS/PDF report views (those are a future follow-up, and
+there are no "Manage" / "View" actions on the card).
+
+**Layout** (always-expanded sub-cards). Three bordered rows
+(`#EBEDF3`, 13px), one per item: name, a compact `TextField select` styled as
+a status pill — **Not started** (neutral / gray), **In progress** (info /
+blue), **Complete** (success / green), tone-colored from `TONE_COLORS` — a
+muted one-line description, and an always-visible multi-line Remarks
+`TextField` (`minRows={2}`). Everything persists on change.
+
+**State** — `review.financialSummary: FinancialSummary` (`admin-context.tsx`),
+a new top-level `ApplicationReview` slot, seeded by
+`createInitialFinancialSummary()` (all three items
+`{ status: 'not-started', remarks: '' }`) and per-item deep-merged in
+`readStoredState()`. Shape:
+`FinancialSummary { financialStatement, bankLoans, financialHighlights }`,
+each a `FinancialSummaryItem { status: 'not-started' | 'in-progress' |
+'complete'; remarks: string }`.
+
+**Setter** — one, `setFinancialSummaryItem(key, data)` on `useAdmin()`,
+merging `Partial<FinancialSummaryItem>` into the named item.
+
+**Not a decision gate.** Informational only — the "Endorse to Credit
+Scoring" / "Disapprove" buttons stay always-clickable, consistent with the
+Bank Statement and Bureau Reports cards.
+
+## Bank Statement
+
+A card (`BankStatementCard` in `bank-statement-card.tsx`) where the officer
+records each of the applicant's bank statements. Same `adminCardSx` +
+`CollapsibleSection` shell as the Cash Flow Statement card, defaults
+expanded, with a count badge next to the title once ≥1 statement exists.
+
+**Purpose / rationale.** Replaces a legacy source-system flow (add a bare
+bank name on a card → click an edit pencil → navigate to a *separate full
+page* to enter Depository Bank / Account Name / Account Number / Month Range
+plus Deposit and Daily Balance rows via a "type into a staging row, click +
+to commit" pattern → repeat per bank). The two fixed problems: the
+separate-page round trip, and the two-step "name first, then edit" add.
+
+**Card layout.** A primary **Add bank statement** button + one row per
+statement:
+- Left: a `#EEF1FB` rounded avatar showing the bank's first 3 letters
+  (generic card icon when the bank name is blank), the bank name, and a
+  muted line `Acct ••••{last 4 digits} · {monthFrom}–{monthTo}` (each piece
+  omitted when unset; reads "Details not entered yet" when the row has no
+  account number/name and no deposit/balance rows).
+- Right: summary chips — `{n} deposits · {₱ total}` and `{n} balances` — or
+  a single dashed **Empty** chip when nothing's entered; then an edit
+  `IconButton` and a delete `IconButton` (`#E23E3E`).
+- Clicking the row body also opens the modal.
+- Delete opens a `ConfirmDialog` ("Remove this bank statement?").
+- Empty state: a dashed-border "No bank statements added yet." box.
+
+**Add / edit modal** (`BankStatementModal` in `bank-statement-modal.tsx`)
+— a centered `<Dialog fullWidth maxWidth="md" scroll="paper">` with
+`DialogTitle` / `DialogContent` / `DialogActions`, the same convention as
+`CreditCheckingResultModal` and the "Full application" modal. **Add bank
+statement** and a row's edit icon both open it — no separate route.
+Sections:
+1. **Account details** — **Depository Bank** is a `select` of the major
+   Philippine banks (`PHILIPPINE_BANKS` in `bank-statement.ts`; a stored
+   value not in the list still renders as its own option so it isn't
+   blanked). **Account Name** and **Account Number** share one row
+   (`xs=12 sm=6` each). **Month Range** (From / To) sits below as two
+   `select` dropdowns (January–December, blank "Select…" first item).
+2. **Deposits** — `SubsectionLabel` + outlined **Add deposit** button; each
+   deposit is an *inline editable row* (Date `type="date"`, Amount
+   ₱-`NumericFormat`, trailing ✕) appended empty and filled in place — the
+   app's `CashFlowStatementCard` "Add Other Loan" pattern, no staging row.
+   Right-aligned running `Total deposits: {₱}`.
+3. **Account Daily Balance** — same pattern: **Add balance** button; each row
+   = Period From (`date`), Period To (`date`), Balance (₱), ✕. Running
+   `Average daily balance: {₱ | —}` (arithmetic mean of entered balances).
+
+Data-entry only — there is no file-attachment section (the legacy screen's
+File Attachment card was dropped as unused).
+
+**Footer** (`DialogActions`) — a single **Done** button (`onClose`). Every
+field already persists on change via the `useAdmin()` setters (app
+convention — same as every other admin form), so there is no separate save.
+
+**Delete-if-blank on close.** If the modal is closed while the statement is
+*completely* blank (blank bank/account/months, no deposits, no balances) —
+the common case of "Add bank statement" then immediate close — it calls
+`removeBankStatement(id)` so no empty ghost row is left. Editing an existing
+populated statement never auto-deletes.
+
+**State** — `review.bankStatements: BankStatement[]` (`admin-context.tsx`),
+a new top-level `ApplicationReview` slot, seeded `[]` by
+`createInitialReview()` and array-merged in `readStoredState()`
+(`Array.isArray(...) ? ... : []`, same as the bureau file arrays). Shape:
+`BankStatement { id, depositoryBank, accountName, accountNumber, monthFrom,
+monthTo, deposits: BankStatementDeposit[], dailyBalances:
+BankStatementDailyBalance[] }`; `deposits` rows are `{ id, date, amount }`,
+`dailyBalances` rows `{ id, periodFrom, periodTo, balance }`. All
+amounts/balances are free-text strings (blank/non-numeric → 0 for
+arithmetic).
+
+**Setters** (`useAdmin()`) — `addBankStatement(id)` (the **card** generates
+the id via `crypto.randomUUID()` and passes it in, then opens the modal on
+that id — keeps setters side-effect-only), `updateBankStatement(id, data)`
+(header fields only), `removeBankStatement(id)`, and the nested
+`add/update/removeBankStatementDeposit` /
+`add/update/removeBankStatementDailyBalance`. The 6 nested mutations all
+route through one private `updateOneBankStatement(review, id, updater)`
+helper (mirrors `updateBureauFiles` from the bureau-reports work). Two
+dev/QA setters — `fillBankStatementSample()` (appends one fully-populated
+sample statement — BDO, 6 monthly deposits, 3 quarterly average-balance
+rows, via `createSampleBankStatement()`) and `clearBankStatements()` (drops
+all) — back the Financial Evaluation page's **Fill with Sample Data** /
+**Remove Sample Data** floating-settings action, toggled by whether
+`review.bankStatements` is non-empty.
+
+**Computation** (`bank-statement.ts`, pure, nothing stored) —
+`computeTotalDeposits(deposits)` = Σ amounts; `computeAvgDailyBalance(balances)`
+= mean of balances, `null` when there are none (rendered `—`);
+`formatMonthRange(from, to)` → `"{from}–{to}"`, or just the one set side, or
+`""`. `parseNumber` tolerates blanks/commas/garbage → 0.
+
+**Not a decision gate.** Bank statements are supporting evidence; the
+"Endorse to Credit Scoring" / "Disapprove" buttons stay always-clickable,
+consistent with Initial Credit Checking's Bureau Reports.
 
 ## Cash Flow Statement
 
@@ -178,3 +322,10 @@ it directly rather than filtering `REQUIREMENT_DOC_META` by tab.
   land on a real workspace, same as Appraisal's Passed branch.
 - **No real file parsing, real AI/LLM** — same as every other admin
   screen in this app.
+- **Bank Statement data doesn't feed the Cash Flow Statement** — the two
+  cards are independent for now. Rolling entered deposits/balances into the
+  Cash Flow computation is a possible follow-up.
+- **Financial Summary is status + remarks only** — the legacy Financial
+  Statement / Bank Loans / Financial Highlights deep data-entry forms and
+  their XLS/PDF report views are not built. Each is a large sub-feature
+  (its own spec/plan) when it's picked up.

@@ -1,7 +1,7 @@
 // src/sections/admin/financial-evaluation-view.tsx
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -21,8 +21,11 @@ import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
 import { CollapsibleSection, CollapsibleSectionBadge } from 'src/components/collapsible-section';
 import { adminCardSx } from 'src/components/admin-ui';
+import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { ApplicationReviewHeader } from './application-review-header';
+import { BankStatementCard } from './bank-statement-card';
+import { FinancialSummaryCard } from './financial-summary-card';
 import { ApplicationDetailsCard } from './application-details-card';
 import { CashFlowStatementCard } from './cash-flow-statement-card';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
@@ -50,12 +53,29 @@ import { FINANCIAL_EVALUATION_DOC_META } from './financial-evaluation-docs';
 export function FinancialEvaluationView() {
   const router = useRouter();
   const { signUpData } = useRegistration();
-  const { review, setCashFlowStatement } = useAdmin();
+  const { review, setCashFlowStatement, fillBankStatementSample, clearBankStatements } = useAdmin();
 
   const [checklistExpanded, setChecklistExpanded] = useState(true);
   const [aiReviewExpanded, setAiReviewExpanded] = useState(true);
   const [disapproveOpen, setDisapproveOpen] = useState(false);
   const [disapproveReason, setDisapproveReason] = useState('');
+
+  const hasBankStatements = review.bankStatements.length > 0;
+
+  useRegisterPageActions(
+    useMemo(
+      () => [
+        {
+          key: 'bank-statement-sample',
+          label: hasBankStatements ? 'Remove Sample Data' : 'Fill with Sample Data',
+          icon: 'solar:magic-stick-3-bold-duotone',
+          onClick: hasBankStatements ? clearBankStatements : fillBankStatementSample,
+        },
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [hasBankStatements]
+    )
+  );
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
 
@@ -163,6 +183,10 @@ export function FinancialEvaluationView() {
             </Stack>
           </CollapsibleSection>
         </Box>
+
+        <FinancialSummaryCard />
+
+        <BankStatementCard />
 
         <CashFlowStatementCard />
 

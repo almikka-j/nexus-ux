@@ -241,8 +241,8 @@ anymore) so the conditional Spouse Information section is exercised too); and
 Initial Credit Checking's page action, which toggles based on
 `allBureauReportsUploaded` and calls a new `handleClearSampleData()` — a
 scoped undo of exactly what `handleFillSampleData()` sets (`creditChecking`'s
-document/AI fields, the CIBI form, and the four bureau uploads) — deliberately
-**not** `resetReview()`, since that clears the entire `ApplicationReview`
+document/AI fields, the CIBI form, and every uploaded file on all 6 bureaus)
+— deliberately **not** `resetReview()`, since that clears the entire `ApplicationReview`
 including unrelated steps (Reconsideration, Call Report, Requirement
 Checklist) this button has no business touching. The Officer Notes
 field is untouched by this clear, since it's a separate, intentionally-persistent
@@ -629,8 +629,9 @@ Update that file, not this section, when this screen changes.
 **Initial Credit Checking has its own dedicated doc:
 `docs/070-account-solicitation-initial-credit-checking.md`.** It covers the layout (stacked vs.
 split), `ApplicationDetailsCard` (including the conditional Spouse information
-block), `BureauReportsCard` (the CIBI row's "Auto-filled" form + the 4
-plain-upload rows), the simulated bureau finding, the merged "AI review,
+block), `BureauReportsCard` (the CIBI row's "Auto-filled" form + the 5
+plain-upload rows, all 6 now accepting multiple files per bureau), the
+simulated bureau finding, the merged "AI review,
 summary & recommendation" card (risk-level read + AI Summary/Recommendation),
 the always-clickable decision gate (Proceed to Call Report/Disapprove do not
 require bureau reports to be uploaded first), and what's real vs. simulated on
@@ -648,7 +649,8 @@ content in `CreditCheckingResultModal`.
   `'clean'` or `'negative'` is simulated via a **deterministic hash** (same
   technique as `getLoanNumber`'s email hash, not `Math.random()`, so the
   result doesn't flip between re-renders/reloads), seeded by the applicant's
-  email plus all 5 bureau upload filenames. `simulateBureauFinding()` returns
+  email plus every uploaded filename across every file of all 6 bureaus (each
+  bureau can hold multiple files). `simulateBureauFinding()` returns
   `{ status, bureau, reason }`, not a bare string: on a negative outcome, a
   second hash over a re-salted seed picks which bureau produced it
   (`'NFIS' | 'CMAP'`) and a third picks a specific reason from that bureau's
@@ -678,8 +680,11 @@ content in `CreditCheckingResultModal`.
   which content to render) read these stored fields directly — neither ever
   re-calls `simulateBureauFinding` itself — so they can't disagree.
 - **QA override**: since the hash is stable for a given email + the fixed
-  sample-upload filenames, "Fill with Sample Data" alone can't exercise both
-  outcomes reliably. Two dev-only actions, "Force Clean Bureau Finding" /
+  sample-upload filenames ("Fill with Sample Data" seeds one file per bureau,
+  except CMAP, which gets two — `cmap-report-a.pdf`/`cmap-report-b.pdf` — so
+  the multi-file UI is visible right after using it), "Fill with Sample Data"
+  alone can't exercise both outcomes reliably. Two dev-only actions, "Force
+  Clean Bureau Finding" /
   "Force Negative Bureau Finding" (visible once `allBureauReportsUploaded`),
   directly set `bureauFindingStatus` (and, for the negative case, a fixed
   `bureauFindingBureau: 'CMAP'` / `bureauFindingReason: 'Court Case due to
@@ -1032,7 +1037,15 @@ Appraisal, Financial Evaluation — nested under "Application" alongside Account
 Solicitation) each have their own per-application detail page now — see
 `docs/100-credit-investigation.md`, `docs/110-appraisal.md`, and
 `docs/120-financial-evaluation.md`. Financial Evaluation's page has a
-read-only Document Checklist mirror, an AI summary, a Cash Flow Statement
+read-only Document Checklist mirror, an AI summary, a **Financial Summary
+card** (status pill + Remarks per legacy sub-tool — Financial Statement /
+Bank Loans / Financial Highlights; the deep forms and report views are a
+future follow-up), a **Bank Statement card**
+(officer records each bank statement — Depository Bank dropdown of PH banks,
+account name/number, month range, and inline-editable Deposit and Daily
+Balance rows — all edited in a centered modal, not a separate page; a
+**Fill with Sample Data** / **Remove Sample Data** floating-settings action
+seeds/clears one populated sample statement), a Cash Flow Statement
 (Combined/Borrower Only income-expense form computing Debt Service Ratio),
 and a Proceed/Disapprove decision — but no fee/report flow, unlike Credit
 Investigation and Appraisal.
@@ -1191,7 +1204,9 @@ Report" field block (Application No. via `getLoanNumber(signUpData.email)`,
 Applicant, To — fixed "Credit Committee", Thru — `application.assignedOfficer`,
 From — fixed "Credit and Collection Department", Date/report-generated
 timestamp from `review.stepTimestamps.creditChecking`, Subject), a **Bureau
-Reports Result** section with one simulated AI-read finding per uploaded bureau,
+Reports Result** section with one simulated AI-read finding per bureau (each
+bureau can hold multiple uploaded files, each with its own result block —
+see docs/070-account-solicitation-initial-credit-checking.md),
 a "Recommendation" box with a Proceed/Pending chip, **Recommendation &
 Remarks**, and a Prepared by/Noted by two-column footer. Recommendation &
 Remarks is editable and locally persisted when opened from Initial Credit
@@ -1449,12 +1464,14 @@ Reconsideration are always clickable — see
 controls whether the bureau reports/CIBI form are pre-filled for demo
 purposes. While not yet uploaded, one click (`handleFillSampleData`) fills the
 entire screen in one step: uploads the document, fills and submits the CIBI
-form (including a sample report), and uploads all four bureau reports
-(LOANDEX/CIC/CMAP/NFIS-BAP) — letting a tester skip the manual click-through.
-Once all 5 are uploaded, the action relabels to "Remove Sample Data" and
-clicking it calls `handleClearSampleData()` instead — a scoped undo of exactly
-the fields `handleFillSampleData` set (document/AI fields on `creditChecking`,
-the CIBI form, and the four bureau uploads), deliberately not `resetReview()`,
+form, and adds one sample file to CIBI, LOANDEX, CIC, NFIS-BAP, and PGFC
+Existing Exposure each — except CMAP, which gets two sample files — letting
+a tester skip the manual click-through and see the multi-file UI immediately.
+Once all 6 bureaus have at least one file, the action relabels to "Remove
+Sample Data" and clicking it calls `handleClearSampleData()` instead — a
+scoped undo of exactly the fields `handleFillSampleData` set (document/AI
+fields on `creditChecking`, the CIBI form, and every uploaded file on all 6
+bureaus), deliberately not `resetReview()`,
 which would also wipe unrelated steps (Reconsideration, Call Report,
 Requirement Checklist) this action has no business touching. The Officer
 Notes textarea is untouched by either direction, since it's a separate field.
