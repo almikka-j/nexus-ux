@@ -53,27 +53,29 @@ import { FINANCIAL_EVALUATION_DOC_META } from './financial-evaluation-docs';
 export function FinancialEvaluationView() {
   const router = useRouter();
   const { signUpData } = useRegistration();
-  const { review, setCashFlowStatement, fillBankStatementSample, clearBankStatements } = useAdmin();
+  const { review, setCashFlowStatement, fillFinancialEvaluationSample, clearFinancialEvaluationSample } =
+    useAdmin();
 
   const [checklistExpanded, setChecklistExpanded] = useState(true);
   const [aiReviewExpanded, setAiReviewExpanded] = useState(true);
   const [disapproveOpen, setDisapproveOpen] = useState(false);
   const [disapproveReason, setDisapproveReason] = useState('');
 
-  const hasBankStatements = review.bankStatements.length > 0;
+  const sampleFilled =
+    review.bankStatements.length > 0 || review.cashFlowStatement.savedAt !== null;
 
   useRegisterPageActions(
     useMemo(
       () => [
         {
-          key: 'bank-statement-sample',
-          label: hasBankStatements ? 'Remove Sample Data' : 'Fill with Sample Data',
+          key: 'financial-eval-sample',
+          label: sampleFilled ? 'Remove Sample Data' : 'Fill with Sample Data',
           icon: 'solar:magic-stick-3-bold-duotone',
-          onClick: hasBankStatements ? clearBankStatements : fillBankStatementSample,
+          onClick: sampleFilled ? clearFinancialEvaluationSample : fillFinancialEvaluationSample,
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [hasBankStatements]
+      [sampleFilled]
     )
   );
 

@@ -308,13 +308,22 @@ that id — keeps setters side-effect-only), `updateBankStatement(id, data)`
 `add/update/removeBankStatementDeposit` /
 `add/update/removeBankStatementDailyBalance`. The 6 nested mutations all
 route through one private `updateOneBankStatement(review, id, updater)`
-helper (mirrors `updateBureauFiles` from the bureau-reports work). Two
-dev/QA setters — `fillBankStatementSample()` (appends one fully-populated
-sample statement — BDO, 6 monthly deposits, 3 quarterly average-balance
-rows, via `createSampleBankStatement()`) and `clearBankStatements()` (drops
-all) — back the Financial Evaluation page's **Fill with Sample Data** /
-**Remove Sample Data** floating-settings action, toggled by whether
-`review.bankStatements` is non-empty.
+helper (mirrors `updateBureauFiles` from the bureau-reports work).
+
+### Fill with Sample Data (whole page)
+
+Two dev/QA setters — `fillFinancialEvaluationSample()` /
+`clearFinancialEvaluationSample()` — back the Financial Evaluation page's
+**Fill with Sample Data** / **Remove Sample Data** floating-settings action
+(toggled by `review.bankStatements.length > 0 || cashFlowStatement.savedAt`).
+Fill seeds **every** workspace on the page in one shot: one bank statement
+(BDO, 6 deposits, 3 balance rows), the Cash Flow Statement (income/expense
+figures + one Other Loan + a proposed-loan block, `savedAt` stamped),
+the Financial Statement (all 5 periods — growing 2023→2025 actuals, a
+half-year Interim, a Projected), Bank Loans (2 bank rows + 1 PGFC row + the
+PGFC proposed loan), and Financial Highlights (per-period days ratios,
+EBITDA, total loans, debt service, rating). Remove resets each of those to
+its empty factory default.
 
 **Computation** (`bank-statement.ts`, pure, nothing stored) —
 `computeTotalDeposits(deposits)` = Σ amounts; `computeAvgDailyBalance(balances)`
@@ -344,10 +353,16 @@ inputs, `StatusBadge` pills for totals, `TONE_COLORS`).
 - `CashFlowStatementModal` — the full data-entry form
   (`<Dialog maxWidth="lg" scroll="paper">`). Its `DialogActions` carry a
   **Save Record** button (stamps `savedAt`) and a **Done** close.
-- `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` showing
-  only the computed result rows (Total Income, Total Expenses, Income
-  Available for Debt Service, Total of Other Loans, Monthly Amortization, Net
-  Income, Debt Service Ratio) for both columns.
+- `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` matching
+  the legacy report layout: a Borrower's Name / Amount of Loan / Computation
+  Type meta block, a **"PERSONAL INCOME & EXPENSES"** banner, then the full
+  line-item table (every Source-of-Income and Less-Expenses input row plus
+  Sub-total, Add: Adjusted Expense (with the entered %s), Total Expenses,
+  Income Available for Debt Service, each Other Loan, Total of Other Loans,
+  PGFC Loan – Principal & Interest (proposed monthly amortization annualised),
+  Total Loans, Net Income, Debt Service Ratio, Percentage of Net Income Over
+  Gross) for both Combined / Borrower Only columns, with a "Prepared by
+  {timestamp}" / "Noted by" footer. Zero values render as `—`.
 
 **State** — `review.cashFlowStatement: CashFlowStatement` (`admin-context.tsx`),
 a new top-level `ApplicationReview` slot alongside `creditInvestigation`/

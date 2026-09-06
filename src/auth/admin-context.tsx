@@ -1466,10 +1466,12 @@ type AdminContextValue = AdminState & {
     data: Partial<Omit<BankStatementDailyBalance, 'id'>>
   ) => void;
   removeBankStatementDailyBalance: (id: string, balanceId: string) => void;
-  /** Dev/QA: append one fully-populated sample bank statement. */
-  fillBankStatementSample: () => void;
-  /** Dev/QA: drop every bank statement. */
-  clearBankStatements: () => void;
+  /** Dev/QA: fill every Financial Evaluation workspace with sample data —
+   * one bank statement, the Cash Flow Statement, the Financial Statement (all
+   * 5 periods), Bank Loans, and Financial Highlights. */
+  fillFinancialEvaluationSample: () => void;
+  /** Dev/QA: reset all of the above to their empty defaults. */
+  clearFinancialEvaluationSample: () => void;
   setFinancialStatementField: (
     period: FinancialPeriod,
     field: FinancialStatementField,
@@ -1757,6 +1759,172 @@ function createSampleBankStatement(): BankStatement {
       { id: crypto.randomUUID(), periodFrom: '2026-05-01', periodTo: '2026-06-30', balance: '341000' },
     ],
   };
+}
+
+// --- Sample data for the whole Financial Evaluation "Fill with Sample Data"
+// page action (Cash Flow Statement + Financial Statement + Bank Loans +
+// Financial Highlights), seeded together so a demo pass has data everywhere.
+
+function createSampleCashFlowStatement(): CashFlowStatement {
+  return {
+    computationType: 'add-on',
+    fixedIncomeCombined: '85000',
+    fixedIncomeBorrowerOnly: '55000',
+    variableIncomeCombined: '20000',
+    variableIncomeBorrowerOnly: '12000',
+    otherIncomeCombined: '15000',
+    otherIncomeBorrowerOnly: '0',
+    lessDeductionsCombined: '8000',
+    lessDeductionsBorrowerOnly: '5000',
+    fixedExpenseCombined: '30000',
+    fixedExpenseBorrowerOnly: '20000',
+    utilitiesCombined: '6000',
+    utilitiesBorrowerOnly: '4000',
+    transportCombined: '5000',
+    transportBorrowerOnly: '3500',
+    otherExpenseCombined: '4000',
+    otherExpenseBorrowerOnly: '2500',
+    miscExpensesCombined: '3000',
+    miscExpensesBorrowerOnly: '2000',
+    adjustedExpensePercentCombined: '10',
+    adjustedExpensePercentBorrowerOnly: '10',
+    otherLoans: [
+      {
+        id: crypto.randomUUID(),
+        lender: 'BPI Auto Loan',
+        monthlyAmortizationCombined: '9500',
+        monthlyAmortizationBorrowerOnly: '9500',
+      },
+    ],
+    principalCombined: '2500000',
+    principalBorrowerOnly: '2500000',
+    interestRateCombined: '18',
+    interestRateBorrowerOnly: '18',
+    termCombined: '36',
+    termBorrowerOnly: '36',
+    savedAt: new Date().toISOString(),
+    decision: 'pending',
+    decisionReason: '',
+  };
+}
+
+function createSampleFinancialStatement(): FinancialStatement {
+  // 2023 → 2025 growing actuals; Interim ≈ half-year; Projected ≈ 2025 + growth.
+  const base: Record<FinancialPeriod, Partial<FinancialStatementPeriod>> = {
+    '2023': {
+      grossSales: '18500000', costOfGoodsSold: '12200000', operatingExpenses: '3600000',
+      otherIncomeExpense: '120000', interestExpense: '420000', provisionForTaxes: '480000',
+      depreciation: '350000', currentAssets: '6800000', nonCurrentAssets: '9200000',
+      currentLiabilities: '4100000', nonCurrentLiabilities: '5200000', equity: '6700000',
+    },
+    '2024': {
+      grossSales: '21300000', costOfGoodsSold: '13800000', operatingExpenses: '3950000',
+      otherIncomeExpense: '150000', interestExpense: '390000', provisionForTaxes: '640000',
+      depreciation: '380000', currentAssets: '7600000', nonCurrentAssets: '9600000',
+      currentLiabilities: '4300000', nonCurrentLiabilities: '4800000', equity: '8100000',
+    },
+    '2025': {
+      grossSales: '24800000', costOfGoodsSold: '15600000', operatingExpenses: '4300000',
+      otherIncomeExpense: '180000', interestExpense: '360000', provisionForTaxes: '850000',
+      depreciation: '410000', currentAssets: '8700000', nonCurrentAssets: '10100000',
+      currentLiabilities: '4500000', nonCurrentLiabilities: '4400000', equity: '9900000',
+    },
+    interim: {
+      grossSales: '13200000', costOfGoodsSold: '8300000', operatingExpenses: '2250000',
+      otherIncomeExpense: '95000', interestExpense: '180000', provisionForTaxes: '460000',
+      depreciation: '210000', currentAssets: '9100000', nonCurrentAssets: '10000000',
+      currentLiabilities: '4400000', nonCurrentLiabilities: '4200000', equity: '10500000',
+    },
+    projected: {
+      grossSales: '27500000', costOfGoodsSold: '17100000', operatingExpenses: '4600000',
+      otherIncomeExpense: '200000', interestExpense: '340000', provisionForTaxes: '980000',
+      depreciation: '430000', currentAssets: '9600000', nonCurrentAssets: '10400000',
+      currentLiabilities: '4600000', nonCurrentLiabilities: '4000000', equity: '11400000',
+    },
+  };
+  return FINANCIAL_PERIODS.reduce((acc, period) => {
+    acc[period] = { ...createBlankFinancialStatementPeriod(), ...base[period] };
+    return acc;
+  }, {} as FinancialStatement);
+}
+
+function createSampleBankLoans(): BankLoans {
+  return {
+    bankRows: [
+      {
+        id: crypto.randomUUID(),
+        institution: 'BDO Unibank',
+        facility: 'Term Loan',
+        approvedAmount: '8000000',
+        amountPreviousYear: '6500000',
+        amountOutstanding: '5200000',
+        balanceAsOfDate: '2025-12-31',
+        projectionAmount: '4800000',
+        security: 'Real Estate Mortgage',
+        dateGranted: '2022-03-15',
+        expiry: '2027-03-15',
+        term: '60',
+        interestRate: '9.5',
+        principalPaid: '2800000',
+      },
+      {
+        id: crypto.randomUUID(),
+        institution: 'BPI',
+        facility: 'Revolving Credit Line',
+        approvedAmount: '3000000',
+        amountPreviousYear: '2100000',
+        amountOutstanding: '1500000',
+        balanceAsOfDate: '2025-12-31',
+        projectionAmount: '1200000',
+        security: 'Chattel Mortgage',
+        dateGranted: '2023-06-01',
+        expiry: '2026-06-01',
+        term: '36',
+        interestRate: '10.25',
+        principalPaid: '1500000',
+      },
+    ],
+    pgfcRows: [
+      {
+        id: crypto.randomUUID(),
+        institution: 'PGFC',
+        facility: 'Existing Term Loan',
+        approvedAmount: '5000000',
+        amountPreviousYear: '3800000',
+        amountOutstanding: '2900000',
+        balanceAsOfDate: '2025-12-31',
+        projectionAmount: '2400000',
+        security: 'Real Estate Mortgage',
+        dateGranted: '2021-09-10',
+        expiry: '2026-09-10',
+        term: '60',
+        interestRate: '12',
+        principalPaid: '2100000',
+      },
+    ],
+    proposed: {
+      projectionAmount: '25000000',
+      interestRate: '21',
+      principalPaymentAsOfDate: '2026-01-31',
+      interestPaymentAsOfDate: '2026-01-31',
+      projectedPrincipalPaymentDec: '4200000',
+      projectedInterestDec: '3900000',
+    },
+  };
+}
+
+function createSampleFinancialHighlights(): FinancialHighlights {
+  const base: Record<FinancialPeriod, Partial<FinancialHighlightsPeriod>> = {
+    '2023': { daysInventory: '58', daysReceivable: '42', daysPayable: '35', ebitda: '3100000', totalLoans: '11700000', annualDebtService: '2400000', rating: 'BB+', adjustedRate: '18' },
+    '2024': { daysInventory: '54', daysReceivable: '39', daysPayable: '37', ebitda: '3650000', totalLoans: '10600000', annualDebtService: '2350000', rating: 'BBB-', adjustedRate: '17.5' },
+    '2025': { daysInventory: '51', daysReceivable: '37', daysPayable: '38', ebitda: '4250000', totalLoans: '9600000', annualDebtService: '2300000', rating: 'BBB', adjustedRate: '17' },
+    interim: { daysInventory: '50', daysReceivable: '36', daysPayable: '39', ebitda: '2400000', totalLoans: '9200000', annualDebtService: '1150000', rating: 'BBB', adjustedRate: '17' },
+    projected: { daysInventory: '49', daysReceivable: '35', daysPayable: '40', ebitda: '4700000', totalLoans: '9000000', annualDebtService: '2250000', rating: 'BBB', adjustedRate: '16.5' },
+  };
+  return FINANCIAL_PERIODS.reduce((acc, period) => {
+    acc[period] = { ...createBlankFinancialHighlightsPeriod(), ...base[period] };
+    return acc;
+  }, {} as FinancialHighlights);
 }
 
 function createBlankFinancialStatementPeriod(): FinancialStatementPeriod {
@@ -3095,18 +3263,29 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             dailyBalances: statement.dailyBalances.filter((balance) => balance.id !== balanceId),
           })),
         })),
-      fillBankStatementSample: () =>
+      fillFinancialEvaluationSample: () =>
         setState((prev) => ({
           ...prev,
           review: {
             ...prev.review,
-            bankStatements: [...prev.review.bankStatements, createSampleBankStatement()],
+            bankStatements: [createSampleBankStatement()],
+            cashFlowStatement: createSampleCashFlowStatement(),
+            financialStatement: createSampleFinancialStatement(),
+            bankLoans: createSampleBankLoans(),
+            financialHighlights: createSampleFinancialHighlights(),
           },
         })),
-      clearBankStatements: () =>
+      clearFinancialEvaluationSample: () =>
         setState((prev) => ({
           ...prev,
-          review: { ...prev.review, bankStatements: [] },
+          review: {
+            ...prev.review,
+            bankStatements: [],
+            cashFlowStatement: createInitialCashFlowStatement(),
+            financialStatement: createInitialFinancialStatement(),
+            bankLoans: createInitialBankLoans(),
+            financialHighlights: createInitialFinancialHighlights(),
+          },
         })),
       setFinancialStatementField: (period, field, value) =>
         setState((prev) => ({

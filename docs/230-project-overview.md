@@ -1050,13 +1050,16 @@ client-side arithmetic (`financial-summary-calcs.ts`); no XLS/PDF export. A
 **Bank Statement card**
 (officer records each bank statement — Depository Bank dropdown of PH banks,
 account name/number, month range, and inline-editable Deposit and Daily
-Balance rows — all edited in a centered modal, not a separate page; a
-**Fill with Sample Data** / **Remove Sample Data** floating-settings action
-seeds/clears one populated sample statement), a **Cash Flow Statement card**
+Balance rows — all edited in a centered modal, not a separate page), a
+**Cash Flow Statement card**
 (same Manage / View-report pattern — Manage opens the Combined/Borrower Only
-income-expense form as a modal; View opens the read-only computed results),
-and a Proceed/Disapprove decision — but no fee/report flow, unlike Credit
-Investigation and Appraisal.
+income-expense form as a modal; View opens a read-only report matching the
+legacy full line-item layout), and a Proceed/Disapprove decision — but no
+fee/report flow, unlike Credit Investigation and Appraisal. A
+**Fill with Sample Data** / **Remove Sample Data** floating-settings action
+seeds (or clears) **every** workspace on the page at once — the bank
+statement, Cash Flow Statement, Financial Statement (all 5 periods), Bank
+Loans, and Financial Highlights.
 
 **Each step only lists applications genuinely at that step, always — including the
 default view**: `ApplicationListView`'s `stepFilter` defaults to `'creditChecking'`
