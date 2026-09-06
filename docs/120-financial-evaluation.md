@@ -353,16 +353,20 @@ inputs, `StatusBadge` pills for totals, `TONE_COLORS`).
 - `CashFlowStatementModal` — the full data-entry form
   (`<Dialog maxWidth="lg" scroll="paper">`). Its `DialogActions` carry a
   **Save Record** button (stamps `savedAt`) and a **Done** close.
-- `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` matching
-  the legacy report layout: a Borrower's Name / Amount of Loan / Computation
-  Type meta block, a **"PERSONAL INCOME & EXPENSES"** banner, then the full
-  line-item table (every Source-of-Income and Less-Expenses input row plus
-  Sub-total, Add: Adjusted Expense (with the entered %s), Total Expenses,
-  Income Available for Debt Service, each Other Loan, Total of Other Loans,
-  PGFC Loan – Principal & Interest (proposed monthly amortization annualised),
-  Total Loans, Net Income, Debt Service Ratio, Percentage of Net Income Over
-  Gross) for both Combined / Borrower Only columns, with a "Prepared by
-  {timestamp}" / "Noted by" footer. Zero values render as `—`.
+- `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` carrying
+  the legacy report content but styled to this app's report convention
+  (the same tokens the Financial Statement / Bank Loan reports use — a
+  `#F9FAFC` bordered meta fact-block, a `#EEF1FE` table head, light
+  `#F1F3F8` uppercase section-header rows for **Source of Income** /
+  **Less Expenses** / **Other Loans**, `#FAFBFD` zebra striping — *not* a
+  solid navy banner). The full line-item table covers every
+  Source-of-Income and Less-Expenses input row plus Sub-total, Add: Adjusted
+  Expense (with the entered %s), Total Expenses, Income Available for Debt
+  Service, each Other Loan, Total of Other Loans, PGFC Loan – Principal &
+  Interest (proposed monthly amortization annualised), Total Loans, Net
+  Income, Debt Service Ratio, and Percentage of Net Income Over Gross for
+  both Combined / Borrower Only columns, with a "Prepared by {timestamp}" /
+  "Noted by" footer. Zero and computed-blank values render as `—`.
 
 **State** — `review.cashFlowStatement: CashFlowStatement` (`admin-context.tsx`),
 a new top-level `ApplicationReview` slot alongside `creditInvestigation`/
