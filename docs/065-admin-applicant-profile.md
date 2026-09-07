@@ -167,7 +167,7 @@ when present. `BusinessDocumentPreview` is a separate component (not just
 be a PDF — it renders via `FileThumbnail` (which already handles
 image-vs-non-image), where `DocumentPreview` assumes a plain `<img>`.
 
-## Fabricated claims — what's real vs. simulated
+## Fabricated Claims — Real vs. Simulated
 
 Consistent with the rest of this prototype (see `docs/230-project-overview.md`'s "No
 real backend" note):

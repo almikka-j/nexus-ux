@@ -123,7 +123,27 @@ then populates a subset of `CiReport` — see `docs/100-credit-investigation.md`
 "CI Report" section for exactly which fields. Clearing resets those same
 fields back to blank plus `ciFeeStatus: 'not-requested'`.
 
-## Non-goals
+## Decision Gate
+
+`ciFeeStatus` is the gate on the CI Report card: it stays a dashed
+placeholder until `ciFeeStatus` is `'approved'` or `'not-applicable'`.
+"Send Request" (Yes) → `'pending-approval'`; (No) → `'not-applicable'`.
+Approve/decline is done by a simulated second officer (page action) or on
+the dedicated `/admin/ci-fee-approval` screen. Decline resets to
+`'not-requested'` + records `ciFeeDeclineReason`, so the card can
+re-request with corrected terms.
+
+## Fabricated Claims — Real vs. Simulated
+
+- **No separate approver role/login** — approve/decline is a simulated
+  page action by the same officer, or a second screen sharing the same
+  `review.creditInvestigation` fields.
+- **Fill with Sample Data** keys off the literal `transcriptFileName`
+  value `'sample-transcript.pdf'` (which only `handleFillSampleData`
+  writes), not real progress.
+- All state lives in `review.creditInvestigation` in `localStorage`.
+
+## Non-Goals / Open Items
 
 - **No separate CI Fee approver persona/login** — approval is a second
   simulated action for the same officer (or a second dedicated screen —

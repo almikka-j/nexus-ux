@@ -976,7 +976,38 @@ the full report is meant to read as the complete, unabridged document
 the summary is a separate "everything important, nothing to expand" view
 layered on top of it, not a replacement for any of its content.
 
-## Non-goals / Open items
+## Decision Gate
+
+This workspace has no proceed/reject decision of its own — it feeds the
+Officer's Appraisal page (`docs/110-appraisal.md`), which owns the
+Pass/Fail terminal decision. The gating that does happen here:
+
+- **Appraisal Fee approval** — a report form stays locked until
+  `feeApprovalStatus === 'approved'` (`feeEditable`). Decline sets a
+  visible `'declined'` status + `feeDeclineReason` without wiping fee
+  fields.
+- **Report submission locks the form** — once `bundle.report.uploadedAt`
+  is set there is no revise/undo; only a Head decline reopens it.
+- Approve/decline is simulated via page actions (no real approver role);
+  the fuller path is `/admin/appraisal-fee-approval`.
+
+## Fabricated Claims — Real vs. Simulated
+
+- **No Appraiser login or role gate** — `AdminUser` has no role field;
+  "My Assignments" is framing, not access control.
+- **Fee approve/decline is a simulated page action** — no second-officer
+  login.
+- **Sendit / Odoo** — the payment link and the "sent to Odoo" request on
+  Advise Client are simulated button clicks, no real integration;
+  `clientNotifiedAt` / `sentToOdooAt` are just timestamps.
+- **No photo capture or lot-plotting** for in-house reports — flagged on
+  the form as future work.
+- **`AppraisalReport` is a form, not a parsed PDF** — its fields mirror
+  the "Appraisal Report (REM)" PDF layout but nothing is extracted from
+  any upload.
+- All state lives in `review.appraisal` in `localStorage`.
+
+## Non-Goals / Open Items
 
 - **Simulated Sendit/Odoo integrations** — the payment link and the
   request sent to Odoo when advising the client to settle the fee are both

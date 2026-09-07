@@ -1,11 +1,14 @@
 # Admin — Initial Credit Checking
 
 > **Maintenance rule:** update this file whenever `initial-credit-checking-view.tsx`
-> or its supporting cards (`application-details-card.tsx`, `bureau-reports-card.tsx`,
-> `bureau-results-tables.tsx`, `negative-credit-report-card.tsx`,
+> or its supporting files change — `application-details-card.tsx`,
+> `bureau-reports-card.tsx`, `bureau-results-tables.tsx`,
 > `initial-credit-checking-risk.ts`, `simulate-bureau-finding.ts`,
-> `officer-notes-history.tsx`) change — new fields, new cards, changed gating,
-> changed decision behavior. Companion to `docs/230-project-overview.md` (system-wide) and
+> `officer-notes-history.tsx`, `negative-credit-report-card.tsx` (no longer
+> rendered here, but its behavior is summarized in the result modal), and
+> `call-report/credit-checking-result-modal.tsx` (the "View Initial Credit
+> Checking Result" modal, whose Bureau Reports Result section this page
+> drives). Companion to `docs/230-project-overview.md` (system-wide) and
 > `docs/020-borrower-application.md` (where the data this screen reads comes from).
 
 ## What this is
@@ -382,7 +385,7 @@ uploaded.
 Data button. The decision buttons and the "View Initial Credit Checking
 Result" button have all since been unblocked — see "AI review card" above.
 
-## Fabricated claims — what's real vs. simulated
+## Fabricated Claims — Real vs. Simulated
 
 Consistent with the rest of this prototype (see `docs/230-project-overview.md`'s "No
 real backend" note and `docs/020-borrower-application.md`'s "Fabricated 'we did
@@ -403,3 +406,29 @@ This is intentional prototype behavior, not a gap to close as part of routine
 maintenance on this screen — flag it explicitly if a future change makes any
 of this look more "real" than it is (e.g. adding a fake loading spinner
 implying bureau API latency).
+
+## Non-Goals / Open Items
+
+- **No real bureau integration** — CIBI's "API integration available" copy
+  is prototype framing; there is no external call.
+- **No real OCR/parsing** of uploaded bureau report files.
+- **CIC / CIBI / LOANDEX are not modeled as a source of the negative
+  finding** — only NFIS and CMAP have reason pools (see "Simulated bureau
+  finding"). The source policy table's SME/Clean/Housing account-type
+  restriction on CIC/LOANDEX is not modeled — this app has no account-type
+  field.
+- **`NegativeCreditReportCard` is no longer rendered on this page** — a
+  negative finding is summarized inside `CreditCheckingResultModal`
+  instead; the card file is retained for its behavior notes only.
+
+## History
+
+### 2026-09
+
+- **Bureau Reports: multiple files per bureau.** Each bureau (CIBI plus
+  LOANDEX / CIC / CMAP / NFIS-BAP / PGFC Existing Exposure) now holds a
+  `BureauReportFile[]` array instead of one file; each file carries its own
+  seeded 2–3 sample result rows and its own collapsible results table.
+  New `add/replace/removeBureauReportFile` setters; `bureauResultRows` is a
+  derived flatten across files. The result modal renders one block per
+  file. "Fill with Sample Data" seeds CMAP with two files.

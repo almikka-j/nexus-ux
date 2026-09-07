@@ -69,7 +69,7 @@ A single white card:
   months`), and **Application Status** (always "Under Review," the same
   hardcoded value as the header chip).
 
-## Non-goals
+## Non-Goals / Open Items
 
 - **No real status tracking** — "Under Review" is a permanent, hardcoded
   label; nothing on this page reflects the application's actual pipeline

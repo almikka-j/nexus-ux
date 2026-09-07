@@ -103,7 +103,26 @@ search:
   yet," "Applicants not approved on reconsideration will be listed
   here."
 
-## Non-goals
+## Decision Gate
+
+Reconsideration's **"Approved?"** card is the gate — ungated by any
+completeness check:
+
+- **Approve** → routes to Call Report (`paths.admin.callReport`); the
+  application re-enters the main pipeline at Call Report, not at Initial
+  Credit Checking.
+- **No — Notify Client** → `addToNegativeList(...)` + a one-way terminal
+  "Client Notified" screen. There is no path back from there.
+
+## Fabricated Claims — Real vs. Simulated
+
+- **No backend** — both screens read/write the same `localStorage`
+  `AdminContext`.
+- **"Client has been notified" is a label only** — no email/SMS is sent.
+- **`negativeList` is durable** — deliberately excluded from
+  `resetReview()` so it behaves like a real historical record.
+
+## Non-Goals / Open Items
 
 - **No re-entry point from Negative List back into the pipeline** — once
   an applicant lands here, this screen offers no action (no "reconsider

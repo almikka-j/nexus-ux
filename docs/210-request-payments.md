@@ -230,11 +230,30 @@ export function createEmptyPaymentDetails(): PaymentDetails;
   reapproved request needs a fresh payment record, not one carried over
   from a request that was declined.
 
-## Non-goals
+## Decision Gate
 
-- No real payment gateway or accounting-system integration —
-  everything is a locally-stored simulated record, same as every other
-  "request" flow in this prototype.
+No approve/decline here — the fee is already approved by the time it
+reaches Payment. The only action is **"Mark as Paid"** (gated on Payment
+Method, Deposited To, OR No., OR Date, and the attachment — Remarks
+optional), which calls `setCiFeePayment` / `setAppraisalFeePayment` then
+`markCiFeeAsPaid()` / `markAppraisalFeeAsPaid()` in one click. Once paid,
+every field is read-only with no revise/undo, matching every other
+terminal action in this app.
+
+## Fabricated Claims — Real vs. Simulated
+
+- **No real payment gateway or accounting-system integration** —
+  everything is a locally-stored simulated record.
+- **Deposited To** is a fixed sample roster (`DEPOSITED_TO_ROSTER`), no
+  real bank/accounting link.
+- **`kind` (`'ci-fee' | 'appraisal-fee'`) is a real discriminator**, but
+  there is still no per-request ID (at most one row of each kind per
+  session).
+- All state lives in `ciFeePayment` / `feePayment` in `AdminContext`
+  (`localStorage`).
+
+## Non-Goals / Open Items
+
 - No partial payments / installments — a request is either unpaid or
   paid in full, one action.
 - Does not touch `Appraisal.paymentReceivedAt` (the client-paid-the-
@@ -243,15 +262,9 @@ export function createEmptyPaymentDetails(): PaymentDetails;
 - Does not add a "Payment" step to the main application pipeline
   (`ReviewStep`) — like the other four "Request" screens, this is a
   role/queue screen, not a pipeline step.
-
-## Known pre-existing issue (not introduced by this feature)
-
-`credit-investigation-view.tsx`'s `useRegisterPageActions` array
-registers **two** entries with the same `key: 'sample-data'` (one before
-and one after the CI Fee approve/decline simulate actions) — both render
-"Fill with Sample Data" / "Remove Sample Data" in the gear-icon Settings
-popover, and React logs a duplicate-key warning. This was already present
-before this feature and reproduces regardless of it; flagged here since
-this feature's own verification surfaced it, but it hasn't been fixed as
-part of this change (out of scope — see `docs/100-credit-investigation.md`
-for that page's own maintenance).
+- **Known pre-existing issue (not introduced by this feature):**
+  `credit-investigation-view.tsx`'s `useRegisterPageActions` array
+  registers **two** entries with the same `key: 'sample-data'`, so React
+  logs a duplicate-key warning. Pre-dates this feature and is out of
+  scope for it — see `docs/100-credit-investigation.md` for that page's
+  own maintenance.

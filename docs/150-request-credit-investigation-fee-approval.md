@@ -159,3 +159,21 @@ Two `AdminContext` fields this page writes are consumed by the Payment page
 Declining also resets `ciFeeApprovedAt` and `ciFeePayment` — a
 declined-then-resubmitted-then-reapproved request needs a fresh payment
 record, not one carried over from a request that was declined.
+
+## Decision Gate
+
+This screen is one of the two ways `ciFeeStatus` moves from
+`'pending-approval'` to `'approved'` (or back to `'not-requested'` on
+Decline). Approval unlocks the CI Report card on the Credit Investigation
+page and stamps `ciFeeApprovedAt` for the Payment page. There is no
+completeness gate — CI Fee is a flat amount/description.
+
+## Fabricated Claims — Real vs. Simulated
+
+- **No real approver login** — `AdminUser` has no role field; the
+  "CI HEAD" framing and first-person copy are UI convention only.
+- **Always one actionable request** — the list page's auto-seed effect
+  re-arms a `'pending-approval'` request whenever the status drifts off
+  it (excluding `'approved'`, which must stick).
+- **No request ID** — the detail route uses a fixed `/current` segment.
+- All state lives in `review.creditInvestigation` in `localStorage`.

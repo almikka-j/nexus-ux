@@ -446,7 +446,9 @@ other upload in this app. Informational — does not gate the Endorse
 decision. The whole-page **Fill with Sample Data** action does **not**
 touch this card.
 
-## Decision: Proceed → Credit Scoring, Disapprove → Reconsideration
+## Decision Gate
+
+**Proceed → Credit Scoring, Disapprove → Reconsideration.**
 
 Same shape as Credit Investigation's Proceed/Disapprove card
 (`docs/100-credit-investigation.md`'s "Proceed / Disapprove decision"),
@@ -465,6 +467,46 @@ gate on:
   `decision: 'rejected'` + `decisionReason` and routes to
   `paths.admin.reconsideration(id)` — same destination every other
   disapprove path in this pipeline uses.
+
+Neither button is blocked by the Document Checklist, the AI review, the
+Financial Summary sub-tools, the Bank Statement card, the Cash Flow
+Statement, or the Additional Financial Files card — those are all
+supporting evidence, **informational only**, and never gate the decision.
+The only condition is a typed reason for Disapprove.
+
+## Fabricated Claims — Real vs. Simulated
+
+Consistent with the rest of this prototype (`docs/230-project-overview.md`'s
+"no real backend" note):
+
+- **Document Checklist** — a read-only mirror of `RequirementDoc` state
+  collected on Requirement Checklist; this page never writes it.
+- **AI review** — `buildCreditInvestigationSummary()` is a template-string
+  computation over the checklist's own completeness, not a model inference.
+  Because this page is read-only, the level can only ever be `'good'` or
+  `'watch'`, never `'high'`.
+- **Bank Statement / Additional Financial Files uploads** — store the
+  filename + a **data URL only**. No file is ever parsed, OCR'd, or verified
+  against anything.
+- **Financial Summary sub-tools** — every report figure (income statement,
+  balance sheet, ~15 ratios, growth, % of sales, DSCR, the Highlights table)
+  is **pure client-side arithmetic** in `financial-summary-calcs.ts`,
+  recomputed on render; nothing derived is stored. There is no XLS/PDF
+  export (the legacy reports' export buttons are not reproduced).
+- **Documented approximations** (this build has no source field for them;
+  the legacy screens also show `0`): Quick Ratio = Current Ratio; Days'
+  Receivable / Inventory / Payable = `0`; the DSCR engine uses an
+  interest-only debt-service proxy with a percentage-scaled numerator.
+  Depreciation and EBITDA **are** real — Depreciation is an entered Income
+  Statement field.
+- **Cash Flow Statement** — all figures are officer-typed; the results
+  (Total Income, Total Expenses, Monthly Amortization, Net Income, Debt
+  Service Ratio) are pure functions in `cash-flow-statement.ts`. `savedAt`
+  is stamped by "Save Record" but every field already persists on keystroke.
+- **"Fill with Sample Data"** — writes deterministic sample values directly
+  into state; it does not simulate any workflow or backend call.
+- All of the above is **local state persisted to `localStorage` only** — no
+  backend, no API.
 
 ## Document metadata: `financial-evaluation-docs.ts`
 
@@ -486,23 +528,40 @@ it directly rather than filtering `REQUIREMENT_DOC_META` by tab.
   scaffolded ahead of its workspace, the same pattern Credit Investigation
   went through.
 
-## Non-goals / Open items
+## Non-Goals / Open Items
 
 - **No fee/report flow** — Financial Evaluation has no fee concept of its
   own in this build. If it later needs one, that's a follow-up build
   mirroring Credit Investigation's CI Fee/CI Report sections.
 - **Credit Scoring is a "coming soon" stub** — Endorsing here doesn't yet
   land on a real workspace, same as Appraisal's Passed branch.
-- **No real file parsing, real AI/LLM** — same as every other admin
-  screen in this app.
 - **Bank Statement data doesn't feed the Cash Flow Statement** — the two
   cards are independent for now. Rolling entered deposits/balances into the
   Cash Flow computation is a possible follow-up.
-- **Financial Summary reports are on-screen only** — the three sub-tools'
-  forms and report views are fully built, but the legacy XLS/PDF export
-  buttons are not reproduced (no real backend). A few legacy ratios (Quick
-  Ratio, Days' Receivable/Inventory/Payable, and the DSCR engine) are
-  approximated because this build lacks the source fields — documented
-  inline on the reports and in the Financial Summary section above.
-  Depreciation / EBITDA are real (Depreciation is an entered Income
-  Statement field).
+- **Financial Summary reports are on-screen only** — no XLS/PDF export, and
+  the Quick Ratio / Days' ratios / DSCR approximations noted under
+  "Fabricated Claims" would need real source fields (inventory / receivable
+  / payable balances, a principal-due figure, a documented DSCR formula) to
+  become exact.
+
+## History
+
+### 2026-09-07
+
+- Added the **Bank Statement card** — multi-statement entry in a centered
+  modal (Depository Bank dropdown of PH banks, account name/number, month
+  range, inline-editable Deposit and Daily Balance rows).
+- Added the **Financial Summary card** and its three sub-tools end-to-end
+  (Financial Statement, Bank Loans, Financial Highlights) — a Manage
+  data-entry modal + a View on-screen report each. Later removed the card's
+  per-row status pill and Remarks (the card holds no state of its own).
+- Reworked the **Cash Flow Statement** card to the same Manage / View-report
+  pattern (`CashFlowStatementModal` + `CashFlowStatementReport`).
+- Added a real `depreciation` field to the Financial Statement so EBITDA and
+  the Bank Loan report's Depreciation row are computed, not approximated.
+- Added the **Additional Financial Files card** (free-form supporting-doc
+  uploads beyond the checklist) and reordered the page cards to Financial
+  Summary → Cash Flow Statement → Bank Statement → Additional Financial
+  Files.
+- Extended the **Fill with Sample Data** page action to seed every workspace
+  on the page at once.

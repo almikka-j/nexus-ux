@@ -1,9 +1,20 @@
 # Borrower Sign-Up & Application Flow
 
-This describes the complete borrower-facing journey, from landing on the
-Preliminary Application page to having a submitted loan application.
-Companion to `docs/230-project-overview.md` (the admin/review-flow side); update both
-when this flow changes.
+> **Maintenance rule:** update this file whenever the borrower-facing
+> journey changes — `src/auth/registration-context.tsx` (state shape,
+> setters, `assignMockOfficer`, `markSubmitted`), the step views
+> (`src/sections/auth/preliminary-application-view.tsx`,
+> `verify-view.tsx`, `onboarding/onboarding-view.tsx` and its
+> `onboarding/step-*.tsx`, `thank-you-view.tsx`), the second-application
+> wizard (`src/sections/borrower/loan-application-view.tsx`), or the
+> `/auth/*` and `/borrower/*` route definitions. Companion to
+> `docs/230-project-overview.md` (the admin/review side) — update both
+> when the hand-off changes.
+
+## What This Is
+
+The complete borrower-facing journey, from landing on the Preliminary
+Application page to having a submitted loan application.
 
 All state lives in `RegistrationContext` (`src/auth/registration-context.tsx`),
 persisted to `localStorage` under the key `hhc-lms-registration`. There is no
@@ -565,3 +576,72 @@ wizard), not earlier.
    Loan" label, "Under Review", amount/term); can reset or file another
    application via `/borrower/apply` (still the old, unrestructured 4-step
    flow).
+
+## Decision Gate
+
+The only borrower-side gate is the **₱150,000 minimum** on the
+Preliminary Application. Desired Loan Amount `< 150000` →
+`preliminaryStatus = 'declined'`, an in-place soft-decline screen, no
+account created ("Try Again" returns with values retained). `>= 150000` →
+`preliminaryStatus = 'qualified'` and the account is created at OTP
+verification. Everything after that (OTP, ID upload, selfie) is a
+completion step, not a pass/fail gate — the borrower cannot be rejected
+again until the application reaches the admin review pipeline
+(`docs/070` onward).
+
+## Fabricated Claims — Real vs. Simulated
+
+- **No backend** — every "submission" is a write to the single
+  `hhc-lms-registration` `localStorage` object.
+- **OTP is fixed** — `123456` always verifies; the 2.6s "Verified
+  successfully!" is an animation.
+- **Account creation / temporary password** — the account is
+  auto-activated at OTP; a temporary password is *described* as emailed,
+  never generated or shown.
+- **No OCR** — ID upload does not read the document; the simulated
+  "reading" delay was removed. Remaining fields auto-fill with fixed
+  placeholder values the borrower then edits.
+- **Selfie liveness + ID match are cosmetic** — `StepSelfieVerification`
+  is a fixed-timer state machine (`getUserMedia` is real; the 1800ms
+  "Matching your face to your ID…" and the pass result are not). No
+  computer-vision comparison exists anywhere in the codebase.
+- **Assigned officer** — `assignMockOfficer` is a deterministic hash of
+  the applicant email into one of 4 fixed names (despite a "round-robin"
+  code comment), stamped once at `markSubmitted()`.
+- **Confirmation page data is real-derived** — reference number, dates,
+  status, email, mobile all come from the stored object.
+
+## Non-Goals / Open Items
+
+- **`/borrower/apply` (second application) was left out of both the
+  2026-07-15 and 2026-07-16 restructurings on purpose** — it is still the
+  old 4-step `StepLoanType → StepFinancialInfo → StepPersonalInfo →
+  StepSelfieVerification` wizard, with no Preliminary screening, no
+  multi-select Purpose of Loan, no Business Type fields, and no
+  re-verification step. Bringing it in line is a known, unrequested
+  follow-up.
+- **Loan Type** (`StepLoanType`, Personal vs. Business) was removed from
+  the primary flow; `application.loanType` stays `null` for new sign-ups.
+  The `LoanType` type and `setLoanType` setter are kept for type stability
+  and because `/borrower/apply` still uses them.
+- No real KYC, credit-bureau, or identity-verification integration.
+
+## History
+
+### 2026-07-16
+
+- **Reframed as a Loan Application experience, not account registration.**
+  One Preliminary Application screen screens eligibility (₱150,000 min)
+  *before* any account exists and requires a Terms & Conditions / Privacy
+  Policy consent checkbox. OTP verification auto-creates/activates the
+  account — no manual password step at all. Added an auto-advancing
+  Welcome step before Upload ID.
+- **Removed the simulated OCR "reading" delay** on ID upload — every
+  personal-details field shows at once as a plain editable form.
+- **Selfie Verification allows submission immediately** after the
+  simulated match succeeds.
+
+### 2026-07-15
+
+- Earlier restructuring of the sign-up funnel (superseded in most part by
+  2026-07-16); `/borrower/apply` deliberately untouched by it.

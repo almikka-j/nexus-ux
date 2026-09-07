@@ -150,3 +150,47 @@ second signature row once approved — **Approved By** /
 `callReportApprovedAt`, below the existing Account Officer row. See
 `docs/080-account-solicitation-call-report.md`'s "Account Officer
 Endorsement Declaration" section.
+
+## Decision Gate
+
+This screen **is** the gate: it is the only path that turns a
+`'pending-approval'` Call Report into `'approved'`. **Approve** (single
+click) advances `callReportApprovalStatus` and lets the officer continue
+to Requirement Checklist. **Decline** resets it to `'not-submitted'` and
+routes the application to Reconsideration. There is no inline shortcut on
+the Call Report page.
+
+## Fabricated Claims — Real vs. Simulated
+
+- **No real second-officer login** — `AdminUser` has no role field;
+  nothing mechanically restricts who opens this workspace. The
+  "CALL REPORT APPROVER" framing is UI convention only.
+- **Approver identity is a fixed dummy** — Approve stamps
+  `callReportApprovedBy: 'Jaime Reyes'` unconditionally, no name input.
+- **The seeded submission is generated, not received** — the list
+  page's auto-seed effect calls `buildSampleCallReportFields()` and
+  stamps `'pending-approval'` so there is always one actionable request;
+  `'approved'` is deliberately excluded so a real decision sticks.
+- **No request ID** — the detail route uses a fixed `/current`
+  placeholder; there is no multi-application backend.
+- All state is `review.callReport` in `localStorage`.
+
+## Non-Goals / Open Items
+
+- No queue of multiple pending Call Reports — one live application, one row.
+- Decline does not re-seed a fresh pending request in place (unlike CI
+  Fee Approval); a new request only appears when a new application
+  reaches Call Report and submits.
+
+## History
+
+### 2026-09
+
+- **Feature added.** Call Report's "Proceed to Requirement Checklist"
+  became "Submit for Approval"; this dedicated two-screen approval flow
+  is now the only way a submitted Call Report is approved.
+- **Nav label** "Call Report - Approval" → "Call Report - Report Approval".
+- **Detail page shows the result inline** via `CallReportResultContent`
+  (no "View" button); Approve uses a fixed dummy approver name with no
+  name-input dialog, and pre-existing approved reports fall back to a
+  dummy approver label.

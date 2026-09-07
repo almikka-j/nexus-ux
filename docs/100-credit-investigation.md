@@ -321,7 +321,7 @@ convenience, not a lock: every field stays editable before and after
 upload, and re-uploading a new transcript re-runs auto-fill and overwrites
 the fields it covers.
 
-## Proceed application?
+## Decision Gate — Proceed application?
 
 Two actions, both requiring no document/report completeness gate (matching
 this app's generally permissive decision-gate style elsewhere):
@@ -349,7 +349,18 @@ gains a **"Continue to Credit Investigation"** button (above the existing
 "Back to Application List") linking to this page — the "Returned to
 applicant" success screen is unaffected.
 
-## Non-goals / Open items
+## Fabricated Claims — Real vs. Simulated
+
+- **AI Summary / Recommendation** — deterministic template text, no LLM.
+- **Transcript upload → auto-fill** — the uploaded file is not parsed;
+  auto-fill writes fixed derived values shaped to look extracted.
+- **CI Fee approval** — a second simulated click by the same officer, no
+  separate approver login.
+- **Document Checklist outreach** (email / WhatsApp / Viber) — simulated,
+  no real delivery.
+- All state lives in `review.creditInvestigation` in `localStorage`.
+
+## Non-Goals / Open Items
 
 - **Exact post-decision routing for Disapprove is a placeholder**
   (Disapprove → Reconsideration), chosen for a functionally complete first
@@ -363,3 +374,18 @@ applicant" success screen is unaffected.
   simulated-only convention as every other `RequestDocumentsDrawer` instance.
 - **No separate CI Fee approver persona/login** — approval is a second
   simulated action for the same officer, not a distinct workflow role.
+
+## History
+
+### Earlier
+
+- **Queue row gating reverted.** The live row was briefly gated behind
+  `review.requirementChecklist.endorsed`; reverted to the standard
+  "always actionable on every step" convention. Requirement Checklist's
+  endorsed success screen gained a "Continue to Credit Investigation"
+  button instead.
+- **Document-based sample-data fill/clear removed** in favour of the
+  current form-field model; some field sizing was tightened from an
+  earlier oversized layout.
+- **Proceed routing** moved from a placeholder to the real Appraisal
+  page; Disapprove → Reconsideration is still placeholder routing.

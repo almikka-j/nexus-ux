@@ -37,7 +37,7 @@ an aggregate across a real applicant base.
    the right linking to `paths.admin.accountSolicitation`
    (`/admin/account-solicitation`).
 
-## Non-goals
+## Non-Goals / Open Items
 
 - No real aggregate stats across multiple applications — every number on
   this page is a `0`/`1` derived from the single live session, or a

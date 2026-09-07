@@ -42,7 +42,9 @@ existing localStorage behavior.
    (`CreditCheckingResultModal`), and **View all officer notes**
    (`officerNotesProcess="Call Report"`).
 3. The 8 section cards, in fixed order (see below).
-4. **View Call Report Result** button, opening `CallReportResultModal`.
+4. **View Call Report Result** button, opening `CallReportResultModal`
+   (the `<Dialog>` wrapper around `CallReportResultContent` — see
+   "Read-only mirrors elsewhere").
 5. **Proceed application?** decision card.
 6. `CreditCheckingResultModal` and `CallReportResultModal`, both mounted
    outside the card stack.
@@ -307,6 +309,61 @@ Checking, or Requirement Checklist state.
 `call-report-computations.ts` (the old 12-section field model and its DTI/
 disposable-income computation helpers — none of the new 8 sections use those
 computations).
+
+## Decision Gate
+
+The page's terminal action is **Submit for Approval** (gated by
+`canProceed` — Interaction Type, Identity Status, Call Disposition), which
+moves the report to `'pending-approval'` and hands control to the separate
+**Call Report - Approval** screen (`docs/160-request-call-report-approval.md`).
+The application cannot advance to Requirement Checklist until a second
+officer approves it there. **Sales Reject** is available at any status and
+routes to Reconsideration instead. No section card gates the decision on
+its own.
+
+## Fabricated Claims — Real vs. Simulated
+
+- **AI Summary / Exceptions / Recommendation / variance** are pure
+  client-side arithmetic and string templating in `call-report-summary.ts`
+  / `call-report-risk.ts` / the variance helpers — no model call, computed
+  on demand via **Refresh AI Review**.
+- **No document generation** — there is no NEXUS KYC Call Report PDF; the
+  "result" is `CallReportResultContent` rendering the stored `CallReport`
+  fields in the source PDF's section layout.
+- **Approval is simulated** — see `docs/160`; a fixed dummy approver name
+  is stamped, there is no real second-officer login.
+- **Sample data is internally consistent, not parsed** —
+  `buildSampleCallReportFields()` returns a hand-authored complete
+  submission; "Fill with Sample Data" does not read any external source.
+- All answers persist only in `localStorage` via `AdminContext.review.callReport`.
+
+## Non-Goals / Open Items
+
+- No real KYC / watchlist / AML screening — the AML-KYC card records the
+  officer's manual answers only.
+- No real backend for submit/approve — the two-officer handoff is two
+  screens sharing the same `localStorage` state.
+- Legacy `officer-notes-card.tsx` remains in the tree unmounted.
+
+## History
+
+### 2026-09
+
+- **12-section field model → 8-section NEXUS KYC layout.** The old card
+  set and `call-report-computations.ts` (DTI / disposable-income helpers)
+  were deleted; the 8 new section cards match the source PDF's numbering.
+- **"Proceed to Requirement Checklist" → "Submit for Approval".** Clicking
+  no longer routes forward; it sets `'pending-approval'` and the officer
+  waits on the dedicated Call Report - Approval screen. Sample-fill
+  satisfies `canProceed` but leaves `callReportApprovalStatus:
+  'not-submitted'`.
+- **Result modal split.** `call-report-result-modal.tsx` now exports
+  `CallReportResultContent` (body) + `CallReportResultModal` (dialog
+  wrapper); the Requirement Checklist detail page renders the content
+  inline.
+- **Shared sample/decline modules.** `sample-call-report.ts` and
+  `call-report-decline.ts` are reused verbatim by the Call Report Approval
+  screen so both call sites seed and reject identically.
 
 ## Verification checklist
 

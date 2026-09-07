@@ -12,9 +12,10 @@ with two portals:
 - **Borrower portal** — public marketing site + sign-up/onboarding/loan-application
   flow + borrower dashboard.
 - **Admin portal** — internal login + dashboard + application review workflow
-  (initial credit checking → call report → transaction type → requirement
-  checklist, with reconsideration as a rejection branch off initial credit
-  checking rather than a forward step — see Admin flow below).
+  (initial credit checking → call report → requirement checklist → credit
+  investigation → appraisal → financial evaluation → credit scoring stub,
+  with reconsideration as a rejection branch off initial credit checking
+  rather than a forward step — see Admin flow below).
 
 There is **no real backend**. All "data" lives in the browser's `localStorage` via
 React Context, and all authentication is mocked against hardcoded demo accounts. This
@@ -125,43 +126,87 @@ see below).
 ### Admin: `src/auth/admin-context.tsx`
 localStorage key: `hhc-lms-admin-session`
 
-```ts
-AdminUser            { email, firstName, lastName }
-CreditChecking        { documentUploaded, documentName, decision, bureauFindingStatus,
-                        bureauFindingBureau, bureauFindingReason, notes, decisionReason }
-                        — aiSummary/aiRecommendation are NOT stored; computed at render
-                        time in initial-credit-checking-view.tsx from the uploaded bureau
-                        reports + application details (see
-                        docs/070-account-solicitation-initial-credit-checking.md). bureauFindingStatus
-                        ('pending'|'clean'|'negative') is the simulated AI bureau-review
-                        outcome; bureauFindingBureau ('NFIS'|'CMAP'|null) and
-                        bureauFindingReason (string|null) name the specific policy
-                        reason a negative finding was drawn from — see "Negative Credit
-                        Report" below.
-NegativeCreditReport  { thru, negativeRecordText, accountFindings, cancelledCreditCards,
-                        adverseClassifiedLoans, closedCurrentAccounts, recommendationRemarks,
-                        submitted } — see "Negative Credit Report" below. The four list
-                        fields are NegativeReportEntry[] ({ id, label, findings }).
-Reconsideration       { notes, decision }
-CallReport            { approved, decisionReason, ...~65 structured fields across the
-                        8-section NEXUS KYC structure — see "Call Report" below }
-RequirementChecklist  { documents, appraisalGroups, collateralNotes, endorsed,
-                        returnedToApplicant, returnReason } — documents is
-                        RequirementDoc[] (fixed 19-document list across Credit
-                        Investigation/Financial Evaluation, not a flat checklist
-                        of checked/unchecked items); appraisalGroups is
-                        AppraisalTctGroup[], one officer-added entry per pledged
-                        property, each with its own 8-document set. See
-                        docs/090-account-solicitation-requirement-checklist.md.
+`AdminState` = `{ adminUser: AdminUser | null, review: ApplicationReview,
+negativeList: NegativeListEntry[] }`.
 
-ApplicationReview { creditChecking, reconsideration, negativeCreditReport, callReport, requirementChecklist, creditInvestigation }
+```ts
+AdminUser  { email, firstName, lastName }
+
+ApplicationReview {
+  creditChecking            CreditChecking   — Initial Credit Checking decision + simulated bureau finding
+  cibiForm                  CibiForm         — the CIBI intake form + its returned report file(s)
+  loandexFiles              BureauReportFile[]   ─┐ one array per bureau; each file carries its own
+  cicFiles                  BureauReportFile[]    │ seeded sample result rows
+  cmapFiles                 BureauReportFile[]    │ (BureauReportFile = { id, fileName, fileData,
+  nfisBapFiles              BureauReportFile[]    │  uploadedAt, rows }). See docs/070.
+  pgfcExposureFiles         BureauReportFile[]   ─┘
+  reconsideration           Reconsideration  { notes, decision }
+  negativeCreditReport      NegativeCreditReport  — manual report shown when the bureau finding is 'negative'
+  callReport                CallReport       — ~65 fields across the 8-section NEXUS KYC structure + approval status
+  requirementChecklist      RequirementChecklist  { documents: RequirementDoc[] (fixed 19-doc list),
+                                                    appraisalGroups: AppraisalTctGroup[], collateralNotes,
+                                                    endorsed, returnedToApplicant, returnReason }
+  creditInvestigation       CreditInvestigation   — CI documents, CI Fee status/payment, CI Report
+  appraisal                 Appraisal        — fee-approval status, report bundles, Head-approval status, Pass/Fail
+  cashFlowStatement         CashFlowStatement     — Combined/Borrower-Only income-expense form + savedAt + decision
+  bankStatements            BankStatement[]  { id, depositoryBank, accountName, accountNumber, monthFrom,
+                                              monthTo, deposits[], dailyBalances[] }. See docs/120.
+  financialStatement        FinancialStatement    — Record<FinancialPeriod, {…13 numeric-string fields}> across
+                                                    2023 / 2024 / 2025 / interim / projected. See docs/120.
+  bankLoans                 BankLoans        { bankRows: BankLoanRow[], pgfcRows: BankLoanRow[], proposed }
+  financialHighlights       FinancialHighlights   — Record<FinancialPeriod, {…8 officer-typed fields}>; the rest
+                                                    of the Highlights table is derived from financialStatement
+  additionalFinancialFiles  AdditionalFinancialFile[]  { id, fileName, fileData, note, uploadedAt }
+  stepTimestamps            Partial<Record<ReviewStep, string>>  — first-entry ISO time per pipeline step
+}
 ```
 
-Exposed via `useAdmin()`: `setAdminUser`, `setCreditChecking`, `setReconsideration`,
-`setNegativeCreditReport`, `addNegativeReportEntry`, `updateNegativeReportEntry`,
-`removeNegativeReportEntry`, `resetNegativeCreditReport`, `setCallReport`,
-`addExistingLoanRow`, `updateExistingLoanRow`, `removeExistingLoanRow`,
-`setCallReportComakerChange`, `setRequirementChecklist`, `logout()`.
+**Nothing derived is stored.** AI summaries/recommendations, risk levels, all
+Financial Evaluation report figures (income statement, ratios, DSCR, etc.),
+and the flattened `bureauResultRows` are recomputed at render time from the
+raw fields above — see each per-screen doc (`docs/070`, `docs/080`,
+`docs/100`, `docs/120`). `resetReview()` rebuilds the whole `review` object
+from `createInitialReview()`; `adminUser` and `negativeList` are left
+untouched.
+
+Exposed via `useAdmin()` (grouped by area):
+
+- **Credit Checking / bureau:** `setCreditChecking`, `setCibiForm`,
+  `addBureauReportFiles`, `replaceBureauReportFile`, `removeBureauReportFile`,
+  plus the derived getter `bureauResultRows`.
+- **Negative Credit Report:** `setNegativeCreditReport`, `addNegativeReportEntry`,
+  `updateNegativeReportEntry`, `removeNegativeReportEntry`,
+  `resetNegativeCreditReport`; `addToNegativeList`.
+- **Reconsideration:** `setReconsideration`.
+- **Call Report:** `setCallReport`, `addExistingLoanRow`, `updateExistingLoanRow`,
+  `removeExistingLoanRow`, `setCallReportComakerChange`.
+- **Requirement Checklist:** `setRequirementChecklist`, `addAppraisalGroup`,
+  `removeAppraisalGroup`, `updateAppraisalGroupDoc`, `addOutreachMessage`,
+  `addDocumentRequestMessage`.
+- **Credit Investigation:** `setCreditInvestigation`, `setCiReport`,
+  `addCreditInvestigationDocument`, `removeCreditInvestigationDocument`,
+  `addCiOutreachMessage`, `setCiFeePayment`, `markCiFeeAsPaid`.
+- **Appraisal:** `setAppraisal`, `createAppraisalReportBundle`,
+  `setAppraisalBundleAppraiserType`, `setAppraisalBundleFee`,
+  `setAppraisalBundleReport`, `setAppraisalBundleLandTitle`,
+  `deleteAppraisalReportBundle`, `clearAllAppraisalBundleReports`,
+  `submitAppraisalFeesForApproval`, `approveAppraisalFees`,
+  `declineAppraisalFees`, `resetAppraisalFees`, `setAppraisalFeePayment`,
+  `markAppraisalFeeAsPaid`.
+- **Financial Evaluation:** `setCashFlowStatement`, `addCashFlowOtherLoan`,
+  `removeCashFlowOtherLoan`, `updateCashFlowOtherLoan`; `addBankStatement`,
+  `updateBankStatement`, `removeBankStatement`, `addBankStatementDeposit`,
+  `updateBankStatementDeposit`, `removeBankStatementDeposit`,
+  `addBankStatementDailyBalance`, `updateBankStatementDailyBalance`,
+  `removeBankStatementDailyBalance`; `setFinancialStatementField`;
+  `addBankLoanRow`, `updateBankLoanRow`, `removeBankLoanRow`,
+  `setPgfcProposedLoan`; `setFinancialHighlightsField`;
+  `addAdditionalFinancialFiles`, `updateAdditionalFinancialFile`,
+  `removeAdditionalFinancialFile`; `fillFinancialEvaluationSample`,
+  `clearFinancialEvaluationSample` (the whole-page Fill / Remove Sample Data
+  page action).
+- **Lifecycle:** `setAdminUser`, `markStepEntered`, `resetReview`, `logout`,
+  plus the `hydrated` flag.
 
 **Important limitation:** the admin portal does *not* have its own applicant
 database. There is exactly one **"live" application** — whichever one exists in the
@@ -186,14 +231,14 @@ application that's fully interactive (Approve/No, CIBI form, uploads, etc.) — 
 The button (`src/sections/admin/application-list-view.tsx`) calls
 `useRegistration().reset()` **and** `useAdmin().resetReview()` together. This was
 a real bug: `reset()` alone only cleared `RegistrationContext` (who the live
-applicant is), while all of her review progress — CIBI form fields, `submitted`
-flag, bureau upload filenames, AI summary/recommendation, decision, `stepTimestamps`
-— lived in `AdminContext` and was left completely untouched. The practical effect:
-after any round of testing (filling in CIBI, uploading bureau reports, approving,
-etc.), "Clear Sample Data" looked like it reset things, but every review screen
-kept showing that old filled-in data indefinitely — there was no way to get back
-to a genuinely blank Initial Credit Checking (or any other step) short of clearing
-`localStorage` by hand. `AdminContext.resetReview()`
+applicant is), while all of the review progress — the CIBI intake form, every
+bureau's uploaded report files, the Call Report, Requirement Checklist, Credit
+Investigation, Appraisal and Financial Evaluation state, the decision, and
+`stepTimestamps` — lived in `AdminContext` and was left completely untouched.
+The practical effect: after any round of testing, "Clear Sample Data" looked
+like it reset things, but every review screen kept showing the old filled-in
+data indefinitely — there was no way to get back to a genuinely blank step
+short of clearing `localStorage` by hand. `AdminContext.resetReview()`
 (`src/auth/admin-context.tsx`) replaces `state.review` with a freshly-constructed
 `createInitialReview()` object (a factory function, not a shared constant, to
 avoid any risk of accidental mutation-sharing across resets) — `adminUser` (stay

@@ -3,7 +3,8 @@
 > **Maintenance rule:** update this file whenever `appraisal-view.tsx` or its
 > supporting files (`appraisal/appraisal-tct-table.tsx`,
 > `appraisal/assigned-appraiser-card.tsx`,
-> `appraisal/appraisal-bundle-status.ts`,
+> `appraisal/appraisal-report-view.tsx` (rendered inline by
+> `AssignedAppraiserCard`), `appraisal/appraisal-bundle-status.ts`,
 > `appraisal/head-approval-card.tsx`, `appraisal/pass-fail-card.tsx`,
 > `appraisal/sample-appraisal-report.ts`) change.
 > Companion to `docs/230-project-overview.md` and `docs/100-credit-investigation.md`
@@ -503,24 +504,14 @@ batch-level fee state would otherwise imply):
   that bundle rendered **inline** — a `Collapse` panel below the row,
   **expanded by default**, that the whole row header toggles. Each
   reported bundle's collapsed/expanded state is tracked in a local
-  `Set<string>`. No "View Report" button, no `Dialog`, no scroll target.
-  (Earlier iterations: a clickable green "Reported" pill; then an explicit
-  "View Report" button opening a `Dialog`; then this inline panel — the
-  reviewer should see the report without a click.)
+  `Set<string>`. No "View Report" button, no `Dialog`, no scroll target —
+  the reviewer sees the report without a click.
 
 `AppraisalReportView` itself — its letterhead/section/"At a Glance"
 structure, per-title Collateral Photo blocks, and collapsible sections —
 is documented in `docs/170-request-appraiser.md`, since the Appraiser owns the
 form that produces it. This page renders it inside the inline `Collapse`
 panel described above.
-
-These stages were originally a per-bundle reframing of the same
-whole-application progress the now-deleted `appraisalProgressIndex()`
-(`progress-tracker.tsx`) used to track — that function's 5 steps
-(Assigned → Fee requested → Fee approved → Client paid → Report
-submitted) collapsed fee-approved+client-paid into this card's single
-"For Report" stage, and the terminal step became the inline report panel
-rather than a label.
 
 **Status derivation is shared, not local.** `getAppraisalBundleStatus()`
 (`src/sections/admin/appraisal/appraisal-bundle-status.ts`) is the single
@@ -594,7 +585,9 @@ previous round, the card shows "Last decline reason: …" beneath the
 Officer here, or the Head/Approver on `appraisal-approver-view.tsx`, which
 shows the same field) can see why the last round was declined.
 
-## Pass/Fail
+## Decision Gate
+
+**Pass/Fail** (the Officer's terminal decision on this page).
 
 Rendered by `appraisal-view.tsx` only once `headApprovalStatus === 'approved'`
 **and** a report is still submitted (`headApproved && reportSubmitted`) —
@@ -636,34 +629,38 @@ outcome.
 
 ## Queue unlocking
 
-`application-list-view.tsx`'s live-row `isActionable` computation changed
-from an array-exclusion form to a single inequality check:
-`isActionable: step !== 'financialEvaluation'`. This means the `appraisal`
-row is now unconditionally actionable, same as every other built step in
-this pipeline (`creditChecking` through `appraisal`) — an admin can reach
-this page directly from the queue at any time, regardless of where the live
-application actually is in the pipeline. `financialEvaluation` remains the
-only always-non-actionable step (unbuilt, no workspace page exists for it
-yet).
+`application-list-view.tsx` now sets the live application's row
+`isActionable: true` for **every** pipeline step, with no exception — an
+admin can reach this page (or any other step's page) directly from the
+queue at any time, regardless of where the live application actually is.
+Financial Evaluation was the last step-specific exception; it now has its
+own built workspace (`docs/120-financial-evaluation.md`) and is actionable
+too. Sample (demo) rows are always non-actionable.
 
-## Non-goals / Open items
+## Fabricated Claims — Real vs. Simulated
 
-- **Simulated Sendit/Odoo integrations** — the payment link and the request
-  sent to Odoo when advising the client to settle the fee are both
-  simulated button clicks, not real integrations with either service.
-  Triggered from the Appraisal Appraiser page (see
-  `docs/170-request-appraiser.md`), not this page.
-- **No real photo capture or lot-plotting** for in-house appraiser reports —
-  flagged directly on each Appraisal Report card's dashed note as future
-  integration work, not built here.
+- **`APPRAISER_ROSTER`** is a fixed sample list of names/companies, not a
+  real appraiser directory looked up from any system.
+- **Head Approval / Fee Approval** — no real second-officer or Head login
+  in this prototype; approving stamps a fixed dummy name. The Officer's
+  `HeadApprovalCard` decline resets `headApprovalStatus` back to `'pending'`
+  (never forward to a `'declined'` value that exists only at the type
+  level).
+- **In-house Appraisal Report** — no real photo capture or lot-plotting;
+  each card's dashed note flags that as future integration work.
+- **Sendit/Odoo integrations** (payment link, "advise client to settle")
+  are simulated button clicks, triggered from the Appraiser page, not real
+  service calls.
+- **Pass/Fail** is a manual officer judgment call — the app has no
+  automated appraised-value-vs-loan-amount comparison anywhere.
+- All appraisal state (bundles, fee status, report contents, Head-approval
+  status, Pass/Fail) is **local state persisted to `localStorage` only** —
+  no backend.
+
+## Non-Goals / Open Items
+
 - **Credit Scoring remains unbuilt** beyond its existing stub page — Pass
   routes there, but there is no real Credit Scoring workspace yet.
-- **Pass/Fail is a manual officer judgment call**, not an automated
-  appraised-value-vs-loan-amount comparison — this app has no such
-  calculation anywhere in the appraisal flow.
-- **`APPRAISER_ROSTER` is a fixed sample list**, not a real appraiser
-  directory — there is no backend anywhere in this app, so "Assign to"
-  choices are hardcoded names/companies, not looked up from any system.
 - **`targetCompletionDate` is informational only** — nothing reads it for
   reminders, overdue flags, or sorting; it is simply stored and never
   surfaced elsewhere on this page.
@@ -674,3 +671,25 @@ yet).
   mechanically gates who can open the Appraiser/Approver screens
   documented in the sibling files; the personal "my workspace" framing
   there is a UI/workflow choice, not access control.
+
+## History
+
+### 2026-09-07
+
+- `AssignedAppraiserCard` now renders a submitted bundle's
+  `AppraisalReportView` **inline** (a `Collapse` panel, expanded by
+  default) instead of behind a "View Report" button + `Dialog`.
+
+### Earlier
+
+- The per-bundle Appraisal Report cards that used to render directly on
+  `appraisal-view.tsx` (between Assigned Appraiser and Head Approval) were
+  removed; the report moved first to a `Dialog` opened from
+  `AssignedAppraiserCard`, then (2026-09-07) to the inline panel above.
+- An intermediate "Officer forwards the batch to Head Approval" step — a
+  card gated on `reportSubmitted` plus a boolean field — was added and then
+  fully reverted; `HeadApprovalCard` renders directly off `reportSubmitted`
+  again.
+- The live application's queue row became unconditionally actionable for
+  every step; Financial Evaluation was the last exception and now has its
+  own workspace.

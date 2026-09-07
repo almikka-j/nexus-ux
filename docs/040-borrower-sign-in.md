@@ -70,7 +70,7 @@ On submit: calls `mockLogin(email, password)`. On success:
 On failure: shows the thrown error message in the `Alert`; the form
 stays filled.
 
-## Non-goals
+## Non-Goals / Open Items
 
 - No real authentication, session tokens, or password hashing — a
   single hardcoded demo account checked client-side.

@@ -69,3 +69,11 @@ Approver / Report Approver screens, which each seed one; see
 `docs/200-request-appraisal-report-approval.md`), since its whole purpose is
 reflecting whatever bundles those other flows already created, not
 manufacturing its own independent sample state.
+
+## Decision Gate
+
+**Informational only.** This page is read-only — it never assigns,
+creates, edits, approves, or declines anything. Every status pill it
+shows is computed by the shared `getAppraisalBundleStatus()` helper; all
+actual decisions happen on `docs/110-appraisal.md` and
+`docs/170-request-appraiser.md`.

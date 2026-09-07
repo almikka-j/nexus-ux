@@ -172,3 +172,26 @@ assigned appraiser resubmits from their own page. Since
 confirmed (it only ever renders a bundle with a submitted report) — the
 report card disappears from this page in place, no navigation away, until
 the appraiser resubmits.
+
+## Decision Gate
+
+The **"Your Decision"** card is the gate. **Approve** →
+`headApprovalStatus: 'approved'` (same call `head-approval-card.tsx`
+makes), which lets the Officer's Appraisal page proceed to its Pass/Fail
+decision. **Decline** → `headApprovalStatus: 'pending'` +
+`clearAllAppraisalBundleReports()`, so every assigned appraiser resubmits.
+No completeness gate beyond "a report has been submitted".
+
+## Fabricated Claims — Real vs. Simulated
+
+- **No real Head login** — `AdminUser` has no role field; the review is
+  simulated.
+- **The detail page renders every bundle's report inline** via
+  `AppraisalReportView` — a read-only render of `bundle.report`, nothing
+  parsed from an upload.
+- **`buildSampleAppraisalReport()` stamps a `SAMPLE_COLLATERAL_PHOTO`
+  data URI** on every land title because this page cannot attach a real
+  photo itself.
+- **No request ID** — fixed `/current` route segment; the component reads
+  `review.appraisal` directly.
+- All state lives in `review.appraisal` in `localStorage`.

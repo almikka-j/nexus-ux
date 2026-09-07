@@ -233,3 +233,23 @@ own list → detail split, and to leave room for genuine multi-application
 support later without another URL migration. The detail page component
 ignores the param entirely and reads `review.appraisal` directly, the
 same way the old single page did with no bundle lookup by ID at all.
+
+## Decision Gate
+
+This screen is one of the two ways `feeApprovalStatus` moves from
+`'pending-approval'` to `'approved'` (batch-level `approveAppraisalFees()`
+/ `declineAppraisalFees(reason)`, whole request at once — not per
+property). Approval unlocks each bundle's report form on the Appraiser
+workspace. Decline sets a visible `'declined'` status + `feeDeclineReason`
+and leaves every bundle's fee decision as submitted for revision. No
+document-completeness gate.
+
+## Fabricated Claims — Real vs. Simulated
+
+- **No real Head login** — `AdminUser` has no role field; the disclaimer
+  line under the buttons was removed but the behavior is still simulated.
+- **Always one actionable request** — the list page's auto-seed effect
+  re-arms a `'pending-approval'` request (excluding `'approved'`).
+- **No request ID** — the `[bundleId]` route segment always resolves to
+  `/current`.
+- All state lives in `review.appraisal` in `localStorage`.

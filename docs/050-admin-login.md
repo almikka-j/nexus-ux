@@ -60,7 +60,7 @@ every other admin page reads `adminUser`/`hydrated` from — logging in
 here is what every other admin route's own auth-gate layout is waiting
 on.
 
-## Non-goals
+## Non-Goals / Open Items
 
 - No real authentication, session tokens, or password hashing — a
   single hardcoded demo account checked client-side.

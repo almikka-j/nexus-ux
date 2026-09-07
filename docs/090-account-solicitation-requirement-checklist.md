@@ -460,7 +460,7 @@ discriminator:
   review" after upload if that's its `freshStatus` — uploading a file for a
   missing document does not automatically mean "verified."
 
-## Progress counter and Endorse-gating rule
+## Decision Gate — progress counter and Endorse-gating rule
 
 The header counter (`{receivedRequiredCount}/{totalRequiredCount}`) and the
 progress bar count **required documents across Credit
@@ -660,7 +660,20 @@ Application List. There is no borrower-facing notification anywhere in this
 codebase — "Return to Applicant" is purely an officer-side state change with a
 confirmation screen, not an actual message sent to anyone.
 
-## Non-goals / History
+## Non-Goals / Open Items
+
+- **No conditional document sets** — the 19-document fixed list on Credit
+  Investigation / Financial Evaluation does not vary by application;
+  Appraisal's per-property groups are the one deliberate, requested
+  exception (see the History note below).
+- **Uploaded file viewing** — newly selected files use a browser object
+  URL (does not survive reload); seeded records use the bundled sample
+  PDF, with a `localStorage` migration from older `*-sample.pdf` metadata.
+- **`collateralNotes`** — the field is still on `RequirementChecklist`
+  for already-stored sessions but no card reads or writes it anymore;
+  collateral lives in Appraisal's per-property TCT groups.
+
+## History
 
 - **Auto-collapse-on-completion: first version reverted, then reintroduced
   edge-triggered.** An early version had each card's `useEffect`
@@ -733,7 +746,7 @@ confirmation screen, not an actual message sent to anyone.
   going forward. Collateral information now lives entirely in Appraisal's
   per-property TCT groups instead.
 
-## Fabricated claims — what's real vs. simulated
+## Fabricated Claims — Real vs. Simulated
 
 Consistent with the rest of this prototype (see `docs/230-project-overview.md`'s "No
 real backend" note and `docs/020-borrower-application.md`'s "Fabricated 'we did
