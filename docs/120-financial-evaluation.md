@@ -355,11 +355,13 @@ inputs, `StatusBadge` pills for totals, `TONE_COLORS`).
   **Save Record** button (stamps `savedAt`) and a **Done** close.
 - `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` that
   **reuses the Cash Flow form's own layout components** rather than a
-  separate table style: the 3-column meta header (Borrower's Name / Amount
-  of Loan / Computation Type), then `SubsectionLabel` + `ColumnHeaders` +
-  `SubtotalRow` / `TotalRow` (the label + two info-tone `StatusBadge` pills
-  row) separated by `<Divider />`, exactly as the Manage form renders its
-  results. Sections: Source of Income → Total Income; Less Expenses →
+  separate table style: a `#EEF0F5`-bordered meta field-block (a "Cash Flow
+  Statement" section label + label/value rows for Borrower's Name / Amount
+  of Loan / Computation Type — the FieldRow convention from
+  `credit-checking-result-modal.tsx`), then `SubsectionLabel` +
+  `ColumnHeaders` + `SubtotalRow` / `TotalRow` (label + two info-tone
+  `StatusBadge` pills) separated by `<Divider />`, exactly as the Manage
+  form renders its results. Sections: Source of Income → Total Income; Less Expenses →
   Sub-total, Add: Adjusted Expense (with the entered %s), Total Expenses,
   Income Available for Debt Service; Other Loans → Total of Other Loans,
   PGFC Loan – Principal & Interest (proposed monthly amortization

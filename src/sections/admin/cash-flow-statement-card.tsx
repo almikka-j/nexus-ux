@@ -884,26 +884,33 @@ export function CashFlowStatementReport({ open, onClose }: { open: boolean; onCl
 
       <DialogContent sx={{ p: 3 }}>
         <Stack spacing={3}>
-          {/* Meta — same 3-column header layout as the Cash Flow form. */}
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
+          {/* Meta — the app's report field-block treatment
+              (credit-checking-result-modal.tsx's FieldRow convention). */}
+          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+            <Typography
+              sx={{
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: '#8891A6',
+                mb: 1.5,
+              }}
+            >
+              Cash Flow Statement
+            </Typography>
+            <Stack spacing={1.25}>
               <ReportMeta label="Borrower's Name" value={applicantName} />
-            </Grid>
-            <Grid item xs={12} sm={4}>
               <ReportMeta
                 label="Amount of Loan"
                 value={loanAmount !== null ? fCurrency(loanAmount) : '—'}
               />
-            </Grid>
-            <Grid item xs={12} sm={4}>
               <ReportMeta
                 label="Computation Type"
                 value={COMPUTATION_TYPE_LABELS[cashFlow.computationType]}
               />
-            </Grid>
-          </Grid>
-
-          <Divider />
+            </Stack>
+          </Box>
 
           <Stack spacing={2}>
             <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
@@ -1026,10 +1033,12 @@ export function CashFlowStatementReport({ open, onClose }: { open: boolean; onCl
 
 function ReportMeta({ label, value }: { label: string; value: string }) {
   return (
-    <Box>
-      <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', mb: 0.5 }}>{label}</Typography>
+    <Stack direction="row" spacing={2}>
+      <Typography sx={{ fontSize: 13.5, color: '#8891A6', width: 140, flexShrink: 0 }}>
+        {label}
+      </Typography>
       <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value}</Typography>
-    </Box>
+    </Stack>
   );
 }
 
