@@ -97,12 +97,14 @@ submitted again.
 
 **The detail page** (`call-report-approval-bundle-view.tsx`) shows a
 header card (applicant name/App No./email, a `StatusBadge` for
-`callReportApprovalStatus`, a "Submitted on {date}" chip), then a
-**"View Call Report Result"** button opening the existing, unmodified
-`CallReportResultModal` (`src/sections/admin/call-report/call-report-result-modal.tsx`)
-— the same read-only section-by-section mirror Call Report's own page
-and Requirement Checklist's "View Call Report" action already use. No
-new report view was built for this screen.
+`callReportApprovalStatus`, a "Submitted on {date}" chip), then the
+**full Call Report result displayed inline** — no "View" button. It
+renders `CallReportResultContent`
+(`src/sections/admin/call-report/call-report-result-modal.tsx`), the
+same read-only section-by-section body that `CallReportResultModal`
+wraps for Call Report's own page, Requirement Checklist's "View Call
+Report" action, and Application Details. The approver reads it directly
+on the page, then decides below it.
 
 When `callReportApprovalStatus === 'pending-approval'`, it shows
 **"Approve Call Report"** / **"Decline"**:

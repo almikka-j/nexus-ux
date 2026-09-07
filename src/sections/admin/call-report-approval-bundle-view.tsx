@@ -22,7 +22,7 @@ import { adminCardSx, StatusBadge, type SemanticTone } from 'src/components/admi
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
-import { CallReportResultModal } from './call-report/call-report-result-modal';
+import { CallReportResultContent } from './call-report/call-report-result-modal';
 import { SALES_REJECT_REASONS, buildDecisionReason } from './call-report/call-report-decline';
 
 import type { CallReportApprovalStatus } from 'src/auth/admin-context';
@@ -36,9 +36,9 @@ import type { CallReportApprovalStatus } from 'src/auth/admin-context';
 // review.callReport object (no bundles/multi-property concept), so
 // there's no bundle ID to look up either.
 //
-// "View Call Report Result" opens the SAME CallReportResultModal the
-// Call Report page itself and Requirement Checklist's "View Call Report"
-// action use — no new read-only view built for this screen.
+// The full Call Report result is displayed inline on this page (via
+// CallReportResultContent — the same body CallReportResultModal wraps
+// elsewhere) so the approver reviews it directly, no "View" button.
 //
 // Decline reuses Call Report's own Sales Reject reason flow exactly
 // (SALES_REJECT_REASONS + buildDecisionReason from call-report-decline.ts)
@@ -59,7 +59,6 @@ export function CallReportApprovalBundleView() {
   const { review, setCallReport } = useAdmin();
   const { callReportApprovalStatus, callReportSubmittedAt } = review.callReport;
 
-  const [resultModalOpen, setResultModalOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [reasonCategory, setReasonCategory] = useState('');
   const [reasonRemarks, setReasonRemarks] = useState('');
@@ -188,20 +187,15 @@ export function CallReportApprovalBundleView() {
         <Box sx={{ ...adminCardSx }}>
           <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 2.5 }}>
             <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
-            <Typography sx={{ fontSize: 13, color: '#5A6273', flex: 1 }}>
-              Review the full call report before deciding.
+            <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
+              Review the full call report below before deciding.
             </Typography>
-            <Button
-              onClick={() => setResultModalOpen(true)}
-              variant="outlined"
-              size="small"
-              startIcon={<Iconify icon="solar:document-text-bold-duotone" width={16} />}
-              sx={{ color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '9px' }}
-            >
-              View Call Report Result
-            </Button>
           </Stack>
 
+          <CallReportResultContent />
+        </Box>
+
+        <Box sx={{ ...adminCardSx }}>
           {isPending && !justApproved ? (
             <Stack spacing={1.25}>
               <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
@@ -248,8 +242,6 @@ export function CallReportApprovalBundleView() {
           )}
         </Box>
       </Stack>
-
-      <CallReportResultModal open={resultModalOpen} onClose={() => setResultModalOpen(false)} />
 
       <ConfirmDialog
         open={declineOpen}

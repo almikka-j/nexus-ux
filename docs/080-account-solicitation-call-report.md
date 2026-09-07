@@ -219,12 +219,15 @@ calls `setCallReport({ decisionReason })` then routes to
 
 ## Read-only mirrors elsewhere
 
-- `call-report/call-report-result-modal.tsx` (`CallReportResultModal`) — a
-  read-only, section-by-section mirror of the 8 cards above. Opened both from
-  the Call Report page's own **View Call Report Result** button and from
-  `ApplicationDetailsCard`'s **View Call Report** action on other review
-  steps (e.g. Requirement Checklist). Must be updated whenever a `CallReport`
-  field is added, removed, or renamed. Its own Endorsement Declaration section
+- `call-report/call-report-result-modal.tsx` — a read-only, section-by-section
+  mirror of the 8 cards above, split into two exports:
+  `CallReportResultContent` (the body, no dialog chrome) and
+  `CallReportResultModal` (the `<Dialog>` wrapper around it). The modal is
+  opened from the Call Report page's own **View Call Report Result** button
+  and from `ApplicationDetailsCard`'s **View Call Report** action on other
+  review steps (e.g. Requirement Checklist); the **Call Report Approval**
+  detail page renders `CallReportResultContent` **inline** instead. Must be
+  updated whenever a `CallReport` field is added, removed, or renamed. Its own Endorsement Declaration section
   mirrors `endorsement-declaration-card.tsx`'s conditional **Approved By** /
   **Approval Date / Time** second signature row once `callReportApprovalStatus
   === 'approved'` — so approving a Call Report on the Call Report - Report
@@ -288,8 +291,8 @@ Checking, or Requirement Checklist state.
 - `call-report-summary.ts` — `buildCallSummary()` and
   `buildCallReportAiExceptions()`, pure functions.
 - `call-report-risk.ts` — `buildCallReportAiRecommendation()`, pure function.
-- `call-report-result-modal.tsx` — `CallReportResultModal`, rewritten for the
-  8-section shape.
+- `call-report-result-modal.tsx` — `CallReportResultContent` (the body) +
+  `CallReportResultModal` (its `<Dialog>` wrapper), 8-section shape.
 - `credit-checking-result-modal.tsx` — `CreditCheckingResultModal`, unchanged
   (reads Initial Credit Checking state, not `CallReport`).
 - `officer-notes-card.tsx` — unmounted legacy component, unaffected.

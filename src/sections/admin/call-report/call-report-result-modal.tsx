@@ -142,7 +142,11 @@ function formatCurrency(value: string): string {
   return `₱${Number(value).toLocaleString()}`;
 }
 
-export function CallReportResultModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+// The full Call Report result body, no dialog chrome — rendered inline on
+// the Call Report Approval page (so the reviewer reads it without opening a
+// modal) and wrapped by CallReportResultModal for the Call Report page /
+// Requirement Checklist / Application Details "View Call Report" actions.
+export function CallReportResultContent({ hideHeader }: { hideHeader?: boolean } = {}) {
   const { review } = useAdmin();
   const { application, signUpData } = useRegistration();
   const { callReport } = review;
@@ -219,30 +223,17 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
-        <Box>
+    <>
+      {!hideHeader && (
+        <Box sx={{ mb: 2.5 }}>
           <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#14172A' }}>Call Report</Typography>
           <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
             Report generated {generatedLabel}
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
-          <Tooltip title="PDF export coming soon">
-            <span>
-              <IconButton disabled sx={{ border: '1px solid #E1E4ED', borderRadius: '10px', px: 1.5 }}>
-                <Iconify icon="solar:file-download-bold" width={18} sx={{ color: '#8891A6' }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <IconButton onClick={onClose} sx={{ border: '1px solid #E1E4ED', borderRadius: '10px' }}>
-            <Iconify icon="solar:close-circle-bold" width={18} sx={{ color: '#8891A6' }} />
-          </IconButton>
-        </Stack>
-      </Box>
+      )}
 
-      <DialogContent sx={{ px: 3, pb: 3 }}>
-        <Stack spacing={2.5}>
+      <Stack spacing={2.5}>
           {isCleared && (
             <Stack
               direction="row"
@@ -548,7 +539,33 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
               )}
             </Box>
           </Box>
+      </Stack>
+    </>
+  );
+}
+
+export function CallReportResultModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
+        <Box>
+          <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#14172A' }}>Call Report</Typography>
+        </Box>
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="PDF export coming soon">
+            <span>
+              <IconButton disabled sx={{ border: '1px solid #E1E4ED', borderRadius: '10px', px: 1.5 }}>
+                <Iconify icon="solar:file-download-bold" width={18} sx={{ color: '#8891A6' }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <IconButton onClick={onClose} sx={{ border: '1px solid #E1E4ED', borderRadius: '10px' }}>
+            <Iconify icon="solar:close-circle-bold" width={18} sx={{ color: '#8891A6' }} />
+          </IconButton>
         </Stack>
+      </Box>
+      <DialogContent sx={{ px: 3, pb: 3 }}>
+        <CallReportResultContent />
       </DialogContent>
     </Dialog>
   );
