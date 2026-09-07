@@ -85,10 +85,10 @@ export function AppraisalView() {
   // request lives entirely on the Appraisal Appraiser page
   // (appraisal-appraiser-view.tsx) now — it's the Appraiser's job to
   // actually request the fee, not the Officer's, so this page never
-  // renders that UI. Report creation/upload/viewing is on the same
-  // Appraiser page too; this page never shows a submitted report's
-  // contents inline — AssignedAppraiserCard's "View Report" button opens
-  // it in a modal instead (see assigned-appraiser-card.tsx).
+  // renders that UI. Report creation/upload is on the same Appraiser page
+  // too; a submitted report's contents are shown inline by
+  // AssignedAppraiserCard (a collapsible panel per reported bundle — see
+  // assigned-appraiser-card.tsx), no modal.
   //
   // Head Approval of the submitted report is likewise not this page's
   // job anymore — that decision is made entirely on the "Appraisal -

@@ -21,11 +21,11 @@ import type { AppraisalReportLandTitle } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Read-only rendering of a submitted in-house Appraisal Report
-// (AppraiserAssignmentCard's form) — used by the Appraisal Officer's own
-// "View Report" dialog (assigned-appraiser-card.tsx) and the Head/Approver's
-// "My Approvals" detail page (appraisal-approver-bundle-view.tsx), both of
-// which need to see what the appraiser actually submitted, not just a
-// "submitted" boolean.
+// (AppraiserAssignmentCard's form) — rendered inline by the Appraisal
+// Officer's `AssignedAppraiserCard` (a collapsible panel per reported
+// bundle) and by the Head/Approver's "My Approvals" detail page
+// (appraisal-approver-bundle-view.tsx), both of which need to see what the
+// appraiser actually submitted, not just a "submitted" boolean.
 //
 // Restructured around an "At a Glance" summary instead of a scroll-through
 // document. Earlier passes fixed the document's internal problems (dead

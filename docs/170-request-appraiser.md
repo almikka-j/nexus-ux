@@ -143,8 +143,9 @@ not sample/filler rows), columns:
   by the shared `getAppraisalBundleStatus()`
   (`src/sections/admin/appraisal/appraisal-bundle-status.ts` — see
   `docs/110-appraisal.md`'s "Assigned Appraiser"). This table renders the
-  `'reported'` case as a plain "Reported" pill, where the Officer's card
-  and the Appraisal - Request list swap in a "View Report" button instead.
+  `'reported'` case as a plain "Reported" pill; the Officer's card shows the
+  report inline, and the Appraisal - Request list swaps in a "View Report"
+  button.
 - A trailing chevron (`eva:arrow-ios-forward-fill`) signaling navigation,
   not expand.
 
@@ -648,20 +649,17 @@ inline at all.** There used to be a per-bundle loop on `appraisal-view.tsx`
 `AppraisalReportView` (once `bundle.report.uploadedAt` was set) or nothing
 for a bundle whose report wasn't submitted yet, sitting directly after
 `AssignedAppraiserCard` and before Head Approval. That loop has been
-deleted entirely. A submitted bundle's report is now shown **only** inside
-`AssignedAppraiserCard`'s "View Report" `Dialog` — clicking that button
-renders `<AppraisalReportView bundleId={...} tctNumbers={...} />` inside
-`DialogContent` for that one bundle — see `docs/110-appraisal.md`'s "Assigned
-Appraiser". There's no on-page anchor for it anymore either: an earlier
-version of `appraisal-report-view.tsx` stamped
+deleted entirely. A submitted bundle's report is now shown **inline inside
+`AssignedAppraiserCard` itself** — a `Collapse` panel (expanded by
+default) under that bundle's row rendering
+`<AppraisalReportView bundleId={...} tctNumbers={...} />` — see
+`docs/110-appraisal.md`'s "Assigned Appraiser". There's no on-page anchor
+for it: an earlier version of `appraisal-report-view.tsx` stamped
 `id={`appraisal-report-${bundleId}`}` plus `scrollMarginTop: '88px'` on its
-outer `Box` (on both of its two return branches — external-file and
-in-house-form) purely so a "View Report" button could `scrollIntoView` down
-to it; now that the report is opened in a modal instead of scrolled to,
-that `id`/`scrollMarginTop` plumbing has been removed from both return
-branches — there's no scroll target left to support. A bundle whose report
-isn't submitted yet simply has no report to view — the "View Report" button
-itself doesn't render until `bundle.report.uploadedAt` is set.
+outer `Box` purely so a "View Report" button could `scrollIntoView` down to
+it; that `id`/`scrollMarginTop` plumbing has been removed. A bundle whose
+report isn't submitted yet has no report to show — the inline panel only
+renders once `bundle.report.uploadedAt` is set.
 
 Both pages read the exact same `bundle.report` data, so a report the
 appraiser is still working on here simply isn't visible anywhere on the
@@ -832,8 +830,8 @@ now, instead of light gray text.
 ### Read-only view (`AppraisalReportView`)
 
 Once a bundle's `report.uploadedAt` is set, `AssignedAppraiserCard`
-renders this inside its "View Report" `Dialog` for that bundle on the
-Officer's page (`docs/110-appraisal.md`), and
+renders this inline in a `Collapse` panel for that bundle on the Officer's
+page (`docs/110-appraisal.md`), and
 `appraisal-approver-bundle-view.tsx` renders it directly (one per bundle,
 no dialog) on the Head/Approver's "My Approvals" detail page
 (`docs/200-request-appraisal-report-approval.md`) — `appraisal-view.tsx`

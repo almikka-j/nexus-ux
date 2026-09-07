@@ -42,13 +42,13 @@
 > Report creation/upload is *also* entirely the Appraiser's own workflow,
 > living on the same `/admin/appraisal-appraiser` page
 > (`AppraiserAssignmentCard`) — **this (Officer) page never renders that
-> editable form, nor the fee-request card, nor a submitted report's
-> contents inline.** Once a bundle's report is submitted, the Officer sees
-> it via `AssignedAppraiserCard`'s **"View Report"** button, which opens a
-> `Dialog` showing that bundle's read-only `AppraisalReportView` — not a
-> scroll-to-section link down to a card rendered directly on the page (the
-> per-bundle report cards that used to sit between `AssignedAppraiserCard`
-> and Head Approval have been removed entirely). See "Assigned Appraiser"
+> editable form nor the fee-request card.** Once a bundle's report is
+> submitted, `AssignedAppraiserCard` shows that bundle's read-only
+> `AppraisalReportView` **inline** — a collapsible panel under the bundle's
+> row, expanded by default. There is no "View Report" button or `Dialog`
+> anymore (the separate per-bundle report cards that used to sit between
+> `AssignedAppraiserCard` and Head Approval were removed earlier; the modal
+> that briefly replaced them is now inline too). See "Assigned Appraiser"
 > below and "Appraisal Report (per bundle)" in
 > `docs/170-request-appraiser.md`.
 >
@@ -113,14 +113,14 @@ comparison.
    type/roster pick somehow wasn't set) — see "Assigned Appraiser" below.
    Nothing here is editable; reassigning still only happens via the
    Collateral titles table's Assign Appraiser modal.
-5. **No per-bundle Appraisal Report cards render on this page at all.**
+5. **No standalone per-bundle Appraisal Report cards render on this page.**
    There used to be one card per report bundle directly after Assigned
    Appraiser — each either a completed read-only `AppraisalReportView` or
    a locked "waiting for appraiser" placeholder — but that loop has been
    deleted from `appraisal-view.tsx` entirely. A submitted report is now
-   only ever viewed via `AssignedAppraiserCard`'s **"View Report"** button,
-   which opens that bundle's `AppraisalReportView` inside a `Dialog` owned
-   by `AssignedAppraiserCard` itself — see "Assigned Appraiser" below.
+   shown **inline inside `AssignedAppraiserCard`** — a collapsible
+   `AppraisalReportView` panel under each reported bundle's row (expanded
+   by default), no button or `Dialog` — see "Assigned Appraiser" below.
    **No Appraisal Fee card renders on this page at all** either — the fee
    lives entirely on the Appraiser's own pages
    (`docs/170-request-appraiser.md`).
@@ -482,14 +482,11 @@ titles table's Assign Appraiser modal. This card is purely a summary
 surface layered on top of the same `reportBundles` data every other card
 on this page reads.
 
-The **right side** of each row is either a static status pill or a "View
-Report" button — never both — computed per bundle by `bundleStatus()`
-from the batch `feeApprovalStatus` + `feeSettled` + that specific
-bundle's own `report.uploadedAt` (in that priority order: a submitted
-report always wins, overriding whatever the batch-level fee state would
-otherwise imply). `bundleStatus()` returns `null` for "reported" rather
-than a 4th status value — the caller (`AssignedAppraiserCard`) treats
-`null` as "render the button instead of a pill":
+The **right side** of each row shows a status pill computed per bundle by
+`getAppraisalBundleStatus()` from the batch `feeApprovalStatus` +
+`feeSettled` + that specific bundle's own `report.uploadedAt` (in that
+priority order: a submitted report always wins, overriding whatever the
+batch-level fee state would otherwise imply):
 
 - **On Process** (neutral gray pill) — `feeApprovalStatus ===
   'not-submitted'`. The appraiser is assigned but hasn't requested their
@@ -501,55 +498,39 @@ than a 4th status value — the caller (`AssignedAppraiserCard`) treats
   feeSettled` but this bundle's `report.uploadedAt` is still `null`. The
   fee is cleared; the appraiser should now be doing the on-site work and
   filling in/uploading the report.
-- **`bundle.report.uploadedAt` set** → no pill at all — instead, a
-  **"View Report"** `Button` (`outlinedNavyButtonSx`, eye icon) that sets
-  local state (`setViewReportBundleId(bundle.id)`) instead of scrolling
-  anywhere. `AssignedAppraiserCard` itself owns a MUI `Dialog`
-  (`open={!!viewReportBundle}`) with a `DialogTitle` ("Appraisal Report" +
-  a close `IconButton`) and a `DialogContent` rendering
-  `<AppraisalReportView bundleId={viewReportBundle.id}
-  tctNumbers={viewReportTctNumbers} />` for whichever bundle's button was
-  clicked — the report's contents are shown in a modal, not duplicated
-  inline on this summary card and not scrolled to as a separate section
-  further down the page. (An earlier version showed a green "Reported"
-  pill that was itself clickable — replaced with an explicit button once
-  it became clear a clickable *label* read ambiguously as just another
-  status indicator, not an actionable control. A still-earlier version of
-  this button scrolled down to a per-bundle `AppraisalReportView` card
-  that used to render inline on `appraisal-view.tsx` via
-  `document.getElementById('appraisal-report-' + bundle.id)
-  ?.scrollIntoView(...)`; that inline per-bundle report loop has since
-  been removed from `appraisal-view.tsx` entirely, so there's no longer
-  any on-page section to scroll to — the Dialog replaced the scroll
-  target rather than pointing at it.)
+- **`bundle.report.uploadedAt` set** → a green **"Report submitted"** pill
+  plus a chevron toggle, and the full read-only `AppraisalReportView` for
+  that bundle rendered **inline** — a `Collapse` panel below the row,
+  **expanded by default**, that the whole row header toggles. Each
+  reported bundle's collapsed/expanded state is tracked in a local
+  `Set<string>`. No "View Report" button, no `Dialog`, no scroll target.
+  (Earlier iterations: a clickable green "Reported" pill; then an explicit
+  "View Report" button opening a `Dialog`; then this inline panel — the
+  reviewer should see the report without a click.)
 
 `AppraisalReportView` itself — its letterhead/section/"At a Glance"
 structure, per-title Collateral Photo blocks, and collapsible sections —
 is documented in `docs/170-request-appraiser.md`, since the Appraiser owns the
-form that produces it. This page only ever renders it inside the Dialog
-above.
+form that produces it. This page renders it inside the inline `Collapse`
+panel described above.
 
 These stages were originally a per-bundle reframing of the same
 whole-application progress the now-deleted `appraisalProgressIndex()`
 (`progress-tracker.tsx`) used to track — that function's 5 steps
 (Assigned → Fee requested → Fee approved → Client paid → Report
 submitted) collapsed fee-approved+client-paid into this card's single
-"For Report" stage, and the terminal step became an action (View Report)
+"For Report" stage, and the terminal step became the inline report panel
 rather than a label.
 
 **Status derivation is shared, not local.** `getAppraisalBundleStatus()`
 (`src/sections/admin/appraisal/appraisal-bundle-status.ts`) is the single
 source of truth for a bundle's On Process / For Approval / For Report /
-Reported stage — it used to be computed twice, independently: inline in
-`appraisal-appraiser-view.tsx`'s table (a 4-value union including
-`'reported'`) and as this card's own local `bundleStatus()` (the same 3
-in-progress values, using `null` as a "render a button instead of a
-pill" sentinel for the reported case). Both call sites, plus the
-Appraisal - Request list (see `docs/180-request-appraisal-request.md`), now
-call the same function; each caller still decides for itself how to render
-the `'reported'` case — this card and the Appraisal - Request list swap in
-a "View Report" button, `appraisal-appraiser-view.tsx`'s table shows a
-plain "Reported" pill.
+Reported stage. Its call sites — this card, `appraisal-appraiser-view.tsx`'s
+table, and the Appraisal - Request list (see
+`docs/180-request-appraisal-request.md`) — each decide for themselves how to
+render the `'reported'` case: this card shows a "Report submitted" pill +
+the inline `AppraisalReportView` panel; `appraisal-appraiser-view.tsx`'s
+table shows a plain "Reported" pill.
 
 ## Head Approval
 
@@ -566,10 +547,10 @@ directly off `reportSubmitted` alone, same as before that feature
 shipped. Otherwise nothing renders in its place —
 there used to be a locked dashed placeholder ("Head Approval unlocks once
 every appraisal report below has been submitted.") but it was removed;
-with the per-bundle report cards no longer rendered inline on this page
-at all (a submitted report is now only viewed via `AssignedAppraiserCard`'s
-"View Report" Dialog — see "Assigned Appraiser" above), a placeholder
-phrased around "the reports below" would no longer even make sense here.
+with no standalone per-bundle report cards on this page (a submitted
+report is shown inline inside `AssignedAppraiserCard` — see "Assigned
+Appraiser" above), a placeholder phrased around "the reports below" would
+no longer even make sense here.
 
 The Head/Approver's own dedicated screens at `/admin/appraisal-approver`
 render the same decision against the same fields, alongside the actual
