@@ -26,6 +26,7 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 import { ApplicationReviewHeader } from './application-review-header';
 import { BankStatementCard } from './bank-statement-card';
 import { FinancialSummaryCard } from './financial-summary-card';
+import { AdditionalFinancialFilesCard } from './additional-financial-files-card';
 import { ApplicationDetailsCard } from './application-details-card';
 import { CashFlowStatementCard } from './cash-flow-statement-card';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
@@ -188,9 +189,11 @@ export function FinancialEvaluationView() {
 
         <FinancialSummaryCard />
 
+        <CashFlowStatementCard />
+
         <BankStatementCard />
 
-        <CashFlowStatementCard />
+        <AdditionalFinancialFilesCard />
 
         <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>

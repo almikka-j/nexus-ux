@@ -1336,6 +1336,17 @@ export type FinancialHighlightsPeriod = {
 export type FinancialHighlights = Record<FinancialPeriod, FinancialHighlightsPeriod>;
 export type FinancialHighlightsField = keyof FinancialHighlightsPeriod;
 
+// --- Additional Financial Files — free-form supporting documents the
+// officer uploads on the Financial Evaluation page beyond the fixed
+// Document Checklist (data URL, prototype convention — no parsing).
+export type AdditionalFinancialFile = {
+  id: string;
+  fileName: string;
+  fileData: string;
+  note: string;
+  uploadedAt: string; // ISO
+};
+
 export type ReviewStep =
   | 'creditChecking'
   | 'reconsideration'
@@ -1373,6 +1384,7 @@ export type ApplicationReview = {
   financialStatement: FinancialStatement;
   bankLoans: BankLoans;
   financialHighlights: FinancialHighlights;
+  additionalFinancialFiles: AdditionalFinancialFile[];
   stepTimestamps: StepTimestamps;
 };
 
@@ -1486,6 +1498,9 @@ type AdminContextValue = AdminState & {
     field: FinancialHighlightsField,
     value: string
   ) => void;
+  addAdditionalFinancialFiles: (files: Array<{ fileName: string; fileData: string }>) => void;
+  updateAdditionalFinancialFile: (id: string, data: Partial<Pick<AdditionalFinancialFile, 'note'>>) => void;
+  removeAdditionalFinancialFile: (id: string) => void;
   createAppraisalReportBundle: (
     tctGroupIds: string[],
     appraiserType: AppraiserType,
@@ -2553,6 +2568,7 @@ function createInitialReview(): ApplicationReview {
     financialStatement: createInitialFinancialStatement(),
     bankLoans: createInitialBankLoans(),
     financialHighlights: createInitialFinancialHighlights(),
+    additionalFinancialFiles: [],
     stepTimestamps: {},
   };
 }
@@ -2807,6 +2823,9 @@ function readStoredState(): AdminState {
           };
           return acc;
         }, {} as FinancialHighlights),
+        additionalFinancialFiles: Array.isArray(storedReview.additionalFinancialFiles)
+          ? storedReview.additionalFinancialFiles
+          : [],
       },
     };
   } catch {
@@ -3362,6 +3381,46 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               ...prev.review.financialHighlights,
               [period]: { ...prev.review.financialHighlights[period], [field]: value },
             },
+          },
+        })),
+      addAdditionalFinancialFiles: (files) =>
+        setState((prev) => {
+          const uploadedAt = new Date().toISOString();
+          return {
+            ...prev,
+            review: {
+              ...prev.review,
+              additionalFinancialFiles: [
+                ...prev.review.additionalFinancialFiles,
+                ...files.map((file) => ({
+                  id: crypto.randomUUID(),
+                  fileName: file.fileName,
+                  fileData: file.fileData,
+                  note: '',
+                  uploadedAt,
+                })),
+              ],
+            },
+          };
+        }),
+      updateAdditionalFinancialFile: (id, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            additionalFinancialFiles: prev.review.additionalFinancialFiles.map((file) =>
+              file.id === id ? { ...file, ...data } : file
+            ),
+          },
+        })),
+      removeAdditionalFinancialFile: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            additionalFinancialFiles: prev.review.additionalFinancialFiles.filter(
+              (file) => file.id !== id
+            ),
           },
         })),
       createAppraisalReportBundle: (tctGroupIds, appraiserType, appraiserName, targetCompletionDate, fee) =>

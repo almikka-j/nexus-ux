@@ -6,8 +6,9 @@
 > `bank-statement-modal.tsx`, `financial-summary-card.tsx`,
 > `financial-summary-calcs.ts`, `financial-statement-modal.tsx`,
 > `financial-statement-report.tsx`, `bank-loans-modal.tsx`,
-> `bank-loan-report.tsx`, `financial-highlights-modal.tsx`, or
-> `financial-highlights-report.tsx` change. Companion to `docs/230-project-overview.md`
+> `bank-loan-report.tsx`, `financial-highlights-modal.tsx`,
+> `financial-highlights-report.tsx`, or
+> `additional-financial-files-card.tsx` change. Companion to `docs/230-project-overview.md`
 > and `docs/090-account-solicitation-requirement-checklist.md` (the screen that actually collects
 > these documents) and `docs/100-credit-investigation.md` (the sibling
 > process-stage detail page this one follows the same pattern as).
@@ -68,11 +69,13 @@ this build. The page is:
    collapse it behind, unlike Credit Investigation's).
 5. **Financial Summary card** (`financial-summary-card.tsx`) — see its own
    section below.
-6. **Bank Statement card** (`bank-statement-card.tsx`) — see its own section
-   below.
-7. **Cash Flow Statement card** (`cash-flow-statement-card.tsx`) — see its
+6. **Cash Flow Statement card** (`cash-flow-statement-card.tsx`) — see its
    own section below.
-8. **"Proceed application?" decision card** — same shape as Credit
+7. **Bank Statement card** (`bank-statement-card.tsx`) — see its own section
+   below.
+8. **Additional Financial Files card** (`additional-financial-files-card.tsx`)
+   — see its own section below.
+9. **"Proceed application?" decision card** — same shape as Credit
    Investigation's Proceed/Disapprove, see "Decision" below.
 
 ## Financial Summary
@@ -421,6 +424,27 @@ run independently per column:
 sourced from `signUpData`/`application.financialInfo.desiredLoanAmount` (the
 `RegistrationState` from the loan application itself) — not part of
 `CashFlowStatement`'s own stored state.
+
+## Additional Financial Files
+
+A card (`AdditionalFinancialFilesCard` in `additional-financial-files-card.tsx`)
+for **free-form supporting-document uploads beyond the fixed Document
+Checklist** — supplier contracts, leases, bank certifications, etc. Same
+`adminCardSx` + `CollapsibleSection` shell, a `{count}` badge once anything
+is uploaded, an **Upload files** button (`<input multiple accept="image/*,.pdf">`),
+and one bordered row per file: filename + upload timestamp, an outlined
+**View** (opens the data URL in a new tab), a red delete `IconButton`
+(→ `ConfirmDialog`), and an optional one-line **Note** field.
+
+**State** — `review.additionalFinancialFiles: AdditionalFinancialFile[]`
+(`{ id, fileName, fileData, note, uploadedAt }`), array-merged in
+`readStoredState()`. Setters: `addAdditionalFinancialFiles(files)`,
+`updateAdditionalFinancialFile(id, { note })`, `removeAdditionalFinancialFile(id)`.
+
+Data URLs only — no parsing, no OCR, same prototype convention as every
+other upload in this app. Informational — does not gate the Endorse
+decision. The whole-page **Fill with Sample Data** action does **not**
+touch this card.
 
 ## Decision: Proceed → Credit Scoring, Disapprove → Reconsideration
 

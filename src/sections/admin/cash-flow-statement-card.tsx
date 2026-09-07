@@ -852,6 +852,7 @@ export function CashFlowStatementReport({ open, onClose }: { open: boolean; onCl
     const n = num(raw);
     return n === 0 ? '—' : fmt(n);
   };
+  const fmtOrDash = (value: number) => (value === 0 ? '—' : fmt(value));
   const fmtNullDash = (value: number | null) => (value === null || value === 0 ? '—' : fmt(value));
   const fmtPct = (value: number | null) => (value === null ? '—' : `${value.toFixed(2)}%`);
   const nowLabel = new Date().toLocaleString('en-PH', {
@@ -883,129 +884,119 @@ export function CashFlowStatementReport({ open, onClose }: { open: boolean; onCl
       <Divider />
 
       <DialogContent sx={{ p: 3 }}>
-        <Stack spacing={3}>
-          {/* Meta — the app's report field-block treatment
-              (credit-checking-result-modal.tsx's FieldRow convention). */}
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <Typography
-              sx={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: '#8891A6',
-                mb: 1.5,
-              }}
-            >
-              Cash Flow Statement
-            </Typography>
-            <Stack spacing={1.25}>
-              <ReportMeta label="Borrower's Name" value={applicantName} />
-              <ReportMeta
-                label="Amount of Loan"
-                value={loanAmount !== null ? fCurrency(loanAmount) : '—'}
-              />
-              <ReportMeta
-                label="Computation Type"
-                value={COMPUTATION_TYPE_LABELS[cashFlow.computationType]}
-              />
-            </Stack>
-          </Box>
-
-          <Stack spacing={2}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              Personal Income &amp; Expenses
-            </Typography>
-
-            <SubsectionLabel>Source of Income</SubsectionLabel>
-            <ColumnHeaders />
-            <SubtotalRow label="Fixed Income" combined={fmtDash(cashFlow.fixedIncomeCombined)} borrowerOnly={fmtDash(cashFlow.fixedIncomeBorrowerOnly)} />
-            <SubtotalRow label="Variable Income" combined={fmtDash(cashFlow.variableIncomeCombined)} borrowerOnly={fmtDash(cashFlow.variableIncomeBorrowerOnly)} />
-            <SubtotalRow label="Other Income (Spouse Income / Profit Sharing)" combined={fmtDash(cashFlow.otherIncomeCombined)} borrowerOnly={fmtDash(cashFlow.otherIncomeBorrowerOnly)} />
-            <SubtotalRow label="Less: Deductions" combined={fmtDash(cashFlow.lessDeductionsCombined)} borrowerOnly={fmtDash(cashFlow.lessDeductionsBorrowerOnly)} />
-            <TotalRow label="Total Income" combined={fmt(totalIncomeCombined)} borrowerOnly={fmt(totalIncomeBorrowerOnly)} />
-          </Stack>
-
-          <Divider />
-
-          <Stack spacing={2}>
-            <SubsectionLabel>Less Expenses</SubsectionLabel>
-            <ColumnHeaders />
-            <SubtotalRow label="Fixed Expense" combined={fmtDash(cashFlow.fixedExpenseCombined)} borrowerOnly={fmtDash(cashFlow.fixedExpenseBorrowerOnly)} />
-            <SubtotalRow label="Utilities" combined={fmtDash(cashFlow.utilitiesCombined)} borrowerOnly={fmtDash(cashFlow.utilitiesBorrowerOnly)} />
-            <SubtotalRow label="Transport" combined={fmtDash(cashFlow.transportCombined)} borrowerOnly={fmtDash(cashFlow.transportBorrowerOnly)} />
-            <SubtotalRow label="Other Expense" combined={fmtDash(cashFlow.otherExpenseCombined)} borrowerOnly={fmtDash(cashFlow.otherExpenseBorrowerOnly)} />
-            <SubtotalRow label="Miscellaneous Expenses" combined={fmtDash(cashFlow.miscExpensesCombined)} borrowerOnly={fmtDash(cashFlow.miscExpensesBorrowerOnly)} />
-            <SubtotalRow label="Sub-total" combined={fmt(subtotalCombined)} borrowerOnly={fmt(subtotalBorrowerOnly)} />
-            <SubtotalRow
-              label={`Add: Adjusted Expense (${cashFlow.adjustedExpensePercentCombined || '0'}% / ${cashFlow.adjustedExpensePercentBorrowerOnly || '0'}%)`}
-              combined={fmt(adjustedExpenseCombined)}
-              borrowerOnly={fmt(adjustedExpenseBorrowerOnly)}
-            />
-            <TotalRow label="Total Expenses" combined={fmt(totalExpensesCombined)} borrowerOnly={fmt(totalExpensesBorrowerOnly)} />
-            <TotalRow
-              label="Income Available for Debt Service"
-              combined={fmt(incomeAvailableCombined)}
-              borrowerOnly={fmt(incomeAvailableBorrowerOnly)}
-            />
-          </Stack>
-
-          <Divider />
-
-          <Stack spacing={2}>
-            <SubsectionLabel>Other Loans</SubsectionLabel>
-            <ColumnHeaders />
-            {cashFlow.otherLoans.length === 0 ? (
-              <Typography sx={{ fontSize: 13, color: '#8891A6' }}>No other loans recorded.</Typography>
-            ) : (
-              cashFlow.otherLoans.map((loan) => (
-                <SubtotalRow
-                  key={loan.id}
-                  label={loan.lender || 'Other loan'}
-                  combined={fmtDash(loan.monthlyAmortizationCombined)}
-                  borrowerOnly={fmtDash(loan.monthlyAmortizationBorrowerOnly)}
-                />
-              ))
-            )}
-            <SubtotalRow
-              label="Total of Other Loans"
-              combined={fmt(totalOtherLoansCombined)}
-              borrowerOnly={fmt(totalOtherLoansBorrowerOnly)}
-            />
-            <SubtotalRow
-              label="PGFC Loan – Principal & Interest"
-              combined={fmtNullDash(pgfcAnnualCombined)}
-              borrowerOnly={fmtNullDash(pgfcAnnualBorrowerOnly)}
-            />
-            <TotalRow label="Total Loans" combined={fmt(totalLoansCombined)} borrowerOnly={fmt(totalLoansBorrowerOnly)} />
-          </Stack>
-
-          <Divider />
-
-          <Stack spacing={2}>
-            <TotalRow label="Net Income" combined={fmt(netIncomeCombined)} borrowerOnly={fmt(netIncomeBorrowerOnly)} />
-            <TotalRow label="Debt Service Ratio" combined={fmtPct(dsrCombined)} borrowerOnly={fmtPct(dsrBorrowerOnly)} />
-            <SubtotalRow
-              label="Percentage of Net Income Over Gross"
-              combined={fmtPct(pctNetOverGross(netIncomeCombined, totalIncomeCombined))}
-              borrowerOnly={fmtPct(pctNetOverGross(netIncomeBorrowerOnly, totalIncomeBorrowerOnly))}
-            />
-          </Stack>
-
-          <Stack
-            direction="row"
-            justifyContent="space-around"
-            sx={{ pt: 2.5, borderTop: '1px solid #EEF0F5' }}
+        {/* Meta — the app's report field-block treatment
+            (credit-checking-result-modal.tsx's FieldRow convention). */}
+        <Box sx={{ p: 2.5, mb: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
+          <Typography
+            sx={{
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: '#8891A6',
+              mb: 1.5,
+            }}
           >
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#5A6273' }}>Prepared by</Typography>
-              <Typography sx={{ fontSize: 11, color: '#98A2B3', mt: 0.25 }}>{nowLabel}</Typography>
-            </Box>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#5A6273' }}>Noted by</Typography>
-              <Typography sx={{ fontSize: 11, color: '#98A2B3', mt: 0.25 }}>—</Typography>
-            </Box>
+            Cash Flow Statement
+          </Typography>
+          <Stack spacing={1.25}>
+            <ReportMeta label="Borrower's Name" value={applicantName} />
+            <ReportMeta
+              label="Amount of Loan"
+              value={loanAmount !== null ? fCurrency(loanAmount) : '—'}
+            />
+            <ReportMeta
+              label="Computation Type"
+              value={COMPUTATION_TYPE_LABELS[cashFlow.computationType]}
+            />
           </Stack>
+        </Box>
+
+        <Box sx={{ overflowX: 'auto' }}>
+          <Box component="table" sx={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
+            <Box component="thead">
+              <Box component="tr" sx={{ bgcolor: '#EEF1FE' }}>
+                <Box
+                  component="th"
+                  sx={{ ...reportCellSx, textAlign: 'left', fontWeight: 800, color: '#14172A' }}
+                >
+                  Personal Income &amp; Expenses
+                </Box>
+                <Box component="th" sx={{ ...reportCellSx, fontWeight: 800, color: '#14172A' }}>
+                  Combined
+                </Box>
+                <Box component="th" sx={{ ...reportCellSx, fontWeight: 800, color: '#14172A' }}>
+                  Borrower Only
+                </Box>
+              </Box>
+            </Box>
+            <Box component="tbody">
+              <ReportGroupRow label="Source of Income" />
+              <ReportLineRow label="Fixed Income" combined={fmtDash(cashFlow.fixedIncomeCombined)} borrowerOnly={fmtDash(cashFlow.fixedIncomeBorrowerOnly)} />
+              <ReportLineRow label="Variable Income" combined={fmtDash(cashFlow.variableIncomeCombined)} borrowerOnly={fmtDash(cashFlow.variableIncomeBorrowerOnly)} />
+              <ReportLineRow label="Other Income (Spouse Income / Profit Sharing)" combined={fmtDash(cashFlow.otherIncomeCombined)} borrowerOnly={fmtDash(cashFlow.otherIncomeBorrowerOnly)} />
+              <ReportLineRow label="Less: Deductions" combined={fmtDash(cashFlow.lessDeductionsCombined)} borrowerOnly={fmtDash(cashFlow.lessDeductionsBorrowerOnly)} />
+              <ReportTotalRow label="Total Income" combined={fmtOrDash(totalIncomeCombined)} borrowerOnly={fmtOrDash(totalIncomeBorrowerOnly)} />
+
+              <ReportGroupRow label="Less Expenses" />
+              <ReportLineRow label="Fixed Expense" combined={fmtDash(cashFlow.fixedExpenseCombined)} borrowerOnly={fmtDash(cashFlow.fixedExpenseBorrowerOnly)} />
+              <ReportLineRow label="Utilities" combined={fmtDash(cashFlow.utilitiesCombined)} borrowerOnly={fmtDash(cashFlow.utilitiesBorrowerOnly)} />
+              <ReportLineRow label="Transport" combined={fmtDash(cashFlow.transportCombined)} borrowerOnly={fmtDash(cashFlow.transportBorrowerOnly)} />
+              <ReportLineRow label="Other Expense" combined={fmtDash(cashFlow.otherExpenseCombined)} borrowerOnly={fmtDash(cashFlow.otherExpenseBorrowerOnly)} />
+              <ReportLineRow label="Miscellaneous Expenses" combined={fmtDash(cashFlow.miscExpensesCombined)} borrowerOnly={fmtDash(cashFlow.miscExpensesBorrowerOnly)} />
+              <ReportLineRow label="Sub-total" combined={fmtOrDash(subtotalCombined)} borrowerOnly={fmtOrDash(subtotalBorrowerOnly)} muted />
+              <ReportLineRow
+                label={`Add: Adjusted Expense (${cashFlow.adjustedExpensePercentCombined || '0'}% / ${cashFlow.adjustedExpensePercentBorrowerOnly || '0'}%)`}
+                combined={fmtOrDash(adjustedExpenseCombined)}
+                borrowerOnly={fmtOrDash(adjustedExpenseBorrowerOnly)}
+                muted
+              />
+              <ReportTotalRow label="Total Expenses" combined={fmtOrDash(totalExpensesCombined)} borrowerOnly={fmtOrDash(totalExpensesBorrowerOnly)} />
+
+              <ReportTotalRow label="Income Available for Debt Service" combined={fmtOrDash(incomeAvailableCombined)} borrowerOnly={fmtOrDash(incomeAvailableBorrowerOnly)} />
+
+              <ReportGroupRow label="Other Loans" />
+              {cashFlow.otherLoans.length === 0 ? (
+                <ReportLineRow label="No other loans recorded" combined="—" borrowerOnly="—" muted />
+              ) : (
+                cashFlow.otherLoans.map((loan) => (
+                  <ReportLineRow
+                    key={loan.id}
+                    label={loan.lender || 'Other loan'}
+                    combined={fmtDash(loan.monthlyAmortizationCombined)}
+                    borrowerOnly={fmtDash(loan.monthlyAmortizationBorrowerOnly)}
+                  />
+                ))
+              )}
+              <ReportLineRow label="Total of Other Loans" combined={fmtOrDash(totalOtherLoansCombined)} borrowerOnly={fmtOrDash(totalOtherLoansBorrowerOnly)} muted />
+              <ReportLineRow label="PGFC Loan – Principal & Interest" combined={fmtNullDash(pgfcAnnualCombined)} borrowerOnly={fmtNullDash(pgfcAnnualBorrowerOnly)} />
+              <ReportTotalRow label="Total Loans" combined={fmtOrDash(totalLoansCombined)} borrowerOnly={fmtOrDash(totalLoansBorrowerOnly)} />
+
+              <ReportTotalRow label="Net Income" combined={fmtOrDash(netIncomeCombined)} borrowerOnly={fmtOrDash(netIncomeBorrowerOnly)} />
+              <ReportTotalRow label="Debt Service Ratio" combined={fmtPct(dsrCombined)} borrowerOnly={fmtPct(dsrBorrowerOnly)} />
+              <ReportLineRow
+                label="Percentage of Net Income Over Gross"
+                combined={fmtPct(pctNetOverGross(netIncomeCombined, totalIncomeCombined))}
+                borrowerOnly={fmtPct(pctNetOverGross(netIncomeBorrowerOnly, totalIncomeBorrowerOnly))}
+                muted
+              />
+            </Box>
+          </Box>
+        </Box>
+
+        <Stack
+          direction="row"
+          justifyContent="space-around"
+          sx={{ mt: 3, pt: 2.5, borderTop: '1px solid #EEF0F5' }}
+        >
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#5A6273' }}>Prepared by</Typography>
+            <Typography sx={{ fontSize: 11, color: '#98A2B3', mt: 0.25 }}>{nowLabel}</Typography>
+          </Box>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#5A6273' }}>Noted by</Typography>
+            <Typography sx={{ fontSize: 11, color: '#98A2B3', mt: 0.25 }}>—</Typography>
+          </Box>
         </Stack>
       </DialogContent>
 
@@ -1031,6 +1022,15 @@ export function CashFlowStatementReport({ open, onClose }: { open: boolean; onCl
   );
 }
 
+const reportCellSx = {
+  fontSize: 11.5,
+  px: 1,
+  py: 0.6,
+  textAlign: 'right' as const,
+  whiteSpace: 'nowrap' as const,
+  color: '#3B4256',
+};
+
 function ReportMeta({ label, value }: { label: string; value: string }) {
   return (
     <Stack direction="row" spacing={2}>
@@ -1039,6 +1039,80 @@ function ReportMeta({ label, value }: { label: string; value: string }) {
       </Typography>
       <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value}</Typography>
     </Stack>
+  );
+}
+
+function ReportGroupRow({ label }: { label: string }) {
+  return (
+    <Box component="tr">
+      <Box
+        component="td"
+        colSpan={3}
+        sx={{
+          fontSize: 12,
+          fontWeight: 800,
+          color: '#14172A',
+          bgcolor: '#F1F3F8',
+          px: 1,
+          py: 0.75,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </Box>
+    </Box>
+  );
+}
+
+function ReportLineRow({
+  label,
+  combined,
+  borrowerOnly,
+  muted,
+}: {
+  label: string;
+  combined: string;
+  borrowerOnly: string;
+  muted?: boolean;
+}) {
+  return (
+    <Box component="tr" sx={{ '&:nth-of-type(even)': { bgcolor: '#FAFBFD' } }}>
+      <Box
+        component="td"
+        sx={{
+          ...reportCellSx,
+          textAlign: 'left',
+          color: muted ? '#8891A6' : '#5A6273',
+          fontStyle: muted ? 'italic' : 'normal',
+          pl: 2,
+        }}
+      >
+        {label}
+      </Box>
+      <Box component="td" sx={{ ...reportCellSx, color: muted ? '#8891A6' : '#3B4256' }}>{combined}</Box>
+      <Box component="td" sx={{ ...reportCellSx, color: muted ? '#8891A6' : '#3B4256' }}>{borrowerOnly}</Box>
+    </Box>
+  );
+}
+
+function ReportTotalRow({
+  label,
+  combined,
+  borrowerOnly,
+}: {
+  label: string;
+  combined: string;
+  borrowerOnly: string;
+}) {
+  return (
+    <Box component="tr" sx={{ '&:nth-of-type(even)': { bgcolor: '#FAFBFD' } }}>
+      <Box component="td" sx={{ ...reportCellSx, textAlign: 'left', fontWeight: 800, color: '#14172A' }}>
+        {label}
+      </Box>
+      <Box component="td" sx={{ ...reportCellSx, fontWeight: 800, color: '#14172A' }}>{combined}</Box>
+      <Box component="td" sx={{ ...reportCellSx, fontWeight: 800, color: '#14172A' }}>{borrowerOnly}</Box>
+    </Box>
   );
 }
 

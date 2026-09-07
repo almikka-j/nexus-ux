@@ -1053,15 +1053,16 @@ account name/number, month range, and inline-editable Deposit and Daily
 Balance rows — all edited in a centered modal, not a separate page), a
 **Cash Flow Statement card**
 (same Manage / View-report pattern — Manage opens the Combined/Borrower Only
-income-expense form as a modal; View opens a read-only report that reuses
-the form's own `SubsectionLabel` / `ColumnHeaders` / `SubtotalRow` /
-`TotalRow` layout to render the full legacy line-item breakdown), and a
+income-expense form as a modal; View opens a read-only report rendering the
+full legacy line-item breakdown), an **Additional Financial Files card**
+(free-form supporting-document uploads beyond the fixed checklist — multi-
+file, each row with a View action, an optional note, and delete), and a
 Proceed/Disapprove decision — but no fee/report flow, unlike Credit
-Investigation and Appraisal. A
+Investigation and Appraisal. Card order on the page: Financial Summary →
+Cash Flow Statement → Bank Statement → Additional Financial Files. A
 **Fill with Sample Data** / **Remove Sample Data** floating-settings action
-seeds (or clears) **every** workspace on the page at once — the bank
-statement, Cash Flow Statement, Financial Statement (all 5 periods), Bank
-Loans, and Financial Highlights.
+seeds (or clears) the Financial Summary sub-tools, Cash Flow Statement, and
+one bank statement in one shot (not the Additional Financial Files).
 
 **Each step only lists applications genuinely at that step, always — including the
 default view**: `ApplicationListView`'s `stepFilter` defaults to `'creditChecking'`
