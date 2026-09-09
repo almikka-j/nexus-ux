@@ -13,6 +13,7 @@ import DialogContent from '@mui/material/DialogContent';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
+import { selectFinancialStatementReportPeriods } from 'src/auth/financial-statement-details';
 import {
   FINANCIAL_PERIODS,
   FINANCIAL_PERIOD_LABELS,
@@ -57,14 +58,17 @@ function priorPeriod(period: FinancialPeriod): FinancialPeriod | null {
 export function FinancialStatementReport({
   open,
   onClose,
+  period,
 }: {
   open: boolean;
   onClose: () => void;
+  period?: FinancialPeriod;
 }) {
   const { review } = useAdmin();
   const { signUpData } = useRegistration();
   const statement = review.financialStatement;
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '—';
+  const periods = selectFinancialStatementReportPeriods(FINANCIAL_PERIODS, period);
 
   const money = (n: number) => fCurrency(n) || '₱0.00';
 
@@ -126,7 +130,7 @@ export function FinancialStatementReport({
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
           <Box>
             <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>
-              Financial Statement Report
+              Financial Statement Report{period ? ` · ${FINANCIAL_PERIOD_LABELS[period]}` : ''}
             </Typography>
             <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>{applicantName}</Typography>
           </Box>
@@ -140,11 +144,14 @@ export function FinancialStatementReport({
 
       <DialogContent sx={{ p: 3 }}>
         <Box sx={{ overflowX: 'auto' }}>
-          <Box component="table" sx={{ borderCollapse: 'collapse', width: '100%', minWidth: 900 }}>
+          <Box
+            component="table"
+            sx={{ borderCollapse: 'collapse', width: '100%', minWidth: period ? 560 : 900 }}
+          >
             <Box component="thead">
               <Box component="tr" sx={{ bgcolor: '#EEF1FE' }}>
                 <Box component="th" sx={{ ...labelCellSx, minWidth: 230 }} />
-                {FINANCIAL_PERIODS.map((p) => (
+                {periods.map((p) => (
                   <Box
                     component="th"
                     key={p}
@@ -160,7 +167,7 @@ export function FinancialStatementReport({
               </Box>
               <Box component="tr" sx={{ bgcolor: '#F5F7FF' }}>
                 <Box component="th" sx={labelCellSx} />
-                {FINANCIAL_PERIODS.map((p) => (
+                {periods.map((p) => (
                   <Box key={p} sx={{ display: 'contents' }}>
                     <Box component="th" sx={{ ...cellSx, textAlign: 'right', color: '#9AA2B4', fontWeight: 700, borderLeft: '1px solid #E1E4ED' }}>
                       Amount
@@ -177,11 +184,11 @@ export function FinancialStatementReport({
             </Box>
 
             <Box component="tbody">
-              <SectionHeaderRow label="Income Statement" span={1 + FINANCIAL_PERIODS.length * 3} />
+              <SectionHeaderRow label="Income Statement" span={1 + periods.length * 3} />
               {incomeRows.map((row) => (
                 <Box component="tr" key={row.label} sx={{ '&:nth-of-type(even)': { bgcolor: '#FAFBFD' } }}>
                   <Box component="td" sx={labelCellSx}>{row.label}</Box>
-                  {FINANCIAL_PERIODS.map((p) => (
+                  {periods.map((p) => (
                     <Box key={p} sx={{ display: 'contents' }}>
                       <Box component="td" sx={{ ...numCellSx, borderLeft: '1px solid #F0F1F5' }}>
                         {money(row.value(p))}
@@ -195,11 +202,11 @@ export function FinancialStatementReport({
                 </Box>
               ))}
 
-              <SectionHeaderRow label="Balance Sheet" span={1 + FINANCIAL_PERIODS.length * 3} />
+              <SectionHeaderRow label="Balance Sheet" span={1 + periods.length * 3} />
               {balanceRows.map((row) => (
                 <Box component="tr" key={row.label} sx={{ '&:nth-of-type(even)': { bgcolor: '#FAFBFD' } }}>
                   <Box component="td" sx={labelCellSx}>{row.label}</Box>
-                  {FINANCIAL_PERIODS.map((p) => (
+                  {periods.map((p) => (
                     <Box key={p} sx={{ display: 'contents' }}>
                       <Box component="td" sx={{ ...numCellSx, borderLeft: '1px solid #F0F1F5' }}>
                         {money(row.value(p))}
@@ -214,7 +221,7 @@ export function FinancialStatementReport({
                 <Box component="td" sx={labelCellSx}>
                   Assets vs Liabilities &amp; Equity
                 </Box>
-                {FINANCIAL_PERIODS.map((p) => {
+                {periods.map((p) => {
                   const bs = computeBalanceSheet(statement[p]);
                   return (
                     <Box
@@ -235,11 +242,11 @@ export function FinancialStatementReport({
                 })}
               </Box>
 
-              <SectionHeaderRow label="Ratios" span={1 + FINANCIAL_PERIODS.length * 3} />
+              <SectionHeaderRow label="Ratios" span={1 + periods.length * 3} />
               {ratioRows.map((row) => (
                 <Box component="tr" key={row.label} sx={{ '&:nth-of-type(even)': { bgcolor: '#FAFBFD' } }}>
                   <Box component="td" sx={labelCellSx}>{row.label}</Box>
-                  {FINANCIAL_PERIODS.map((p) => (
+                  {periods.map((p) => (
                     <Box
                       component="td"
                       key={p}
