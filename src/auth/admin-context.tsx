@@ -2,6 +2,12 @@
 
 import { useMemo, useState, useEffect, useContext, createContext } from 'react';
 
+import {
+  createInitialFinancialStatementDetails,
+  hydrateFinancialStatementDetails,
+  patchFinancialStatementDetails,
+  type FinancialStatementDetails,
+} from 'src/auth/financial-statement-details';
 import type { RequirementDocStatus } from 'src/sections/admin/requirement-checklist-docs';
 import { REQUIREMENT_DOC_META, APPRAISAL_DOC_META } from 'src/sections/admin/requirement-checklist-docs';
 
@@ -1382,6 +1388,7 @@ export type ApplicationReview = {
   cashFlowStatement: CashFlowStatement;
   bankStatements: BankStatement[];
   financialStatement: FinancialStatement;
+  financialStatementDetails: FinancialStatementDetails;
   bankLoans: BankLoans;
   financialHighlights: FinancialHighlights;
   additionalFinancialFiles: AdditionalFinancialFile[];
@@ -1489,6 +1496,7 @@ type AdminContextValue = AdminState & {
     field: FinancialStatementField,
     value: string
   ) => void;
+  setFinancialStatementDetails: (data: Partial<FinancialStatementDetails>) => void;
   addBankLoanRow: (kind: BankLoanKind) => void;
   updateBankLoanRow: (kind: BankLoanKind, id: string, data: Partial<Omit<BankLoanRow, 'id'>>) => void;
   removeBankLoanRow: (kind: BankLoanKind, id: string) => void;
@@ -2566,6 +2574,7 @@ function createInitialReview(): ApplicationReview {
     cashFlowStatement: createInitialCashFlowStatement(),
     bankStatements: [],
     financialStatement: createInitialFinancialStatement(),
+    financialStatementDetails: createInitialFinancialStatementDetails(),
     bankLoans: createInitialBankLoans(),
     financialHighlights: createInitialFinancialHighlights(),
     additionalFinancialFiles: [],
@@ -2802,6 +2811,9 @@ function readStoredState(): AdminState {
           };
           return acc;
         }, {} as FinancialStatement),
+        financialStatementDetails: hydrateFinancialStatementDetails(
+          storedReview.financialStatementDetails
+        ),
         bankLoans: {
           ...initialState.review.bankLoans,
           ...storedReview.bankLoans,
@@ -3290,6 +3302,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             bankStatements: [createSampleBankStatement()],
             cashFlowStatement: createSampleCashFlowStatement(),
             financialStatement: createSampleFinancialStatement(),
+            financialStatementDetails: {
+              productLine: 'Wholesale and Retail Trade',
+              amd: '',
+              remarks: '<p>Financial statements reviewed for the five reporting periods.</p>',
+              submittedAt: new Date().toISOString(),
+            },
             bankLoans: createSampleBankLoans(),
             financialHighlights: createSampleFinancialHighlights(),
           },
@@ -3302,6 +3320,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             bankStatements: [],
             cashFlowStatement: createInitialCashFlowStatement(),
             financialStatement: createInitialFinancialStatement(),
+            financialStatementDetails: createInitialFinancialStatementDetails(),
             bankLoans: createInitialBankLoans(),
             financialHighlights: createInitialFinancialHighlights(),
           },
@@ -3315,6 +3334,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               ...prev.review.financialStatement,
               [period]: { ...prev.review.financialStatement[period], [field]: value },
             },
+          },
+        })),
+      setFinancialStatementDetails: (data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            financialStatementDetails: patchFinancialStatementDetails(
+              prev.review.financialStatementDetails,
+              data
+            ),
           },
         })),
       addBankLoanRow: (kind) =>
