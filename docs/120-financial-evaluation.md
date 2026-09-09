@@ -116,11 +116,23 @@ straight to Net Sale), `costOfGoodsSold`, `operatingExpenses`,
 `nonCurrentAssets`, `currentLiabilities`, `nonCurrentLiabilities`, `equity`.
 Setter: `setFinancialStatementField(period, field, value)`.
 
+The modal-level metadata is stored separately as
+`review.financialStatementDetails: FinancialStatementDetails` with four
+fields: `productLine`, `amd`, rich-text HTML `remarks`, and nullable ISO
+`submittedAt`. It is initialized and backward-compatibly hydrated with safe
+defaults, and partial edits persist through `setFinancialStatementDetails()`.
+The sample-data action seeds these details; Remove Sample Data resets them.
+
 **Form** (`financial-statement-modal.tsx`) — a **two-level** `<Dialog
 maxWidth="lg">` matching the legacy period-row model (minus the
 separate-page navigation):
-- *Level 1 (landing):* the 5 period rows (2023 … Projected), each with a
-  "Filled / Empty" chip and a **Manage** button.
+- *Level 1 (landing):* read-only **Applicant Name** and **Amount Applied**
+  sourced from registration/application state; editable **Product Line** and
+  **AMD** metadata; the 5 period rows (2023 … Projected), each with a
+  "Filled / Empty" chip, **View**, and **Manage**; and a rich-text
+  **Remarks** field. **Submit** requires Product Line after trimming, shows
+  `Product Line is required.` without closing when it is blank, trims AMD,
+  stamps `submittedAt` with the current ISO timestamp, and then closes.
 - *Level 2 (period form):* a back arrow, then **INCOME STATEMENT** —
   7 editable ₱ inputs on the left (Gross Sales, Cost of Goods Sold,
   Operating Expenses, Other Income (Expense), Interest Expense (Expense),
@@ -132,8 +144,11 @@ separate-page navigation):
   Everything persists on keystroke — no "save income statement first"
   gating (that legacy staged-save constraint is dropped).
 
-**Report** (`financial-statement-report.tsx`) — read-only comparative wide
-table (opened from the card's **View**):
+**Report** (`financial-statement-report.tsx`) — the period-row **View** opens
+the selected period only and returns to the modal landing when closed. The
+Financial Summary card's existing **View** remains the unchanged comparative
+five-period report. Both modes render the same read-only report table (the
+single-period table uses a narrower minimum width):
 - **Income Statement** — Gross Sales, Net Sales, Cost of Goods Sold, Gross
   Profit, Operating Expenses, Operating Income Before Other Income
   (Expenses) (`grossProfit − opex`), Other Income (Expense), Operating
