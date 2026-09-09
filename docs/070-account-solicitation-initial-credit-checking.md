@@ -169,14 +169,15 @@ file has its own **read-only, auto-filling results table**
 `CicContractsTable`, `LoandexRecordsTable`, and `PgfcExposureTable`. Each is a
 real header-once `<Table>` matching the app's other admin tables (Application
 List, Loan History): `#FBFBFD` uppercase gray head (`#8891A6`),
-`#EEF0F5` row borders, `fontSize: 13.5` / `py: 1.375` cells, plain white rows
-(no zebra), tabular-nums on amount columns, wrapped in an `#EBEDF3` /
-`borderRadius: 16` card. The page stays at the standard `maxWidth="lg"`
-(same as every other admin screen); each table's `minWidth` (~1000) is tuned
-to fit that width without horizontal scroll at desktop sizes, and its
-`overflowX: auto` `TableContainer` only kicks in on narrower viewports. The
-six share a `BureauTable` shell but declare their own column lists; long cell
-values are clipped with an ellipsis and stay reachable via a hover tooltip. There is
+`#EEF0F5` row borders, plain white rows (no zebra), tabular-nums on amount
+columns, wrapped in an `#EBEDF3` / `borderRadius: 16` card. The page stays at
+the standard `maxWidth="lg"` (nav-bar-aligned, same as every other admin
+screen). To show all 8 columns **in one glance with no horizontal scroll**,
+`BureauTable` uses `tableLayout: fixed` + `width: 100%` with a per-column
+`<colgroup>` `weight` (text-heavy columns like Institution / Remarks get
+~1.3–1.8, numeric/date columns ~0.9–1.0); every cell ellipsis-clips and the
+full value is on a hover tooltip. The six share the `BureauTable` shell but
+declare their own weighted column lists. There is
 no officer data entry here: the instant a file is added to a bureau (by hand,
 "Add files"/"Upload report", or via "Fill with Sample Data"), that file is
 seeded with **2–3 realistic canned sample rows** (1 row for CMAP/PGFC — see
