@@ -19,6 +19,8 @@ import DialogContent from '@mui/material/DialogContent';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { useAdmin } from 'src/auth/admin-context';
+import { useRegistration } from 'src/auth/registration-context';
+import { submitFinancialStatementDetails } from 'src/auth/financial-statement-details';
 import {
   FINANCIAL_PERIODS,
   FINANCIAL_PERIOD_LABELS,
@@ -31,8 +33,10 @@ import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
 import { TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { RichTextField } from 'src/components/rich-text-field';
 
 import { parseNum, computeIncomeStatement, computeBalanceSheet } from './financial-summary-calcs';
+import { FinancialStatementReport } from './financial-statement-report';
 
 // ----------------------------------------------------------------------
 // Financial Statement sub-tool — a two-level modal matching the legacy
@@ -151,12 +155,32 @@ type FinancialStatementModalProps = {
 };
 
 export function FinancialStatementModal({ open, onClose }: FinancialStatementModalProps) {
-  const { review, setFinancialStatementField } = useAdmin();
+  const { signUpData, application } = useRegistration();
+  const { review, setFinancialStatementField, setFinancialStatementDetails } = useAdmin();
   const [editing, setEditing] = useState<FinancialPeriod | null>(null);
+  const [reportPeriod, setReportPeriod] = useState<FinancialPeriod | null>(null);
+  const [productLineError, setProductLineError] = useState(false);
+
+  const details = review.financialStatementDetails;
+  const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '—';
+  const amountApplied = application.financialInfo?.desiredLoanAmount;
 
   const handleClose = () => {
     setEditing(null);
+    setReportPeriod(null);
+    setProductLineError(false);
     onClose();
+  };
+
+  const handleSubmit = () => {
+    const submitted = submitFinancialStatementDetails(details, new Date().toISOString());
+    if (!submitted) {
+      setProductLineError(true);
+      return;
+    }
+    setFinancialStatementDetails(submitted);
+    setProductLineError(false);
+    handleClose();
   };
 
   const money = (n: number) => fCurrency(n) || '₱0.00';
@@ -166,7 +190,8 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
   const bs = data ? computeBalanceSheet(data) : null;
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg" scroll="paper">
+    <>
+      <Dialog open={open && reportPeriod === null} onClose={handleClose} fullWidth maxWidth="lg" scroll="paper">
       <DialogTitle sx={{ p: 3, pb: 2 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
           <Stack direction="row" alignItems="center" spacing={1}>
@@ -196,7 +221,56 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
 
       <DialogContent sx={{ p: 3 }}>
         {!editing && (
-          <Stack spacing={1.25}>
+          <Stack spacing={2.5}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={8}>
+                <TextField
+                  fullWidth
+                  label="Applicant Name"
+                  value={applicantName}
+                  disabled
+                  size="small"
+                  sx={fieldSx}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="Amount Applied"
+                  value={amountApplied == null ? '—' : amountApplied.toLocaleString('en-PH')}
+                  disabled
+                  size="small"
+                  sx={fieldSx}
+                />
+              </Grid>
+              <Grid item xs={12} md={8}>
+                <TextField
+                  fullWidth
+                  required
+                  label="Product Line"
+                  value={details.productLine}
+                  onChange={(event) => {
+                    setFinancialStatementDetails({ productLine: event.target.value });
+                    if (productLineError && event.target.value.trim()) setProductLineError(false);
+                  }}
+                  error={productLineError}
+                  helperText={productLineError ? 'Product Line is required.' : undefined}
+                  size="small"
+                  sx={fieldSx}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  label="AMD"
+                  value={details.amd}
+                  onChange={(event) => setFinancialStatementDetails({ amd: event.target.value })}
+                  size="small"
+                  sx={fieldSx}
+                />
+              </Grid>
+            </Grid>
+
             {FINANCIAL_PERIODS.map((p) => {
               const filled = periodFilled(review.financialStatement[p]);
               return (
@@ -215,34 +289,52 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
                   <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', flex: 1 }}>
                     {FINANCIAL_PERIOD_LABELS[p]}
                   </Typography>
-                  <Chip
-                    size="small"
-                    label={filled ? 'Filled' : 'Empty'}
-                    sx={{
-                      fontWeight: 700,
-                      fontSize: 11,
-                      bgcolor: filled ? TONE_COLORS.success.bg : TONE_COLORS.neutral.bg,
-                      color: filled ? TONE_COLORS.success.text : TONE_COLORS.neutral.text,
-                    }}
-                  />
-                  <Button
-                    onClick={() => setEditing(p)}
-                    variant="contained"
-                    size="small"
-                    startIcon={<Iconify icon="solar:pen-bold" width={15} />}
-                    sx={{
-                      bgcolor: '#1C2A6E',
-                      borderRadius: '9px',
-                      px: 2,
-                      boxShadow: 'none',
-                      '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
-                    }}
-                  >
-                    Manage
-                  </Button>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="flex-end">
+                    <Chip
+                      size="small"
+                      label={filled ? 'Filled' : 'Empty'}
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: 11,
+                        bgcolor: filled ? TONE_COLORS.success.bg : TONE_COLORS.neutral.bg,
+                        color: filled ? TONE_COLORS.success.text : TONE_COLORS.neutral.text,
+                      }}
+                    />
+                    <Button
+                      onClick={() => setReportPeriod(p)}
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Iconify icon="solar:eye-bold-duotone" width={15} />}
+                      sx={{ ...outlinedNavyButtonSx, px: 2 }}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      onClick={() => setEditing(p)}
+                      variant="contained"
+                      size="small"
+                      startIcon={<Iconify icon="solar:pen-bold" width={15} />}
+                      sx={{
+                        bgcolor: '#1C2A6E',
+                        borderRadius: '9px',
+                        px: 2,
+                        boxShadow: 'none',
+                        '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+                      }}
+                    >
+                      Manage
+                    </Button>
+                  </Stack>
                 </Box>
               );
             })}
+
+            <RichTextField
+              label="Remarks"
+              value={details.remarks}
+              onChange={(remarks) => setFinancialStatementDetails({ remarks })}
+              placeholder="Enter financial statement remarks…"
+            />
           </Stack>
         )}
 
@@ -373,7 +465,7 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
           </Button>
         ) : null}
         <Button
-          onClick={handleClose}
+          onClick={editing ? handleClose : handleSubmit}
           variant="contained"
           sx={{
             bgcolor: '#1C2A6E',
@@ -384,9 +476,15 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
             '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
           }}
         >
-          Done
+          {editing ? 'Done' : 'Submit'}
         </Button>
       </DialogActions>
-    </Dialog>
+      </Dialog>
+      <FinancialStatementReport
+        open={open && reportPeriod !== null}
+        period={reportPeriod ?? undefined}
+        onClose={() => setReportPeriod(null)}
+      />
+    </>
   );
 }
