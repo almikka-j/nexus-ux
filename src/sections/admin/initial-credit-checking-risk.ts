@@ -93,7 +93,7 @@ const NEGATIVE_STATUS_KEYWORDS = [
 // this app ever gains them, should still match on that word elsewhere).
 const NEGATIVE_STATUS_KEYWORD_EXEMPTIONS = ['negative-file indicator found'];
 
-function isNegativeStatus(value: string): boolean {
+export function isNegativeStatus(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return false;
   if (NEGATIVE_STATUS_KEYWORD_EXEMPTIONS.some((phrase) => normalized.includes(phrase))) {

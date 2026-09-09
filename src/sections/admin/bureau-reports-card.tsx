@@ -8,6 +8,7 @@ import Chip from '@mui/material/Chip';
 import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import Collapse from '@mui/material/Collapse';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
@@ -29,6 +30,7 @@ import {
 } from 'src/components/admin-ui';
 
 import { computeInstallment } from './cibi-form-card';
+import { deriveBureauFileSummary } from './bureau-file-summary';
 import {
   CmapCasesTable,
   BapNfisRecordsTable,
@@ -144,6 +146,7 @@ function Field({
 // Expanded body: that file's results table.
 // ----------------------------------------------------------------------
 function BureauFilePanel({
+  kind,
   file,
   bureauTitle,
   open,
@@ -152,6 +155,7 @@ function BureauFilePanel({
   onDelete,
   renderTable,
 }: {
+  kind: BureauFileKind;
   file: BureauReportFile;
   bureauTitle: string;
   open: boolean;
@@ -160,8 +164,17 @@ function BureauFilePanel({
   onDelete: () => void;
   renderTable: (file: BureauReportFile) => React.ReactNode;
 }) {
+  const { signUpData } = useRegistration();
   const inputRef = useRef<HTMLInputElement>(null);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+
+  const applicantName = [signUpData?.firstName, signUpData?.lastName].filter(Boolean).join(' ');
+  const fileSummary = deriveBureauFileSummary(kind, file, applicantName);
+  const riskStyle = {
+    Low: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold' },
+    Moderate: { bg: '#EEF1FE', color: '#3448B0', icon: 'solar:info-circle-bold' },
+    High: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold' },
+  }[fileSummary.riskLevel];
 
   const handleReplace = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const picked = event.target.files?.[0];
@@ -261,6 +274,80 @@ function BureauFilePanel({
             {bureauTitle} results extracted from {file.fileName}
           </Typography>
           {renderTable(file)}
+
+          <Box sx={{ mt: 2, p: 2.25, borderRadius: '14px', bgcolor: riskStyle.bg }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={1.5}
+              sx={{ mb: 1.25 }}
+            >
+              <Typography
+                sx={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  letterSpacing: '0.03em',
+                  textTransform: 'uppercase',
+                  color: riskStyle.color,
+                }}
+              >
+                Summary Report
+              </Typography>
+              <Stack
+                direction="row"
+                spacing={0.75}
+                alignItems="center"
+                sx={{
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: '999px',
+                  bgcolor: 'common.white',
+                  flexShrink: 0,
+                }}
+              >
+                <Iconify icon={riskStyle.icon} width={15} sx={{ color: riskStyle.color }} />
+                <Typography
+                  sx={{ fontSize: 12, fontWeight: 800, color: riskStyle.color, whiteSpace: 'nowrap' }}
+                >
+                  {fileSummary.riskLevel} risk
+                </Typography>
+              </Stack>
+            </Stack>
+
+            <Typography sx={{ fontSize: 13.5, color: '#14172A', lineHeight: 1.65 }}>
+              {fileSummary.summary}
+            </Typography>
+
+            <Divider sx={{ borderColor: riskStyle.color, opacity: 0.15, my: 1.75 }} />
+
+            <Stack spacing={1.5}>
+              {(
+                [
+                  ['Recommendation', fileSummary.recommendation],
+                  ['Document Match', fileSummary.documentMatch],
+                ] as const
+              ).map(([label, value]) => (
+                <Box key={label}>
+                  <Typography
+                    sx={{
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      letterSpacing: '0.03em',
+                      textTransform: 'uppercase',
+                      color: riskStyle.color,
+                      mb: 0.5,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>
+                    {value}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
         </Box>
       </Collapse>
     </Box>
@@ -410,6 +497,7 @@ function BureauFileList({
       {files.map((file) => (
         <BureauFilePanel
           key={file.id}
+          kind={kind}
           file={file}
           bureauTitle={title}
           open={openIds.has(file.id)}

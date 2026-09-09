@@ -3,13 +3,19 @@
 import { useRef, useState } from 'react';
 
 import Box from '@mui/material/Box';
+import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
+import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, type AdditionalFinancialFile } from 'src/auth/admin-context';
 
 import { fileToDataUrl } from 'src/utils/file-to-data-url';
 
@@ -22,7 +28,7 @@ import { CollapsibleSection } from 'src/components/collapsible-section';
 // Financial Evaluation — Additional Financial Files card. Free-form
 // supporting-document uploads beyond the fixed Document Checklist (e.g. a
 // supplier contract, a lease, a bank certification). Multi-file, each row
-// with a View action, an optional note, and Delete. Data URLs only, no
+// with a View action, optional remarks, and Delete. Data URLs only, no
 // parsing — same prototype convention as every other upload in this app.
 // Informational: does not gate the Endorse decision.
 // ----------------------------------------------------------------------
@@ -35,6 +41,148 @@ function formatUploadedAt(iso: string) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function FileRow({
+  file,
+  onRemarksChange,
+  onDelete,
+}: {
+  file: AdditionalFinancialFile;
+  onRemarksChange: (remarks: string) => void;
+  onDelete: () => void;
+}) {
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const [remarksOpen, setRemarksOpen] = useState(false);
+  const [remarksDraft, setRemarksDraft] = useState(file.remarks);
+
+  const openRemarks = () => {
+    setMenuAnchor(null);
+    setRemarksDraft(file.remarks);
+    setRemarksOpen(true);
+  };
+
+  const saveRemarks = () => {
+    onRemarksChange(remarksDraft.trim());
+    setRemarksOpen(false);
+  };
+
+  return (
+    <Box
+      sx={{
+        borderRadius: '13px',
+        border: '1px solid #EBEDF3',
+        bgcolor: 'common.white',
+        p: 2,
+      }}
+    >
+      <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={1.5}>
+        <Iconify
+          icon="solar:file-text-bold-duotone"
+          width={20}
+          sx={{ color: '#8891A6', flexShrink: 0 }}
+        />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography noWrap sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
+            {file.fileName}
+          </Typography>
+          <Typography sx={{ fontSize: 11, color: '#A0A7B5', mt: 0.25 }}>
+            Uploaded {formatUploadedAt(file.uploadedAt)}
+          </Typography>
+          {file.remarks && (
+            <Typography noWrap sx={{ fontSize: 11.5, color: '#5A6273', mt: 0.5, maxWidth: 520 }}>
+              Remarks: {file.remarks}
+            </Typography>
+          )}
+        </Box>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button
+            onClick={() =>
+              file.fileData && window.open(file.fileData, '_blank', 'noopener,noreferrer')
+            }
+            disabled={!file.fileData}
+            variant="outlined"
+            size="small"
+            startIcon={<Iconify icon="solar:eye-bold-duotone" width={15} />}
+            sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
+          >
+            View
+          </Button>
+          <IconButton
+            size="small"
+            onClick={(event) => setMenuAnchor(event.currentTarget)}
+            aria-label={`More actions for ${file.fileName}`}
+            sx={iconButtonBorderedSx}
+          >
+            <Iconify icon="eva:more-vertical-fill" width={18} />
+          </IconButton>
+          <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={() => setMenuAnchor(null)}
+            slotProps={{ paper: { sx: { mt: 0.5, minWidth: 190, borderRadius: '10px' } } }}
+          >
+            <MenuItem onClick={openRemarks} sx={{ fontSize: 13.5 }}>
+              <Iconify
+                icon="solar:pen-new-square-bold-duotone"
+                width={17}
+                sx={{ mr: 1.25, color: '#5A6273' }}
+              />
+              {file.remarks ? 'Edit remarks' : 'Add remarks'}
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setMenuAnchor(null);
+                onDelete();
+              }}
+              sx={{
+                fontSize: 13.5,
+                color: '#B32C22',
+                '&:hover': { bgcolor: 'rgba(226,62,62,0.06)' },
+              }}
+            >
+              <Iconify icon="solar:trash-bin-trash-bold-duotone" width={17} sx={{ mr: 1.25 }} />
+              Delete file
+            </MenuItem>
+          </Menu>
+        </Stack>
+      </Stack>
+
+      <Dialog open={remarksOpen} onClose={() => setRemarksOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>
+          {file.remarks ? 'Edit remarks' : 'Add remarks'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography noWrap sx={{ fontSize: 12.5, color: '#8891A6', mb: 1.5 }}>
+            {file.fileName}
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={4}
+            value={remarksDraft}
+            onChange={(event) => setRemarksDraft(event.target.value)}
+            placeholder="What this file is, or review findings"
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13.5 } }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRemarksOpen(false)} sx={{ color: '#5A6273' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={saveRemarks}
+            variant="contained"
+            disabled={!remarksDraft.trim()}
+            sx={{ bgcolor: '#1C2A6E', '&:hover': { bgcolor: '#14205A' } }}
+          >
+            Save Remarks
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
 }
 
 export function AdditionalFinancialFilesCard() {
@@ -128,80 +276,14 @@ export function AdditionalFinancialFilesCard() {
           ) : (
             <Stack spacing={1.25}>
               {files.map((file) => (
-                <Box
+                <FileRow
                   key={file.id}
-                  sx={{
-                    borderRadius: '13px',
-                    border: '1px solid #EBEDF3',
-                    bgcolor: 'common.white',
-                    p: 2,
-                  }}
-                >
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    alignItems={{ sm: 'center' }}
-                    spacing={1.5}
-                  >
-                    <Iconify
-                      icon="solar:file-text-bold-duotone"
-                      width={20}
-                      sx={{ color: '#8891A6', flexShrink: 0 }}
-                    />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography noWrap sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
-                        {file.fileName}
-                      </Typography>
-                      <Typography sx={{ fontSize: 11, color: '#A0A7B5', mt: 0.25 }}>
-                        Uploaded {formatUploadedAt(file.uploadedAt)}
-                      </Typography>
-                    </Box>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Button
-                        onClick={() =>
-                          file.fileData &&
-                          window.open(file.fileData, '_blank', 'noopener,noreferrer')
-                        }
-                        disabled={!file.fileData}
-                        variant="outlined"
-                        size="small"
-                        startIcon={<Iconify icon="solar:eye-bold-duotone" width={15} />}
-                        sx={{ ...outlinedNavyButtonSx, px: 1.5 }}
-                      >
-                        View
-                      </Button>
-                      <IconButton
-                        size="small"
-                        onClick={() => setPendingDeleteId(file.id)}
-                        aria-label={`Remove ${file.fileName}`}
-                        sx={{
-                          ...iconButtonBorderedSx,
-                          color: '#E23E3E',
-                          '&:hover': { borderColor: '#E23E3E', bgcolor: 'rgba(226,62,62,0.06)' },
-                        }}
-                      >
-                        <Iconify icon="solar:trash-bin-trash-bold" width={16} />
-                      </IconButton>
-                    </Stack>
-                  </Stack>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Note (optional) — what this file is"
-                    value={file.note}
-                    onChange={(event) =>
-                      updateAdditionalFinancialFile(file.id, { note: event.target.value })
-                    }
-                    sx={{
-                      mt: 1.25,
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: '10px',
-                        fontSize: 13,
-                        bgcolor: '#FAFBFD',
-                      },
-                      '& input::placeholder': { color: '#98A2B3', opacity: 1 },
-                    }}
-                  />
-                </Box>
+                  file={file}
+                  onRemarksChange={(remarks) =>
+                    updateAdditionalFinancialFile(file.id, { remarks })
+                  }
+                  onDelete={() => setPendingDeleteId(file.id)}
+                />
               ))}
             </Stack>
           )}
@@ -212,7 +294,7 @@ export function AdditionalFinancialFilesCard() {
         open={pendingDeleteId !== null}
         onClose={() => setPendingDeleteId(null)}
         title="Remove this file?"
-        content="The uploaded file and its note will be removed."
+        content="The uploaded file and its remarks will be removed."
         action={
           <Button variant="contained" onClick={confirmDelete} sx={confirmDialogActionToneSx.destructive}>
             Remove

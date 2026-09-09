@@ -432,14 +432,16 @@ for **free-form supporting-document uploads beyond the fixed Document
 Checklist** — supplier contracts, leases, bank certifications, etc. Same
 `adminCardSx` + `CollapsibleSection` shell, a `{count}` badge once anything
 is uploaded, an **Upload files** button (`<input multiple accept="image/*,.pdf">`),
-and one bordered row per file: filename + upload timestamp, an outlined
-**View** (opens the data URL in a new tab), a red delete `IconButton`
-(→ `ConfirmDialog`), and an optional one-line **Note** field.
+and one bordered row per file: filename + upload timestamp (plus a
+`Remarks: …` line when set), an outlined **View** (opens the data URL in a
+new tab), and a **⋮ menu** with **Add/Edit remarks** (opens a small
+`Dialog` with a multiline field — same pattern as Requirement Checklist's
+`RequirementDocRow`) and **Delete file** (→ `ConfirmDialog`).
 
 **State** — `review.additionalFinancialFiles: AdditionalFinancialFile[]`
-(`{ id, fileName, fileData, note, uploadedAt }`), array-merged in
+(`{ id, fileName, fileData, remarks, uploadedAt }`), array-merged in
 `readStoredState()`. Setters: `addAdditionalFinancialFiles(files)`,
-`updateAdditionalFinancialFile(id, { note })`, `removeAdditionalFinancialFile(id)`.
+`updateAdditionalFinancialFile(id, { remarks })`, `removeAdditionalFinancialFile(id)`.
 
 Data URLs only — no parsing, no OCR, same prototype convention as every
 other upload in this app. Informational — does not gate the Endorse

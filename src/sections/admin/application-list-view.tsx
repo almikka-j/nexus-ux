@@ -740,44 +740,56 @@ export function ApplicationListView({ accountSolicitation = false }: Application
                       </TableCell>
 
                       <TableCell>
-                        {row.step === 'creditChecking' && !row.isLive ? (
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={
-                              <Iconify
-                                icon={
-                                  assignedOfficer
-                                    ? 'solar:user-check-rounded-bold-duotone'
-                                    : 'solar:user-plus-rounded-bold-duotone'
-                                }
-                                width={16}
-                              />
-                            }
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setOfficerSearch('');
-                              setAssignmentMenu({
-                                anchorEl: event.currentTarget,
-                                applicationKey: row.key,
-                              });
-                            }}
+                        <Box
+                          component="button"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setOfficerSearch('');
+                            setAssignmentMenu({
+                              anchorEl: event.currentTarget,
+                              applicationKey: row.key,
+                            });
+                          }}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 0.75,
+                            width: '100%',
+                            minHeight: 30,
+                            pl: 1,
+                            pr: 0.75,
+                            py: 0.25,
+                            border: '1px solid #E4E7EF',
+                            borderRadius: '7px',
+                            bgcolor: 'common.white',
+                            cursor: 'pointer',
+                            font: 'inherit',
+                            textAlign: 'left',
+                            transition: 'border-color 0.12s ease',
+                            '&:hover': { borderColor: '#C7CEEA' },
+                          }}
+                        >
+                          <Box
+                            component="span"
                             sx={{
-                              ...outlinedNavyButtonSx,
-                              minHeight: 34,
-                              px: 1.5,
-                              fontSize: 11.5,
-                              fontWeight: 700,
+                              fontSize: 12.5,
+                              fontWeight: 600,
+                              color: assignedOfficer ? '#14172A' : '#98A1B3',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            {assignedOfficer ? 'Change Officer' : 'Assign Officer'}
-                          </Button>
-                        ) : (
-                          <Typography sx={{ fontSize: 13, color: '#5A6273', whiteSpace: 'nowrap' }}>
-                            {assignedOfficer || '—'}
-                          </Typography>
-                        )}
+                            {assignedOfficer || 'Assign officer'}
+                          </Box>
+                          <Iconify
+                            icon="eva:chevron-down-fill"
+                            width={14}
+                            sx={{ color: '#98A1B3', flexShrink: 0 }}
+                          />
+                        </Box>
                       </TableCell>
 
                       <TableCell>

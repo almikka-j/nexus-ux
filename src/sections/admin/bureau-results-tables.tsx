@@ -1,8 +1,12 @@
 'use client';
 
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
 import Tooltip from '@mui/material/Tooltip';
+import TableRow from '@mui/material/TableRow';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
 import Typography from '@mui/material/Typography';
 
 import type {
@@ -15,252 +19,253 @@ import type {
 } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
-// One small read-only table per bureau report section, matching the
+// One read-only results table per bureau report file, matching the
 // "PGFC – Integrated Initial Credit Checking Results" PDF template's exact
-// columns for that section. Rendered below each bureau's upload row in
-// bureau-reports-card.tsx, auto-populated with exactly one canned sample row
-// the instant that bureau's file is uploaded — no officer editing. PGFC
-// Existing Exposure has its own upload gate matching the other five bureaus
-// (see that file). Each table is its own component rather than one generic
-// table, since the six sections' columns don't share a common shape.
+// columns for that section. Rendered inside each file's collapsible panel in
+// bureau-reports-card.tsx, auto-populated with 2–3 canned sample rows the
+// instant that file is uploaded — no officer editing.
 //
-// Bordered fact-chip strip (this app's summary-strip convention from
-// application-details-card.tsx's FactChip), NOT disabled TextFields — a
-// disabled input reads as an empty/unfilled field even when it holds real
-// data, where a plain label-over-value chip reads as a completed record.
-// Chips share the row's width via flex (no horizontal scroll, no wrapping)
-// so the whole record, including its remarks/status-remarks field, stays on
-// one line at any container width. Long values remain available through the
-// same hover tooltip used by every other result field.
+// A header-once <Table> matching the app's other admin tables (#FBFBFD
+// uppercase gray head, #EEF0F5 borders, plain white rows, tabular-nums
+// amounts). tableLayout: fixed with a per-column <colgroup> weight so all
+// 8 columns are visible in one glance with NO horizontal scroll — every
+// cell ellipsis-clips and the full value is on a hover tooltip. Each of
+// the six sections keeps its own column set (the shapes don't align) but
+// shares the BureauTable shell.
 // ----------------------------------------------------------------------
 
-function FactChip({ label, value }: { label: string; value: string }) {
-  return (
-    <Stack spacing={0.3} sx={{ px: 1.25, py: 0.85, flex: 1, minWidth: 0 }}>
-      <Typography
+type Align = 'left' | 'right';
+
+type Column<Row> = {
+  label: string;
+  render: (row: Row) => string;
+  align?: Align;
+  numeric?: boolean;
+  /** Relative flex weight for this column's share of the table width. */
+  weight?: number;
+};
+
+function BureauTable<Row extends { id: string }>({
+  rows,
+  columns,
+  emptyLabel,
+}: {
+  rows: Row[];
+  columns: Column<Row>[];
+  emptyLabel: string;
+}) {
+  if (rows.length === 0) {
+    return (
+      <Box
         sx={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.03em',
-          textTransform: 'uppercase',
-          color: '#9AA2B4',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          py: 2.5,
+          px: 2,
+          textAlign: 'center',
+          borderRadius: '10px',
+          border: '1px dashed #E1E4ED',
         }}
       >
-        {label}
-      </Typography>
-      <Tooltip title={value || '—'} arrow placement="top" enterDelay={300}>
-        <Typography
-          sx={{
-            fontSize: 12.5,
-            fontWeight: 700,
-            color: '#14172A',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            cursor: 'default',
-          }}
-        >
-          {value || '—'}
-        </Typography>
-      </Tooltip>
-    </Stack>
-  );
-}
+        <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>{emptyLabel}</Typography>
+      </Box>
+    );
+  }
 
-function FactChipRow({ children }: { children: React.ReactNode }) {
-  return (
-    <Stack
-      direction="row"
-      flexWrap="nowrap"
-      sx={{
-        border: '1px solid #EEF0F5',
-        borderRadius: '12px',
-        bgcolor: '#FAFBFD',
-        '& > div:not(:last-of-type)': { borderRight: '1px solid #EEF0F5' },
-      }}
-    >
-      {children}
-    </Stack>
-  );
-}
+  const totalWeight = columns.reduce((sum, column) => sum + (column.weight ?? 1), 0);
 
-function EmptyState({ label }: { label: string }) {
   return (
-    <Box
-      sx={{
-        py: 2.5,
-        px: 2,
-        textAlign: 'center',
-        borderRadius: '10px',
-        border: '1px dashed #E1E4ED',
-      }}
-    >
-      <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>{label}</Typography>
+    <Box sx={{ border: '1px solid #EBEDF3', borderRadius: '16px', overflow: 'hidden' }}>
+      <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
+        <colgroup>
+          {columns.map((column) => (
+            <col key={column.label} style={{ width: `${((column.weight ?? 1) / totalWeight) * 100}%` }} />
+          ))}
+        </colgroup>
+        <TableHead>
+          <TableRow
+            sx={{
+              '& th': {
+                bgcolor: '#FBFBFD',
+                borderBottom: '1px solid #E1E4ED',
+                fontSize: 10.5,
+                fontWeight: 700,
+                color: '#8891A6',
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                lineHeight: 1.3,
+                py: 1.25,
+                px: 1.25,
+              },
+            }}
+          >
+            {columns.map((column) => (
+              <TableCell key={column.label} align={column.align ?? 'left'}>
+                {column.label}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow
+              key={row.id}
+              sx={{
+                '&:last-of-type td': { borderBottom: 0 },
+                '& td': {
+                  borderColor: '#EEF0F5',
+                  fontSize: 12.5,
+                  color: '#5A6273',
+                  py: 1.25,
+                  px: 1.25,
+                },
+              }}
+            >
+              {columns.map((column) => {
+                const value = column.render(row) || '—';
+                return (
+                  <TableCell
+                    key={column.label}
+                    align={column.align ?? 'left'}
+                    sx={{
+                      fontVariantNumeric: column.numeric ? 'tabular-nums' : undefined,
+                      fontWeight: column.numeric ? 700 : 400,
+                      color: column.numeric ? '#14172A' : '#5A6273',
+                    }}
+                  >
+                    <Tooltip title={value} arrow placement="top" enterDelay={400}>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'block',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          cursor: 'default',
+                        }}
+                      >
+                        {value}
+                      </Box>
+                    </Tooltip>
+                  </TableCell>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </Box>
   );
 }
 
 export function CmapCasesTable({ rows }: { rows: CmapCase[] }) {
   return (
-    <Stack spacing={2}>
-      {rows.length === 0 ? (
-        <EmptyState label="No CMAP court/legal cases recorded yet." />
-      ) : (
-        <Stack spacing={1.5}>
-          {rows.map((row) => (
-            <Stack spacing={1} key={row.id}>
-              <FactChipRow>
-                <FactChip label="Defendant / Subject" value={row.defendantSubject} />
-                <FactChip label="Plaintiff" value={row.plaintiff} />
-                <FactChip label="Nature of Case" value={row.natureOfCase} />
-                <FactChip label="Amount Involved" value={row.amountInvolved} />
-                <FactChip label="Case No." value={row.caseNo} />
-                <FactChip label="Date Filed" value={row.dateFiled} />
-                <FactChip label="Status" value={row.status} />
-                <FactChip label="Credit Risk Remarks" value={row.creditRiskRemarks} />
-              </FactChipRow>
-            </Stack>
-          ))}
-        </Stack>
-      )}
-    </Stack>
+    <BureauTable
+      rows={rows}
+      emptyLabel="No CMAP court/legal cases recorded yet."
+      columns={[
+        { label: 'Defendant / Subject', render: (r) => r.defendantSubject, weight: 1.6 },
+        { label: 'Plaintiff', render: (r) => r.plaintiff, weight: 1.1 },
+        { label: 'Nature of Case', render: (r) => r.natureOfCase, weight: 1.2 },
+        { label: 'Amount', render: (r) => r.amountInvolved, align: 'right', numeric: true, weight: 0.9 },
+        { label: 'Case No.', render: (r) => r.caseNo, weight: 1 },
+        { label: 'Date Filed', render: (r) => r.dateFiled, align: 'right', weight: 0.9 },
+        { label: 'Status', render: (r) => r.status, weight: 1 },
+        { label: 'Credit Risk Remarks', render: (r) => r.creditRiskRemarks, weight: 1.6 },
+      ]}
+    />
   );
 }
 
 export function BapNfisRecordsTable({ rows }: { rows: BapNfisRecord[] }) {
   return (
-    <Stack spacing={2}>
-      {rows.length === 0 ? (
-        <EmptyState label="No BAP/NFIS credit history records yet." />
-      ) : (
-        <Stack spacing={1.5}>
-          {rows.map((row) => (
-            <Stack spacing={1} key={row.id}>
-              <FactChipRow>
-                <FactChip label="Lending Institution / Source" value={row.lendingInstitution} />
-                <FactChip label="Facility" value={row.facility} />
-                <FactChip label="Original Loan Amount" value={row.originalLoanAmount} />
-                <FactChip label="Date Granted / Reported" value={row.dateGranted} />
-                <FactChip label="Maturity / Date Closed" value={row.maturityDate} />
-                <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
-                <FactChip label="Payment History" value={row.paymentHistory} />
-                <FactChip label="Status / Remarks" value={row.statusRemarks} />
-              </FactChipRow>
-            </Stack>
-          ))}
-        </Stack>
-      )}
-    </Stack>
+    <BureauTable
+      rows={rows}
+      emptyLabel="No BAP/NFIS credit history records yet."
+      columns={[
+        { label: 'Lending Institution', render: (r) => r.lendingInstitution, weight: 1.4 },
+        { label: 'Facility', render: (r) => r.facility, weight: 0.9 },
+        { label: 'Original Amount', render: (r) => r.originalLoanAmount, align: 'right', numeric: true, weight: 1 },
+        { label: 'Date Granted', render: (r) => r.dateGranted, align: 'right', weight: 0.9 },
+        { label: 'Maturity', render: (r) => r.maturityDate, align: 'right', weight: 0.9 },
+        { label: 'Outstanding', render: (r) => r.outstandingBalance, align: 'right', numeric: true, weight: 1 },
+        { label: 'Payment History', render: (r) => r.paymentHistory, weight: 1.5 },
+        { label: 'Status / Remarks', render: (r) => r.statusRemarks, weight: 1.6 },
+      ]}
+    />
   );
 }
 
 export function CibiResultsTable({ rows }: { rows: CibiResult[] }) {
   return (
-    <Stack spacing={2}>
-      {rows.length === 0 ? (
-        <EmptyState label="No CIBI results recorded yet." />
-      ) : (
-        <Stack spacing={1.5}>
-          {rows.map((row) => (
-            <Stack spacing={1} key={row.id}>
-              <FactChipRow>
-                <FactChip label="Provider" value={row.provider} />
-                <FactChip label="Facility Type" value={row.facilityType} />
-                <FactChip label="Original / Finance Amount" value={row.originalAmount} />
-                <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
-                <FactChip label="Overdue Amount" value={row.overdueAmount} />
-                <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
-                <FactChip label="Payment Status" value={row.paymentStatus} />
-                <FactChip label="Remarks" value={row.remarks} />
-              </FactChipRow>
-            </Stack>
-          ))}
-        </Stack>
-      )}
-    </Stack>
+    <BureauTable
+      rows={rows}
+      emptyLabel="No CIBI results recorded yet."
+      columns={[
+        { label: 'Provider', render: (r) => r.provider, weight: 0.8 },
+        { label: 'Facility Type', render: (r) => r.facilityType, weight: 1 },
+        { label: 'Original Amount', render: (r) => r.originalAmount, align: 'right', numeric: true, weight: 1 },
+        { label: 'Outstanding', render: (r) => r.outstandingBalance, align: 'right', numeric: true, weight: 1 },
+        { label: 'Overdue', render: (r) => r.overdueAmount, align: 'right', numeric: true, weight: 0.9 },
+        { label: 'Monthly Amort.', render: (r) => r.monthlyAmortization, align: 'right', numeric: true, weight: 1 },
+        { label: 'Payment Status', render: (r) => r.paymentStatus, weight: 1.2 },
+        { label: 'Remarks', render: (r) => r.remarks, weight: 1.8 },
+      ]}
+    />
   );
 }
 
 export function CicContractsTable({ rows }: { rows: CicContract[] }) {
   return (
-    <Stack spacing={2}>
-      {rows.length === 0 ? (
-        <EmptyState label="No CIC contracts recorded yet." />
-      ) : (
-        <Stack spacing={1.5}>
-          {rows.map((row) => (
-            <Stack spacing={1} key={row.id}>
-              <FactChipRow>
-                <FactChip label="Contract Code" value={row.contractCode} />
-                <FactChip label="Contract Type" value={row.contractType} />
-                <FactChip label="Maturity Date" value={row.maturityDate} />
-                <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
-                <FactChip label="Overdue Amount" value={row.overdueAmount} />
-                <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
-                <FactChip label="Contract Status" value={row.contractStatus} />
-                <FactChip label="Remarks" value={row.remarks} />
-              </FactChipRow>
-            </Stack>
-          ))}
-        </Stack>
-      )}
-    </Stack>
+    <BureauTable
+      rows={rows}
+      emptyLabel="No CIC contracts recorded yet."
+      columns={[
+        { label: 'Contract Code', render: (r) => r.contractCode, weight: 1.3 },
+        { label: 'Contract Type', render: (r) => r.contractType, weight: 1 },
+        { label: 'Maturity', render: (r) => r.maturityDate, align: 'right', weight: 0.9 },
+        { label: 'Outstanding', render: (r) => r.outstandingBalance, align: 'right', numeric: true, weight: 1 },
+        { label: 'Overdue', render: (r) => r.overdueAmount, align: 'right', numeric: true, weight: 0.9 },
+        { label: 'Monthly Amort.', render: (r) => r.monthlyAmortization, align: 'right', numeric: true, weight: 1 },
+        { label: 'Contract Status', render: (r) => r.contractStatus, weight: 1.2 },
+        { label: 'Remarks', render: (r) => r.remarks, weight: 1.8 },
+      ]}
+    />
   );
 }
 
 export function LoandexRecordsTable({ rows }: { rows: LoandexRecord[] }) {
   return (
-    <Stack spacing={2}>
-      {rows.length === 0 ? (
-        <EmptyState label="No LOANDEX records recorded yet." />
-      ) : (
-        <Stack spacing={1.5}>
-          {rows.map((row) => (
-            <Stack spacing={1} key={row.id}>
-              <FactChipRow>
-                <FactChip label="Bank / Institution" value={row.bankInstitution} />
-                <FactChip label="Loan Facility" value={row.loanFacility} />
-                <FactChip label="Maturity Date" value={row.maturityDate} />
-                <FactChip label="Outstanding Balance" value={row.outstandingBalance} />
-                <FactChip label="Overdue Amount" value={row.overdueAmount} />
-                <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
-                <FactChip label="Account Status" value={row.accountStatus} />
-                <FactChip label="Remarks" value={row.remarks} />
-              </FactChipRow>
-            </Stack>
-          ))}
-        </Stack>
-      )}
-    </Stack>
+    <BureauTable
+      rows={rows}
+      emptyLabel="No LOANDEX records recorded yet."
+      columns={[
+        { label: 'Bank / Institution', render: (r) => r.bankInstitution, weight: 1.3 },
+        { label: 'Loan Facility', render: (r) => r.loanFacility, weight: 1 },
+        { label: 'Maturity', render: (r) => r.maturityDate, align: 'right', weight: 0.9 },
+        { label: 'Outstanding', render: (r) => r.outstandingBalance, align: 'right', numeric: true, weight: 1 },
+        { label: 'Overdue', render: (r) => r.overdueAmount, align: 'right', numeric: true, weight: 0.9 },
+        { label: 'Monthly Amort.', render: (r) => r.monthlyAmortization, align: 'right', numeric: true, weight: 1 },
+        { label: 'Account Status', render: (r) => r.accountStatus, weight: 1.2 },
+        { label: 'Remarks', render: (r) => r.remarks, weight: 1.8 },
+      ]}
+    />
   );
 }
 
 export function PgfcExposureTable({ rows }: { rows: PgfcExposureRecord[] }) {
   return (
-    <Stack spacing={2}>
-      {rows.length === 0 ? (
-        <EmptyState label="No existing PGFC exposure recorded yet." />
-      ) : (
-        <Stack spacing={1.5}>
-          {rows.map((row) => (
-            <Stack spacing={1} key={row.id}>
-              <FactChipRow>
-                <FactChip label="Principal Balance" value={row.principalBalance} />
-                <FactChip label="Interest Balance" value={row.interestBalance} />
-                <FactChip label="Maturity Date" value={row.maturityDate} />
-                <FactChip label="Remaining Term" value={row.remainingTerm} />
-                <FactChip label="Last Payment Date" value={row.lastPaymentDate} />
-                <FactChip label="Monthly Amortization" value={row.monthlyAmortization} />
-                <FactChip label="Payment Status" value={row.paymentStatus} />
-                <FactChip label="Remarks" value={row.remarks} />
-              </FactChipRow>
-            </Stack>
-          ))}
-        </Stack>
-      )}
-    </Stack>
+    <BureauTable
+      rows={rows}
+      emptyLabel="No existing PGFC exposure recorded yet."
+      columns={[
+        { label: 'Principal Balance', render: (r) => r.principalBalance, align: 'right', numeric: true, weight: 1 },
+        { label: 'Interest Balance', render: (r) => r.interestBalance, align: 'right', numeric: true, weight: 1 },
+        { label: 'Maturity', render: (r) => r.maturityDate, align: 'right', weight: 0.9 },
+        { label: 'Remaining Term', render: (r) => r.remainingTerm, weight: 1 },
+        { label: 'Last Payment', render: (r) => r.lastPaymentDate, align: 'right', weight: 0.9 },
+        { label: 'Monthly Amort.', render: (r) => r.monthlyAmortization, align: 'right', numeric: true, weight: 1 },
+        { label: 'Payment Status', render: (r) => r.paymentStatus, weight: 1.2 },
+        { label: 'Remarks', render: (r) => r.remarks, weight: 1.8 },
+      ]}
+    />
   );
 }

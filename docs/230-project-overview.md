@@ -156,7 +156,7 @@ ApplicationReview {
   bankLoans                 BankLoans        { bankRows: BankLoanRow[], pgfcRows: BankLoanRow[], proposed }
   financialHighlights       FinancialHighlights   — Record<FinancialPeriod, {…8 officer-typed fields}>; the rest
                                                     of the Highlights table is derived from financialStatement
-  additionalFinancialFiles  AdditionalFinancialFile[]  { id, fileName, fileData, note, uploadedAt }
+  additionalFinancialFiles  AdditionalFinancialFile[]  { id, fileName, fileData, remarks, uploadedAt }
   stepTimestamps            Partial<Record<ReviewStep, string>>  — first-entry ISO time per pipeline step
 }
 ```
@@ -1101,7 +1101,8 @@ Balance rows — all edited in a centered modal, not a separate page), a
 income-expense form as a modal; View opens a read-only report rendering the
 full legacy line-item breakdown), an **Additional Financial Files card**
 (free-form supporting-document uploads beyond the fixed checklist — multi-
-file, each row with a View action, an optional note, and delete), and a
+file, each row with a View action, a ⋮ menu for optional remarks, and
+delete), and a
 Proceed/Disapprove decision — but no fee/report flow, unlike Credit
 Investigation and Appraisal. Card order on the page: Financial Summary →
 Cash Flow Statement → Bank Statement → Additional Financial Files. A

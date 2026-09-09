@@ -1343,7 +1343,7 @@ export type AdditionalFinancialFile = {
   id: string;
   fileName: string;
   fileData: string;
-  note: string;
+  remarks: string;
   uploadedAt: string; // ISO
 };
 
@@ -1499,7 +1499,7 @@ type AdminContextValue = AdminState & {
     value: string
   ) => void;
   addAdditionalFinancialFiles: (files: Array<{ fileName: string; fileData: string }>) => void;
-  updateAdditionalFinancialFile: (id: string, data: Partial<Pick<AdditionalFinancialFile, 'note'>>) => void;
+  updateAdditionalFinancialFile: (id: string, data: Partial<Pick<AdditionalFinancialFile, 'remarks'>>) => void;
   removeAdditionalFinancialFile: (id: string) => void;
   createAppraisalReportBundle: (
     tctGroupIds: string[],
@@ -3396,7 +3396,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                   id: crypto.randomUUID(),
                   fileName: file.fileName,
                   fileData: file.fileData,
-                  note: '',
+                  remarks: '',
                   uploadedAt,
                 })),
               ],

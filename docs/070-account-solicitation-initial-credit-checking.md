@@ -166,7 +166,17 @@ file has its own **read-only, auto-filling results table**
 (`src/sections/admin/bureau-results-tables.tsx`) matching the columns from the
 "PGFC – Integrated Initial Credit Checking Results" reference template:
 `CmapCasesTable`, `BapNfisRecordsTable`, `CibiResultsTable`,
-`CicContractsTable`, `LoandexRecordsTable`, and `PgfcExposureTable`. There is
+`CicContractsTable`, `LoandexRecordsTable`, and `PgfcExposureTable`. Each is a
+real header-once `<Table>` matching the app's other admin tables (Application
+List, Loan History): `#FBFBFD` uppercase gray head (`#8891A6`),
+`#EEF0F5` row borders, `fontSize: 13.5` / `py: 1.375` cells, plain white rows
+(no zebra), tabular-nums on amount columns, wrapped in an `#EBEDF3` /
+`borderRadius: 16` card. The page stays at the standard `maxWidth="lg"`
+(same as every other admin screen); each table's `minWidth` (~1000) is tuned
+to fit that width without horizontal scroll at desktop sizes, and its
+`overflowX: auto` `TableContainer` only kicks in on narrower viewports. The
+six share a `BureauTable` shell but declare their own column lists; long cell
+values are clipped with an ellipsis and stay reachable via a hover tooltip. There is
 no officer data entry here: the instant a file is added to a bureau (by hand,
 "Add files"/"Upload report", or via "Fill with Sample Data"), that file is
 seeded with **2–3 realistic canned sample rows** (1 row for CMAP/PGFC — see
@@ -215,8 +225,29 @@ exists, else a primary **Upload report**/**Upload document** button) followed
 by one collapsible sub-panel per uploaded file (`BureauFilePanel`) — filename,
 row count, upload date, outlined **View**, and a bordered three-dot menu with
 **Replace file**/**Delete file**, expanding to reveal that file's own results
-table. The first/most-recently-added file starts expanded; the rest start
-collapsed, and each toggles independently. The file `<input>` accepts
+table **and, below the table, a per-file summary block**. The
+first/most-recently-added file starts expanded; the rest start collapsed, and
+each toggles independently.
+
+**Per-file summary block.** Under each file's table, `BureauFilePanel`
+renders a bordered `#FAFBFD` box with four labelled lines — **Summary**
+(a prose paragraph), **Risk Level** (a tinted `Low`/`Moderate`/`High`
+chip), **Recommendation** (`Proceed` / `Proceed with Caution` /
+`Do Not Proceed …`), and **Document Match** (always `Yes — this is a
+{bureau} report …`). It is produced by `deriveBureauFileSummary(kind,
+file, applicantName)` in `bureau-file-summary.ts` — a pure, never-stored
+derivation, computed on render from `file.rows` only (plus the applicant
+name from `useRegistration()` for the prose). It reuses
+`initial-credit-checking-risk.ts`'s exported `isNegativeStatus` so the
+per-file read and the page-level AI Risk Level never disagree on what
+counts as adverse: a row is adverse if its status-like field trips the
+shared negative-keyword list, it carries a non-zero `overdueAmount`, or
+(CMAP/PGFC) a real case/exposure record exists. Any overdue amount or an
+explicit negative status → **High** (the prose quotes the largest overdue
+balances); a softer recorded finding with no overdue amount → **Moderate**;
+nothing adverse → **Low**. Since seeded rows are always clean (see above),
+every file reads **Low** unless a row is later changed. This block appears
+**only in the card** — `CreditCheckingResultModal` is unchanged. The file `<input>` accepts
 multiple files at once (`multiple` attribute) so "Add files"/"Upload report"
 can attach several files in one picker action; **CIBI specifically reveals
 on its report upload** ("Upload document", the step after "Create Report" →
@@ -432,3 +463,16 @@ implying bureau API latency).
   New `add/replace/removeBureauReportFile` setters; `bureauResultRows` is a
   derived flatten across files. The result modal renders one block per
   file. "Fill with Sample Data" seeds CMAP with two files.
+- **Per-file summary block.** `BureauFilePanel` now renders a "Summary
+  Report" box under each file's results table — same tinted-callout shape
+  as the page's own AI review card (`ai-recommendation-summary.tsx`): a
+  risk-toned background, an uppercase heading with a white "{Low/Moderate/
+  High} risk" pill, the Summary paragraph, an opacity-15 divider, then
+  Recommendation and Document Match. Produced by the new pure
+  `bureau-file-summary.ts` (`deriveBureauFileSummary`), reusing
+  `isNegativeStatus` (now exported from `initial-credit-checking-risk.ts`).
+  Card only — the result modal is untouched.
+- **Results tables rebuilt as real `<Table>`s** matching the app's other
+  admin tables (header once, `#FBFBFD` gray head, plain white rows,
+  `overflowX: auto` container) instead of the old label-over-value
+  chip-row-per-record layout.
