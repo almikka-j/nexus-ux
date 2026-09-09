@@ -58,9 +58,10 @@ The existing two-level `FinancialStatementModal` remains:
    for that period. Back returns to the landing level without closing the
    modal. Period values continue to persist on every keystroke.
 
-Product Line, AMD, and Remarks also persist as they change. Submit is disabled
-while Product Line is blank. Submitting trims Product Line and AMD, stamps
-`submittedAt`, resets the selected period/report state, and closes the modal.
+Product Line, AMD, and Remarks also persist as they change. Submit remains
+available; an attempt with a blank Product Line keeps the modal open and shows
+the field's required error. A valid submission trims Product Line and AMD,
+stamps `submittedAt`, resets the selected period/report state, and closes the modal.
 Closing through the X or backdrop does not fabricate a submission timestamp;
 already-entered draft values remain persisted.
 
