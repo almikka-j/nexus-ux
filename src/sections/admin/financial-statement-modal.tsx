@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { NumericFormat } from 'react-number-format';
 
 import Box from '@mui/material/Box';
@@ -42,8 +42,9 @@ import { FinancialStatementReport } from './financial-statement-report';
 // Financial Statement sub-tool — a two-level modal matching the legacy
 // period-row model, minus the separate-page navigation:
 //
-//   Level 1 (landing): the 5 period rows (2023 … Projected), each with a
-//   "Filled / Empty" chip and a "Manage" button.
+//   Level 1 (landing): applicant/application details, editable Product Line
+//   and AMD, 5 period rows (2023 … Projected) with status, View and Manage,
+//   rich-text Remarks, and Submit.
 //   Level 2 (period form): that period's Income Statement (editable inputs
 //   left, live computed values right) and Balance Sheet (editable inputs
 //   paired with computed totals + a tally chip). Every field persists on
@@ -160,6 +161,7 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
   const [editing, setEditing] = useState<FinancialPeriod | null>(null);
   const [reportPeriod, setReportPeriod] = useState<FinancialPeriod | null>(null);
   const [productLineError, setProductLineError] = useState(false);
+  const productLineRef = useRef<HTMLInputElement>(null);
 
   const details = review.financialStatementDetails;
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '—';
@@ -176,6 +178,8 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
     const submitted = submitFinancialStatementDetails(details, new Date().toISOString());
     if (!submitted) {
       setProductLineError(true);
+      productLineRef.current?.focus({ preventScroll: true });
+      productLineRef.current?.scrollIntoView({ block: 'center' });
       return;
     }
     setFinancialStatementDetails(submitted);
@@ -189,9 +193,20 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
   const inc = data ? computeIncomeStatement(data) : null;
   const bs = data ? computeBalanceSheet(data) : null;
 
+  // Unmount the outgoing dialog so its exit transition cannot overlap the
+  // incoming dialog or render a report whose selected period was cleared.
+  if (reportPeriod !== null) {
+    return (
+      <FinancialStatementReport
+        open={open}
+        period={reportPeriod}
+        onClose={() => setReportPeriod(null)}
+      />
+    );
+  }
+
   return (
-    <>
-      <Dialog open={open && reportPeriod === null} onClose={handleClose} fullWidth maxWidth="lg" scroll="paper">
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg" scroll="paper">
       <DialogTitle sx={{ p: 3, pb: 2 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
           <Stack direction="row" alignItems="center" spacing={1}>
@@ -248,6 +263,7 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
                   fullWidth
                   required
                   label="Product Line"
+                  inputRef={productLineRef}
                   value={details.productLine}
                   onChange={(event) => {
                     setFinancialStatementDetails({ productLine: event.target.value });
@@ -479,12 +495,6 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
           {editing ? 'Done' : 'Submit'}
         </Button>
       </DialogActions>
-      </Dialog>
-      <FinancialStatementReport
-        open={open && reportPeriod !== null}
-        period={reportPeriod ?? undefined}
-        onClose={() => setReportPeriod(null)}
-      />
-    </>
+    </Dialog>
   );
 }
