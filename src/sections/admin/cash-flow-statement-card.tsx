@@ -9,6 +9,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -50,14 +51,12 @@ import {
 // stored, only the raw inputs are (mirroring every other form in this app).
 //
 // Visual language matches the rest of the admin app rather than mirroring
-// the reference spreadsheet layout it was speced from: label-above-field
-// (bureau-reports-card.tsx's Field convention) instead of label-beside-
-// field, ₱-prefixed currency inputs (ci-fee-card.tsx's Request Amount
-// convention) instead of bare placeholders, StatusBadge pills for
-// result-like totals, TONE_COLORS instead of hardcoded hex, and the same
-// gray-uppercase-letterspaced sub-section label style Requirement
-// Checklist's subgroups use ("Loan Credit Checking Documents") instead of
-// a solid navy banner.
+// the reference spreadsheet: the Manage form is one <table> (CfsFormTable)
+// where each section opens with a tinted SectionRow band carrying both the
+// section name and the COMBINED / BORROWER ONLY column labels, followed by
+// that section's InputRows (light zebra) and computed ValueRows (subtotal
+// / total / headline tones). ₱-prefixed currency inputs, TONE_COLORS
+// instead of hardcoded hex.
 //
 // "Save Record" only stamps `savedAt` — there's no separate draft/saved
 // state split; every keystroke already persists to review.cashFlowStatement
@@ -75,14 +74,6 @@ const COMPUTATION_TYPE_LABELS: Record<CashFlowComputationType, string> = {
 const fieldSx = {
   '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14, bgcolor: 'common.white' },
 };
-
-function SubsectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6' }}>
-      {children}
-    </Typography>
-  );
-}
 
 function Field({
   label,
@@ -103,147 +94,246 @@ function Field({
   );
 }
 
-function CurrencyField({
-  label,
-  required,
+// ----------------------------------------------------------------------
+// The whole Manage form is one <table> (CfsFormTable). Each section opens
+// with a tinted SectionRow band — section name on the left, the COMBINED
+// / BORROWER ONLY column labels on the right (there is no separate table
+// head) — followed by that section's InputRows (light zebra) and computed
+// ValueRows. Sections are not separate cards. Scrolls horizontally on
+// narrow screens.
+// ----------------------------------------------------------------------
+
+const CFS_VALUE_WIDTH = 180;
+const CFS_MIN_TABLE_WIDTH = 200 + CFS_VALUE_WIDTH * 2 + 48;
+
+const CFS_SECTION_BG = '#F1F3F8';
+
+const cellFieldSx = {
+  width: '100%',
+  '& .MuiOutlinedInput-root': { borderRadius: '9px', fontSize: 13.5, bgcolor: 'common.white' },
+  '& input': { textAlign: 'right' },
+};
+
+const cfsCellSx = { px: 1, py: 0.6, verticalAlign: 'middle' as const };
+
+function CurrencyCell({
   value,
   onValueChange,
+  disabled,
+}: {
+  value: string;
+  onValueChange?: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <NumericFormat
+      size="small"
+      customInput={TextField}
+      placeholder="0.00"
+      value={value}
+      disabled={disabled}
+      onValueChange={({ value: next }) => onValueChange?.(next)}
+      thousandSeparator=","
+      decimalScale={2}
+      allowNegative={false}
+      valueIsNumericString
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: TONE_COLORS.info.solid }}>₱</Typography>
+          </InputAdornment>
+        ),
+      }}
+      sx={cellFieldSx}
+    />
+  );
+}
+
+function PercentCell({ value, onValueChange }: { value: string; onValueChange: (value: string) => void }) {
+  return (
+    <NumericFormat
+      size="small"
+      customInput={TextField}
+      placeholder="0"
+      value={value}
+      onValueChange={({ value: next }) => onValueChange(next)}
+      decimalScale={2}
+      allowNegative={false}
+      valueIsNumericString
+      InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
+      sx={cellFieldSx}
+    />
+  );
+}
+
+function IntegerCell({ value, onValueChange }: { value: string; onValueChange: (value: string) => void }) {
+  return (
+    <NumericFormat
+      size="small"
+      customInput={TextField}
+      placeholder="0"
+      value={value}
+      onValueChange={({ value: next }) => onValueChange(next)}
+      decimalScale={0}
+      allowNegative={false}
+      valueIsNumericString
+      sx={cellFieldSx}
+    />
+  );
+}
+
+/** The whole form: one horizontally-scrolling <table>. The COMBINED /
+ *  BORROWER ONLY column labels live on each SectionRow, not a separate
+ *  head. */
+function CfsFormTable({ children }: { children: React.ReactNode }) {
+  return (
+    <Box sx={{ overflowX: 'auto', border: '1px solid #EBEDF3', borderRadius: '13px' }}>
+      <Box
+        component="table"
+        sx={{ width: '100%', minWidth: CFS_MIN_TABLE_WIDTH, borderCollapse: 'collapse', tableLayout: 'fixed' }}
+      >
+        <Box component="colgroup">
+          <Box component="col" sx={{ width: 'auto' }} />
+          <Box component="col" sx={{ width: CFS_VALUE_WIDTH }} />
+          <Box component="col" sx={{ width: CFS_VALUE_WIDTH }} />
+        </Box>
+        <Box component="tbody">{children}</Box>
+      </Box>
+    </Box>
+  );
+}
+
+const cfsSectionColLabelSx = {
+  ...cfsCellSx,
+  py: 0.85,
+  textAlign: 'right' as const,
+  fontSize: 10.5,
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase' as const,
+  color: '#8891A6',
+};
+
+/** A tinted section band — section name on the left, the COMBINED /
+ *  BORROWER ONLY column labels on the right. */
+function SectionRow({ label }: { label: string }) {
+  return (
+    <Box component="tr" sx={{ bgcolor: CFS_SECTION_BG }}>
+      <Box
+        component="td"
+        sx={{ ...cfsCellSx, py: 0.85, fontSize: 13, fontWeight: 800, color: '#14172A', letterSpacing: '0.02em' }}
+      >
+        {label}
+      </Box>
+      <Box component="td" sx={cfsSectionColLabelSx}>Combined</Box>
+      <Box component="td" sx={cfsSectionColLabelSx}>Borrower Only</Box>
+    </Box>
+  );
+}
+
+const cfsZebraSx = { '&:nth-of-type(even)': { bgcolor: '#FAFBFD' } };
+
+/** An editable line: label + two input cells. Light zebra. */
+function InputRow({
+  label,
+  required,
+  kind = 'currency',
+  combinedValue,
+  borrowerOnlyValue,
+  onCombinedChange,
+  onBorrowerOnlyChange,
 }: {
   label: string;
   required?: boolean;
-  value: string;
-  onValueChange: (value: string) => void;
+  kind?: 'currency' | 'percent' | 'integer';
+  combinedValue: string;
+  borrowerOnlyValue: string;
+  onCombinedChange: (value: string) => void;
+  onBorrowerOnlyChange: (value: string) => void;
 }) {
+  const Cell = kind === 'percent' ? PercentCell : kind === 'integer' ? IntegerCell : CurrencyCell;
   return (
-    <Stack spacing={0.75}>
-      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#3B4256' }}>
+    <Box component="tr" sx={cfsZebraSx}>
+      <Box component="td" sx={{ ...cfsCellSx, fontSize: 13, fontWeight: 600, color: '#3B4256' }}>
         {label}
         {required && <Box component="span" sx={{ color: TONE_COLORS.error.solid }}> *</Box>}
-      </Typography>
-      <NumericFormat
-        fullWidth
-        size="small"
-        customInput={TextField}
-        placeholder="0.00"
-        value={value}
-        onValueChange={({ value: next }) => onValueChange(next)}
-        thousandSeparator=","
-        decimalScale={2}
-        allowNegative={false}
-        valueIsNumericString
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Typography sx={{ fontSize: 14, fontWeight: 700, color: TONE_COLORS.info.solid }}>₱</Typography>
-            </InputAdornment>
-          ),
-        }}
-        sx={fieldSx}
-      />
-    </Stack>
+      </Box>
+      <Box component="td" sx={cfsCellSx}>
+        <Cell value={combinedValue} onValueChange={onCombinedChange} />
+      </Box>
+      <Box component="td" sx={cfsCellSx}>
+        <Cell value={borrowerOnlyValue} onValueChange={onBorrowerOnlyChange} />
+      </Box>
+    </Box>
   );
 }
 
-function PercentField({
+/** The read-only Monthly Amortization line — disabled ₱ fields. */
+function DisabledCurrencyRow({
   label,
-  value,
-  onValueChange,
+  combined,
+  borrowerOnly,
 }: {
   label: string;
-  value: string;
-  onValueChange: (value: string) => void;
+  combined: number | null;
+  borrowerOnly: number | null;
 }) {
   return (
-    <Stack spacing={0.75}>
-      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#3B4256' }}>{label}</Typography>
-      <NumericFormat
-        fullWidth
-        size="small"
-        customInput={TextField}
-        placeholder="0"
-        value={value}
-        onValueChange={({ value: next }) => onValueChange(next)}
-        decimalScale={2}
-        allowNegative={false}
-        valueIsNumericString
-        InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-        sx={fieldSx}
-      />
-    </Stack>
+    <Box component="tr" sx={cfsZebraSx}>
+      <Box component="td" sx={{ ...cfsCellSx, fontSize: 13, fontWeight: 600, color: '#3B4256' }}>{label}</Box>
+      <Box component="td" sx={cfsCellSx}>
+        <CurrencyCell disabled value={combined === null ? '' : String(combined)} />
+      </Box>
+      <Box component="td" sx={cfsCellSx}>
+        <CurrencyCell disabled value={borrowerOnly === null ? '' : String(borrowerOnly)} />
+      </Box>
+    </Box>
   );
 }
 
-function IntegerField({
+type ResultTone = 'subtotal' | 'total' | 'headline';
+
+const RESULT_TONE_SX: Record<ResultTone, { row: object; label: object; value: object }> = {
+  subtotal: {
+    row: {},
+    label: { fontSize: 13, fontWeight: 500, color: '#5A6273' },
+    value: { fontSize: 13, fontWeight: 600, color: '#3B4256' },
+  },
+  total: {
+    row: { bgcolor: '#F9FAFC' },
+    label: { fontSize: 13.5, fontWeight: 700, color: '#14172A' },
+    value: { fontSize: 13.5, fontWeight: 700, color: '#14172A' },
+  },
+  headline: {
+    row: { bgcolor: '#EEF1FE' },
+    label: { fontSize: 13.5, fontWeight: 800, color: '#14172A' },
+    value: { fontSize: 13.5, fontWeight: 800, color: '#3448B0' },
+  },
+};
+
+/** A computed line: label + two value cells. */
+function ValueRow({
   label,
-  required,
-  value,
-  onValueChange,
+  combined,
+  borrowerOnly,
+  tone = 'subtotal',
 }: {
   label: string;
-  required?: boolean;
-  value: string;
-  onValueChange: (value: string) => void;
+  combined: string;
+  borrowerOnly: string;
+  tone?: ResultTone;
 }) {
+  const t = RESULT_TONE_SX[tone];
   return (
-    <Stack spacing={0.75}>
-      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#3B4256' }}>
-        {label}
-        {required && <Box component="span" sx={{ color: TONE_COLORS.error.solid }}> *</Box>}
-      </Typography>
-      <NumericFormat
-        fullWidth
-        size="small"
-        customInput={TextField}
-        placeholder="0"
-        value={value}
-        onValueChange={({ value: next }) => onValueChange(next)}
-        decimalScale={0}
-        allowNegative={false}
-        valueIsNumericString
-        sx={fieldSx}
-      />
-    </Stack>
-  );
-}
-
-function ColumnHeaders() {
-  return (
-    <Grid container spacing={2}>
-      <Grid item xs={12} sm={6}>
-        <SubsectionLabel>Combined</SubsectionLabel>
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <SubsectionLabel>Borrower Only</SubsectionLabel>
-      </Grid>
-    </Grid>
-  );
-}
-
-function TotalRow({ label, combined, borrowerOnly }: { label: string; combined: string; borrowerOnly: string }) {
-  return (
-    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ py: 0.5 }}>
-      <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>{label}</Typography>
-      <Stack direction="row" spacing={1.5}>
-        <StatusBadge tone="info" label={combined} />
-        <StatusBadge tone="info" label={borrowerOnly} />
-      </Stack>
-    </Stack>
-  );
-}
-
-function SubtotalRow({ label, combined, borrowerOnly }: { label: string; combined: string; borrowerOnly: string }) {
-  return (
-    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ py: 0.25 }}>
-      <Typography sx={{ fontSize: 13, color: '#5A6273' }}>{label}</Typography>
-      <Stack direction="row" spacing={1.5}>
-        <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#3B4256', minWidth: 96, textAlign: 'right' }}>
-          {combined}
-        </Typography>
-        <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#3B4256', minWidth: 96, textAlign: 'right' }}>
-          {borrowerOnly}
-        </Typography>
-      </Stack>
-    </Stack>
+    <Box component="tr" sx={t.row}>
+      <Box component="td" sx={{ ...cfsCellSx, py: tone === 'subtotal' ? 0.6 : 1, ...t.label }}>{label}</Box>
+      <Box component="td" sx={{ ...cfsCellSx, py: tone === 'subtotal' ? 0.6 : 1, textAlign: 'right', ...t.value }}>
+        {combined}
+      </Box>
+      <Box component="td" sx={{ ...cfsCellSx, py: tone === 'subtotal' ? 0.6 : 1, textAlign: 'right', ...t.value }}>
+        {borrowerOnly}
+      </Box>
+    </Box>
   );
 }
 
@@ -337,7 +427,7 @@ export function CashFlowStatementModal({ open, onClose }: { open: boolean; onClo
   const fmtPercent = (value: number | null) => (value === null ? '—' : `${value.toFixed(2)}%`);
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" scroll="paper">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" scroll="paper">
       <DialogTitle sx={{ p: 3, pb: 2 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
           <Box>
@@ -356,350 +446,263 @@ export function CashFlowStatementModal({ open, onClose }: { open: boolean; onClo
 
       <Divider />
 
-      <DialogContent sx={{ p: 3 }}>
-        <Stack spacing={3}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
-              <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', mb: 0.5 }}>Borrower&apos;s Name</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{applicantName}</Typography>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', mb: 0.5 }}>Amount of Loan</Typography>
-              <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
-                {loanAmount !== null ? fCurrency(loanAmount) : '—'}
-              </Typography>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <Field
-                select
-                label="Computation Type"
-                value={cashFlow.computationType}
-                onChange={(event) => patch({ computationType: event.target.value as CashFlowComputationType })}
-              >
-                {(Object.keys(COMPUTATION_TYPE_LABELS) as CashFlowComputationType[]).map((key) => (
-                  <MenuItem key={key} value={key}>
-                    {COMPUTATION_TYPE_LABELS[key]}
-                  </MenuItem>
-                ))}
-              </Field>
-            </Grid>
-          </Grid>
-
-          <Divider />
-
+      <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Stack spacing={2.5}>
           <Stack spacing={2}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Personal Income &amp; Expenses</Typography>
+            <Stack
+              direction="row"
+              flexWrap="wrap"
+              sx={{
+                border: '1px solid #EEF0F5',
+                borderRadius: '12px',
+                bgcolor: '#FAFBFD',
+                '& > div:not(:last-of-type)': { borderRight: { xs: 'none', sm: '1px solid #EEF0F5' } },
+              }}
+            >
+              <FactChip label="Borrower's Name" value={applicantName} />
+              <FactChip
+                label="Amount of Loan"
+                value={loanAmount !== null ? fCurrency(loanAmount) : '—'}
+              />
+            </Stack>
 
-            <SubsectionLabel>Source of Income</SubsectionLabel>
-            <ColumnHeaders />
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Fixed Income"
-                  required
-                  value={cashFlow.fixedIncomeCombined}
-                  onValueChange={(value) => patch({ fixedIncomeCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Fixed Income"
-                  required
-                  value={cashFlow.fixedIncomeBorrowerOnly}
-                  onValueChange={(value) => patch({ fixedIncomeBorrowerOnly: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Variable Income"
-                  value={cashFlow.variableIncomeCombined}
-                  onValueChange={(value) => patch({ variableIncomeCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Variable Income"
-                  value={cashFlow.variableIncomeBorrowerOnly}
-                  onValueChange={(value) => patch({ variableIncomeBorrowerOnly: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Other Income (Spouse Income/Profit Sharing)"
-                  value={cashFlow.otherIncomeCombined}
-                  onValueChange={(value) => patch({ otherIncomeCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Other Income (Spouse Income/Profit Sharing)"
-                  value={cashFlow.otherIncomeBorrowerOnly}
-                  onValueChange={(value) => patch({ otherIncomeBorrowerOnly: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Less: Deductions"
-                  value={cashFlow.lessDeductionsCombined}
-                  onValueChange={(value) => patch({ lessDeductionsCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Less: Deductions"
-                  value={cashFlow.lessDeductionsBorrowerOnly}
-                  onValueChange={(value) => patch({ lessDeductionsBorrowerOnly: value })}
-                />
+              <Grid item xs={12} sm={4}>
+                <Field
+                  select
+                  label="Computation Type"
+                  value={cashFlow.computationType}
+                  onChange={(event) => patch({ computationType: event.target.value as CashFlowComputationType })}
+                >
+                  {(Object.keys(COMPUTATION_TYPE_LABELS) as CashFlowComputationType[]).map((key) => (
+                    <MenuItem key={key} value={key}>
+                      {COMPUTATION_TYPE_LABELS[key]}
+                    </MenuItem>
+                  ))}
+                </Field>
               </Grid>
             </Grid>
-
-            <TotalRow label="Total Income" combined={fmt(totalIncomeCombined)} borrowerOnly={fmt(totalIncomeBorrowerOnly)} />
           </Stack>
 
-          <Divider />
+          <CfsFormTable>
+            <SectionRow label="Source of Income" />
+            <InputRow
+              label="Fixed Income"
+              required
+              combinedValue={cashFlow.fixedIncomeCombined}
+              borrowerOnlyValue={cashFlow.fixedIncomeBorrowerOnly}
+              onCombinedChange={(value) => patch({ fixedIncomeCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ fixedIncomeBorrowerOnly: value })}
+            />
+            <InputRow
+              label="Variable Income"
+              combinedValue={cashFlow.variableIncomeCombined}
+              borrowerOnlyValue={cashFlow.variableIncomeBorrowerOnly}
+              onCombinedChange={(value) => patch({ variableIncomeCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ variableIncomeBorrowerOnly: value })}
+            />
+            <InputRow
+              label="Other Income (Spouse Income / Profit Sharing)"
+              combinedValue={cashFlow.otherIncomeCombined}
+              borrowerOnlyValue={cashFlow.otherIncomeBorrowerOnly}
+              onCombinedChange={(value) => patch({ otherIncomeCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ otherIncomeBorrowerOnly: value })}
+            />
+            <InputRow
+              label="Less: Deductions"
+              combinedValue={cashFlow.lessDeductionsCombined}
+              borrowerOnlyValue={cashFlow.lessDeductionsBorrowerOnly}
+              onCombinedChange={(value) => patch({ lessDeductionsCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ lessDeductionsBorrowerOnly: value })}
+            />
+            <ValueRow
+              label="Total Income"
+              tone="total"
+              combined={fmt(totalIncomeCombined)}
+              borrowerOnly={fmt(totalIncomeBorrowerOnly)}
+            />
 
-          <Stack spacing={2}>
-            <SubsectionLabel>Less Expenses</SubsectionLabel>
-            <ColumnHeaders />
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Fixed Expense"
-                  required
-                  value={cashFlow.fixedExpenseCombined}
-                  onValueChange={(value) => patch({ fixedExpenseCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Fixed Expense"
-                  required
-                  value={cashFlow.fixedExpenseBorrowerOnly}
-                  onValueChange={(value) => patch({ fixedExpenseBorrowerOnly: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Utilities"
-                  value={cashFlow.utilitiesCombined}
-                  onValueChange={(value) => patch({ utilitiesCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Utilities"
-                  value={cashFlow.utilitiesBorrowerOnly}
-                  onValueChange={(value) => patch({ utilitiesBorrowerOnly: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Transport"
-                  value={cashFlow.transportCombined}
-                  onValueChange={(value) => patch({ transportCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Transport"
-                  value={cashFlow.transportBorrowerOnly}
-                  onValueChange={(value) => patch({ transportBorrowerOnly: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Other Expense"
-                  value={cashFlow.otherExpenseCombined}
-                  onValueChange={(value) => patch({ otherExpenseCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Other Expense"
-                  value={cashFlow.otherExpenseBorrowerOnly}
-                  onValueChange={(value) => patch({ otherExpenseBorrowerOnly: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Miscellaneous Expenses"
-                  value={cashFlow.miscExpensesCombined}
-                  onValueChange={(value) => patch({ miscExpensesCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Miscellaneous Expenses"
-                  value={cashFlow.miscExpensesBorrowerOnly}
-                  onValueChange={(value) => patch({ miscExpensesBorrowerOnly: value })}
-                />
-              </Grid>
-            </Grid>
-
-            <SubtotalRow label="Sub-total" combined={fmt(subtotalCombined)} borrowerOnly={fmt(subtotalBorrowerOnly)} />
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <PercentField
-                  label="Add: Adjusted Expense Percent"
-                  value={cashFlow.adjustedExpensePercentCombined}
-                  onValueChange={(value) => patch({ adjustedExpensePercentCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <PercentField
-                  label="Add: Adjusted Expense Percent"
-                  value={cashFlow.adjustedExpensePercentBorrowerOnly}
-                  onValueChange={(value) => patch({ adjustedExpensePercentBorrowerOnly: value })}
-                />
-              </Grid>
-            </Grid>
-
-            <SubtotalRow
+            <SectionRow label="Less Expenses" />
+            <InputRow
+              label="Fixed Expense"
+              required
+              combinedValue={cashFlow.fixedExpenseCombined}
+              borrowerOnlyValue={cashFlow.fixedExpenseBorrowerOnly}
+              onCombinedChange={(value) => patch({ fixedExpenseCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ fixedExpenseBorrowerOnly: value })}
+            />
+            <InputRow
+              label="Utilities"
+              combinedValue={cashFlow.utilitiesCombined}
+              borrowerOnlyValue={cashFlow.utilitiesBorrowerOnly}
+              onCombinedChange={(value) => patch({ utilitiesCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ utilitiesBorrowerOnly: value })}
+            />
+            <InputRow
+              label="Transport"
+              combinedValue={cashFlow.transportCombined}
+              borrowerOnlyValue={cashFlow.transportBorrowerOnly}
+              onCombinedChange={(value) => patch({ transportCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ transportBorrowerOnly: value })}
+            />
+            <InputRow
+              label="Other Expense"
+              combinedValue={cashFlow.otherExpenseCombined}
+              borrowerOnlyValue={cashFlow.otherExpenseBorrowerOnly}
+              onCombinedChange={(value) => patch({ otherExpenseCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ otherExpenseBorrowerOnly: value })}
+            />
+            <InputRow
+              label="Miscellaneous Expenses"
+              combinedValue={cashFlow.miscExpensesCombined}
+              borrowerOnlyValue={cashFlow.miscExpensesBorrowerOnly}
+              onCombinedChange={(value) => patch({ miscExpensesCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ miscExpensesBorrowerOnly: value })}
+            />
+            <ValueRow label="Sub-total" combined={fmt(subtotalCombined)} borrowerOnly={fmt(subtotalBorrowerOnly)} />
+            <InputRow
+              label="Add: Adjusted Expense Percent"
+              kind="percent"
+              combinedValue={cashFlow.adjustedExpensePercentCombined}
+              borrowerOnlyValue={cashFlow.adjustedExpensePercentBorrowerOnly}
+              onCombinedChange={(value) => patch({ adjustedExpensePercentCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ adjustedExpensePercentBorrowerOnly: value })}
+            />
+            <ValueRow
               label="Add: Adjusted Expense Amount"
               combined={fmt(adjustedExpenseAmountCombined)}
               borrowerOnly={fmt(adjustedExpenseAmountBorrowerOnly)}
             />
-            <TotalRow label="Total Expenses" combined={fmt(totalExpensesCombined)} borrowerOnly={fmt(totalExpensesBorrowerOnly)} />
-            <TotalRow
+            <ValueRow
+              label="Total Expenses"
+              tone="total"
+              combined={fmt(totalExpensesCombined)}
+              borrowerOnly={fmt(totalExpensesBorrowerOnly)}
+            />
+            <ValueRow
               label="Income Available for Debt Service"
+              tone="total"
               combined={fmt(incomeAvailableCombined)}
               borrowerOnly={fmt(incomeAvailableBorrowerOnly)}
             />
-          </Stack>
 
-          <Divider />
-
-          <Stack spacing={2}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Other Loans</Typography>
-              <Button
-                onClick={addCashFlowOtherLoan}
-                variant="outlined"
-                size="small"
-                startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
-                sx={outlinedNavyButtonSx}
-              >
-                Add Other Loan
-              </Button>
-            </Stack>
-
-            {cashFlow.otherLoans.length > 0 && (
-              <Stack spacing={2}>
-                {cashFlow.otherLoans.map((loan) => (
-                  <Grid container spacing={2} alignItems="flex-end" key={loan.id}>
-                    <Grid item xs={12} sm={4}>
-                      <Field
-                        label="Lender"
-                        placeholder="e.g. Another Bank"
-                        value={loan.lender}
-                        onChange={(event) => updateCashFlowOtherLoan(loan.id, { lender: event.target.value })}
-                      />
-                    </Grid>
-                    <Grid item xs={5} sm={3.5}>
-                      <CurrencyField
-                        label="Monthly Amortization (Combined)"
-                        value={loan.monthlyAmortizationCombined}
-                        onValueChange={(value) => updateCashFlowOtherLoan(loan.id, { monthlyAmortizationCombined: value })}
-                      />
-                    </Grid>
-                    <Grid item xs={5} sm={3.5}>
-                      <CurrencyField
-                        label="Monthly Amortization (Borrower Only)"
+            <SectionRow label="Other Loans" />
+            {cashFlow.otherLoans.length > 0 &&
+              cashFlow.otherLoans.map((loan) => (
+                <Box component="tr" key={loan.id} sx={cfsZebraSx}>
+                  <Box component="td" sx={cfsCellSx}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Lender — e.g. Another Bank"
+                      value={loan.lender}
+                      onChange={(event) => updateCashFlowOtherLoan(loan.id, { lender: event.target.value })}
+                      sx={{ ...cellFieldSx, '& input': { textAlign: 'left' } }}
+                    />
+                  </Box>
+                  <Box component="td" sx={cfsCellSx}>
+                    <CurrencyCell
+                      value={loan.monthlyAmortizationCombined}
+                      onValueChange={(value) => updateCashFlowOtherLoan(loan.id, { monthlyAmortizationCombined: value })}
+                    />
+                  </Box>
+                  <Box component="td" sx={cfsCellSx}>
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      <CurrencyCell
                         value={loan.monthlyAmortizationBorrowerOnly}
                         onValueChange={(value) =>
                           updateCashFlowOtherLoan(loan.id, { monthlyAmortizationBorrowerOnly: value })
                         }
                       />
-                    </Grid>
-                    <Grid item xs={2} sm={1}>
-                      <IconButton size="small" onClick={() => removeCashFlowOtherLoan(loan.id)}>
-                        <Iconify icon="mingcute:close-line" width={16} />
+                      <IconButton
+                        size="small"
+                        onClick={() => removeCashFlowOtherLoan(loan.id)}
+                        aria-label="Remove other loan"
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <Iconify icon="mingcute:close-line" width={15} />
                       </IconButton>
-                    </Grid>
-                  </Grid>
-                ))}
-              </Stack>
-            )}
-
-            <TotalRow
+                    </Stack>
+                  </Box>
+                </Box>
+              ))}
+            <Box component="tr">
+              <Box component="td" colSpan={3} sx={{ px: 1, py: 1 }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                  <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+                    {cashFlow.otherLoans.length === 0
+                      ? 'No other loans recorded.'
+                      : `${cashFlow.otherLoans.length} other loan${cashFlow.otherLoans.length > 1 ? 's' : ''} recorded.`}
+                  </Typography>
+                  <Button
+                    onClick={addCashFlowOtherLoan}
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+                    sx={{ ...outlinedNavyButtonSx, flexShrink: 0 }}
+                  >
+                    Add Other Loan
+                  </Button>
+                </Stack>
+              </Box>
+            </Box>
+            <ValueRow
               label="Total of Other Loans"
+              tone="total"
               combined={fmt(totalOtherLoansCombined)}
               borrowerOnly={fmt(totalOtherLoansBorrowerOnly)}
             />
-          </Stack>
 
-          <Divider />
-
-          <Stack spacing={2}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Proposed Amount</Typography>
-            <ColumnHeaders />
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Principal"
-                  required
-                  value={cashFlow.principalCombined}
-                  onValueChange={(value) => patch({ principalCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CurrencyField
-                  label="Principal"
-                  required
-                  value={cashFlow.principalBorrowerOnly}
-                  onValueChange={(value) => patch({ principalBorrowerOnly: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <PercentField
-                  label="Interest Rate (annual) *"
-                  value={cashFlow.interestRateCombined}
-                  onValueChange={(value) => patch({ interestRateCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <PercentField
-                  label="Interest Rate (annual) *"
-                  value={cashFlow.interestRateBorrowerOnly}
-                  onValueChange={(value) => patch({ interestRateBorrowerOnly: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <IntegerField
-                  label="Term (months)"
-                  required
-                  value={cashFlow.termCombined}
-                  onValueChange={(value) => patch({ termCombined: value })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <IntegerField
-                  label="Term (months)"
-                  required
-                  value={cashFlow.termBorrowerOnly}
-                  onValueChange={(value) => patch({ termBorrowerOnly: value })}
-                />
-              </Grid>
-            </Grid>
-
-            <SubtotalRow
-              label="Monthly Amortization"
-              combined={fmtOrBlank(monthlyAmortizationCombined)}
-              borrowerOnly={fmtOrBlank(monthlyAmortizationBorrowerOnly)}
+            <SectionRow label="Proposed Amount" />
+            <InputRow
+              label="Principal"
+              required
+              combinedValue={cashFlow.principalCombined}
+              borrowerOnlyValue={cashFlow.principalBorrowerOnly}
+              onCombinedChange={(value) => patch({ principalCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ principalBorrowerOnly: value })}
             />
-            <SubtotalRow
+            <InputRow
+              label="Interest Rate (annual)"
+              required
+              kind="percent"
+              combinedValue={cashFlow.interestRateCombined}
+              borrowerOnlyValue={cashFlow.interestRateBorrowerOnly}
+              onCombinedChange={(value) => patch({ interestRateCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ interestRateBorrowerOnly: value })}
+            />
+            <InputRow
+              label="Term (months)"
+              required
+              kind="integer"
+              combinedValue={cashFlow.termCombined}
+              borrowerOnlyValue={cashFlow.termBorrowerOnly}
+              onCombinedChange={(value) => patch({ termCombined: value })}
+              onBorrowerOnlyChange={(value) => patch({ termBorrowerOnly: value })}
+            />
+            <DisabledCurrencyRow
+              label="Monthly Amortization"
+              combined={monthlyAmortizationCombined}
+              borrowerOnly={monthlyAmortizationBorrowerOnly}
+            />
+            <ValueRow
               label="Principal & Interest"
               combined={fmtOrBlank(monthlyAmortizationCombined)}
               borrowerOnly={fmtOrBlank(monthlyAmortizationBorrowerOnly)}
             />
-            <TotalRow label="Net Income" combined={fmt(netIncomeCombined)} borrowerOnly={fmt(netIncomeBorrowerOnly)} />
-            <TotalRow
+            <ValueRow
+              label="Net Income"
+              tone="total"
+              combined={fmt(netIncomeCombined)}
+              borrowerOnly={fmt(netIncomeBorrowerOnly)}
+            />
+            <ValueRow
               label="Debt Service Ratio"
+              tone="headline"
               combined={fmtPercent(debtServiceRatioCombined)}
               borrowerOnly={fmtPercent(debtServiceRatioBorrowerOnly)}
             />
-          </Stack>
+          </CfsFormTable>
         </Stack>
       </DialogContent>
 
@@ -875,44 +878,52 @@ export function CashFlowStatementReport({ open, onClose }: { open: boolean; onCl
               {applicantName} · Combined / Borrower Only
             </Typography>
           </Box>
-          <IconButton onClick={onClose} aria-label="Close Cash Flow Statement Report">
-            <Iconify icon="mingcute:close-line" width={22} />
-          </IconButton>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Tooltip title="PDF export coming soon">
+              <span>
+                <IconButton
+                  disabled
+                  aria-label="Download Cash Flow Statement Report"
+                  sx={{ border: '1px solid #E1E4ED', borderRadius: '10px', px: 1.5 }}
+                >
+                  <Iconify icon="solar:file-download-bold" width={18} sx={{ color: '#8891A6' }} />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <IconButton onClick={onClose} aria-label="Close Cash Flow Statement Report">
+              <Iconify icon="mingcute:close-line" width={22} />
+            </IconButton>
+          </Stack>
         </Stack>
       </DialogTitle>
 
       <Divider />
 
       <DialogContent sx={{ p: 3 }}>
-        {/* Meta — the app's report field-block treatment
-            (credit-checking-result-modal.tsx's FieldRow convention). */}
-        <Box sx={{ p: 2.5, mb: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-          <Typography
-            sx={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: '#8891A6',
-              mb: 1.5,
-            }}
-          >
-            Cash Flow Statement
-          </Typography>
-          <Stack spacing={1.25}>
-            <ReportMeta label="Borrower's Name" value={applicantName} />
-            <ReportMeta
-              label="Amount of Loan"
-              value={loanAmount !== null ? fCurrency(loanAmount) : '—'}
-            />
-            <ReportMeta
-              label="Computation Type"
-              value={COMPUTATION_TYPE_LABELS[cashFlow.computationType]}
-            />
-          </Stack>
-        </Box>
+        {/* Meta — the Application Details card's FactChip strip. */}
+        <Stack
+          direction="row"
+          flexWrap="wrap"
+          sx={{
+            mb: 2.5,
+            border: '1px solid #EEF0F5',
+            borderRadius: '12px',
+            bgcolor: '#FAFBFD',
+            '& > div:not(:last-of-type)': { borderRight: { xs: 'none', sm: '1px solid #EEF0F5' } },
+          }}
+        >
+          <FactChip label="Borrower's Name" value={applicantName} />
+          <FactChip label="Amount of Loan" value={loanAmount !== null ? fCurrency(loanAmount) : '—'} />
+          <FactChip label="Computation Type" value={COMPUTATION_TYPE_LABELS[cashFlow.computationType]} />
+        </Stack>
 
-        <Box sx={{ overflowX: 'auto' }}>
+        <Box
+          sx={{
+            overflowX: 'auto',
+            border: '1px solid #EBEDF3',
+            borderRadius: '13px',
+          }}
+        >
           <Box component="table" sx={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
             <Box component="thead">
               <Box component="tr" sx={{ bgcolor: '#EEF1FE' }}>
@@ -985,17 +996,41 @@ export function CashFlowStatementReport({ open, onClose }: { open: boolean; onCl
         </Box>
 
         <Stack
-          direction="row"
-          justifyContent="space-around"
-          sx={{ mt: 3, pt: 2.5, borderTop: '1px solid #EEF0F5' }}
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          sx={{ mt: 3 }}
         >
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#5A6273' }}>Prepared by</Typography>
-            <Typography sx={{ fontSize: 11, color: '#98A2B3', mt: 0.25 }}>{nowLabel}</Typography>
+          <Box sx={{ flex: 1, p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
+            <Typography
+              sx={{
+                fontSize: 11.5,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: '#8891A6',
+              }}
+            >
+              Prepared by
+            </Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mt: 1 }}>
+              {application.assignedOfficer ?? '—'}
+            </Typography>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Credit Officer · {nowLabel}</Typography>
           </Box>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#5A6273' }}>Noted by</Typography>
-            <Typography sx={{ fontSize: 11, color: '#98A2B3', mt: 0.25 }}>—</Typography>
+          <Box sx={{ flex: 1, p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
+            <Typography
+              sx={{
+                fontSize: 11.5,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: '#8891A6',
+              }}
+            >
+              Noted by
+            </Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mt: 1 }}>—</Typography>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Pending review</Typography>
           </Box>
         </Stack>
       </DialogContent>
@@ -1031,13 +1066,45 @@ const reportCellSx = {
   color: '#3B4256',
 };
 
-function ReportMeta({ label, value }: { label: string; value: string }) {
+function FactChip({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <Stack direction="row" spacing={2}>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', width: 140, flexShrink: 0 }}>
+    <Stack
+      spacing={0.35}
+      sx={{
+        px: 1.75,
+        py: 1,
+        minWidth: 0,
+        flex: '1 1 128px',
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: '#9AA2B4',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+        title={label}
+      >
         {label}
       </Typography>
-      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value}</Typography>
+      <Typography
+        sx={{
+          fontSize: 13.5,
+          fontWeight: 700,
+          color: '#14172A',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+        title={typeof value === 'string' ? value : undefined}
+      >
+        {value || '—'}
+      </Typography>
     </Stack>
   );
 }
@@ -1130,6 +1197,7 @@ export function CashFlowStatementCard() {
     <Box sx={adminCardSx}>
       <CollapsibleSection
         title="Cash Flow Statement"
+        subtitle="Combined / Borrower Only income-expense form computing the Debt Service Ratio. Supporting evidence — not required to proceed."
         expanded={expanded}
         onToggle={() => setExpanded((prev) => !prev)}
         badge={
@@ -1147,14 +1215,9 @@ export function CashFlowStatementCard() {
           }}
         >
           <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={1}>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
-                Cash Flow Statement
-              </Typography>
-              <Typography sx={{ fontSize: 11.5, color: '#A0A7B5', mt: 0.25 }}>
-                Combined / Borrower Only income-expense form computing Debt Service Ratio.
-              </Typography>
-            </Box>
+            <Typography sx={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 700, color: '#14172A' }}>
+              Cash Flow Statement
+            </Typography>
             <Stack direction="row" spacing={1} alignItems="center">
               <Button
                 onClick={() => setMode('manage')}

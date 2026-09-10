@@ -8,8 +8,11 @@
 > rendered here, but its behavior is summarized in the result modal), and
 > `call-report/credit-checking-result-modal.tsx` (the "View Initial Credit
 > Checking Result" modal, whose Bureau Reports Result section this page
-> drives). Companion to `docs/230-project-overview.md` (system-wide) and
-> `docs/020-borrower-application.md` (where the data this screen reads comes from).
+> drives). Companion to `docs/230-project-overview.md` (system-wide),
+> `docs/020-borrower-application.md` (where the data this screen reads comes
+> from), and `docs/225-admin-design-system.md` (the admin design system —
+> `adminCardSx`, `CollapsibleSection`, the admin-table recipe, `StatusBadge`,
+> `ConfirmDialog` are all used here).
 
 ## What this is
 
@@ -167,10 +170,10 @@ file has its own **read-only, auto-filling results table**
 "PGFC – Integrated Initial Credit Checking Results" reference template:
 `CmapCasesTable`, `BapNfisRecordsTable`, `CibiResultsTable`,
 `CicContractsTable`, `LoandexRecordsTable`, and `PgfcExposureTable`. Each is a
-real header-once `<Table>` matching the app's other admin tables (Application
-List, Loan History): `#FBFBFD` uppercase gray head (`#8891A6`),
-`#EEF0F5` row borders, plain white rows (no zebra), tabular-nums on amount
-columns, wrapped in an `#EBEDF3` / `borderRadius: 16` card. The page stays at
+real header-once `<Table>` following the **admin-table recipe** in
+`docs/225-admin-design-system.md` §6 (`#FBFBFD` uppercase gray head,
+`#EEF0F5` row borders, plain white rows — no zebra, tabular-nums on amount
+columns, wrapped in an `#EBEDF3` / `borderRadius: 16` card). The page stays at
 the standard `maxWidth="lg"` (nav-bar-aligned, same as every other admin
 screen). To show all 8 columns **in one glance with no horizontal scroll**,
 `BureauTable` uses `tableLayout: fixed` + `width: 100%` with a per-column
@@ -316,6 +319,22 @@ Negative always sets `bureauFindingBureau: 'CMAP'` /
 `bureauFindingReason: 'Court Case due to Estafa'` as a fixed example.
 
 ## AI review card
+
+The card is rendered by the shared **`AiReviewCard`**
+(`src/components/admin-ui/ai-review-card.tsx`) in its **rich** variant:
+`richResult={creditCheckingResult}` routes the body through
+`AiRecommendationSummary` (moved to `src/components/admin-ui/`), and the
+"View Initial Credit Checking Result" row is passed as the card's
+`footer` slot so it stays last, in its existing order. The card is
+`CollapsibleSection`-based with a magic-stick header icon, collapsible
+and **expanded by default** (`aiReviewExpanded` state). The five-level
+risk scale it displays is `SCREENING_RISK_STYLES`
+(`src/components/admin-ui/ai-review-tokens.ts`, formerly
+`RISK_LEVEL_STYLES` co-located with the builder). The advisory
+**AI Control Statement** footnote (`AI_CONTROL_STATEMENT`) is rendered by
+`AiRecommendationSummary` itself. The other three AI-review screens use
+`AiReviewCard`'s compact variant — see `docs/225-admin-design-system.md`
+§6 / §13.
 
 **"AI review, summary & recommendation"** is a single merged card containing:
 
@@ -466,7 +485,8 @@ implying bureau API latency).
   file. "Fill with Sample Data" seeds CMAP with two files.
 - **Per-file summary block.** `BureauFilePanel` now renders a "Summary
   Report" box under each file's results table — same tinted-callout shape
-  as the page's own AI review card (`ai-recommendation-summary.tsx`): a
+  as the page's own AI review card
+  (`src/components/admin-ui/ai-recommendation-summary.tsx`): a
   risk-toned background, an uppercase heading with a white "{Low/Moderate/
   High} risk" pill, the Summary paragraph, an opacity-15 divider, then
   Recommendation and Document Match. Produced by the new pure

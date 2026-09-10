@@ -64,15 +64,11 @@ export function FinancialSummaryCard() {
     <Box sx={adminCardSx}>
       <CollapsibleSection
         title="Financial Summary"
+        subtitle="The three financial work products. Use Manage to enter data and View for the computed report."
         expanded={expanded}
         onToggle={() => setExpanded((prev) => !prev)}
       >
         <Stack spacing={1.5}>
-          <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
-            The three financial work products. Use <strong>Manage</strong> to enter data and{' '}
-            <strong>View</strong> for the computed report.
-          </Typography>
-
           {ITEMS.map((item) => (
             <Box
               key={item.key}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -9,6 +10,8 @@ import Popover from '@mui/material/Popover';
 import Tooltip from '@mui/material/Tooltip';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
+
+import { paths } from 'src/routes/paths';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -23,6 +26,7 @@ const NAV_MODE_OPTIONS: { value: AdminNavMode; label: string; icon: string }[] =
 ];
 
 export function AdminNavSettingsButton() {
+  const router = useRouter();
   const { navMode, setNavMode } = useAdminNavMode();
   const pageActions = usePageActions();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -133,6 +137,32 @@ export function AdminNavSettingsButton() {
               </Stack>
             </>
           )}
+
+          <Divider sx={{ my: 1.5, borderColor: '#EEF0F5' }} />
+
+          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
+            Reference
+          </Typography>
+
+          <ButtonBase
+            onClick={() => {
+              setAnchorEl(null);
+              router.push(paths.admin.designSystem);
+            }}
+            sx={{
+              justifyContent: 'flex-start',
+              gap: 1.25,
+              px: 1.5,
+              py: 1,
+              width: '100%',
+              borderRadius: '10px',
+              border: '1px solid #E7EAF1',
+              color: '#5A6273',
+            }}
+          >
+            <Iconify icon="solar:palette-bold-duotone" width={20} />
+            <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>View design system</Typography>
+          </ButtonBase>
         </Box>
       </Popover>
     </>

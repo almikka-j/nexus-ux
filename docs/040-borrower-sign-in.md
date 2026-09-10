@@ -6,6 +6,10 @@
 > a "Sign up" link on this page leads into) and `docs/030-borrower-dashboard.md`
 > (a successful login lands there) and `docs/050-admin-login.md` (the
 > admin-facing equivalent — a separate component, separate demo account).
+>
+> **Design scope:** an auth screen — the admin design system
+> (`docs/225-admin-design-system.md`) does **not** apply. Field styling is
+> `src/sections/auth/auth-input-styles.ts`.
 
 ## What this is
 

@@ -52,13 +52,14 @@ function FileRow({
   onRemarksChange: (remarks: string) => void;
   onDelete: () => void;
 }) {
+  const remarks = file.remarks ?? '';
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [remarksOpen, setRemarksOpen] = useState(false);
-  const [remarksDraft, setRemarksDraft] = useState(file.remarks);
+  const [remarksDraft, setRemarksDraft] = useState(remarks);
 
   const openRemarks = () => {
     setMenuAnchor(null);
-    setRemarksDraft(file.remarks);
+    setRemarksDraft(remarks);
     setRemarksOpen(true);
   };
 
@@ -89,9 +90,9 @@ function FileRow({
           <Typography sx={{ fontSize: 11, color: '#A0A7B5', mt: 0.25 }}>
             Uploaded {formatUploadedAt(file.uploadedAt)}
           </Typography>
-          {file.remarks && (
+          {remarks && (
             <Typography noWrap sx={{ fontSize: 11.5, color: '#5A6273', mt: 0.5, maxWidth: 520 }}>
-              Remarks: {file.remarks}
+              Remarks: {remarks}
             </Typography>
           )}
         </Box>
@@ -128,7 +129,7 @@ function FileRow({
                 width={17}
                 sx={{ mr: 1.25, color: '#5A6273' }}
               />
-              {file.remarks ? 'Edit remarks' : 'Add remarks'}
+              {remarks ? 'Edit remarks' : 'Add remarks'}
             </MenuItem>
             <MenuItem
               onClick={() => {
@@ -150,7 +151,7 @@ function FileRow({
 
       <Dialog open={remarksOpen} onClose={() => setRemarksOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontSize: 16, fontWeight: 700 }}>
-          {file.remarks ? 'Edit remarks' : 'Add remarks'}
+          {remarks ? 'Edit remarks' : 'Add remarks'}
         </DialogTitle>
         <DialogContent>
           <Typography noWrap sx={{ fontSize: 12.5, color: '#8891A6', mb: 1.5 }}>
@@ -213,6 +214,7 @@ export function AdditionalFinancialFilesCard() {
     <Box sx={adminCardSx}>
       <CollapsibleSection
         title="Additional Financial Files"
+        subtitle="Upload supporting financial documents beyond the checklist — supplier contracts, leases, bank certifications, etc."
         expanded={expanded}
         onToggle={() => setExpanded((prev) => !prev)}
         badge={
@@ -233,34 +235,29 @@ export function AdditionalFinancialFilesCard() {
             </Box>
           ) : undefined
         }
+        headerAction={
+          <Button
+            onClick={() => inputRef.current?.click()}
+            variant="contained"
+            size="small"
+            startIcon={<Iconify icon="solar:upload-bold-duotone" width={16} />}
+            sx={{
+              flexShrink: 0,
+              bgcolor: '#1C2A6E',
+              borderRadius: '10px',
+              px: 2,
+              boxShadow: 'none',
+              fontWeight: 700,
+              '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+            }}
+          >
+            Upload files
+          </Button>
+        }
       >
         <input ref={inputRef} type="file" accept="image/*,.pdf" multiple hidden onChange={handleAdd} />
 
         <Stack spacing={1.5}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
-              Upload supporting financial documents beyond the checklist — supplier contracts, leases,
-              bank certifications, etc.
-            </Typography>
-            <Button
-              onClick={() => inputRef.current?.click()}
-              variant="contained"
-              size="small"
-              startIcon={<Iconify icon="solar:upload-bold-duotone" width={16} />}
-              sx={{
-                flexShrink: 0,
-                bgcolor: '#1C2A6E',
-                borderRadius: '10px',
-                px: 2,
-                boxShadow: 'none',
-                fontWeight: 700,
-                '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
-              }}
-            >
-              Upload files
-            </Button>
-          </Stack>
-
           {files.length === 0 ? (
             <Box
               sx={{

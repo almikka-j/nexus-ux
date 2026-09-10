@@ -3,9 +3,11 @@
 > **Maintenance rule:** update this file whenever `reconsideration-view.tsx`
 > or `negative-list-view.tsx` change. Companion to
 > `docs/070-account-solicitation-initial-credit-checking.md` (the step whose
-> "Not Approved" outcome routes here) and
+> "Not Approved" outcome routes here),
 > `docs/080-account-solicitation-call-report.md` (a reconsidered "Approved"
-> outcome routes there next).
+> outcome routes there next), and `docs/225-admin-design-system.md` (the
+> admin design system — the decision card and terminal-state screens follow
+> its §7 approved/rejected + §9 feedback patterns).
 
 ## What this is
 
@@ -77,7 +79,10 @@ been notified," an explanatory line, and a **"Back to Application
 List"** link (`paths.admin.accountSolicitation`). There is no way back
 from this screen to re-decide — it's a one-way terminal outcome, same
 convention as other terminal screens in this app (e.g. Appraisal's
-Pass/Fail "Process stopped" screen).
+Pass/Fail "Process stopped" screen). This full-card terminal state is the
+admin design system's standard "rejected" feedback pattern — see
+`docs/225-admin-design-system.md` §7 (rejected) and §9 (feedback: a
+worded terminal screen, not a toast).
 
 ## Negative List
 

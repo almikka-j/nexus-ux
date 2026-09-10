@@ -13,9 +13,13 @@
 > submits is approved or declined). Also companion to
 > `docs/200-request-appraisal-report-approval.md` (where a submitted report is
 > reviewed), `docs/180-request-appraisal-request.md` (the read-only status list
-> over the same bundles), and `docs/210-request-payments.md` (once the Appraisal
+> over the same bundles), `docs/210-request-payments.md` (once the Appraisal
 > Fee batch is approved, `feePayment` and the actual "record payment / mark
-> as paid" action live entirely on that page, not here).
+> as paid" action live entirely on that page, not here), and
+> `docs/225-admin-design-system.md` (the admin design system — this
+> workspace makes heavy use of `CollapsibleSection` /
+> `CollapsibleSectionBadge`, `adminCardSx`, and the §6 modal/table
+> patterns).
 
 ## What this is
 
@@ -902,9 +906,10 @@ readable weight regardless of section. The actual fix for length: every
 section after Land (Technical Specification, Source or Kind of
 Utilities, Improvement — General Construction Features, and Basis of
 Valuation) is wrapped in the shared `CollapsibleSection` component
-(`src/components/collapsible-section` — the same chevron+`Collapse`
-shell Document Checklist and Requirement Checklist's per-tab groups
-already use elsewhere in this app), collapsed by default via a single
+(`src/components/collapsible-section` — the standard admin card-header
+contract, see `docs/225-admin-design-system.md` §6; the same
+chevron+`Collapse` shell Document Checklist and Requirement Checklist's
+per-tab groups already use), collapsed by default via a single
 `expanded: Record<string, boolean>` state keyed per section. The
 Valuation section's own totals (Loanable Amount, Rounded Figures,
 Appraised Value (P), Item of Property, FMV/RCN, Construction Status %,
@@ -1021,3 +1026,21 @@ Pass/Fail terminal decision. The gating that does happen here:
 - **No revise/undo on a submitted report** — submission locks the form;
   only a Head decline (which clears every bundle's report — see
   `docs/110-appraisal.md`'s "Head Approval") reopens it.
+
+## History
+
+Concise milestones — the detailed pass-by-pass narrative is in "Read-only
+view (`AppraisalReportView`)" above.
+
+- **`AppraisalReportView` redesign (multi-pass).** Rebuilt from a plain
+  form into a document layout on the app's own tokens, then given visual
+  hierarchy, then per-section `CollapsibleSection` collapse, then
+  per-land-title collapse for multi-property bundles, then restructured
+  around an always-visible "At a Glance" summary + a single "View Full
+  Report" toggle. The Prepared/Reviewed/Endorsed/Noted By block was made
+  always-visible (un-collapsed).
+- **2026-09-07** — a submitted bundle's `AppraisalReportView` now renders
+  **inline** in `AssignedAppraiserCard` on the Officer's Appraisal page
+  (was a "View Report" `Dialog`); see `docs/110-appraisal.md`.
+- **Docs/nav reorg** — this workspace's doc was renumbered to `170` and
+  its nav label settled under the "Request" dropdown.

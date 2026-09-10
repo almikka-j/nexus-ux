@@ -6,8 +6,11 @@
 > fields, changed card order, changed `canProceed` gating, changed sample-data
 > values, or changes to `call-report-result-modal.tsx` /
 > `credit-checking-result-modal.tsx`. Companion to `docs/230-project-overview.md`,
-> `docs/070-account-solicitation-initial-credit-checking.md`, and
-> `docs/090-account-solicitation-requirement-checklist.md`.
+> `docs/070-account-solicitation-initial-credit-checking.md`,
+> `docs/090-account-solicitation-requirement-checklist.md`, and
+> `docs/225-admin-design-system.md` (the admin design system — this page's
+> 8 section cards use `CollapsibleSection`; the decision card and Sales
+> Reject dialog follow the §10 decision-gate / §6 `ConfirmDialog` patterns).
 
 ## What this is
 
@@ -29,6 +32,11 @@ defined in `src/auth/admin-context.tsx`), persisted by the prototype's
 existing localStorage behavior.
 
 ## Page order
+
+`CallReportView` renders inside `<Container maxWidth="lg">` — the standard
+multi-card pipeline-review width (`docs/225-admin-design-system.md` §4.6);
+it was `"md"` before and was widened to match Requirement Checklist /
+Credit Investigation / Financial Evaluation.
 
 `CallReportView` renders:
 

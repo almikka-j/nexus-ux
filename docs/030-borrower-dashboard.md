@@ -6,6 +6,9 @@
 > action and `docs/040-borrower-sign-in.md`'s login both land here) and
 > `docs/020-borrower-application.md`'s "Filing a second application" section
 > (the "Apply for Loan" button below routes into `/borrower/apply`).
+>
+> **Design scope:** a borrower-facing screen — the admin design system
+> (`docs/225-admin-design-system.md`) does **not** apply.
 
 ## What this is
 

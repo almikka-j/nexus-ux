@@ -8,8 +8,12 @@
 > `Appraisal.feeApprovalStatus`/`AppraisalReportBundle.feeNeeded` data model
 > lives), `docs/110-appraisal.md` (the Officer's step page that creates the
 > bundles), `docs/200-request-appraisal-report-approval.md` (the report side of
-> the same Approver's two duties), and `docs/210-request-payments.md` (where an
-> approved fee is actually recorded as paid).
+> the same Approver's two duties), `docs/210-request-payments.md` (where an
+> approved fee is actually recorded as paid), and
+> `docs/225-admin-design-system.md` (the admin design system — list →
+> detail split per §10, `ConfirmDialog` approve/decline per §6, and the
+> `ApplicationDetailsCard` tighter-padding variant is a §13 known
+> exception).
 
 ## What this is
 
@@ -168,8 +172,9 @@ own row has "View full application" / "Initial credit checking result" /
 `borderColor: '#C7CEEA'`, `borderRadius: '10px'`, not full-width). The
 header card's own outer padding matches that same reference too —
 `p: { xs: 2.5, md: 3 }`, the tighter override `ApplicationDetailsCard`'s
-collapsible variant uses, in place of the plain `adminCardSx` default
-(`p: { xs: 3, md: 4 }`) every other content card on the sibling
+collapsible variant uses (a `docs/225-admin-design-system.md` §13
+documented exception to the `adminCardSx` `p: { xs: 3, md: 4 }` default),
+in place of the plain default every other content card on the sibling
 Appraiser pages keeps — since this specific card is what's being
 matched, not just its internal layout; the "Appraisal Fee Details" card
 below it keeps the plain `adminCardSx` default, same as those other
@@ -253,3 +258,16 @@ document-completeness gate.
 - **No request ID** — the `[bundleId]` route segment always resolves to
   `/current`.
 - All state lives in `review.appraisal` in `localStorage`.
+
+## Non-Goals / Open Items
+
+- **No per-property fee decision** — approve/decline is batch-level over
+  the whole request; there is no way to approve one bundle's fee and
+  decline another's.
+- **No queue of multiple requests** — one live application, one
+  `feeApprovalStatus`, one row.
+- **No separate Head login** — the same officer can act here or via the
+  Appraiser page's simulated shortcut; this screen is a fuller surface,
+  not a role gate.
+- **No real fee record here** — `feePayment` and "mark as paid" live on
+  `docs/210-request-payments.md`.

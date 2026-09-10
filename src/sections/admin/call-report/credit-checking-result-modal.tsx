@@ -26,8 +26,9 @@ import type {
 import { Iconify } from 'src/components/iconify';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
+import { AiRecommendationSummary } from 'src/components/admin-ui/ai-recommendation-summary';
+
 import { buildInitialCreditCheckingResult } from '../initial-credit-checking-risk';
-import { AiRecommendationSummary } from '../ai-recommendation-summary';
 import {
   CmapCasesTable,
   BapNfisRecordsTable,

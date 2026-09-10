@@ -24,7 +24,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, StatusBadge, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { AiReviewCard, adminCardSx, StatusBadge, AI_REVIEW_RISK_STYLES, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
 import { CollapsibleSection, CollapsibleSectionBadge } from 'src/components/collapsible-section';
 
@@ -48,18 +48,8 @@ import {
 
 import type { RequirementDoc, OutreachChannel, AppraisalCollateralType } from 'src/auth/admin-context';
 import type { AppraisalDocMeta, RequirementDocMeta, RequirementDocStatus } from './requirement-checklist-docs';
-import type { RequirementChecklistRiskLevel } from './requirement-checklist-risk';
 
 // ----------------------------------------------------------------------
-
-const RISK_STYLES: Record<
-  RequirementChecklistRiskLevel,
-  { bg: string; color: string; icon: string; label: string }
-> = {
-  good: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Ready' },
-  watch: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Almost ready' },
-  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'Not ready' },
-};
 
 // Same Real Estate/Chattel labels as the Appraiser workspace's own "Add
 // Collateral" control (appraisal-tct-table.tsx) — kept in sync manually,
@@ -269,6 +259,7 @@ export function RequirementChecklistView() {
   const [creditInvestigationCollapsed, setCreditInvestigationCollapsed] = useState(false);
   const [financialEvaluationCollapsed, setFinancialEvaluationCollapsed] = useState(false);
   const [appraisalCollapsed, setAppraisalCollapsed] = useState(false);
+  const [aiReviewExpanded, setAiReviewExpanded] = useState(true);
   const [collapsedAppraisalGroups, setCollapsedAppraisalGroups] = useState<Record<string, boolean>>({});
 
   // Scroll targets for "Jump to next outstanding item" in the sticky summary
@@ -708,7 +699,7 @@ export function RequirementChecklistView() {
     hasAppraisalGroups,
     appraisalNotApplicable
   );
-  const riskStyle = RISK_STYLES[level];
+  const riskStyle = AI_REVIEW_RISK_STYLES[level];
 
   const handleEndorse = () => {
     setRequirementChecklist({ endorsed: true });
@@ -1391,42 +1382,14 @@ export function RequirementChecklistView() {
           </CollapsibleSection>
         </Box>
 
-        <Box sx={adminCardSx}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-            <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              AI review, summary &amp; recommendation
-            </Typography>
-          </Stack>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-            Automatically checks each uploaded document for completeness, validity and consistency
-            with the application.
-          </Typography>
-
-          <Stack spacing={2}>
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Iconify icon="solar:document-text-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
-                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273' }}>
-                  AI Summary
-                </Typography>
-              </Stack>
-              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{summary}</Typography>
-            </Box>
-
-            <Box sx={{ p: 2, borderRadius: '11px', bgcolor: riskStyle.bg }}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Iconify icon={riskStyle.icon} width={16} sx={{ color: riskStyle.color }} />
-                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
-                  AI Recommendation · {riskStyle.label}
-                </Typography>
-              </Stack>
-              <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6 }}>
-                {recommendation}
-              </Typography>
-            </Box>
-          </Stack>
-        </Box>
+        <AiReviewCard
+          subtitle="Automatically checks each uploaded document for completeness, validity and consistency with the application."
+          expanded={aiReviewExpanded}
+          onToggle={() => setAiReviewExpanded((prev) => !prev)}
+          risk={riskStyle}
+          summary={summary}
+          recommendation={recommendation}
+        />
 
         <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>

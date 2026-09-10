@@ -7,8 +7,12 @@
 > `AssignedAppraiserCard`), `appraisal/appraisal-bundle-status.ts`,
 > `appraisal/head-approval-card.tsx`, `appraisal/pass-fail-card.tsx`,
 > `appraisal/sample-appraisal-report.ts`) change.
-> Companion to `docs/230-project-overview.md` and `docs/100-credit-investigation.md`
-> (the step immediately before this one in the pipeline). The other
+> Companion to `docs/230-project-overview.md`, `docs/100-credit-investigation.md`
+> (the step immediately before this one in the pipeline), and
+> `docs/225-admin-design-system.md` (the admin design system — `adminCardSx`
+> cards, nested `CollapsibleSection` / `CollapsibleSectionBadge`, the §5/§6
+> modal patterns for the Request Document and Assign Appraiser dialogs, and
+> the §10 decision-gate pattern for Pass/Fail). The other
 > Appraisal surfaces have their own files, all nested alongside this one
 > under the same "Request" nav dropdown:
 > `docs/170-request-appraiser.md` (the Appraiser's own workspace — fee request,
@@ -46,12 +50,10 @@
 > editable form nor the fee-request card.** Once a bundle's report is
 > submitted, `AssignedAppraiserCard` shows that bundle's read-only
 > `AppraisalReportView` **inline** — a collapsible panel under the bundle's
-> row, expanded by default. There is no "View Report" button or `Dialog`
-> anymore (the separate per-bundle report cards that used to sit between
-> `AssignedAppraiserCard` and Head Approval were removed earlier; the modal
-> that briefly replaced them is now inline too). See "Assigned Appraiser"
-> below and "Appraisal Report (per bundle)" in
-> `docs/170-request-appraiser.md`.
+> row, expanded by default. There is no "View Report" button or `Dialog`.
+> See "Assigned Appraiser" below and "Appraisal Report (per bundle)" in
+> `docs/170-request-appraiser.md`. (For how this reached the inline panel,
+> see `## History`.)
 >
 > **A submitted report goes straight to Head Approval — there is no
 > Appraisal Officer review step in between.** The full chain is Appraiser
@@ -59,10 +61,8 @@
 > is submitted (`reportSubmitted`), `appraisal-view.tsx` renders
 > `HeadApprovalCard` directly (`{reportSubmitted && <HeadApprovalCard />}`)
 > — no intermediate "Review Appraisal Reports" card, no explicit
-> officer-side forwarding action. (An officer-review card with its own
-> forwarding-flag gate briefly sat between Appraiser submission and Head
-> Approval and has since been fully reverted — see "Head Approval" below
-> for what a Head decline does now.)
+> officer-side forwarding action. See "Head Approval" below for what a Head
+> decline does now, and `## History` for the reverted officer-forward step.
 
 ## What this is
 
@@ -115,13 +115,11 @@ comparison.
    Nothing here is editable; reassigning still only happens via the
    Collateral titles table's Assign Appraiser modal.
 5. **No standalone per-bundle Appraisal Report cards render on this page.**
-   There used to be one card per report bundle directly after Assigned
-   Appraiser — each either a completed read-only `AppraisalReportView` or
-   a locked "waiting for appraiser" placeholder — but that loop has been
-   deleted from `appraisal-view.tsx` entirely. A submitted report is now
-   shown **inline inside `AssignedAppraiserCard`** — a collapsible
-   `AppraisalReportView` panel under each reported bundle's row (expanded
-   by default), no button or `Dialog` — see "Assigned Appraiser" below.
+   A submitted report is shown **inline inside `AssignedAppraiserCard`** —
+   a collapsible `AppraisalReportView` panel under each reported bundle's
+   row (expanded by default), no button or `Dialog` — see "Assigned
+   Appraiser" below (and `## History` for the earlier standalone-card and
+   `Dialog` iterations).
    **No Appraisal Fee card renders on this page at all** either — the fee
    lives entirely on the Appraiser's own pages
    (`docs/170-request-appraiser.md`).
@@ -190,13 +188,9 @@ attention. A `useEffect` auto-closes it (`tableOpen: false`) the instant
 select/assign, so keeping the full table expanded only pushes whatever
 follows further down the page. Once collapsed this way, the officer can
 still click the header to reopen it (toggling `tableOpen`) to review or
-re-check assignments. (This used to auto-collapse on
-`feeApprovalStatus === 'pending-approval'` instead — the fee batch being
-submitted — but that state now lives on the Appraiser's own page instead
-of the Officer's, and doesn't reliably fire at the moment that actually
-matters for *this* page: every property having an appraiser. See
-`docs/170-request-appraiser.md` for where fee submission actually happens
-now.) The Assign Appraiser modal (a `Dialog`) sits *outside* this
+re-check assignments. (The trigger was previously
+`feeApprovalStatus === 'pending-approval'` — see `## History`.) The Assign
+Appraiser modal (a `Dialog`) sits *outside* this
 collapsed region regardless, unaffected by `tableOpen`. The "X of Y
 assigned" pill and the Request Document/Add Collateral buttons stay
 visible whether the table is open or collapsed, so the officer can always
@@ -274,8 +268,11 @@ entries — see `docs/170-request-appraiser.md`,
 
 ### Request Document modal
 
-The **"Request Document"** button opens a `Dialog` for asking the borrower
-for specific documents on one collateral title:
+The **"Request Document"** button opens a `Dialog` (the
+`docs/225-admin-design-system.md` §5/§6 modal convention — `<Dialog
+fullWidth>`, a `DialogTitle`, a field stack, `DialogActions` with Cancel +
+a primary) for asking the borrower for specific documents on one collateral
+title:
 
 - **Collateral No.** (renamed from "TCT No.") — a `Select` listing every
   `appraisalGroups` entry by its collateral number.
@@ -331,16 +328,13 @@ A `Dialog` (not an inline panel) listing the selected TCT numbers, then:
   `targetCompletionDate: string | null` on the bundle. Informational only;
   no reminder/overdue logic reads it anywhere yet.
 
-**No Appraisal Fee section in this modal.** It used to also show "Does
-this application need an Appraisal fee?" (a `FeeNeededOption` card pair +
-Request Amount/Description/Remarks fields), answered by the Officer at
-assign time — that's been removed entirely. Requesting the Appraisal Fee
-is the **Appraiser's** job, not the Officer's, so the fee decision now
-lives exclusively on `/admin/appraisal-appraiser` (see
+**No Appraisal Fee section in this modal.** Requesting the Appraisal Fee
+is the **Appraiser's** job, not the Officer's, so the fee decision lives
+exclusively on `/admin/appraisal-appraiser` (see
 `docs/170-request-appraiser.md`). This modal only ever collects Appraiser
-type/name/target date; the confirm button stays disabled until just a name
-is picked, and never relabels to "Assign with Fee" (that label variant was
-removed along with the fee section).
+type/name/target date; the confirm button stays disabled until a name is
+picked, and never relabels to "Assign with Fee". (An earlier version of
+this modal collected the fee here — see `## History`.)
 
 Confirming calls `createAppraisalReportBundle(tctGroupIds, appraiserType,
 appraiserName, targetCompletionDate)` — the optional 5th `fee` param is
@@ -361,20 +355,13 @@ type or any other field — this whole card is replaced by a single line,
 or appraiser-assignment logic downstream depends on this flag; it only
 affects what this section displays.
 
-**Removed: standalone "Appraisal status" card.** A card summarizing
-Appraisal fee/payment/report status with plain-label pills briefly lived
-directly on this page (above the fee/assignment/report cards) so the
-officer had an at-a-glance read that never disappeared once the fee was
-settled. It was removed for being confusing and redundant — the same
-information (fee status, appraiser per TCT, report submission) is already
-visible via `AssignedAppraiserCard` below and the Collateral titles
-table's Appraiser column, so a third summary surface just added noise.
-(The shared `ProgressTracker`/`appraisalProgressIndex`
-(`src/sections/admin/appraisal/progress-tracker.tsx`) that once backed
-this — and, later, a per-assignment progress display on
-`/admin/appraisal-appraiser` — has since been deleted from the codebase
-entirely; see "Assigned Appraiser" below and `docs/170-request-appraiser.md`
-for what replaced it.)
+**No standalone "Appraisal status" card.** The current at-a-glance read of
+fee status, appraiser per TCT, and report submission is
+`AssignedAppraiserCard` below plus the Collateral titles table's Appraiser
+column — a dedicated status card would be a third, redundant summary
+surface. (A short-lived status card, and the `ProgressTracker` /
+`appraisalProgressIndex` helper that backed it, have both been removed —
+see `## History` and `docs/170-request-appraiser.md`.)
 
 ### Dev/testing page actions
 
@@ -471,11 +458,10 @@ appraiser-name-duplication bug already taught this codebase to avoid (see
 that table's `bundle.appraiserName` usage — no appended type suffix there
 either). The appraiser name lives in this left-side stack — not beside a
 status pill on the right — so the right side of the row stays exclusively
-a single status/action element (see below); an earlier version placed the
-name next to the status pill on the right, which was moved into the left
-column once report submission needed a *button* there instead of a
-label, and the name reads more naturally directly under its own TCT
-number than floating next to an unrelated status pill anyway.
+a single status/action element (see below); the name reads more naturally
+directly under its own TCT number than floating next to an unrelated
+status pill anyway. (The name previously sat on the right next to the
+status pill — see `## History`.)
 
 Nothing on this card is editable — reassigning an appraiser, or changing
 the target completion date, still only happens through the Collateral
@@ -528,20 +514,10 @@ table shows a plain "Reported" pill.
 `HeadApprovalCard` (`src/sections/admin/appraisal/head-approval-card.tsx`)
 is rendered by `appraisal-view.tsx` only when `reportSubmitted` —
 `{reportSubmitted && <HeadApprovalCard />}` — i.e. every pledged
-property's report is submitted. There is no intermediate officer-review
-step: an officer-review card gated on `reportSubmitted` plus a
-forward-to-Head boolean field briefly sat in this slot instead, prompting
-the Appraisal Officer to explicitly forward the batch before Head
-Approval would render — that step, its card, and the boolean field it
-wrote have all been fully reverted, so this card is back to rendering
-directly off `reportSubmitted` alone, same as before that feature
-shipped. Otherwise nothing renders in its place —
-there used to be a locked dashed placeholder ("Head Approval unlocks once
-every appraisal report below has been submitted.") but it was removed;
-with no standalone per-bundle report cards on this page (a submitted
-report is shown inline inside `AssignedAppraiserCard` — see "Assigned
-Appraiser" above), a placeholder phrased around "the reports below" would
-no longer even make sense here.
+property's report is submitted. There is **no intermediate officer-review
+step**; the card renders directly off `reportSubmitted` alone. Otherwise
+nothing renders in its place. (A short-lived officer-forward step, and a
+locked dashed placeholder, once sat in this slot — see `## History`.)
 
 The Head/Approver's own dedicated screens at `/admin/appraisal-approver`
 render the same decision against the same fields, alongside the actual
@@ -572,12 +548,9 @@ already used:
   so every assigned appraiser (in-house or external) has to resubmit from
   scratch, even when the decline reason had nothing to do with the report
   contents themselves. Each bundle's `appraiserType` and TCT membership are
-  preserved — only report contents are cleared. (Resetting a
-  forward-to-Head boolean field instead — sending the batch back to an
-  intermediate officer-review card rather than clearing reports — briefly
-  replaced this behavior; that step has been fully reverted, so decline is
-  back to clearing every bundle's report outright, same as before that
-  feature shipped.)
+  preserved — only report contents are cleared. (A short-lived variant
+  reset a forward-to-Head boolean instead of clearing reports — see
+  `## History`.)
 
 While `headApprovalStatus === 'pending'` and a decline reason exists from a
 previous round, the card shows "Last decline reason: …" beneath the
@@ -593,13 +566,9 @@ Rendered by `appraisal-view.tsx` only once `headApprovalStatus === 'approved'`
 **and** a report is still submitted (`headApproved && reportSubmitted`) —
 the `reportSubmitted` half is a belt-and-suspenders re-lock so Pass/Fail
 can't stay open if a report is ever cleared after approval through some
-other path. Otherwise nothing renders in its place — there used to be a
-locked dashed placeholder ("Head Approval must approve the reports below
-to unlock the Pass/Fail decision.") once a report was submitted, but it
-was removed: with per-bundle report cards no longer rendered inline on
-this page at all (see "Page order" above), "the reports below" isn't
-accurate any more, and the card above it (`HeadApprovalCard`) already
-makes clear what's still pending.
+other path. Otherwise nothing renders in its place; the card above it
+(`HeadApprovalCard`) already makes clear what's still pending. (A locked
+dashed placeholder that used to sit here was removed — see `## History`.)
 
 `review.appraisal.passed: boolean | null`. This is a manual officer judgment
 call — the app has no automated appraised-value-vs-loan-amount comparison
@@ -676,20 +645,49 @@ too. Sample (demo) rows are always non-actionable.
 
 ### 2026-09-07
 
-- `AssignedAppraiserCard` now renders a submitted bundle's
-  `AppraisalReportView` **inline** (a `Collapse` panel, expanded by
-  default) instead of behind a "View Report" button + `Dialog`.
+- **Submitted report shown inline.** `AssignedAppraiserCard` renders a
+  submitted bundle's `AppraisalReportView` in a `Collapse` panel
+  (expanded by default) instead of behind a "View Report" button +
+  `Dialog`.
 
-### Earlier
+### Date not confirmed
 
-- The per-bundle Appraisal Report cards that used to render directly on
-  `appraisal-view.tsx` (between Assigned Appraiser and Head Approval) were
-  removed; the report moved first to a `Dialog` opened from
-  `AssignedAppraiserCard`, then (2026-09-07) to the inline panel above.
-- An intermediate "Officer forwards the batch to Head Approval" step — a
-  card gated on `reportSubmitted` plus a boolean field — was added and then
-  fully reverted; `HeadApprovalCard` renders directly off `reportSubmitted`
-  again.
-- The live application's queue row became unconditionally actionable for
+- **Per-bundle Appraisal Report cards removed.** A loop on
+  `appraisal-view.tsx` once rendered one card per bundle between Assigned
+  Appraiser and Head Approval — a completed read-only `AppraisalReportView`
+  or a locked "waiting for appraiser" placeholder. It was deleted; the
+  report moved to a `Dialog` opened from `AssignedAppraiserCard`, then
+  (2026-09-07) to the inline panel above.
+- **Officer-forward-to-Head step added, then reverted.** An officer-review
+  card gated on `reportSubmitted` plus a forward-to-Head boolean briefly
+  sat between Appraiser submission and Head Approval, requiring the Officer
+  to explicitly forward the batch. The card, its boolean field, and the
+  matching Head-decline behaviour (resetting that boolean instead of
+  clearing reports) were all fully reverted — `HeadApprovalCard` renders
+  directly off `reportSubmitted`, and Head decline clears every bundle's
+  report via `clearAllAppraisalBundleReports()`.
+- **Locked dashed placeholders removed.** Both Head Approval and the
+  Pass/Fail slot once showed a locked "unlock once the reports below are
+  submitted" placeholder while gated. Both were removed once per-bundle
+  report cards stopped rendering inline — "the reports below" no longer
+  described anything on the page.
+- **Standalone "Appraisal status" card removed**, along with the shared
+  `ProgressTracker` / `appraisalProgressIndex`
+  (`appraisal/progress-tracker.tsx`) and a per-assignment progress display
+  on `/admin/appraisal-appraiser` — redundant with `AssignedAppraiserCard`
+  and the Collateral titles table's Appraiser column.
+- **Assign Appraiser modal no longer collects the fee.** It once showed a
+  "Does this application need an Appraisal fee?" section
+  (`FeeNeededOption` + amount/description/remarks) and an "Assign with Fee"
+  confirm label; both were removed — requesting the Appraisal Fee is the
+  Appraiser's job now (`/admin/appraisal-appraiser`).
+- **Assigned-appraiser name moved to the left column** of each
+  `AssignedAppraiserCard` row (it previously sat on the right next to the
+  status pill) so the right side could carry a report-submission *button*.
+- **Collateral-titles table auto-collapse trigger changed** from
+  `feeApprovalStatus === 'pending-approval'` to `allGroupsAssigned` —
+  fee submission moved to the Appraiser's own page and no longer fired at
+  the moment that matters here (every property having an appraiser).
+- **Live application's queue row became unconditionally actionable** for
   every step; Financial Evaluation was the last exception and now has its
   own workspace.

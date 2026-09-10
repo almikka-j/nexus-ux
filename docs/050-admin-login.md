@@ -3,8 +3,17 @@
 > **Maintenance rule:** update this file whenever `admin-login-view.tsx`
 > or `src/auth/mock-login.ts`'s `ADMIN_DEMO_ACCOUNT`/`mockAdminLogin`
 > change. Companion to `docs/060-admin-dashboard.md` (successful login lands
-> there) and `docs/040-borrower-sign-in.md` (the borrower-facing equivalent —
-> a separate component, separate demo account, same mocked-auth pattern).
+> there), `docs/040-borrower-sign-in.md` (the borrower-facing equivalent —
+> a separate component, separate demo account, same mocked-auth pattern),
+> and `docs/225-admin-design-system.md` (the admin design system).
+>
+> **Design scope:** this is an admin screen, but it deliberately sits
+> **outside** the standard admin page shell documented in `docs/225` — it
+> has no nav (`AdminLayout` is not mounted here), and it inlines its own
+> full-bleed dark texture + centered white card rather than using
+> `<Container maxWidth="lg">` + `adminCardSx` + `ApplicationReviewHeader`.
+> A documented boundary case; it shares the mocked-auth convention with the
+> borrower login, not the review-screen layout.
 
 ## What this is
 

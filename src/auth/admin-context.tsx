@@ -1277,6 +1277,17 @@ export const FINANCIAL_PERIOD_LABELS: Record<FinancialPeriod, string> = {
 
 // --- Financial Statement (sub-tool 1) — one record per period. Every value
 // is a free-text numeric string (blank/garbage → 0 for arithmetic).
+/** One Balance Sheet line item — a labelled amount inside a category. */
+export type BalanceSheetLine = { id: string; label: string; value: string };
+
+/** The five Balance Sheet categories, each a dynamic list of line items. */
+export type BalanceSheetCategory =
+  | 'currentAssets'
+  | 'nonCurrentAssets'
+  | 'currentLiabilities'
+  | 'nonCurrentLiabilities'
+  | 'equity';
+
 export type FinancialStatementPeriod = {
   grossSales: string;
   salesReturns: string; // legacy has no separate field — kept for Net Sales math, defaults ''
@@ -1286,14 +1297,25 @@ export type FinancialStatementPeriod = {
   interestExpense: string;
   provisionForTaxes: string;
   depreciation: string; // feeds real EBITDA (operating income + depreciation)
-  currentAssets: string;
-  nonCurrentAssets: string;
-  currentLiabilities: string;
-  nonCurrentLiabilities: string;
-  equity: string;
+  currentAssets: BalanceSheetLine[];
+  nonCurrentAssets: BalanceSheetLine[];
+  currentLiabilities: BalanceSheetLine[];
+  nonCurrentLiabilities: BalanceSheetLine[];
+  equity: BalanceSheetLine[];
+  balanceSheetSaved: boolean; // Manage opens straight to Balance Sheet once true
 };
 export type FinancialStatement = Record<FinancialPeriod, FinancialStatementPeriod>;
-export type FinancialStatementField = keyof FinancialStatementPeriod;
+
+/** Income-statement string fields only — the Balance Sheet is now line-item lists. */
+export type FinancialStatementField =
+  | 'grossSales'
+  | 'salesReturns'
+  | 'costOfGoodsSold'
+  | 'operatingExpenses'
+  | 'otherIncomeExpense'
+  | 'interestExpense'
+  | 'provisionForTaxes'
+  | 'depreciation';
 
 // --- Bank Loans (sub-tool 2)
 export type BankLoanRow = {
@@ -1311,6 +1333,13 @@ export type BankLoanRow = {
   term: string; // months
   interestRate: string; // %
   principalPaid: string;
+  paymentHandling: string;
+  principalAmortizationPerMonth: string;
+  interestAmortizationPerMonth: string;
+  principalPaymentAsOf: string; // "Payment as of Date" group
+  interestPaymentAsOf: string; // "Payment as of Date" group
+  projectedPrincipalPaymentDec: string; // "Payment Projected" group
+  projectedInterestDec: string; // "Payment Projected" group
 };
 export type PgfcProposedLoan = {
   projectionAmount: string;
@@ -1391,6 +1420,7 @@ export type ApplicationReview = {
   financialStatementDetails: FinancialStatementDetails;
   bankLoans: BankLoans;
   financialHighlights: FinancialHighlights;
+  financialHighlightsRemarks: string; // Tiptap HTML
   additionalFinancialFiles: AdditionalFinancialFile[];
   stepTimestamps: StepTimestamps;
 };
@@ -1496,6 +1526,19 @@ type AdminContextValue = AdminState & {
     field: FinancialStatementField,
     value: string
   ) => void;
+  markFinancialStatementBalanceSheetSaved: (period: FinancialPeriod) => void;
+  addBalanceSheetLine: (period: FinancialPeriod, category: BalanceSheetCategory) => void;
+  updateBalanceSheetLine: (
+    period: FinancialPeriod,
+    category: BalanceSheetCategory,
+    id: string,
+    patch: Partial<Omit<BalanceSheetLine, 'id'>>
+  ) => void;
+  removeBalanceSheetLine: (
+    period: FinancialPeriod,
+    category: BalanceSheetCategory,
+    id: string
+  ) => void;
   setFinancialStatementDetails: (data: Partial<FinancialStatementDetails>) => void;
   addBankLoanRow: (kind: BankLoanKind) => void;
   updateBankLoanRow: (kind: BankLoanKind, id: string, data: Partial<Omit<BankLoanRow, 'id'>>) => void;
@@ -1506,6 +1549,7 @@ type AdminContextValue = AdminState & {
     field: FinancialHighlightsField,
     value: string
   ) => void;
+  setFinancialHighlightsRemarks: (value: string) => void;
   addAdditionalFinancialFiles: (files: Array<{ fileName: string; fileData: string }>) => void;
   updateAdditionalFinancialFile: (id: string, data: Partial<Pick<AdditionalFinancialFile, 'remarks'>>) => void;
   removeAdditionalFinancialFile: (id: string) => void;
@@ -1786,7 +1830,28 @@ function createSampleBankStatement(): BankStatement {
 
 // --- Sample data for the whole Financial Evaluation "Fill with Sample Data"
 // page action (Cash Flow Statement + Financial Statement + Bank Loans +
-// Financial Highlights), seeded together so a demo pass has data everywhere.
+// Financial Highlights + Additional Financial Files), seeded together so a
+// demo pass has data everywhere.
+
+function createSampleAdditionalFinancialFiles(): AdditionalFinancialFile[] {
+  const uploadedAt = new Date().toISOString();
+  return [
+    {
+      id: crypto.randomUUID(),
+      fileName: 'supplier-contract-2026.pdf',
+      fileData: '/assets/documents/sample-local-pdf.pdf',
+      remarks: 'Signed 2-year supply agreement with primary distributor.',
+      uploadedAt,
+    },
+    {
+      id: crypto.randomUUID(),
+      fileName: 'warehouse-lease.pdf',
+      fileData: '/assets/documents/sample-local-pdf.pdf',
+      remarks: '',
+      uploadedAt,
+    },
+  ];
+}
 
 function createSampleCashFlowStatement(): CashFlowStatement {
   return {
@@ -1832,41 +1897,70 @@ function createSampleCashFlowStatement(): CashFlowStatement {
 }
 
 function createSampleFinancialStatement(): FinancialStatement {
+  const line = (label: string, value: string): BalanceSheetLine => ({
+    id: crypto.randomUUID(),
+    label,
+    value,
+  });
+
   // 2023 → 2025 growing actuals; Interim ≈ half-year; Projected ≈ 2025 + growth.
+  // Balance Sheet: a few line items per category summing near the old totals.
   const base: Record<FinancialPeriod, Partial<FinancialStatementPeriod>> = {
     '2023': {
       grossSales: '18500000', costOfGoodsSold: '12200000', operatingExpenses: '3600000',
       otherIncomeExpense: '120000', interestExpense: '420000', provisionForTaxes: '480000',
-      depreciation: '350000', currentAssets: '6800000', nonCurrentAssets: '9200000',
-      currentLiabilities: '4100000', nonCurrentLiabilities: '5200000', equity: '6700000',
+      depreciation: '350000',
+      currentAssets: [line('Cash', '2800000'), line('Account Receivable – Trade', '2600000'), line('Inventory', '1400000')],
+      nonCurrentAssets: [line('Property, plant and equipment (net of depr.)', '9200000')],
+      currentLiabilities: [line('Accounts Payable – Trade', '2500000'), line('Short-term Loans', '1600000')],
+      nonCurrentLiabilities: [line('Long-term Loans', '5200000')],
+      equity: [line('Capital', '3000000'), line('Retained Earnings', '3400000'), line('Net Income', '300000')],
     },
     '2024': {
       grossSales: '21300000', costOfGoodsSold: '13800000', operatingExpenses: '3950000',
       otherIncomeExpense: '150000', interestExpense: '390000', provisionForTaxes: '640000',
-      depreciation: '380000', currentAssets: '7600000', nonCurrentAssets: '9600000',
-      currentLiabilities: '4300000', nonCurrentLiabilities: '4800000', equity: '8100000',
+      depreciation: '380000',
+      currentAssets: [line('Cash', '3200000'), line('Account Receivable – Trade', '2900000'), line('Inventory', '1500000')],
+      nonCurrentAssets: [line('Property, plant and equipment (net of depr.)', '9600000')],
+      currentLiabilities: [line('Accounts Payable – Trade', '2600000'), line('Short-term Loans', '1700000')],
+      nonCurrentLiabilities: [line('Long-term Loans', '4800000')],
+      equity: [line('Capital', '3000000'), line('Retained Earnings', '4700000'), line('Net Income', '400000')],
     },
     '2025': {
       grossSales: '24800000', costOfGoodsSold: '15600000', operatingExpenses: '4300000',
       otherIncomeExpense: '180000', interestExpense: '360000', provisionForTaxes: '850000',
-      depreciation: '410000', currentAssets: '8700000', nonCurrentAssets: '10100000',
-      currentLiabilities: '4500000', nonCurrentLiabilities: '4400000', equity: '9900000',
+      depreciation: '410000',
+      currentAssets: [line('Cash', '3700000'), line('Account Receivable – Trade', '3300000'), line('Inventory', '1700000')],
+      nonCurrentAssets: [line('Property, plant and equipment (net of depr.)', '10100000')],
+      currentLiabilities: [line('Accounts Payable – Trade', '2800000'), line('Short-term Loans', '1700000')],
+      nonCurrentLiabilities: [line('Long-term Loans', '4400000')],
+      equity: [line('Capital', '3000000'), line('Retained Earnings', '6400000'), line('Net Income', '500000')],
     },
     interim: {
       grossSales: '13200000', costOfGoodsSold: '8300000', operatingExpenses: '2250000',
       otherIncomeExpense: '95000', interestExpense: '180000', provisionForTaxes: '460000',
-      depreciation: '210000', currentAssets: '9100000', nonCurrentAssets: '10000000',
-      currentLiabilities: '4400000', nonCurrentLiabilities: '4200000', equity: '10500000',
+      depreciation: '210000',
+      currentAssets: [line('Cash', '4000000'), line('Account Receivable – Trade', '3400000'), line('Inventory', '1700000')],
+      nonCurrentAssets: [line('Property, plant and equipment (net of depr.)', '10000000')],
+      currentLiabilities: [line('Accounts Payable – Trade', '2700000'), line('Short-term Loans', '1700000')],
+      nonCurrentLiabilities: [line('Long-term Loans', '4200000')],
+      equity: [line('Capital', '3000000'), line('Retained Earnings', '7200000'), line('Net Income', '300000')],
     },
     projected: {
       grossSales: '27500000', costOfGoodsSold: '17100000', operatingExpenses: '4600000',
       otherIncomeExpense: '200000', interestExpense: '340000', provisionForTaxes: '980000',
-      depreciation: '430000', currentAssets: '9600000', nonCurrentAssets: '10400000',
-      currentLiabilities: '4600000', nonCurrentLiabilities: '4000000', equity: '11400000',
+      depreciation: '430000',
+      currentAssets: [line('Cash', '4300000'), line('Account Receivable – Trade', '3500000'), line('Inventory', '1800000')],
+      nonCurrentAssets: [line('Property, plant and equipment (net of depr.)', '10400000')],
+      currentLiabilities: [line('Accounts Payable – Trade', '2900000'), line('Short-term Loans', '1700000')],
+      nonCurrentLiabilities: [line('Long-term Loans', '4000000')],
+      equity: [line('Capital', '3000000'), line('Retained Earnings', '7800000'), line('Net Income', '600000')],
     },
   };
   return FINANCIAL_PERIODS.reduce((acc, period) => {
-    acc[period] = { ...createBlankFinancialStatementPeriod(), ...base[period] };
+    // Sample data already carries Balance Sheet figures — mark it saved so
+    // Manage opens straight to the Balance Sheet step.
+    acc[period] = { ...createBlankFinancialStatementPeriod(), ...base[period], balanceSheetSaved: true };
     return acc;
   }, {} as FinancialStatement);
 }
@@ -1889,6 +1983,13 @@ function createSampleBankLoans(): BankLoans {
         term: '60',
         interestRate: '9.5',
         principalPaid: '2800000',
+        paymentHandling: 'Post-dated checks',
+        principalAmortizationPerMonth: '133333',
+        interestAmortizationPerMonth: '41167',
+        principalPaymentAsOf: '2800000',
+        interestPaymentAsOf: '890000',
+        projectedPrincipalPaymentDec: '1600000',
+        projectedInterestDec: '494000',
       },
       {
         id: crypto.randomUUID(),
@@ -1905,6 +2006,13 @@ function createSampleBankLoans(): BankLoans {
         term: '36',
         interestRate: '10.25',
         principalPaid: '1500000',
+        paymentHandling: 'Auto-debit arrangement',
+        principalAmortizationPerMonth: '83333',
+        interestAmortizationPerMonth: '12813',
+        principalPaymentAsOf: '1500000',
+        interestPaymentAsOf: '153750',
+        projectedPrincipalPaymentDec: '1000000',
+        projectedInterestDec: '102500',
       },
     ],
     pgfcRows: [
@@ -1923,6 +2031,13 @@ function createSampleBankLoans(): BankLoans {
         term: '60',
         interestRate: '12',
         principalPaid: '2100000',
+        paymentHandling: 'Post-dated checks',
+        principalAmortizationPerMonth: '83333',
+        interestAmortizationPerMonth: '29000',
+        principalPaymentAsOf: '2100000',
+        interestPaymentAsOf: '348000',
+        projectedPrincipalPaymentDec: '1000000',
+        projectedInterestDec: '288000',
       },
     ],
     proposed: {
@@ -1960,11 +2075,12 @@ function createBlankFinancialStatementPeriod(): FinancialStatementPeriod {
     interestExpense: '',
     provisionForTaxes: '',
     depreciation: '',
-    currentAssets: '',
-    nonCurrentAssets: '',
-    currentLiabilities: '',
-    nonCurrentLiabilities: '',
-    equity: '',
+    currentAssets: [],
+    nonCurrentAssets: [],
+    currentLiabilities: [],
+    nonCurrentLiabilities: [],
+    equity: [],
+    balanceSheetSaved: false,
   };
 }
 
@@ -2006,6 +2122,13 @@ function createBankLoanRow(): BankLoanRow {
     term: '',
     interestRate: '',
     principalPaid: '',
+    paymentHandling: '',
+    principalAmortizationPerMonth: '',
+    interestAmortizationPerMonth: '',
+    principalPaymentAsOf: '',
+    interestPaymentAsOf: '',
+    projectedPrincipalPaymentDec: '',
+    projectedInterestDec: '',
   };
 }
 
@@ -2577,6 +2700,7 @@ function createInitialReview(): ApplicationReview {
     financialStatementDetails: createInitialFinancialStatementDetails(),
     bankLoans: createInitialBankLoans(),
     financialHighlights: createInitialFinancialHighlights(),
+    financialHighlightsRemarks: '',
     additionalFinancialFiles: [],
     stepTimestamps: {},
   };
@@ -2803,12 +2927,26 @@ function readStoredState(): AdminState {
         // (not a keyed default set), same as the bureau file arrays.
         bankStatements: Array.isArray(storedReview.bankStatements) ? storedReview.bankStatements : [],
         // Per-period deep merge so a session saved before a field was added
-        // still fills the gap; guarantees all 5 period keys exist.
+        // still fills the gap; guarantees all 5 period keys exist. The five
+        // Balance Sheet categories became line-item arrays — an older
+        // session may have stored a flat string total, which we wrap as a
+        // single migrated line.
         financialStatement: FINANCIAL_PERIODS.reduce((acc, period) => {
-          acc[period] = {
+          const merged = {
             ...initialState.review.financialStatement[period],
             ...storedReview.financialStatement?.[period],
           };
+          (
+            ['currentAssets', 'nonCurrentAssets', 'currentLiabilities', 'nonCurrentLiabilities', 'equity'] as const
+          ).forEach((cat) => {
+            const raw = (merged as Record<string, unknown>)[cat];
+            if (Array.isArray(raw)) return;
+            merged[cat] =
+              typeof raw === 'string' && raw.trim()
+                ? [{ id: crypto.randomUUID(), label: 'Opening balance', value: raw }]
+                : [];
+          });
+          acc[period] = merged;
           return acc;
         }, {} as FinancialStatement),
         financialStatementDetails: hydrateFinancialStatementDetails(
@@ -2817,11 +2955,13 @@ function readStoredState(): AdminState {
         bankLoans: {
           ...initialState.review.bankLoans,
           ...storedReview.bankLoans,
+          // Deep-merge each row over a blank row so a session saved before a
+          // BankLoanRow field was added still fills the gap.
           bankRows: Array.isArray(storedReview.bankLoans?.bankRows)
-            ? storedReview.bankLoans.bankRows
+            ? storedReview.bankLoans.bankRows.map((row: Partial<BankLoanRow>) => ({ ...createBankLoanRow(), ...row }))
             : [],
           pgfcRows: Array.isArray(storedReview.bankLoans?.pgfcRows)
-            ? storedReview.bankLoans.pgfcRows
+            ? storedReview.bankLoans.pgfcRows.map((row: Partial<BankLoanRow>) => ({ ...createBankLoanRow(), ...row }))
             : [],
           proposed: {
             ...initialState.review.bankLoans.proposed,
@@ -2835,8 +2975,17 @@ function readStoredState(): AdminState {
           };
           return acc;
         }, {} as FinancialHighlights),
+        financialHighlightsRemarks:
+          typeof storedReview.financialHighlightsRemarks === 'string'
+            ? storedReview.financialHighlightsRemarks
+            : '',
         additionalFinancialFiles: Array.isArray(storedReview.additionalFinancialFiles)
-          ? storedReview.additionalFinancialFiles
+          ? storedReview.additionalFinancialFiles.map((file: AdditionalFinancialFile & { note?: string }) => ({
+              ...file,
+              // Migrate the pre-rename `note` field; default to '' so a stale
+              // record without either key never yields `undefined`.
+              remarks: file.remarks ?? file.note ?? '',
+            }))
           : [],
       },
     };
@@ -3310,6 +3459,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             },
             bankLoans: createSampleBankLoans(),
             financialHighlights: createSampleFinancialHighlights(),
+            financialHighlightsRemarks: '<p>Ratios and coverage metrics reviewed for the five reporting periods.</p>',
+            additionalFinancialFiles: createSampleAdditionalFinancialFiles(),
           },
         })),
       clearFinancialEvaluationSample: () =>
@@ -3323,6 +3474,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             financialStatementDetails: createInitialFinancialStatementDetails(),
             bankLoans: createInitialBankLoans(),
             financialHighlights: createInitialFinancialHighlights(),
+            financialHighlightsRemarks: '',
+            additionalFinancialFiles: [],
           },
         })),
       setFinancialStatementField: (period, field, value) =>
@@ -3333,6 +3486,64 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             financialStatement: {
               ...prev.review.financialStatement,
               [period]: { ...prev.review.financialStatement[period], [field]: value },
+            },
+          },
+        })),
+      markFinancialStatementBalanceSheetSaved: (period) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            financialStatement: {
+              ...prev.review.financialStatement,
+              [period]: { ...prev.review.financialStatement[period], balanceSheetSaved: true },
+            },
+          },
+        })),
+      addBalanceSheetLine: (period, category) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            financialStatement: {
+              ...prev.review.financialStatement,
+              [period]: {
+                ...prev.review.financialStatement[period],
+                [category]: [
+                  ...prev.review.financialStatement[period][category],
+                  { id: crypto.randomUUID(), label: '', value: '' },
+                ],
+              },
+            },
+          },
+        })),
+      updateBalanceSheetLine: (period, category, id, patch) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            financialStatement: {
+              ...prev.review.financialStatement,
+              [period]: {
+                ...prev.review.financialStatement[period],
+                [category]: prev.review.financialStatement[period][category].map((row) =>
+                  row.id === id ? { ...row, ...patch } : row
+                ),
+              },
+            },
+          },
+        })),
+      removeBalanceSheetLine: (period, category, id) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            financialStatement: {
+              ...prev.review.financialStatement,
+              [period]: {
+                ...prev.review.financialStatement[period],
+                [category]: prev.review.financialStatement[period][category].filter((row) => row.id !== id),
+              },
             },
           },
         })),
@@ -3412,6 +3623,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               [period]: { ...prev.review.financialHighlights[period], [field]: value },
             },
           },
+        })),
+      setFinancialHighlightsRemarks: (value) =>
+        setState((prev) => ({
+          ...prev,
+          review: { ...prev.review, financialHighlightsRemarks: value },
         })),
       addAdditionalFinancialFiles: (files) =>
         setState((prev) => {

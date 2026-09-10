@@ -203,6 +203,7 @@ export function BankStatementCard() {
     <Box sx={adminCardSx}>
       <CollapsibleSection
         title="Bank Statement"
+        subtitle="Record each of the applicant's bank statements. Supporting evidence — not required to proceed."
         expanded={expanded}
         onToggle={() => setExpanded((prev) => !prev)}
         badge={
@@ -223,32 +224,27 @@ export function BankStatementCard() {
             </Box>
           ) : undefined
         }
+        headerAction={
+          <Button
+            onClick={handleAdd}
+            variant="contained"
+            size="small"
+            startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+            sx={{
+              flexShrink: 0,
+              bgcolor: '#1C2A6E',
+              borderRadius: '10px',
+              px: 2,
+              boxShadow: 'none',
+              fontWeight: 700,
+              '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
+            }}
+          >
+            Add bank statement
+          </Button>
+        }
       >
         <Stack spacing={1.5}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
-              Record each of the applicant&apos;s bank statements. Supporting evidence — not required
-              to proceed.
-            </Typography>
-            <Button
-              onClick={handleAdd}
-              variant="contained"
-              size="small"
-              startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
-              sx={{
-                flexShrink: 0,
-                bgcolor: '#1C2A6E',
-                borderRadius: '10px',
-                px: 2,
-                boxShadow: 'none',
-                fontWeight: 700,
-                '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
-              }}
-            >
-              Add bank statement
-            </Button>
-          </Stack>
-
           {statements.length === 0 ? (
             <Box
               sx={{

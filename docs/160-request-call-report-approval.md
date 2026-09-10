@@ -5,8 +5,10 @@
 > to `docs/080-account-solicitation-call-report.md` (Call Report itself —
 > owns the `callReportApprovalStatus` data model, the "Submit for Approval"
 > button, and the Endorsement Declaration card's approver signature row
-> these screens write) and `docs/090-account-solicitation-requirement-checklist.md`
-> (what a Call Report approval unlocks).
+> these screens write), `docs/090-account-solicitation-requirement-checklist.md`
+> (what a Call Report approval unlocks), and
+> `docs/225-admin-design-system.md` (the admin design system — the list →
+> detail split and the Approve/Decline confirms follow §10 / §6).
 
 ## What this is
 
@@ -45,7 +47,9 @@ framing is a UI/workflow choice, not access control.
 
 ## List → detail split
 
-Same list -> detail split every other approval screen in this app uses
+The queue → detail pattern in `docs/225-admin-design-system.md` §10 (a
+table always showing the live row, linking to a `/current` detail page) —
+same split every other approval screen in this app uses
 (closest analog: `ci-fee-approval-view.tsx` ->
 `ci-fee-approval-bundle-view.tsx`, since Call Report's approval status
 also lives on a single flat object — `review.callReport` — with no

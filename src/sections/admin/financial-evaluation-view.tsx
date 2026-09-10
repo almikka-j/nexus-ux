@@ -20,7 +20,7 @@ import type { RequirementDoc } from 'src/auth/admin-context';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
 import { CollapsibleSection, CollapsibleSectionBadge } from 'src/components/collapsible-section';
-import { adminCardSx } from 'src/components/admin-ui';
+import { AiReviewCard, adminCardSx, AI_REVIEW_RISK_STYLES } from 'src/components/admin-ui';
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { ApplicationReviewHeader } from './application-review-header';
@@ -30,7 +30,7 @@ import { AdditionalFinancialFilesCard } from './additional-financial-files-card'
 import { ApplicationDetailsCard } from './application-details-card';
 import { CashFlowStatementCard } from './cash-flow-statement-card';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
-import { buildCreditInvestigationSummary, AI_REVIEW_RISK_STYLES } from './credit-investigation-risk';
+import { buildCreditInvestigationSummary } from './credit-investigation-risk';
 import { FINANCIAL_EVALUATION_DOC_META } from './financial-evaluation-docs';
 
 // ----------------------------------------------------------------------
@@ -63,7 +63,9 @@ export function FinancialEvaluationView() {
   const [disapproveReason, setDisapproveReason] = useState('');
 
   const sampleFilled =
-    review.bankStatements.length > 0 || review.cashFlowStatement.savedAt !== null;
+    review.bankStatements.length > 0 ||
+    review.cashFlowStatement.savedAt !== null ||
+    review.additionalFinancialFiles.length > 0;
 
   useRegisterPageActions(
     useMemo(
@@ -160,32 +162,14 @@ export function FinancialEvaluationView() {
           </CollapsibleSection>
         </Box>
 
-        <Box sx={adminCardSx}>
-          <CollapsibleSection
-            title="AI review, summary & recommendation"
-            expanded={aiReviewExpanded}
-            onToggle={() => setAiReviewExpanded((prev) => !prev)}
-          >
-            <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-              Automatically checks each uploaded document for completeness against the checklist above.
-            </Typography>
-            <Stack spacing={2}>
-              <Box sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', mb: 1 }}>AI Summary</Typography>
-                <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{summary}</Typography>
-              </Box>
-              <Box sx={{ p: 2, borderRadius: '11px', bgcolor: riskStyle.bg }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                  <Iconify icon={riskStyle.icon} width={16} sx={{ color: riskStyle.color }} />
-                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: riskStyle.color }}>
-                    AI Recommendation · {riskStyle.label}
-                  </Typography>
-                </Stack>
-                <Typography sx={{ fontSize: 13.5, color: riskStyle.color, lineHeight: 1.6 }}>{recommendation}</Typography>
-              </Box>
-            </Stack>
-          </CollapsibleSection>
-        </Box>
+        <AiReviewCard
+          subtitle="Automatically checks each uploaded document for completeness against the checklist above."
+          expanded={aiReviewExpanded}
+          onToggle={() => setAiReviewExpanded((prev) => !prev)}
+          risk={riskStyle}
+          summary={summary}
+          recommendation={recommendation}
+        />
 
         <FinancialSummaryCard />
 

@@ -5,15 +5,21 @@
 > `credit-investigation-docs.ts`, `financial-evaluation-docs.ts`,
 > `requirement-checklist-risk.ts`) change — new/removed documents, changed
 > categories, changed gating, changed decision behavior. Companion to
-> `docs/230-project-overview.md` (system-wide) and `docs/070-account-solicitation-initial-credit-checking.md`
-> (the sibling screen earlier in the same review pipeline).
+> `docs/230-project-overview.md` (system-wide),
+> `docs/070-account-solicitation-initial-credit-checking.md` (the sibling
+> screen earlier in the same review pipeline), and
+> `docs/225-admin-design-system.md` (the admin design system —
+> `CollapsibleSection` per-card groups, `RequirementDocRow`, page actions,
+> the Request Documents drawer, and the §10 decision-gate pattern).
 
 ## What this is
 
 "Step 3 · Requirement Checklist" in the admin application-review pipeline
 (`src/sections/admin/requirement-checklist-view.tsx`, rendered at
 `/admin/applications/[id]/requirement-checklist`). An officer reviews a fixed
-list of 16 required/supporting documents against what the applicant has
+list of 24 required/supporting documents — 14 Credit Investigation
+(`CREDIT_INVESTIGATION_DOC_META`) + 10 Financial Evaluation
+(`FINANCIAL_EVALUATION_DOC_META`) — against what the applicant has
 actually submitted, reads an AI-generated summary/recommendation, adjusts
 collateral notes, and decides whether to endorse the application onward or
 return it to the applicant with a recorded reason.
@@ -600,7 +606,18 @@ mounted in `AdminHeader`, one AI conversation), this one is local to
 desiredLoanAmount, appraisalDocs, appraisalDocMeta, hasAppraisalGroups,
 appraisalNotApplicable)` is a pure function, recomputed at render time, never
 stored — same pattern as `initial-credit-checking-risk.ts`'s
-`buildInitialAiRecommendation`. The caller (`requirement-checklist-view.tsx`)
+`buildInitialAiRecommendation`. Its `{ level, summary, recommendation }` is
+rendered by the shared **`AiReviewCard`**
+(`src/components/admin-ui/ai-review-card.tsx`) in its **compact** variant
+(`risk` + `summary` + `recommendation` slots). The card is now
+`CollapsibleSection`-based, collapsible and **expanded by default**
+(`aiReviewExpanded` state), with a magic-stick header icon and the shared
+**AI Control Statement** footnote. The local `RISK_STYLES` map that used
+to live in `requirement-checklist-view.tsx` was retired in favour of the
+shared `AI_REVIEW_RISK_STYLES` (the 3-level readiness scale, now in
+`src/components/admin-ui/ai-review-tokens.ts`); the risk level is shown as
+a consistent white risk pill rather than a `· {label}` heading suffix.
+The caller (`requirement-checklist-view.tsx`)
 passes `appraisalGroups.flatMap(g => g.documents)` as `appraisalDocs` — every
 group's documents flattened together, counted exactly like the fixed Credit
 Investigation/Financial Evaluation documents (a missing document in any
@@ -662,10 +679,10 @@ confirmation screen, not an actual message sent to anyone.
 
 ## Non-Goals / Open Items
 
-- **No conditional document sets** — the 19-document fixed list on Credit
-  Investigation / Financial Evaluation does not vary by application;
-  Appraisal's per-property groups are the one deliberate, requested
-  exception (see the History note below).
+- **No conditional document sets** — the 24-document fixed list on Credit
+  Investigation / Financial Evaluation (14 + 10) does not vary by
+  application; Appraisal's per-property groups are the one deliberate,
+  requested exception (see the History note below).
 - **Uploaded file viewing** — newly selected files use a browser object
   URL (does not survive reload); seeded records use the bundled sample
   PDF, with a `localStorage` migration from older `*-sample.pdf` metadata.
@@ -704,7 +721,7 @@ confirmation screen, not an actual message sent to anyone.
   Financial Evaluation) never needs pruning since those rows are permanent
   for the life of the page.
 - **No conditional document sets — Credit Investigation/Financial Evaluation
-  only; Appraisal is a deliberate, later exception.** The 19-document fixed
+  only; Appraisal is a deliberate, later exception.** The 24-document fixed
   list still does **not** vary by application — every borrower sees the same
   documents on those two cards regardless of employment status, loan type,
   income, or any other application field. This was a deliberate, explicit

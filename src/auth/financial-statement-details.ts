@@ -25,10 +25,13 @@ export function patchFinancialStatementDetails(
 export function submitFinancialStatementDetails(
   current: FinancialStatementDetails,
   submittedAt: string
-): FinancialStatementDetails | null {
-  const productLine = current.productLine.trim();
-  if (!productLine) return null;
-  return { ...current, productLine, amd: current.amd.trim(), submittedAt };
+): FinancialStatementDetails {
+  return {
+    ...current,
+    productLine: current.productLine.trim(),
+    amd: current.amd.trim(),
+    submittedAt,
+  };
 }
 
 export function selectFinancialStatementReportPeriods<T>(

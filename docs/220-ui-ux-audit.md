@@ -20,6 +20,10 @@ it was reconstructed from the tokens/components that actually shipped as
 a result of the audit, not a full narrative of the original review
 session.
 
+**For the how-to** — which token/component to use and how to compose a
+card — see `docs/225-admin-design-system.md` and its live gallery at
+`/admin/design-system`. This file is the history; `225` is the rulebook.
+
 ## Findings → shared tokens
 
 **Finding: every screen picked its own near-identical hex for the same

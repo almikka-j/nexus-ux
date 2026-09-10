@@ -10,6 +10,11 @@
 > `/auth/*` and `/borrower/*` route definitions. Companion to
 > `docs/230-project-overview.md` (the admin/review side) — update both
 > when the hand-off changes.
+>
+> **Design scope:** borrower/auth screens are **not** covered by the admin
+> design system (`docs/225-admin-design-system.md`, admin-only). The shared
+> field styling for this flow is `src/sections/auth/auth-input-styles.ts`
+> (`authFieldSx`, `authFieldLabelSx`, `authPrimaryButtonSx`).
 
 ## What This Is
 

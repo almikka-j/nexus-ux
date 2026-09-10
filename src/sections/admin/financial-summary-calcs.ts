@@ -76,12 +76,17 @@ export type BalanceSheetTotals = {
   tallyDelta: number;
 };
 
+/** Sum a Balance Sheet category's line-item values. */
+export function sumBalanceSheetLines(lines: { value: string }[]): number {
+  return lines.reduce((acc, line) => acc + parseNum(line.value), 0);
+}
+
 export function computeBalanceSheet(p: FinancialStatementPeriod): BalanceSheetTotals {
-  const totalCurrentAssets = parseNum(p.currentAssets);
-  const totalAssets = totalCurrentAssets + parseNum(p.nonCurrentAssets);
-  const totalCurrentLiabilities = parseNum(p.currentLiabilities);
-  const totalLiabilities = totalCurrentLiabilities + parseNum(p.nonCurrentLiabilities);
-  const totalEquity = parseNum(p.equity);
+  const totalCurrentAssets = sumBalanceSheetLines(p.currentAssets);
+  const totalAssets = totalCurrentAssets + sumBalanceSheetLines(p.nonCurrentAssets);
+  const totalCurrentLiabilities = sumBalanceSheetLines(p.currentLiabilities);
+  const totalLiabilities = totalCurrentLiabilities + sumBalanceSheetLines(p.nonCurrentLiabilities);
+  const totalEquity = sumBalanceSheetLines(p.equity);
   const totalLiabEquity = totalLiabilities + totalEquity;
   const tallyDelta = totalAssets - totalLiabEquity;
   return {

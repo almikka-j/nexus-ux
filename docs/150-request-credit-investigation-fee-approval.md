@@ -9,7 +9,10 @@
 > Appraisal-side equivalent whose list → detail split this mirrors), and
 > `docs/210-request-payments.md` (once CI Fee is approved, `ciFeeApprovedAt`/
 > `ciFeePayment` and the actual "record payment / mark as paid" action live
-> entirely on that page, not here).
+> entirely on that page, not here), and `docs/225-admin-design-system.md`
+> (the admin design system — this screen's list → detail split, its
+> `StatusBadge` / `FactChip` header, and its `ConfirmDialog` approve/decline
+> follow §10 / §6).
 
 ## What this is
 
@@ -52,7 +55,10 @@ the same page and simply update the card in place.
 
 ## List → detail split
 
-Same list -> detail split as `appraisal-fee-approval-view.tsx` ->
+The queue → detail pattern documented in `docs/225-admin-design-system.md`
+§10 — a table that always shows the live application's row (never gated
+behind a status), each row linking to a `/current` detail page. Same
+list -> detail split as `appraisal-fee-approval-view.tsx` ->
 `appraisal-fee-approval-bundle-view.tsx` (an earlier single-page version of
 this screen — with a combined live+sample-row queue list, a `QueueRow`
 component, an `OutcomeScreen` completion state, and an optional
@@ -177,3 +183,13 @@ completeness gate — CI Fee is a flat amount/description.
   it (excluding `'approved'`, which must stick).
 - **No request ID** — the detail route uses a fixed `/current` segment.
 - All state lives in `review.creditInvestigation` in `localStorage`.
+
+## Non-Goals / Open Items
+
+- **No queue of multiple pending requests** — one live application means
+  one flat `review.creditInvestigation` object, so the list is always a
+  single row.
+- **No separate approver persona/login** — the same officer can act on
+  both sides; the dedicated screen is a second surface, not a role gate.
+- **No real fee record here** — `ciFeeApprovedAt` / `ciFeePayment` and the
+  "mark as paid" action live on `docs/210-request-payments.md`.

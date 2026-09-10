@@ -46,6 +46,13 @@ const LOAN_COLUMNS: { key: keyof BankLoanRow; label: string; money?: boolean }[]
   { key: 'term', label: 'Term' },
   { key: 'interestRate', label: 'Interest Rate' },
   { key: 'principalPaid', label: 'Principal Paid', money: true },
+  { key: 'paymentHandling', label: 'Payment Handling' },
+  { key: 'principalAmortizationPerMonth', label: 'Principal Amortization/Mo.', money: true },
+  { key: 'interestAmortizationPerMonth', label: 'Interest Amortization/Mo.', money: true },
+  { key: 'principalPaymentAsOf', label: 'Payment as of Date — Principal', money: true },
+  { key: 'interestPaymentAsOf', label: 'Payment as of Date — Interest', money: true },
+  { key: 'projectedPrincipalPaymentDec', label: 'Payment Projected — Principal', money: true },
+  { key: 'projectedInterestDec', label: 'Payment Projected — Interest Dec.', money: true },
 ];
 
 export function BankLoanReport({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -76,7 +83,7 @@ export function BankLoanReport({ open, onClose }: { open: boolean; onClose: () =
       <Box component="td" sx={numCellSx}>{money(totals.amountOutstanding)}</Box>
       <Box component="td" sx={cellSx} />
       <Box component="td" sx={numCellSx}>{money(totals.projectionAmount)}</Box>
-      <Box component="td" colSpan={6} sx={cellSx} />
+      <Box component="td" colSpan={13} sx={cellSx} />
     </Box>
   );
 
@@ -185,7 +192,7 @@ export function BankLoanReport({ open, onClose }: { open: boolean; onClose: () =
                 <Box component="td" sx={{ ...cellSx, fontWeight: 700 }}>Grand Total (balance)</Box>
                 <Box component="td" colSpan={3} sx={cellSx} />
                 <Box component="td" sx={numCellSx}>{money(grandBalance)}</Box>
-                <Box component="td" colSpan={8} sx={cellSx} />
+                <Box component="td" colSpan={15} sx={cellSx} />
               </Box>
               <Box component="tr">
                 <Box component="td" sx={{ ...cellSx, fontWeight: 700, color: '#14172A' }}>PGFC (proposed)</Box>
@@ -195,13 +202,13 @@ export function BankLoanReport({ open, onClose }: { open: boolean; onClose: () =
                 <Box component="td" sx={numCellSx}>
                   {bankLoans.proposed.interestRate ? `${bankLoans.proposed.interestRate}%` : '—'}
                 </Box>
-                <Box component="td" sx={cellSx} />
+                <Box component="td" colSpan={8} sx={cellSx} />
               </Box>
               <Box component="tr" sx={{ bgcolor: '#F1F3F8', fontWeight: 700 }}>
                 <Box component="td" sx={{ ...cellSx, fontWeight: 700 }}>Grand Total</Box>
                 <Box component="td" colSpan={3} sx={cellSx} />
                 <Box component="td" sx={numCellSx}>{money(grandBalance + proposedProjection)}</Box>
-                <Box component="td" colSpan={8} sx={cellSx} />
+                <Box component="td" colSpan={15} sx={cellSx} />
               </Box>
             </Box>
           </Box>

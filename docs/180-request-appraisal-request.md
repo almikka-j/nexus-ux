@@ -3,9 +3,11 @@
 > **Maintenance rule:** update this file whenever `appraisal-request-view.tsx`
 > or the shared `appraisal/appraisal-bundle-status.ts` helper it reads
 > change. Companion to `docs/110-appraisal.md` (the Officer's Appraisal step
-> page, the only place a bundle is actually created or edited) and
+> page, the only place a bundle is actually created or edited),
 > `docs/170-request-appraiser.md` (the per-bundle detail page every row on this
-> list links into).
+> list links into), and `docs/225-admin-design-system.md` (the admin design
+> system — the status table and empty state follow the §6 table recipe /
+> empty-state pattern).
 
 ## What this is
 
@@ -61,8 +63,9 @@ derived condition — here, "has an assigned bundle" — which is not a
 Same auto-load convention as every other list page in this app
 (`application-list-view.tsx`, `appraisal-appraiser-view.tsx`): if
 `review.appraisal.reportBundles` is empty or there's no live application,
-the empty state simply says so and points the officer back at the
-Appraisal step to make an assignment — this page deliberately does
+the empty state (the `docs/225-admin-design-system.md` §6 empty-state
+pattern — a dashed box with muted text + a CTA back to the Appraisal step)
+simply says so — this page deliberately does
 **not** auto-seed a sample bundle itself (unlike the Appraiser / Fee
 Approver / Report Approver screens, which each seed one; see
 `docs/170-request-appraiser.md`, `docs/190-request-appraisal-fee-approval.md`, and
@@ -77,3 +80,22 @@ creates, edits, approves, or declines anything. Every status pill it
 shows is computed by the shared `getAppraisalBundleStatus()` helper; all
 actual decisions happen on `docs/110-appraisal.md` and
 `docs/170-request-appraiser.md`.
+
+## Fabricated Claims — Real vs. Simulated
+
+- **Status is derived, not stored** — every row's On Process / For
+  Approval / For Report / Reported pill is computed on render by
+  `getAppraisalBundleStatus()` from `review.appraisal`; this page holds
+  no state of its own.
+- **No backend** — it reflects whatever bundles the Officer's Appraisal
+  step and the Appraiser workspace already wrote to `localStorage`.
+
+## Non-Goals / Open Items
+
+- **Read-only, no actions** — no assign / edit / approve / decline here;
+  those live on `docs/110-appraisal.md` and `docs/170-request-appraiser.md`.
+- **No auto-seeded sample bundle** — unlike the role workspaces, this page
+  shows only real bundles; an empty state is the correct state when none
+  exist.
+- **Not a `?step=` queue** — it filters on a derived "has an assigned
+  bundle" condition, not a `ReviewStep`.

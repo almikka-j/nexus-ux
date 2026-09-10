@@ -276,7 +276,7 @@ function LoanHistoryTable({ rows }: { rows: LoanHistoryRow[] }) {
     <TableContainer sx={{ border: '1px solid #EEF0F5', borderRadius: '12px', overflow: 'hidden' }}>
       <Table size="small">
         <TableHead>
-          <TableRow sx={{ '& th': { bgcolor: '#F9FAFC', borderColor: '#EEF0F5', fontSize: 11.5, fontWeight: 700, color: '#8891A6', textTransform: 'uppercase', letterSpacing: '0.04em' } }}>
+          <TableRow sx={{ '& th': { bgcolor: '#FBFBFD', borderColor: '#EEF0F5', fontSize: 11, fontWeight: 700, color: '#8891A6', textTransform: 'uppercase', letterSpacing: '0.05em' } }}>
             <TableCell>Loan No.</TableCell>
             <TableCell>Type &amp; Purpose</TableCell>
             <TableCell align="right">Amount</TableCell>

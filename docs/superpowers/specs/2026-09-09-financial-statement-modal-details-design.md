@@ -11,6 +11,50 @@ screen's information architecture while retaining this app's existing admin
 design language and calculations. The screenshot is a visual reference only;
 the requirements in this design are authoritative.
 
+> **Later UI revisions (2026-09-10):**
+> 1. Landing level: Applicant Name / Amount Applied render as a read-only
+>    `FactChip` strip; each period row is **Manage then View** (Manage
+>    first).
+> 2. **Product Line and AMD were removed from the UI entirely** and
+>    Product Line is **no longer a required Submit gate** — Submit just
+>    stamps `submittedAt`. `submitFinancialStatementDetails` no longer
+>    returns `null`. The `productLine` / `amd` fields remain on
+>    `FinancialStatementDetails` (sample data sets one) but nothing edits
+>    them.
+> 3. The period form is now **two sub-steps**: Manage opens on Income
+>    Statement with a **Proceed to Balance Sheet** button; the Balance
+>    Sheet sub-step has **Back to Income Statement** + **Save**. **Save**
+>    sets a new per-period `balanceSheetSaved` flag; once set, Manage opens
+>    that period straight to the Balance Sheet sub-step. (This supersedes
+>    the earlier "Balance Sheet removed" revision — the Balance Sheet
+>    inputs are back, just behind the Proceed step.)
+> 4. The Balance Sheet is now **five dynamic line-item categories**
+>    (Current / Non-Current Assets, Current / Non-Current Liabilities,
+>    Equity), rendered as a **flat full-width list** — plain text heading
+>    per category, one horizontal row per line item, an outlined-navy
+>    "Add {Category}" button. No "Balance Sheet" banner, no per-category
+>    total, no Assets = Liabilities + Equity tally row. Each category on
+>    `FinancialStatementPeriod` is a `BalanceSheetLine[]`
+>    (`{ id, label, value }`), not a flat string total. Each line is a
+>    fixed-option label dropdown + a `Php` value + remove.
+>    `computeBalanceSheet` sums the lines (`sumBalanceSheetLines`) and
+>    keeps its old output shape, so the report / ratios / Financial
+>    Highlights are unchanged. New context setters `addBalanceSheetLine` /
+>    `updateBalanceSheetLine` / `removeBalanceSheetLine`; hydration wraps a
+>    legacy string total as one line.
+> 5. Each Balance Sheet category's "Add {Category}" button moved to the
+>    **right** edge of its inset. The Income Statement sub-step's section
+>    banner was removed (the dialog title already names it). A new
+>    **third sub-step, `combined`**: once a period's `balanceSheetSaved` is
+>    true, Manage opens it with Income Statement and Balance Sheet
+>    rendered **together** in one scroll — no Proceed/Save gating — with a
+>    **Back to periods** + **Done** footer (both just exit; every field
+>    already persists on keystroke). A period whose Balance Sheet has not
+>    yet been saved still gets the original two-step flow (Income
+>    Statement → Proceed → Balance Sheet → Save).
+>
+> The rest of this document describes the original design.
+
 The landing level of the modal must show:
 
 - Applicant Name (read-only, from registration data)

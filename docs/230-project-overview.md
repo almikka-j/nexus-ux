@@ -1107,8 +1107,8 @@ Proceed/Disapprove decision — but no fee/report flow, unlike Credit
 Investigation and Appraisal. Card order on the page: Financial Summary →
 Cash Flow Statement → Bank Statement → Additional Financial Files. A
 **Fill with Sample Data** / **Remove Sample Data** floating-settings action
-seeds (or clears) the Financial Summary sub-tools, Cash Flow Statement, and
-one bank statement in one shot (not the Additional Financial Files).
+seeds (or clears) the Financial Summary sub-tools, Cash Flow Statement, one
+bank statement, and two Additional Financial Files in one shot.
 
 **Each step only lists applications genuinely at that step, always — including the
 default view**: `ApplicationListView`'s `stepFilter` defaults to `'creditChecking'`
@@ -1643,6 +1643,12 @@ stale silently.
 
 ## Theming
 
+- **Admin design system:** `docs/225-admin-design-system.md` is the rulebook
+  for admin screens (which shared token/component to use, the card +
+  `CollapsibleSection` header contract, the table recipe), with a live
+  gallery at `/admin/design-system` (floating settings → Reference → View
+  design system). `docs/220-ui-ux-audit.md` records the audit that produced
+  the tokens (`src/components/admin-ui/admin-tokens.ts`).
 - **Font:** Plus Jakarta Sans everywhere (`src/theme/core/typography.ts` —
   `primaryFont` and `secondaryFont` both point to it; the old Public Sans/Barlow
   split from the original Minimal-UI template was retired in the re-theme).

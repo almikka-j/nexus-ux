@@ -6,36 +6,33 @@ import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 import { Iconify } from 'src/components/iconify';
-import { StatusBadge, TONE_COLORS } from 'src/components/admin-ui';
 
+import { StatusBadge } from './status-badge';
+import { TONE_COLORS } from './admin-tokens';
+import { SCREENING_RISK_STYLES } from './ai-review-tokens';
 import {
   REVIEW_BASIS_LABELS,
   RECOMMENDED_ACTION_LABELS,
-} from './initial-credit-checking-risk';
+} from '../../sections/admin/initial-credit-checking-risk';
 import type {
   InitialCreditCheckingResult,
-  InitialCreditCheckingRiskLevel,
   RecommendedActionCode,
-} from './initial-credit-checking-risk';
+} from '../../sections/admin/initial-credit-checking-risk';
 
 // ----------------------------------------------------------------------
-// Shared rendering of an InitialCreditCheckingResult — the "AI review,
-// summary & recommendation" content shown both on the Initial Credit
-// Checking page and inside the Initial Credit Checking Result modal, so the
-// two never visually drift apart. Pure presentation; all computation lives
-// in initial-credit-checking-risk.ts.
+// Shared rendering of an InitialCreditCheckingResult — the *rich* body of
+// the AI review card (Overall Assessment + AI Summary sub-groups +
+// Recommended Action + Review Basis + Required Verification). Rendered by
+// AiReviewCard when the caller passes rich content, and directly by the
+// Initial Credit Checking Result modal. Pure presentation; all computation
+// lives in initial-credit-checking-risk.ts.
+//
+// The risk-level style map now lives in ./ai-review-tokens.ts as
+// SCREENING_RISK_STYLES; re-exported here under its old name for any
+// existing importer.
 // ----------------------------------------------------------------------
 
-export const RISK_LEVEL_STYLES: Record<
-  InitialCreditCheckingRiskLevel,
-  { bg: string; color: string; icon: string; label: string }
-> = {
-  low: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold', label: 'Low' },
-  moderate: { bg: '#EEF1FE', color: '#3448B0', icon: 'solar:info-circle-bold', label: 'Moderate' },
-  elevated: { bg: '#FEF0D6', color: '#B36A05', icon: 'solar:danger-triangle-bold', label: 'Elevated' },
-  high: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold', label: 'High' },
-  'unable-to-determine': { bg: '#F5F6FA', color: '#8891A6', icon: 'solar:question-circle-bold', label: 'Unable to Determine' },
-};
+export { SCREENING_RISK_STYLES as RISK_LEVEL_STYLES } from './ai-review-tokens';
 
 const NO_ADDITIONAL_VERIFICATION_LABEL = 'No additional verification identified during initial screening.';
 
@@ -99,7 +96,7 @@ function AiSummaryGroup({
 }
 
 export function AiRecommendationSummary({ result }: { result: InitialCreditCheckingResult }) {
-  const riskStyle = RISK_LEVEL_STYLES[result.riskLevel];
+  const riskStyle = SCREENING_RISK_STYLES[result.riskLevel];
   const actionTone = RECOMMENDED_ACTION_TONES[result.recommendedAction];
 
   return (

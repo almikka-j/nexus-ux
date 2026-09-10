@@ -2,8 +2,9 @@
 
 > **Maintenance rule:** update this file whenever `admin-dashboard-view.tsx`
 > changes. Companion to `docs/230-project-overview.md` (directory map/tech
-> stack) and `docs/050-admin-login.md` (this is where a successful admin login
-> redirects to).
+> stack), `docs/050-admin-login.md` (this is where a successful admin login
+> redirects to), and `docs/225-admin-design-system.md` (the admin design
+> system — this page's cards use `adminCardSx`).
 
 ## What this is
 
@@ -20,7 +21,8 @@ an aggregate across a real applicant base.
    `firstName` comes from the logged-in `adminUser` (falls back to
    "Admin" if somehow unset).
 2. **Four stat cards** (`StatCard`, a local component — icon avatar +
-   label + large bold value, in an `adminCardSx` box), in a row:
+   label + large bold value, in an `adminCardSx` box — see
+   `docs/225-admin-design-system.md` §6 for `adminCardSx`), in a row:
    - **Total Applications** — `1` if a live application exists
      (`!!signUpData && !!application.personalInfo`), else `0`.
    - **Pending Review** — same `1`/`0` as Total Applications. There's no

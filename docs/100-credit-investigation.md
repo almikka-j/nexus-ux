@@ -6,11 +6,14 @@
 > `credit-investigation/ci-report-card.tsx`,
 > `credit-investigation/credit-investigation-doc-row.tsx`,
 > `components/rich-text-field/rich-text-field.tsx`) change. Companion to
-> `docs/230-project-overview.md` and
+> `docs/230-project-overview.md`,
 > `docs/090-account-solicitation-requirement-checklist.md` (the step
-> immediately before this one in the pipeline), and
+> immediately before this one in the pipeline),
 > `docs/140-request-credit-investigation-fee.md` (the CI Fee card rendered on
-> this same page, now documented separately).
+> this same page, now documented separately), and
+> `docs/225-admin-design-system.md` (the admin design system —
+> `adminCardSx`, `CollapsibleSection`, `ConfirmDialog`, and the §10
+> decision-gate pattern are all used here).
 
 ## What this is
 
@@ -53,10 +56,10 @@ to breathe without wrapping awkwardly.
    either status while the page is mounted (re-fires on `'approved'` even if
    the officer had manually reopened it while waiting) — so it doesn't fight
    the officer's own toggle otherwise.
-4. **AI review, summary & recommendation** card. Also collapsible; same
-   start-collapsed-on-open plus live-transition behavior as Document
-   Checklist above, gated on `ciFeeStatus === 'approved'`
-   (`credit-investigation-view.tsx`).
+4. **AI review, summary & recommendation** card — the shared `AiReviewCard`
+   (compact variant). Also collapsible; same start-collapsed-on-open plus
+   live-transition behavior as Document Checklist above, gated on
+   `ciFeeStatus === 'approved'` (`credit-investigation-view.tsx`).
 5. **CI Fee** card (see `docs/140-request-credit-investigation-fee.md`).
 6. **CI Report** card (visible once CI Fee is approved; otherwise a locked
    placeholder).
@@ -118,7 +121,8 @@ Plus two groups outside the fixed metadata:
   title ("Add document", `14px` bold) and subtitle ("Attach a document that
   isn't part of the standard checklist above.", `12.5px` gray) sit above a
   tight `spacing={1.5}` field stack — deliberately smaller type/spacing
-  than a full top-level card header (`adminCardSx`'s `16px`/`13.5px`, an
+  than a full top-level card header (the `docs/225-admin-design-system.md`
+  §4.4 card-title / section-subtitle sizes, `16px`/`13.5px`, which an
   earlier version of this form used and which read as oversized for a
   two-field form squeezed between compact document rows). Document label
   and File sit side by side on one row (`direction: { xs: 'column', sm:
@@ -188,6 +192,18 @@ drives any page-action label — see below) — and factors in whether the
 3 Bureau & Verification checks are complete (read from Requirement
 Checklist's state, passed in as a plain boolean) to decide the risk level
 (`'good' | 'watch' | 'high'`) and recommendation text.
+
+Its `{ level, summary, recommendation }` is rendered by the shared
+**`AiReviewCard`** (`src/components/admin-ui/ai-review-card.tsx`) in its
+**compact** variant, with a magic-stick header icon, the shared
+**AI Control Statement** footnote, and the risk level shown as a
+consistent white risk pill. The 3-level `AI_REVIEW_RISK_STYLES` readiness
+scale it maps `level` through now lives in
+`src/components/admin-ui/ai-review-tokens.ts` (it used to be exported from
+`credit-investigation-risk.ts`; the builder itself is unchanged). The
+card's collapse-on-open / auto-collapse-on-`ciFeeStatus === 'approved'`
+behaviour is preserved — `AiReviewCard` takes the same
+`expanded`/`onToggle` props (`expanded={ciFeeStatus !== 'approved'}` seed).
 
 Risk level rules: `'high'` only when a required fixed document is missing;
 `'watch'` when there's no missing required fixed document but either a
@@ -377,7 +393,7 @@ applicant" success screen is unaffected.
 
 ## History
 
-### Earlier
+### Date not confirmed
 
 - **Queue row gating reverted.** The live row was briefly gated behind
   `review.requirementChecklist.endorsed`; reverted to the standard

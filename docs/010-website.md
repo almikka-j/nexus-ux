@@ -4,6 +4,11 @@
 > `src/layouts/config-nav-main.tsx`, `src/routes/paths.ts`'s marketing
 > entries, or any `src/sections/<marketing-page>/**` view/section file
 > changes.
+>
+> **Design scope:** this is the public marketing site — the admin design
+> system (`docs/225-admin-design-system.md`) does **not** apply here.
+> Marketing pages use the Minimal-UI template's own components and the
+> shared MUI theme directly.
 
 ## What this is
 

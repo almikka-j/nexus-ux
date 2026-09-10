@@ -3,8 +3,11 @@
 > **Maintenance rule:** update this file whenever `applicant-profile-view.tsx`
 > changes — new/removed sections, changed fabricated-history rules, changed
 > routing, or changes to how it's reached from `application-list-view.tsx`.
-> Companion to `docs/230-project-overview.md` and `docs/070-account-solicitation-initial-credit-checking.md`
-> (source of `bureauFindingStatus`/`stepTimestamps` referenced below).
+> Companion to `docs/230-project-overview.md`,
+> `docs/070-account-solicitation-initial-credit-checking.md` (source of
+> `bureauFindingStatus`/`stepTimestamps` referenced below), and
+> `docs/225-admin-design-system.md` (the admin design system — this page
+> follows it, with one documented deviation noted below).
 
 ## What this is
 
@@ -101,8 +104,10 @@ avatar/name/contact header itself never collapses — that's the card's
 identity, not detail to hide. The chevron only renders when
 `personalInfo` exists (nothing to collapse otherwise). This is a local,
 purpose-built toggle rather than the shared `CollapsibleSection`
-(`src/components/collapsible-section/`) used elsewhere in the admin app,
-since that component's header is a plain string title — it can't host the
+(`src/components/collapsible-section/`) — an **intentional deviation from
+the standard card-header pattern, recorded in
+`docs/225-admin-design-system.md` §13 (Known Exceptions)**: that
+component's header is a plain string title, so it can't host the
 avatar/name/contact block this card's header actually is.
 
 ## Loan History

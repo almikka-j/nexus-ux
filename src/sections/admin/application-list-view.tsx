@@ -28,7 +28,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, TONE_COLORS, STEP_TONE, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { adminCardSx, StatusBadge, STEP_TONE, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { AGING_LEVEL_COLORS, formatAging, getAgingLevel } from 'src/utils/format-aging';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 import { fCurrency } from 'src/utils/format-number';
@@ -595,7 +595,6 @@ export function ApplicationListView({ accountSolicitation = false }: Application
                   const isActionable = row.isActionable;
                   const assignedOfficer =
                     sampleOfficerAssignments[row.key] ?? rowApplication.assignedOfficer;
-                  const statusColors = TONE_COLORS[STEP_TONE[row.step]];
                   const fullName = `${rowSignUp!.firstName} ${rowSignUp!.lastName}`;
                   const initial = rowSignUp!.firstName?.[0]?.toUpperCase() ?? '?';
                   const avatarPalette = getAvatarPalette(rowSignUp!.email);
@@ -793,40 +792,7 @@ export function ApplicationListView({ accountSolicitation = false }: Application
                       </TableCell>
 
                       <TableCell>
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={0.75}
-                          sx={{
-                            display: 'inline-flex',
-                            pl: 0.85,
-                            pr: 1.1,
-                            py: 0.45,
-                            borderRadius: '999px',
-                            bgcolor: statusColors.bg,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: '50%',
-                              bgcolor: statusColors.solid,
-                              boxShadow: `0 0 0 2px ${statusColors.bg}, 0 0 0 3px ${statusColors.solid}33`,
-                              flexShrink: 0,
-                            }}
-                          />
-                          <Typography
-                            sx={{
-                              fontSize: 11.5,
-                              fontWeight: 700,
-                              color: statusColors.text,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {STEP_LABELS[row.step]}
-                          </Typography>
-                        </Stack>
+                        <StatusBadge tone={STEP_TONE[row.step]} label={STEP_LABELS[row.step]} dot />
                       </TableCell>
 
                       <TableCell align="right">

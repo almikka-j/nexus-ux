@@ -8,10 +8,14 @@
 > `financial-statement-report.tsx`, `bank-loans-modal.tsx`,
 > `bank-loan-report.tsx`, `financial-highlights-modal.tsx`,
 > `financial-highlights-report.tsx`, or
-> `additional-financial-files-card.tsx` change. Companion to `docs/230-project-overview.md`
-> and `docs/090-account-solicitation-requirement-checklist.md` (the screen that actually collects
-> these documents) and `docs/100-credit-investigation.md` (the sibling
-> process-stage detail page this one follows the same pattern as).
+> `additional-financial-files-card.tsx` change. Companion to `docs/230-project-overview.md`,
+> `docs/090-account-solicitation-requirement-checklist.md` (the screen that actually collects
+> these documents), `docs/100-credit-investigation.md` (the sibling
+> process-stage detail page this one follows the same pattern as), and
+> `docs/225-admin-design-system.md` (the admin design system — the four
+> cards on this page follow its `CollapsibleSection` header contract:
+> `subtitle` under the title, primary action in `headerAction`, and the
+> header-only mode for the Cash Flow Statement card).
 
 ## What this is
 
@@ -56,17 +60,20 @@ this build. The page is:
    `docs/090-account-solicitation-requirement-checklist.md`'s "RequirementDoc state shape"
    section), so this card shows 10/10 on file by default rather than
    surfacing a missing document.
-4. **"AI review, summary & recommendation" card** — reuses
-   `buildCreditInvestigationSummary()` and `AI_REVIEW_RISK_STYLES` from
-   `credit-investigation-risk.ts` unchanged (both were generalized/renamed
-   there — `AI_REVIEW_RISK_STYLES` was lifted out of
-   `credit-investigation-view.tsx`'s former private `RISK_STYLES` — precisely
-   so both pages could share one implementation instead of two copies drifting
-   out of sync). Same constraint as Credit Investigation's: this page is
-   read-only, so the computed level can only ever be `'good'` or `'watch'`,
-   never `'high'` — there is no in-page action able to clear an outstanding
-   item, only Requirement Checklist can. Defaults expanded (no fee gate to
-   collapse it behind, unlike Credit Investigation's).
+4. **"AI review, summary & recommendation" card** — the shared `AiReviewCard`
+   (`src/components/admin-ui/ai-review-card.tsx`, compact variant), fed by
+   `buildCreditInvestigationSummary()` from `credit-investigation-risk.ts`
+   unchanged. The 3-level `AI_REVIEW_RISK_STYLES` readiness scale it maps
+   through now lives in `src/components/admin-ui/ai-review-tokens.ts`
+   (previously exported from `credit-investigation-risk.ts`, and before that
+   a private `RISK_STYLES` in `credit-investigation-view.tsx`) — one copy
+   shared by all four AI-review screens. Same constraint as Credit
+   Investigation's: this page is read-only, so the computed level can only
+   ever be `'good'` or `'watch'`, never `'high'` — there is no in-page
+   action able to clear an outstanding item, only Requirement Checklist can.
+   Card is collapsible, expanded by default (no fee gate to collapse it
+   behind, unlike Credit Investigation's), magic-stick header icon, shared
+   AI Control Statement footnote, risk shown as a white risk pill.
 5. **Financial Summary card** (`financial-summary-card.tsx`) — see its own
    section below.
 6. **Cash Flow Statement card** (`cash-flow-statement-card.tsx`) — see its
@@ -81,8 +88,10 @@ this build. The page is:
 ## Financial Summary
 
 A card (`FinancialSummaryCard` in `financial-summary-card.tsx`) — same
-`adminCardSx` + `CollapsibleSection` shell as the other cards, defaults
-expanded. It hosts the three legacy sub-tools — **Financial Statement**,
+`adminCardSx` + `CollapsibleSection` shell as the other cards
+(`docs/225-admin-design-system.md` §6), `subtitle` under the title,
+defaults expanded. It hosts the three legacy sub-tools — **Financial
+Statement**,
 **Bank Loans**, **Financial Highlights** — each a bordered row with just its
 name, a one-line description, and a **Manage** button (→ the sub-tool's
 data-entry modal) and a **View** button (→ the sub-tool's on-screen report
@@ -124,53 +133,133 @@ defaults, and partial edits persist through `setFinancialStatementDetails()`.
 The sample-data action seeds these details; Remove Sample Data resets them.
 
 **Form** (`financial-statement-modal.tsx`) — a **two-level** `<Dialog
-maxWidth="lg">` matching the legacy period-row model (minus the
+maxWidth="sm">` matching the legacy period-row model (minus the
 separate-page navigation):
-- *Level 1 (landing):* read-only **Applicant Name** and **Amount Applied**
-  sourced from registration/application state; editable **Product Line** and
-  **AMD** metadata; the 5 period rows (2023 … Projected), each with a
-  "Filled / Empty" chip, **View**, and **Manage**; and a rich-text
-  **Remarks** field. **Submit** requires Product Line after trimming, shows
-  `Product Line is required.` without closing when it is blank, trims AMD,
-  stamps `submittedAt` with the current ISO timestamp, and then closes.
-- *Level 2 (period form):* a back arrow, then **INCOME STATEMENT** —
-  7 editable ₱ inputs on the left (Gross Sales, Cost of Goods Sold,
+- *Level 1 (landing):* a read-only `FactChip` strip (bordered `#FAFBFD`)
+  with **Applicant Name** and **Amount Applied** (from
+  registration/application state); the 5 period rows (2023 … Projected),
+  each with a "Filled / Empty" chip and **Manage** then **View** (Manage
+  first); and a rich-text **Remarks** field. **Submit** simply stamps
+  `submittedAt` with the current ISO timestamp and closes — there is no
+  required-field gate.
+- *Level 2 (period form):* **three sub-steps**
+  (`step: 'income' | 'balance' | 'combined'`), no section banners. A fresh
+  or Balance-Sheet-not-yet-saved period opens on **Income Statement** — 7
+  editable ₱ inputs on the left (Gross Sales, Cost of Goods Sold,
   Operating Expenses, Other Income (Expense), Interest Expense (Expense),
-  Provision for Taxes, Depreciation) with the **live computed** column on the
-  right (Net Sale, Gross Profit, Operating Income Before Other Income
-  (Expenses), Operating Income, Net Income Before Tax, Net Income After Tax,
-  EBITDA) — and **BALANCE SHEET** — 5 editable ₱ inputs, each paired with its
-  computed total, plus an Assets = Liabilities + Equity **tally chip**.
-  Everything persists on keystroke — no "save income statement first"
-  gating (that legacy staged-save constraint is dropped).
+  Provision for Taxes, Depreciation) with the **live computed** column on
+  the right (Net Sale, Gross Profit, Operating Income Before Other Income
+  (Expenses), Operating Income, Net Income Before Tax, Net Income After
+  Tax, EBITDA); footer buttons **Back to periods** + **Proceed to Balance
+  Sheet**. The **Balance Sheet** sub-step is a **flat full-width list** of
+  five dynamic line-item categories — Current Assets, Non-Current Asset,
+  Current Liabilities, Non-Current Liabilities, Equity
+  (`BalanceCategoryBlock`, stacked). Each category is a §4.4
+  **sub-section label** (`12/700/#8891A6` uppercase) above a `#F9FAFC` /
+  `1px #EEF0F5` / `11px`-radius inset holding its line rows. Each row is
+  inline on `sm+`: a fixed-option **item dropdown** (flex; e.g. Cash /
+  Account Receivable – Trade / Inventory) + a `Php` value input (`220px`)
+  + a red-× remove; on `xs` the dropdown and value stack full-width. An
+  empty category shows a dashed-border empty-state box (§9). An
+  outlined-navy **"Add {Category}"** button sits below each inset (outside
+  the box, not inside it), right-aligned (same style as the Cash Flow
+  Manage form's "Add Other Loan"). No
+  per-category total, no Assets = Liabilities + Equity tally row. Footer
+  buttons **Back to Income Statement** + **Save**. **Save** sets the
+  period's `balanceSheetSaved` flag (via
+  `markFinancialStatementBalanceSheetSaved`) and returns to the period
+  list. **Once `balanceSheetSaved` is true, Manage opens that period on
+  the `combined` sub-step** — Income Statement and Balance Sheet rendered
+  together, one scroll, no Proceed/Save gating; footer is **Back to
+  periods** + **Done** (both just return to the period list — every field
+  already persists on keystroke). The title bar reads `Financial Statement
+  · {period} · Income Statement` / `· Balance Sheet` for the two staged
+  sub-steps, and drops the suffix entirely for `combined`. **Only in
+  `combined` mode** do the navy **"Income Statement"** / **"Balance
+  Sheet"** title banners (`sectionBannerSx` — solid `#1C2A6E`, white
+  uppercase, `8px` radius) reappear above each block, so the two are
+  visually distinguishable when shown together; the standalone `income`
+  and `balance` sub-steps have no banner (the dialog title already names
+  the section there).
 
-**Report** (`financial-statement-report.tsx`) — the period-row **View** opens
-the selected period only and returns to the modal landing when closed. The
-Financial Summary card's existing **View** remains the unchanged comparative
-five-period report. Both modes render the same read-only report table (the
-single-period table uses a narrower minimum width):
-- **Income Statement** — Gross Sales, Net Sales, Cost of Goods Sold, Gross
-  Profit, Operating Expenses, Operating Income Before Other Income
-  (Expenses) (`grossProfit − opex`), Other Income (Expense), Operating
-  Income (`+ otherInc`), Interest Expense, Net Income Before Tax
-  (`opInc − interest`), Provision for Taxes, Net Income After Tax
-  (`NIBT − tax`), Depreciation, EBITDA (`opInc + interest + depreciation`)
-  — each column shows the ₱ value, **% of Sales** (÷ grossSales), and
-  **Growth** vs. the prior actual period (`cur/prior − 1`; blank for 2023
-  and for Interim/Projected which have no direct prior).
-- **Balance Sheet** — Total Current Assets, Total Assets, Total Current
-  Liabilities, Total Liabilities, Total Equity, Total Liabilities & Equity,
-  plus a tally row ("Matched" / "Off by ₱X").
-- **Ratios** — Net Working Capital, Net Worth, Current Ratio, Quick Ratio,
-  Days' Receivable / Inventory / Payable, ROE, ROA, GPM, Operating Margin,
-  Return on Sales, Total Assets/Equity, Debt/Equity, Debt/Asset, Interest
-  Coverage, Debt Service Coverage. Divide-by-zero → `—`.
-- **Approximations** (documented on the report footer, matching legacy which
-  also shows 0): **Quick Ratio = Current Ratio** (no inventory balance
-  field); **Days' Receivable / Inventory / Payable = 0** (no
-  receivable/inventory/payable balance fields); **Debt Service Coverage ≈
-  `(NIAT + interest) / interest`** (no principal-due field). Depreciation and
-  EBITDA are now real (Depreciation is an entered field).
+**Balance Sheet data model.** The five categories on
+`FinancialStatementPeriod` are `BalanceSheetLine[]` (`{ id, label, value }`)
+rather than flat string totals. `computeBalanceSheet` sums each category's
+line values via `sumBalanceSheetLines`; its `BalanceSheetTotals` output
+shape is unchanged, so the comparative report, `computeRatios`, and
+Financial Highlights are untouched. Context setters:
+`addBalanceSheetLine` / `updateBalanceSheetLine` / `removeBalanceSheetLine`
+(keyed by `BalanceSheetCategory`). Hydration converts an older stored
+string total into a single `{ label: 'Opening balance', value }` line.
+`FinancialStatementField` is now the income-statement string keys only.
+`balanceSheetSaved: boolean` (default `false`; sample data sets it `true`
+for all 5 periods). Product Line / AMD were removed from this modal
+(2026-09-10) and there is no required Submit gate.
+
+**Report** (`financial-statement-report.tsx`) — two distinct layouts,
+branched on whether a `period` is passed in:
+
+- **Single-period** (period-row **View**, `maxWidth="sm"`) — styled like
+  the Cash Flow Statement Report: a navy **`INCOME STATEMENT`** /
+  **`BALANCE SHEET`** banner (with `(period)` on the right) above a
+  rounded `1px #EBEDF3` / `13px` bordered table of single-value
+  `label : ₱ amount` rows (`SingleLineRow`), zebra-striped, with tinted
+  `#EEF1FE` total rows (`SingleTotalRow` — Net Sale, Net Income After
+  Tax, and each Balance Sheet category's `Total {Category}`). The
+  Balance Sheet section renders each category's actual **line items**
+  (label + value from `BalanceSheetLine[]`, e.g. "Cash", "Account
+  Receivable – Trade") under a plain category heading, not just a
+  category total. No % of Sales, Growth, or Ratios in this view — it is
+  a single point-in-time statement, not a comparison. Closing returns to
+  the modal landing.
+- **Comparative** (Financial Summary card's **View**, no `period`,
+  `maxWidth="lg"`) — restyled (2026-09-11) to the Cash Flow Statement
+  Report's visual language, same content as before:
+  - Header carries a disabled download icon (`solar:file-download-bold`,
+    "PDF export coming soon" tooltip), same placeholder as the other
+    reports.
+  - A read-only `FactChip` meta strip (bordered `#FAFBFD`) — **Applicant
+    Name**, **Amount Applied** (`application.financialInfo.desiredLoanAmount`),
+    **Product Line**, **AMD** (the latter two from
+    `financialStatementDetails`).
+  - The matrix table sits in a rounded `1px #EBEDF3` / `13px`-radius
+    frame (previously just `overflowX: auto`).
+  - **Income Statement** section — unchanged content: Gross Sales, Net
+    Sales, Cost of Goods Sold, Gross Profit, Operating Expenses,
+    Operating Income Before Other Income (Expenses)
+    (`grossProfit − opex`), Other Income (Expense), Operating Income
+    (`+ otherInc`), Interest Expense, Net Income Before Tax
+    (`opInc − interest`), Provision for Taxes, Net Income After Tax
+    (`NIBT − tax`), Depreciation, EBITDA
+    (`opInc + interest + depreciation`) — ₱ value, **% of Sales**
+    (÷ grossSales), **Growth** vs. the prior actual period
+    (`cur/prior − 1`; blank for 2023 and for Interim/Projected).
+  - **Balance Sheet** section now has three `GroupHeaderRow` sub-bands
+    (lighter tint than the section band, not uppercase) — **Assets**
+    (Total Current Assets, Total Assets), **Liabilities** (Total Current
+    Liabilities, Total Liabilities), **Equity** (Total Equity, Total
+    Liabilities & Stockholders' Equity) — then the tally row, relabelled
+    "Assets and Liabilities & Stockholders' Equity Tally" ("Matched" /
+    "Off by ₱X").
+  - **Ratios** section — unchanged: Net Working Capital, Net Worth,
+    Current Ratio, Quick Ratio, Days' Receivable / Inventory / Payable,
+    ROE, ROA, GPM, Operating Margin, Return on Sales, Total
+    Assets/Equity, Debt/Equity, Debt/Asset, Interest Coverage, Debt
+    Service Coverage. Divide-by-zero → `—`.
+  - **Approximations** footnote — unchanged: **Quick Ratio = Current
+    Ratio** (no inventory balance field); **Days' Receivable / Inventory
+    / Payable = 0** (no receivable/inventory/payable balance fields);
+    **Debt Service Coverage ≈ `(NIAT + interest) / interest`** (no
+    principal-due field).
+  - New **Remarks** box (bordered, `financialStatementDetails.remarks`
+    HTML rendered read-only; "No remarks recorded." when blank) and a
+    **Prepared by** / **Noted by** footer (two bordered cards — Prepared
+    by shows `application.assignedOfficer` + `Credit Officer · {timestamp}`;
+    Noted by shows `—` / `Pending review`), matching the Cash Flow
+    Statement Report's footer.
+
+Both layouts read `computeBalanceSheet` / `computeIncomeStatement` —
+nothing is recomputed differently between the two.
 
 ### Bank Loans (sub-tool 2)
 
@@ -178,18 +267,53 @@ single-period table uses a narrower minimum width):
 `{ bankRows: BankLoanRow[], pgfcRows: BankLoanRow[], proposed: PgfcProposedLoan }`.
 `BankLoanRow` = `{ id, institution, facility, approvedAmount,
 amountPreviousYear, amountOutstanding, balanceAsOfDate, projectionAmount,
-security, dateGranted, expiry, term, interestRate, principalPaid }`.
+security, dateGranted, expiry, term, interestRate, principalPaid,
+paymentHandling, principalAmortizationPerMonth,
+interestAmortizationPerMonth, principalPaymentAsOf, interestPaymentAsOf,
+projectedPrincipalPaymentDec, projectedInterestDec }` (the last 7 fields
+added 2026-09-11; used identically by both bank and PGFC rows). Hydration
+deep-merges each stored row over a blank `BankLoanRow` so a session saved
+before these fields existed still fills the gap.
 `PgfcProposedLoan` = `{ projectionAmount, interestRate,
 principalPaymentAsOfDate, interestPaymentAsOfDate,
-projectedPrincipalPaymentDec, projectedInterestDec }`. Setters:
-`addBankLoanRow(kind)` / `updateBankLoanRow(kind, id, data)` /
+projectedPrincipalPaymentDec, projectedInterestDec }` (unchanged — a
+separate, smaller struct for the one proposed-loan block, not a row).
+Setters: `addBankLoanRow(kind)` / `updateBankLoanRow(kind, id, data)` /
 `removeBankLoanRow(kind, id)` (`kind: 'bank' | 'pgfc'`) and
 `setPgfcProposedLoan(data)`.
 
-**Form** (`bank-loans-modal.tsx`) — `<Dialog maxWidth="lg">`, three
-sections: **Bank Loans** and **PGFC Loan Balance** (each an inline-editable
-row list with an Add button, same pattern as Bank Statement's deposits) and
-the **PGFC Proposed Loan** 6-field grid.
+**Form** (`bank-loans-modal.tsx`, restyled 2026-09-11) — `<Dialog
+maxWidth="md">`, three sections: **Bank Loans** and **PGFC Loan Balance**
+(each supports adding multiple rows) and the **PGFC Proposed Loan**
+6-field grid — no `<Divider />` between the three sections (removed
+2026-09-11); the section spacing alone separates them. **Bank Loans** and
+**PGFC Loan Balance** now follow the same flat-list pattern as the
+Financial Statement modal's Balance Sheet
+sub-step: a plain uppercase section label above one shared `#F9FAFC` /
+`1px #EEF0F5` / `11px`-radius inset box holding all of that section's
+loans. Each loan collapses to a single **summary line**
+(`LoanSummaryLine` — `Institution — Facility` + the Amount Outstanding,
+falling back to "PGFC Loan" for a PGFC row with neither field filled in,
+a pencil, and a red-×); clicking the pencil expands that line in place
+into the full field form (`LoanRowForm`, fields 3–4 per line — `md={4}`
+on most money-and-date fields, `md={3}` on the Payment as of Date /
+Payment Projected sub-groups, which now sit **side by side** on one row
+instead of stacked), and the pencil becomes a collapse chevron.
+**`LoanRowForm` takes a `kind` prop** — Bank Loan rows show "Bank /
+Financial Institution" and "Facilities"; **PGFC rows skip both fields
+entirely** (every PGFC loan is from PGFC by definition, matching the
+legacy PGFC form, which starts straight at Approved Amount). Newly added
+rows (`addBankLoanRow`) start expanded. Rows are separated by a plain
+divider inside the shared box; an empty section shows a dashed-border
+"No {section} recorded yet." box, matching the Balance Sheet's
+empty-category state. The Add button ("Add Bank Loan" / "Add PGFC Loan")
+sits below the inset box, right-aligned — outside the box, not inside it
+and not in the section header. Each loan also has **Payment Handling**
+(text), **Principal /
+Interest Amortization per Month**, a
+**"Payment as of Date"** sub-group
+(Principal Payment + Interest, side by side), and a **"Payment Projected"**
+sub-group (Principal Payment + Interest December, side by side).
 
 **Report** (`bank-loan-report.tsx`) — read-only:
 - **Computation of DSCR** — rows "DSCR 100% / 50% / 20% / Based on
@@ -205,7 +329,8 @@ the **PGFC Proposed Loan** 6-field grid.
 - **Bank Loan** wide table — one row per `bankRows` entry + a **Total**, one
   per `pgfcRows` + a **Total**, a **Grand Total (balance)**, a **PGFC
   (proposed)** row, and a **Grand Total** (balances + proposed projection).
-  Horizontal-scroll container.
+  Horizontal-scroll container. `LOAN_COLUMNS` now has 20 columns (was 13) —
+  the 7 new `BankLoanRow` fields are appended after Principal Paid.
 
 ### Financial Highlights (sub-tool 3)
 
@@ -214,7 +339,10 @@ the **PGFC Proposed Loan** 6-field grid.
 the **officer-typed** fields only: `daysInventory`, `daysReceivable`,
 `daysPayable`, `ebitda`, `totalLoans`, `annualDebtService`, `rating` (free
 text), `adjustedRate` (%). Setter: `setFinancialHighlightsField(period,
-field, value)`.
+field, value)`. `review.financialHighlightsRemarks: string` (Tiptap HTML,
+new 2026-09-11) is a single top-level field — not per-period, like
+`financialStatementDetails.remarks`. Setter:
+`setFinancialHighlightsRemarks(value)`.
 
 **Derived rows** (`deriveHighlightsRow` in `financial-summary-calcs.ts`, not
 stored) — Gross Sales, Net Income, Current/Total Assets, Current/Total
@@ -223,13 +351,34 @@ come straight from `FinancialStatement[period]`; Revenue Over Total Loans =
 `grossSales / totalLoans`; Debt Service Coverage Ratio =
 `ebitda / annualDebtService`.
 
-**Form** (`financial-highlights-modal.tsx`) — `<Dialog maxWidth="lg">`,
-period selector, the 8 typed fields plus a read-only **"Derived from
-Financial Statement"** preview strip so the officer sees the whole row.
+**Form** (`financial-highlights-modal.tsx`, restyled 2026-09-11) — a
+narrow `<Dialog maxWidth="md">`, **one wide comparative
+table** (rows = every metric, columns = the 5 periods), matching the Cash
+Flow / Financial Statement report layout — dropped the old period-tab
+selector and the separate "Derived from Financial Statement" preview
+sidebar. **Every row in the table is plain display text** — Gross Sales,
+Net Income, Current/Total Assets, Current/Total Liabilities, Equity,
+Current Ratio, Debt-Equity Ratio, Acid Ratio, Days Inventory / Receivable
+/ Payable, GPM, NPM, EBITDA, Revenue Over Total Loans, Debt Service
+Coverage Ratio, Rating, Adjusted Rate — nothing in the table is editable.
+A single **Remarks** rich-text field sits below the table (bound to
+`financialHighlightsRemarks`, not per-period) — the **only** editable
+control in this screen. Footer button reads "Save Record" (remarks
+persists on keystroke like every other field in this app; the button is
+the same "done for now" marker convention).
 
-**Report** (`financial-highlights-report.tsx`) — the full wide metrics table
-(rows = every metric, columns = the 5 periods), read-only,
-horizontal-scroll, with a "Prepared by · {timestamp}" footer.
+**Report** (`financial-highlights-report.tsx`, restyled 2026-09-11) — the
+full wide metrics table (rows = every metric, columns = the 5 periods),
+read-only, in a rounded `1px #EBEDF3` / `13px`-radius bordered frame
+(previously bare `overflowX: auto`). **Gross Sales** and **Net Income**
+now have a **% Sale** sub-column (÷ that period's Gross Sales), matching
+the Financial Statement Report's `% of Sales` treatment. Header carries a
+disabled download icon placeholder (`solar:file-download-bold`, "PDF
+export coming soon"). Footer is now two bordered **Prepared by** /
+**Noted by** cards (Prepared by: `application.assignedOfficer` + `Credit
+Officer · {timestamp}`; Noted by: `—` / `Pending review`) — replacing the
+single centered "Prepared by · {timestamp}" line, matching the Cash Flow
+/ Financial Statement reports' footer.
 
 ### Cross-tool reads
 
@@ -333,14 +482,15 @@ helper (mirrors `updateBureauFiles` from the bureau-reports work).
 Two dev/QA setters — `fillFinancialEvaluationSample()` /
 `clearFinancialEvaluationSample()` — back the Financial Evaluation page's
 **Fill with Sample Data** / **Remove Sample Data** floating-settings action
-(toggled by `review.bankStatements.length > 0 || cashFlowStatement.savedAt`).
-Fill seeds **every** workspace on the page in one shot: one bank statement
-(BDO, 6 deposits, 3 balance rows), the Cash Flow Statement (income/expense
-figures + one Other Loan + a proposed-loan block, `savedAt` stamped),
-the Financial Statement (all 5 periods — growing 2023→2025 actuals, a
-half-year Interim, a Projected), Bank Loans (2 bank rows + 1 PGFC row + the
-PGFC proposed loan), and Financial Highlights (per-period days ratios,
-EBITDA, total loans, debt service, rating). Remove resets each of those to
+(toggled by `review.bankStatements.length > 0 || cashFlowStatement.savedAt ||
+additionalFinancialFiles.length > 0`). Fill seeds **every** workspace on the
+page in one shot: one bank statement (BDO, 6 deposits, 3 balance rows), the
+Cash Flow Statement (income/expense figures + one Other Loan + a
+proposed-loan block, `savedAt` stamped), the Financial Statement (all 5
+periods — growing 2023→2025 actuals, a half-year Interim, a Projected),
+Bank Loans (2 bank rows + 1 PGFC row + the PGFC proposed loan), Financial
+Highlights (per-period days ratios, EBITDA, total loans, debt service,
+rating), and two Additional Financial Files. Remove resets each of those to
 its empty factory default.
 
 **Computation** (`bank-statement.ts`, pure, nothing stored) —
@@ -359,34 +509,67 @@ An editable **Combined / Borrower Only** two-column form computing Total
 Income, Total Expenses, Income Available for Debt Service, Monthly
 Amortization, Net Income, and Debt Service Ratio for the proposed loan —
 spec'd from a reference screen from a different system, then adapted to this
-app's own visual language (label-above-field, ₱-prefixed `NumericFormat`
-inputs, `StatusBadge` pills for totals, `TONE_COLORS`).
+app's own visual language (₱-prefixed `NumericFormat` inputs, `TONE_COLORS`).
+
+**Manage form layout** (`maxWidth="md"` dialog). The whole form is **one
+`<table>`** (`CfsFormTable`) in a single light-bordered panel. There is no
+separate table head — each of the four sections (Source of Income, Less
+Expenses, Other Loans, Proposed Amount) opens with a `SectionRow`: a
+`#F1F3F8` tinted band (same tone as a total row) carrying the section name
+on the left **and** the "COMBINED" / "BORROWER ONLY" column labels on the
+right. The sections are **not** separate cards. Editable lines are `InputRow` (`kind: 'currency' |
+'percent' | 'integer'`, light `#FAFBFD` zebra) — one label cell + two
+input cells; computed lines are `ValueRow` with three tones: `subtotal`
+(plain row), `total` (bold, `#F9FAFC` row — Total Income / Total Expenses
+/ Income Available / Total of Other Loans / Net Income), and `headline`
+(bold, `#EEF1FE` row, value in `#3448B0` — Debt Service Ratio). Monthly
+Amortization is a `DisabledCurrencyRow` (two disabled `₱` cells). The
+table has just three columns (label + two value columns, `tableLayout:
+fixed` so the value columns stay 180px and the label column absorbs the
+slack — no empty gutter on the right). In the Other Loans section each
+loan row's remove-`×` sits inline at the end of the Lender cell; below the
+rows is a status row with the count ("No other loans recorded." / "N
+other loans recorded.") on the left and the "Add Other Loan" button on
+the right. The table scrolls horizontally on narrow screens (same as the
+read-only Report). No full-bleed navy banner, no bare `<Divider />`
+separators.
 
 `cash-flow-statement-card.tsx` exports three components:
-- `CashFlowStatementCard` — a thin card (`adminCardSx` + `CollapsibleSection`
-  "Cash Flow Statement", "Saved" badge once `savedAt` is set) with one row
-  carrying a **Manage** and a **View report** button. Matches the Financial
-  Summary card's Manage / View pattern. Card-local `mode: 'manage' | 'view'
-  | null` drives the two modals.
+- `CashFlowStatementCard` — an expandable card (`adminCardSx` +
+  `CollapsibleSection` "Cash Flow Statement", `subtitle` under the title,
+  "Saved" badge once `savedAt` is set). Its original bordered work row stays
+  in the section body with the **Manage** and **View report** buttons.
+  Card-local `mode: 'manage' | 'view' | null` drives the two modals.
 - `CashFlowStatementModal` — the full data-entry form
-  (`<Dialog maxWidth="lg" scroll="paper">`). Its `DialogActions` carry a
-  **Save Record** button (stamps `savedAt`) and a **Done** close.
+  (`<Dialog maxWidth="lg" scroll="paper">`). It opens with a read-only
+  **`FactChip` strip** (Borrower's Name / Amount of Loan — same bordered
+  `#FAFBFD` strip the Report uses), then the **Computation Type** dropdown
+  on the row below it. Its `DialogActions` carry a **Save Record** button
+  (stamps `savedAt`) and a **Done** close.
 - `CashFlowStatementReport` — a read-only `<Dialog maxWidth="md">` that
   **reuses the Cash Flow form's own layout components** rather than a
-  separate table style: a `#EEF0F5`-bordered meta field-block (a "Cash Flow
-  Statement" section label + label/value rows for Borrower's Name / Amount
-  of Loan / Computation Type — the FieldRow convention from
-  `credit-checking-result-modal.tsx`), then `SubsectionLabel` +
+  separate table style: a **`FactChip` strip** (the horizontal
+  label-over-value cells from `application-details-card.tsx` — `#EEF0F5`
+  border, `#FAFBFD` fill, per-cell dividers) for Borrower's Name / Amount
+  of Loan / Computation Type, then `SubsectionLabel` +
   `ColumnHeaders` + `SubtotalRow` / `TotalRow` (label + two info-tone
   `StatusBadge` pills) separated by `<Divider />`, exactly as the Manage
-  form renders its results. Sections: Source of Income → Total Income; Less Expenses →
+  form renders its results. The results table sits in a rounded
+  `1px #EBEDF3` / `13px`-radius `overflowX:auto` frame, matching the Manage
+  form's `CfsFormTable`. Sections: Source of Income → Total Income; Less Expenses →
   Sub-total, Add: Adjusted Expense (with the entered %s), Total Expenses,
   Income Available for Debt Service; Other Loans → Total of Other Loans,
   PGFC Loan – Principal & Interest (proposed monthly amortization
   annualised), Total Loans; then Net Income, Debt Service Ratio, and
-  Percentage of Net Income Over Gross. A "Prepared by {timestamp}" /
-  "Noted by" footer above a `1px #EEF0F5` rule. Blank inputs render as `—`;
-  computed totals show `₱0.00`.
+  Percentage of Net Income Over Gross. The footer is two bordered
+  `12px`-radius cards side by side — **Prepared by** (the
+  `application.assignedOfficer`, then `Credit Officer · {timestamp}`) and
+  **Noted by** (`—`, `Pending review`) — matching the Initial Credit
+  Checking Result modal's Prepared-by card. Blank inputs render as `—`;
+  computed totals show `₱0.00`. Its header carries a **disabled download
+  icon** (`solar:file-download-bold`, "PDF export coming soon" tooltip) —
+  the same placeholder the Initial Credit Checking Result modal uses;
+  there is no real file export in this prototype.
 
 **State** — `review.cashFlowStatement: CashFlowStatement` (`admin-context.tsx`),
 a new top-level `ApplicationReview` slot alongside `creditInvestigation`/
@@ -445,11 +628,13 @@ sourced from `signUpData`/`application.financialInfo.desiredLoanAmount` (the
 A card (`AdditionalFinancialFilesCard` in `additional-financial-files-card.tsx`)
 for **free-form supporting-document uploads beyond the fixed Document
 Checklist** — supplier contracts, leases, bank certifications, etc. Same
-`adminCardSx` + `CollapsibleSection` shell, a `{count}` badge once anything
-is uploaded, an **Upload files** button (`<input multiple accept="image/*,.pdf">`),
-and one bordered row per file: filename + upload timestamp (plus a
-`Remarks: …` line when set), an outlined **View** (opens the data URL in a
-new tab), and a **⋮ menu** with **Add/Edit remarks** (opens a small
+`adminCardSx` + `CollapsibleSection` shell — `subtitle` under the title, a
+`{count}` badge next to the title once anything is uploaded, and an
+**Upload files** button (`<input multiple accept="image/*,.pdf">`) in the
+`headerAction` slot. The body is one bordered row per file: filename +
+upload timestamp (plus a `Remarks: …` line when set), an
+outlined **View** (opens the data URL in a new tab), and a **⋮ menu** with
+**Add/Edit remarks** (opens a small
 `Dialog` with a multiline field — same pattern as Requirement Checklist's
 `RequirementDocRow`) and **Delete file** (→ `ConfirmDialog`).
 
@@ -460,8 +645,10 @@ new tab), and a **⋮ menu** with **Add/Edit remarks** (opens a small
 
 Data URLs only — no parsing, no OCR, same prototype convention as every
 other upload in this app. Informational — does not gate the Endorse
-decision. The whole-page **Fill with Sample Data** action does **not**
-touch this card.
+decision. The whole-page **Fill with Sample Data** action seeds two sample
+files here (`supplier-contract-2026.pdf` with a remark, `warehouse-lease.pdf`
+without), both pointing at the bundled `/assets/documents/sample-local-pdf.pdf`;
+**Remove Sample Data** clears them.
 
 ## Decision Gate
 
@@ -582,3 +769,17 @@ it directly rather than filtering `REQUIREMENT_DOC_META` by tab.
   Files.
 - Extended the **Fill with Sample Data** page action to seed every workspace
   on the page at once.
+
+### Later
+
+- Normalized the four Financial Evaluation card headers to the design-system
+  `CollapsibleSection` contract: the primary action (Manage / View report,
+  Add bank statement, Upload files) moved into `headerAction` at the header
+  row's trailing edge, and each card's description moved into the new
+  `subtitle` prop — rendered under the title, part of the header, visible
+  when collapsed — instead of being a line in the body / a nested titled
+  box. The Cash Flow Statement card keeps its original expandable bordered
+  work row; only its description moves to the header subtitle.
+- **Fill with Sample Data** now also seeds two **Additional Financial Files**
+  (and clears them on Remove); the `sampleFilled` toggle checks
+  `additionalFinancialFiles.length` too.

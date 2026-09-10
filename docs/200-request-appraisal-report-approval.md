@@ -7,8 +7,11 @@
 > same `headApprovalStatus` fields these screens do),
 > `docs/170-request-appraiser.md` (which owns `AppraisalReportView`, the
 > read-only report component this detail page renders, and the report form
-> that produces it), and `docs/190-request-appraisal-fee-approval.md` (the fee
-> side of the same Approver's two duties).
+> that produces it), `docs/190-request-appraisal-fee-approval.md` (the fee
+> side of the same Approver's two duties), and
+> `docs/225-admin-design-system.md` (the admin design system — list →
+> detail split per §10, the "Your Decision" card is the §10 decision-gate
+> pattern, and Decline uses a §6 `ConfirmDialog`).
 
 ## What this is
 
@@ -129,9 +132,11 @@ every sample bundle's Collateral Photo as perpetually unset (see
 
 ### "Your Decision" card
 
-Approve/Decline live in their own **"Your Decision"** card, titled the
-same way `appraisal-fee-approval-bundle-view.tsx` titles its own
-"Appraisal Fee Details" card — grouped tightly (`spacing={1.5}`, not this
+Approve/Decline live in their own **"Your Decision"** card — the
+`docs/225-admin-design-system.md` §10 decision-gate pattern (a single
+card carrying the terminal choice), titled the same way
+`appraisal-fee-approval-bundle-view.tsx` titles its own "Appraisal Fee
+Details" card — grouped tightly (`spacing={1.5}`, not this
 page's usual `spacing={3}` gap) directly beneath the report bundle(s)
 inside one shared inner `Stack`, so the decision reads as attached to
 what it's deciding on rather than a separate, disconnected card further
@@ -195,3 +200,16 @@ No completeness gate beyond "a report has been submitted".
 - **No request ID** — fixed `/current` route segment; the component reads
   `review.appraisal` directly.
 - All state lives in `review.appraisal` in `localStorage`.
+
+## Non-Goals / Open Items
+
+- **No per-bundle report decision** — Approve/Decline is one call over
+  the whole request's `headApprovalStatus`; Decline (`clearAll…`) clears
+  **every** bundle's report, not just one.
+- **No queue of multiple requests** — one live application, one
+  `headApprovalStatus`, one detail page.
+- **No separate Head login** — this screen and the Officer's
+  `HeadApprovalCard` write the same fields; there is no role gate.
+- **`'declined'` is a type-level value the decline handler never sets** —
+  Decline resets to `'pending'` + clears reports; see
+  `docs/110-appraisal.md`'s "Head Approval".

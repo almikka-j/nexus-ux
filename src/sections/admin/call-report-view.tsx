@@ -217,7 +217,7 @@ export function CallReportView() {
   if (!signUpData || !application.financialInfo || !application.personalInfo) return null;
 
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
       <ApplicationReviewHeader step="Step 2 · Call Report" reviewStep="callReport" hideApplicationCard />
 
       <Stack spacing={2.5}>

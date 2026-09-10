@@ -8,7 +8,10 @@
 > way to trigger the same approve/decline outcomes), and
 > `docs/210-request-payments.md` (once approved, `ciFeeApprovedAt`/
 > `ciFeePayment` and the actual "record payment / mark as paid" action
-> live entirely on that page, not here).
+> live entirely on that page, not here), and
+> `docs/225-admin-design-system.md` (the admin design system — this card's
+> currency field follows §8, and its approve/decline confirms follow §6
+> `ConfirmDialog`).
 
 ## What this is
 
@@ -41,10 +44,12 @@ application." while not-applicable), and a single button on the right —
 
 Clicking it opens a `Dialog`; the Yes/No decision and the amount/
 description/remarks fields all live inside that modal, not inline on the
-card itself (same `FeeNeededOption` selectable-pill component Appraisal
-Fee's own modal uses, reimplemented locally here — kept in sync manually
-rather than shared, same convention every other admin file that reuses
-this exact shape follows). Draft state
+card itself. The amount field is the `docs/225-admin-design-system.md` §8
+currency pattern (`NumericFormat`, `₱` adornment, comma thousands). The
+`FeeNeededOption` selectable-pill is the same component Appraisal Fee's
+own modal uses, reimplemented locally here — kept in sync manually rather
+than shared, same convention every other admin file that reuses this exact
+shape follows. Draft state
 (`needsFeeDraft`/`amountDraft`/`descriptionDraft`/`remarksDraft`) only
 commits to `review.creditInvestigation` when "Send Request" is clicked;
 closing the modal without sending discards it.

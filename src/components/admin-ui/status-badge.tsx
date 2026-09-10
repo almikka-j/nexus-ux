@@ -19,11 +19,18 @@ export function StatusBadge({
   tone,
   label,
   icon,
+  dot = false,
 }: {
   tone: SemanticTone;
   label: ReactNode;
   /** Optional leading icon, e.g. "solar:info-circle-linear". Omit for text-only pills. */
   icon?: string;
+  /**
+   * Show a small ringed status dot before the label instead of an icon
+   * (the Application List "which stage" pill style). Ignored when `icon`
+   * is also set.
+   */
+  dot?: boolean;
 }) {
   const colors = TONE_COLORS[tone];
   return (
@@ -31,9 +38,10 @@ export function StatusBadge({
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 0.5,
-        px: 1,
-        py: 0.5,
+        gap: dot && !icon ? 0.75 : 0.5,
+        pl: dot && !icon ? 0.85 : 1,
+        pr: dot && !icon ? 1.1 : 1,
+        py: dot && !icon ? 0.45 : 0.5,
         borderRadius: '999px',
         bgcolor: colors.bg,
         color: colors.text,
@@ -44,6 +52,18 @@ export function StatusBadge({
       }}
     >
       {icon && <Iconify icon={icon} width={14} sx={{ color: colors.text, flexShrink: 0 }} />}
+      {dot && !icon && (
+        <Box
+          sx={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            bgcolor: colors.solid,
+            boxShadow: `0 0 0 2px ${colors.bg}, 0 0 0 3px ${colors.solid}33`,
+            flexShrink: 0,
+          }}
+        />
+      )}
       {label}
     </Box>
   );

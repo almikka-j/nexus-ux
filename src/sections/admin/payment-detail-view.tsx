@@ -10,8 +10,6 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
 import IconButton from '@mui/material/IconButton';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 
@@ -101,6 +99,13 @@ function FactChip({ label, value }: { label: string; value?: string }) {
   );
 }
 
+// Label-above-field, per docs/225-admin-design-system.md §8.
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#3B4256' }}>{children}</Typography>
+  );
+}
+
 function ReportFileDropzone({
   value,
   onChange,
@@ -154,7 +159,7 @@ function ReportFileDropzone({
         <>
           <Iconify icon="solar:upload-minimalistic-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
           <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1C2A6E' }}>
-            Choose a file — Payment Attachment
+            Choose a file
           </Typography>
         </>
       )}
@@ -399,19 +404,15 @@ export function PaymentDetailView({ kind }: { kind: PaymentKind }) {
           )}
 
           <Stack spacing={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="payment-method-label" shrink>
-                Payment Method
-              </InputLabel>
+            <Stack spacing={0.75}>
+              <FieldLabel>Payment Method</FieldLabel>
               <Select
-                labelId="payment-method-label"
-                label="Payment Method"
                 value={payment.paymentMethod ?? ''}
                 onChange={(event) => setPayment({ paymentMethod: event.target.value as PaymentMethod })}
                 displayEmpty
-                notched
+                size="small"
                 disabled={!editable}
-                sx={{ borderRadius: '10px', fontSize: 14 }}
+                sx={{ borderRadius: '10px', fontSize: 14, bgcolor: 'common.white' }}
               >
                 <MenuItem value="">
                   <Typography sx={{ fontSize: 14, color: '#8891A6' }}>Select payment method…</Typography>
@@ -422,21 +423,17 @@ export function PaymentDetailView({ kind }: { kind: PaymentKind }) {
                   </MenuItem>
                 ))}
               </Select>
-            </FormControl>
+            </Stack>
 
-            <FormControl fullWidth size="small">
-              <InputLabel id="deposited-to-label" shrink>
-                Deposited To
-              </InputLabel>
+            <Stack spacing={0.75}>
+              <FieldLabel>Deposited To</FieldLabel>
               <Select
-                labelId="deposited-to-label"
-                label="Deposited To"
                 value={payment.depositedTo ?? ''}
                 onChange={(event) => setPayment({ depositedTo: event.target.value })}
                 displayEmpty
-                notched
+                size="small"
                 disabled={!editable}
-                sx={{ borderRadius: '10px', fontSize: 14 }}
+                sx={{ borderRadius: '10px', fontSize: 14, bgcolor: 'common.white' }}
               >
                 <MenuItem value="">
                   <Typography sx={{ fontSize: 14, color: '#8891A6' }}>Select account…</Typography>
@@ -447,44 +444,52 @@ export function PaymentDetailView({ kind }: { kind: PaymentKind }) {
                   </MenuItem>
                 ))}
               </Select>
-            </FormControl>
+            </Stack>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <Stack spacing={0.75} sx={{ flex: 1 }}>
+                <FieldLabel>Official Receipt No.</FieldLabel>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={payment.orNumber}
+                  disabled={!editable}
+                  onChange={(event) => setPayment({ orNumber: event.target.value })}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+                />
+              </Stack>
+              <Stack spacing={0.75} sx={{ flex: 1 }}>
+                <FieldLabel>OR Date</FieldLabel>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  value={payment.orDate}
+                  disabled={!editable}
+                  onChange={(event) => setPayment({ orDate: event.target.value })}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
+                />
+              </Stack>
+            </Stack>
+
+            <Stack spacing={0.75}>
+              <FieldLabel>Payment Attachment</FieldLabel>
+              <ReportFileDropzone value={attachmentFile} onChange={handleAttachmentChange} disabled={!editable} />
+            </Stack>
+
+            <Stack spacing={0.75}>
+              <FieldLabel>Remarks</FieldLabel>
               <TextField
                 fullWidth
-                size="small"
-                label="Official Receipt No."
-                value={payment.orNumber}
+                multiline
+                minRows={2}
+                placeholder="Optional notes"
+                value={payment.remarks}
                 disabled={!editable}
-                onChange={(event) => setPayment({ orNumber: event.target.value })}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="OR Date"
-                value={payment.orDate}
-                disabled={!editable}
-                onChange={(event) => setPayment({ orDate: event.target.value })}
-                InputLabelProps={{ shrink: true }}
+                onChange={(event) => setPayment({ remarks: event.target.value })}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
               />
             </Stack>
-
-            <ReportFileDropzone value={attachmentFile} onChange={handleAttachmentChange} disabled={!editable} />
-
-            <TextField
-              fullWidth
-              multiline
-              minRows={2}
-              label="Remarks"
-              placeholder="Optional notes"
-              value={payment.remarks}
-              disabled={!editable}
-              onChange={(event) => setPayment({ remarks: event.target.value })}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
-            />
           </Stack>
 
           {editable && (

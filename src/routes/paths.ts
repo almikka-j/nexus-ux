@@ -116,6 +116,13 @@ export const paths = {
     // session), but which of the two fee types the detail page shows is
     // meaningful, unlike "current".
     paymentDetail: (kind: 'ci-fee' | 'appraisal-fee') => `/admin/payment/${kind}`,
+    // Dev/reference-only: a live gallery of the admin design-system
+    // primitives (tokens, StatusBadge, buttons, the card + CollapsibleSection
+    // header contract, the admin table recipe, ConfirmDialog tones). Not in
+    // the sidebar/top nav — reached from the floating settings popover, same
+    // "reference, not a workflow step" spirit as "Fill with Sample Data".
+    // Companion to docs/225-admin-design-system.md.
+    designSystem: '/admin/design-system',
     creditChecking: (id: string) => `/admin/applications/${id}/credit-checking`,
     reconsideration: (id: string) => `/admin/applications/${id}/reconsideration`,
     callReport: (id: string) => `/admin/applications/${id}/call-report`,

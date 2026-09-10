@@ -21,57 +21,111 @@ import { StatusBadge } from 'src/components/admin-ui';
 
 export type CollapsibleSectionProps = {
   title: string;
-  expanded: boolean;
-  onToggle: () => void;
+  /**
+   * Small icon rendered before the title (after the chevron), e.g.
+   * "solar:magic-stick-3-bold-duotone" for the AI review card. Muted grey,
+   * 18px. Omit for a plain text header.
+   */
+  icon?: string;
+  /** Required when `children` is given; ignored for a header-only card. */
+  expanded?: boolean;
+  /** Required when `children` is given; ignored for a header-only card. */
+  onToggle?: () => void;
+  /**
+   * One-line description shown directly under the title, aligned with the
+   * title text. Part of the header, so it stays visible when collapsed.
+   * Prefer this over putting the description as the first line of the body.
+   */
+  subtitle?: ReactNode;
   /** Small pill next to the title, e.g. "9/9 on file". Hidden when omitted. */
   badge?: ReactNode;
   /** Shown next to the badge only when fully complete, e.g. a green checkmark. */
   completeIcon?: ReactNode;
   /** Rendered at the row's trailing edge; clicks inside it never toggle the section (e.g. "Request Documents"). */
   headerAction?: ReactNode;
-  children: ReactNode;
+  /** Body revealed by the toggle. Omit for a header-only card (title + subtitle + headerAction, nothing to expand). */
+  children?: ReactNode;
 };
 
 export function CollapsibleSection({
   title,
-  expanded,
+  icon,
+  expanded = true,
   onToggle,
+  subtitle,
   badge,
   completeIcon,
   headerAction,
   children,
 }: CollapsibleSectionProps) {
+  const hasBody = children != null && children !== false;
+  const subtitleNode = subtitle && (
+    <Typography sx={{ fontSize: 13.5, color: '#8891A6', mt: 0.25 }}>{subtitle}</Typography>
+  );
+  const iconNode = icon && (
+    <Iconify icon={icon} width={18} sx={{ color: '#8891A6', flexShrink: 0 }} />
+  );
+  // Subtitle indent: chevron (~2.75) + optional icon (~1.75) so it aligns
+  // under the title text, not the chevron.
+  const subtitleIndent = icon ? 4.5 : 3.5;
+
   return (
     <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-        <Stack
-          component={ButtonBase}
-          onClick={onToggle}
-          direction="row"
-          alignItems="center"
-          spacing={1}
-          sx={{ borderRadius: '8px', px: 0.5, py: 0.25, ml: -0.5 }}
-        >
-          <Iconify
-            icon="eva:chevron-down-fill"
-            width={20}
-            sx={{
-              color: '#8891A6',
-              transition: 'transform 0.15s ease',
-              transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-              flexShrink: 0,
-            }}
-          />
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
-          {badge}
-          {expanded && completeIcon}
-        </Stack>
+      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+        <Box sx={{ minWidth: 0 }}>
+          {hasBody ? (
+            <>
+              <Stack
+                component={ButtonBase}
+                onClick={() => onToggle?.()}
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ borderRadius: '8px', px: 0.5, py: 0.25, ml: -0.5 }}
+              >
+                <Iconify
+                  icon="eva:chevron-down-fill"
+                  width={20}
+                  sx={{
+                    color: '#8891A6',
+                    transition: 'transform 0.15s ease',
+                    transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                    flexShrink: 0,
+                  }}
+                />
+                {iconNode}
+                <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+                  {title}
+                </Typography>
+                {badge}
+                {expanded && completeIcon}
+              </Stack>
+              {subtitle && <Box sx={{ ml: subtitleIndent }}>{subtitleNode}</Box>}
+            </>
+          ) : (
+            // Header-only card (no expandable body): no chevron, no toggle —
+            // the title/subtitle just label the headerAction.
+            <>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                {iconNode}
+                <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+                  {title}
+                </Typography>
+                {badge}
+                {completeIcon}
+              </Stack>
+              {icon ? <Box sx={{ ml: 3.5 }}>{subtitleNode}</Box> : subtitleNode}
+            </>
+          )}
+        </Box>
         {headerAction}
       </Stack>
 
-      <Collapse in={expanded}>
-        <Box sx={{ pt: 2.5 }}>{children}</Box>
-      </Collapse>
+      {hasBody && (
+        <Collapse in={expanded}>
+          <Box sx={{ pt: 2.5 }}>{children}</Box>
+        </Collapse>
+      )}
     </Box>
   );
 }

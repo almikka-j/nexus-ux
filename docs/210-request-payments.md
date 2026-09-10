@@ -5,8 +5,12 @@
 > `PAYMENT_METHOD_OPTIONS`/`DEPOSITED_TO_ROSTER`/`createEmptyPaymentDetails`
 > shapes in `admin-context.tsx`, or the `ciFeeApprovedAt`/`ciFeePayment`/
 > `feePayment` fields change. Companion to `docs/100-credit-investigation.md`
-> (CI Fee) and `docs/170-request-appraiser.md` (Appraisal Fee) — these pages read
-> both flows' approved-fee state but own no fee-decision fields themselves.
+> (CI Fee), `docs/170-request-appraiser.md` (Appraisal Fee) — these pages read
+> both flows' approved-fee state but own no fee-decision fields themselves —
+> and `docs/225-admin-design-system.md` (the admin design system — the
+> payment-detail form follows §8 form patterns; `ReportFileDropzone` is a
+> §6 "pending component extraction" pattern; the table follows the §6
+> recipe).
 
 ## What this is
 
@@ -116,7 +120,10 @@ something the UI itself ever produces).
    here, the fee is already approved by the time it reaches Payment; it
    exists purely so the officer sees full request context without
    navigating back to the approval flow's own detail page.
-3. **"Payment Details" card** — the actual form:
+3. **"Payment Details" card** — the actual form. Follows the
+   `docs/225-admin-design-system.md` §8 form conventions: label above each
+   field, a native `type="date"` for OR Date, and a **disabled "Mark as
+   Paid" button** as the only validation (no inline error text).
    - **Payment Method** — `Select`, `PAYMENT_METHOD_OPTIONS` (Cash /
      Check / Bank Transfer / GCash / E-wallet —
      `src/auth/admin-context.tsx`).
@@ -131,9 +138,10 @@ something the UI itself ever produces).
      Collateral Photo upload — a `FileThumbnail` + filename once set, a
      close `IconButton` to clear it; accepts images + PDF). Not shared
      with `appraiser-assignment-card.tsx`'s own dropzone of the same
-     name — this codebase's convention is a local per-file component, not
-     one shared module (see `credit-investigation-view.tsx` and
-     `initial-credit-checking-view.tsx` for the same pattern).
+     name — this is the `docs/225-admin-design-system.md` §6 "file upload
+     — pending component extraction" pattern: a local per-file component,
+     not one shared module (see `credit-investigation-view.tsx` and
+     `initial-credit-checking-view.tsx` for the same repeated pattern).
    - **Remarks** — multiline `TextField`, optional.
    - **"Mark as Paid"** button — **all fields required except Remarks**;
      stays disabled until Payment Method, Deposited To, OR No., OR Date,

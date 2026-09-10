@@ -23,13 +23,13 @@ import { Iconify } from 'src/components/iconify';
 import { fileToDataUrl } from 'src/utils/file-to-data-url';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { FileThumbnail } from 'src/components/file-thumbnail';
-import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { AiReviewCard, adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
+
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
-import { AiRecommendationSummary } from './ai-recommendation-summary';
 import { OfficerNotesDialog, buildOfficerNoteEntry } from './officer-notes-history';
 import { computeInstallment } from './cibi-form-card';
 import { BureauReportsCard } from './bureau-reports-card';
@@ -138,6 +138,7 @@ export function InitialCreditCheckingView() {
   // navigation/refresh, since it's how this admin wants to view *this*
   // session, not application data that should carry forward.
   const [isSplitLayout, setIsSplitLayout] = useState(false);
+  const [aiReviewExpanded, setAiReviewExpanded] = useState(true);
   const [resultModalOpen, setResultModalOpen] = useState(false);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
@@ -493,47 +494,42 @@ export function InitialCreditCheckingView() {
           </Stack>
         </Box>
 
-        <Box sx={adminCardSx}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-            <Iconify icon="solar:magic-stick-3-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-              AI review, summary &amp; recommendation
-            </Typography>
-          </Stack>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-            {allBureauReportsUploaded
+        <AiReviewCard
+          expanded={aiReviewExpanded}
+          onToggle={() => setAiReviewExpanded((prev) => !prev)}
+          subtitle={
+            allBureauReportsUploaded
               ? 'Based on the uploaded bureau reports and application details.'
-              : 'Based on application details — upload the CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure reports above to confirm with the full bureau review.'}
-          </Typography>
-
-          <Stack spacing={2}>
-            <AiRecommendationSummary result={creditCheckingResult} />
-
-            <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              alignItems={{ xs: 'stretch', sm: 'center' }}
-              justifyContent="space-between"
-              spacing={1.5}
-            >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
-                <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
-                  View the full formatted report generated from everything above.
-                </Typography>
-              </Stack>
-              <Button
-                onClick={() => setResultModalOpen(true)}
-                variant="outlined"
-                startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-                sx={{ ...outlinedNavyButtonSx, px: 2, flexShrink: 0 }}
+              : 'Based on application details — upload the CIBI, LOANDEX, CIC, CMAP, NFIS/BAP, and PGFC Existing Exposure reports above to confirm with the full bureau review.'
+          }
+          richResult={creditCheckingResult}
+          footer={
+            <>
+              <Divider sx={{ borderColor: '#EEF0F5' }} />
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                alignItems={{ xs: 'stretch', sm: 'center' }}
+                justifyContent="space-between"
+                spacing={1.5}
               >
-                View Initial Credit Checking Result
-              </Button>
-            </Stack>
-          </Stack>
-        </Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
+                  <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
+                    View the full formatted report generated from everything above.
+                  </Typography>
+                </Stack>
+                <Button
+                  onClick={() => setResultModalOpen(true)}
+                  variant="outlined"
+                  startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+                  sx={{ ...outlinedNavyButtonSx, px: 2, flexShrink: 0 }}
+                >
+                  View Initial Credit Checking Result
+                </Button>
+              </Stack>
+            </>
+          }
+        />
 
         <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
