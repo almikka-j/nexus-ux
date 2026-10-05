@@ -24,17 +24,16 @@ import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
 import { AppraisalReportView } from './appraisal/appraisal-report-view';
 
 // ----------------------------------------------------------------------
-// Detail page for the Head/Approver — reached by clicking the one row on
-// "My Approvals" (appraisal-approver-view.tsx), at
-// paths.admin.appraisalApproverBundle(). Same as the Fee Approval detail
-// page this mirrors (appraisal-fee-approval-bundle-view.tsx), the head
-// approval decision is still batch-level (Appraisal.headApprovalStatus,
-// not a per-bundle status), and there's no real multi-application backend
-// in this prototype, so there's exactly one live appraisal to show per
-// session. The `[bundleId]` route segment is a fixed placeholder
-// ("current"), not a real ID, same convention as
-// appraisalFeeApprovalBundle — this component ignores it and reads
-// review.appraisal directly.
+// Detail page for the Head/Approver — reached by clicking the Appraisal
+// row on the merged "Report Approvals" list (report-approvals-view.tsx),
+// at paths.admin.reportApprovalsDetail('appraisal'). Same as the Fee
+// Approval detail page this mirrors (appraisal-fee-approval-bundle-view.tsx),
+// the head approval decision is still batch-level
+// (Appraisal.headApprovalStatus, not a per-bundle status), and there's no
+// real multi-application backend in this prototype, so there's exactly
+// one live appraisal to show per session. Rendered by the
+// `/admin/report-approvals/[kind]` route; this component ignores the
+// `kind` param and reads review.appraisal directly.
 //
 // Header card matches the same summary-card shape every other detail page
 // here uses — a 42px icon-avatar + applicant name as the title (15px/800)
@@ -161,8 +160,8 @@ export function AppraisalApproverBundleView() {
           <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
             This appraisal isn&apos;t in your current session.
           </Typography>
-          <Button component={RouterLink} href={paths.admin.appraisalApprover} variant="outlined">
-            Back to My Approvals
+          <Button component={RouterLink} href={paths.admin.reportApprovals} variant="outlined">
+            Back to Report Approvals
           </Button>
         </Box>
       </Container>
@@ -206,11 +205,11 @@ export function AppraisalApproverBundleView() {
         <Box>
           <Button
             component={RouterLink}
-            href={paths.admin.appraisalApprover}
+            href={paths.admin.reportApprovals}
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={18} />}
             sx={{ color: '#5A6273', fontWeight: 600, fontSize: 13, px: 0.5 }}
           >
-            Back to My Approvals
+            Back to Report Approvals
           </Button>
         </Box>
 

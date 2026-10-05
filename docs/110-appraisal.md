@@ -33,16 +33,19 @@
 > bundle) lives entirely on `/admin/appraisal-appraiser`
 > (`appraisal-appraiser-view.tsx` and its per-bundle detail page) — it's
 > the Appraiser who requests the fee, since they're the one who needs it
-> paid before they can do the on-site work the fee covers. Once **every**
-> pledged property has an appraiser (and therefore a fee decision), the
-> Appraiser submits the batch as **one** request; the Head/Approver reviews
-> and approves/declines the whole batch in a single action, not one
-> bundle's fee at a time. There is no standalone `AppraisalFeeCard`
-> component any more — its contents were dissolved into the Appraiser's own
-> pages directly. See `docs/170-request-appraiser.md` for the full model
-> (`review.appraisal.feeApprovalStatus`,
-> `AppraisalReportBundle.feeNeeded`/`feeAmount`/`feeDescription`/
-> `feeRemarks`).
+> paid before they can do the on-site work the fee covers. Each bundle
+> (one appraiser assignment) submits, is approved/declined, and is paid
+> **independently** of every other bundle on the same application — fee
+> approval used to be one whole-application batch status shared by every
+> bundle, but moved to one status per bundle (see
+> `docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md`),
+> so the Head/Approver reviews and decides each bundle's fee on its own,
+> not the whole request in one action. There is no standalone
+> `AppraisalFeeCard` component any more — its contents were dissolved into
+> the Appraiser's own pages directly. See `docs/170-request-appraiser.md`
+> for the full model
+> (`AppraisalReportBundle.feeApprovalStatus`/`feeNeeded`/`feeAmount`/
+> `feeDescription`/`feeRemarks`).
 >
 > Report creation/upload is *also* entirely the Appraiser's own workflow,
 > living on the same `/admin/appraisal-appraiser` page
@@ -470,21 +473,26 @@ surface layered on top of the same `reportBundles` data every other card
 on this page reads.
 
 The **right side** of each row shows a status pill computed per bundle by
-`getAppraisalBundleStatus()` from the batch `feeApprovalStatus` +
-`feeSettled` + that specific bundle's own `report.uploadedAt` (in that
-priority order: a submitted report always wins, overriding whatever the
-batch-level fee state would otherwise imply):
+`getAppraisalBundleStatus(bundle, feeSettled)` from that bundle's own
+`feeApprovalStatus` + `feeSettled` + that specific bundle's own
+`report.uploadedAt` (in that priority order: a submitted report always
+wins, overriding whatever the fee state would otherwise imply). Fee
+approval is per-bundle (see
+`docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md`),
+so this status is entirely this bundle's own — a sibling bundle on the
+same application can be at a completely different stage:
 
-- **On Process** (neutral gray pill) — `feeApprovalStatus ===
-  'not-submitted'`. The appraiser is assigned but hasn't requested their
-  fee yet.
-- **For Approval** (warning/amber pill) — `feeApprovalStatus ===
-  'pending-approval'`. The Appraiser has submitted the fee batch from
-  their own page; waiting on the Head/Approver.
-- **For Report** (info/blue pill) — `feeApprovalStatus === 'approved' &&
-  feeSettled` but this bundle's `report.uploadedAt` is still `null`. The
-  fee is cleared; the appraiser should now be doing the on-site work and
-  filling in/uploading the report.
+- **On Process** (neutral gray pill) — this bundle's own
+  `feeApprovalStatus === 'not-submitted'`. The appraiser is assigned but
+  hasn't requested their fee yet.
+- **For Approval** (warning/amber pill) — this bundle's own
+  `feeApprovalStatus === 'pending-approval'`. The Appraiser has submitted
+  this bundle's fee from their own page; waiting on the Head/Approver.
+- **For Report** (info/blue pill) — this bundle's own
+  `feeApprovalStatus === 'approved' && feeSettled` but this bundle's
+  `report.uploadedAt` is still `null`. The fee is cleared; the appraiser
+  should now be doing the on-site work and filling in/uploading the
+  report.
 - **`bundle.report.uploadedAt` set** → a green **"Report submitted"** pill
   plus a chevron toggle, and the full read-only `AppraisalReportView` for
   that bundle rendered **inline** — a `Collapse` panel below the row,
@@ -534,10 +542,10 @@ separate Head login in this prototype. The Approve/Decline buttons sit at
 the bottom of the card below the status banner (not inline beside it),
 matching the "Proceed application?"-style bottom-action block the other
 admin review pages use (e.g. `credit-investigation-view.tsx`,
-`appraisal-approver-view.tsx`) — a small italic disclaimer line under the
-buttons ("There's no real Head login in this prototype…") makes the
-simulated nature explicit, same wording `appraisal-approver-view.tsx`
-already used:
+`appraisal-approver-bundle-view.tsx`) — a small italic disclaimer line
+under the buttons ("There's no real Head login in this prototype…")
+makes the simulated nature explicit, same wording
+`appraisal-approver-bundle-view.tsx` already used:
 
 - **"Simulate: Head Approves"** — sets `headApprovalStatus: 'approved'`
   directly.
@@ -555,8 +563,8 @@ already used:
 While `headApprovalStatus === 'pending'` and a decline reason exists from a
 previous round, the card shows "Last decline reason: …" beneath the
 "Awaiting Head Approval" status line, so whoever revisits this card (the
-Officer here, or the Head/Approver on `appraisal-approver-view.tsx`, which
-shows the same field) can see why the last round was declined.
+Officer here, or the Head/Approver on `appraisal-approver-bundle-view.tsx`,
+which shows the same field) can see why the last round was declined.
 
 ## Decision Gate
 

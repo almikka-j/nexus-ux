@@ -42,22 +42,23 @@ export const applicationItems = [
 ];
 
 // Request-role screens: each is a dedicated queue for one specific
-// role/decision in the appraisal (and CI Fee) request flow — the
-// Appraiser's own "My Assignments" workspace, then the two Approver
-// decision queues (Appraisal Fee, then Appraisal Report) — not a step in
-// the main forward-moving pipeline above. Grouped under the "Request" nav
-// label (was "Approval" — renamed since this group now also contains the
+// role/decision in the appraisal (and CI Fee / Call Report) request flow
+// — "Fee Approvals" (CI Fee + Appraisal Fee merged into one combined
+// list, see docs/155-request-fee-approvals.md), the Appraiser's own "My
+// Assignments" workspace, then "Report Approvals" (Call Report + the
+// Appraisal Head Approval merged into one combined list, see
+// docs/165-request-report-approvals.md) — not a step in the main
+// forward-moving pipeline above. Grouped under the "Request" nav label
+// (was "Approval" — renamed since this group now also contains the
 // Appraiser's own workspace, not just approve/decline queues). None of
 // these are filtered by `step` (that's `application-list-view.tsx`'s
 // ?step= mechanism); each has its own dedicated view/route with its own
 // row-filtering logic, so `step: null` throughout.
 export const approvalItems = [
-  { title: 'Credit Investigation - Fee Approval', step: null, path: paths.admin.ciFeeApproval },
-  { title: 'Call Report - Report Approval', step: null, path: paths.admin.callReportApproval },
+  { title: 'Fee Approvals', step: null, path: paths.admin.feeApprovals },
+  { title: 'Report Approvals', step: null, path: paths.admin.reportApprovals },
   { title: 'Appraiser', step: null, path: paths.admin.appraisalAppraiser },
   { title: 'Appraisal - Request', step: null, path: paths.admin.appraisalRequest },
-  { title: 'Appraisal - Fee Approval', step: null, path: paths.admin.appraisalFeeApproval },
-  { title: 'Appraisal - Report Approval', step: null, path: paths.admin.appraisalApprover },
   { title: 'Payment Verification', step: null, path: paths.admin.payment },
 ];
 

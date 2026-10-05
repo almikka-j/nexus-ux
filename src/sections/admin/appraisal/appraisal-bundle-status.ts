@@ -1,5 +1,5 @@
 import type { SemanticTone } from 'src/components/admin-ui';
-import type { AppraisalReportBundle, FeeApprovalStatus } from 'src/auth/admin-context';
+import type { AppraisalReportBundle } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Single source of truth for a report bundle's overall progress stage —
@@ -11,6 +11,16 @@ import type { AppraisalReportBundle, FeeApprovalStatus } from 'src/auth/admin-co
 // appraisal-request-view.tsx, now share this one function; each caller
 // still decides for itself how to render the 'reported' case (a pill vs.
 // a "View Report" button).
+//
+// `feeApprovalStatus` used to be a whole-application batch value passed
+// in separately; fee approval moved to per-bundle (see
+// docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md),
+// so this now reads `bundle.feeApprovalStatus` directly instead of
+// taking it as a parameter — one less thing for each call site to wire
+// up, and it can never drift from the bundle it's actually describing.
+// `feeSettled` still comes from the caller since it also depends on
+// whole-application `paymentReceivedAt` (the client-advisory step, which
+// stays whole-application — see admin-context.tsx's Appraisal type).
 // ----------------------------------------------------------------------
 
 export type AppraisalBundleStatus = 'on-process' | 'for-approval' | 'for-report' | 'reported';
@@ -22,13 +32,9 @@ export const APPRAISAL_BUNDLE_STATUS_COPY: Record<AppraisalBundleStatus, { label
   reported: { label: 'Reported', tone: 'success' },
 };
 
-export function getAppraisalBundleStatus(
-  bundle: AppraisalReportBundle,
-  feeApprovalStatus: FeeApprovalStatus,
-  feeSettled: boolean
-): AppraisalBundleStatus {
+export function getAppraisalBundleStatus(bundle: AppraisalReportBundle, feeSettled: boolean): AppraisalBundleStatus {
   if (bundle.report.uploadedAt) return 'reported';
-  if (bundle.feeNeeded === 'no' || (feeApprovalStatus === 'approved' && feeSettled)) return 'for-report';
-  if (feeApprovalStatus === 'pending-approval') return 'for-approval';
+  if (bundle.feeNeeded === 'no' || (bundle.feeApprovalStatus === 'approved' && feeSettled)) return 'for-report';
+  if (bundle.feeApprovalStatus === 'pending-approval') return 'for-approval';
   return 'on-process';
 }

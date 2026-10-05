@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -27,83 +27,55 @@ import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-
 import { fCurrency } from 'src/utils/format-number';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
-import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
-
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 
 // ----------------------------------------------------------------------
-// Detail page for the Appraisal Fee Approver — reached by clicking the one
-// row on the "Fee Approvals" list (appraisal-fee-approval-view.tsx), at
-// paths.admin.appraisalFeeApprovalBundle(). Unlike the Appraiser's own
-// per-bundle detail page, this one doesn't look up a specific bundle by ID
-// — approval here is still batch-level (Appraisal.feeApprovalStatus, not a
-// per-bundle status; see appraisal-fee-approval-view.tsx's own header
-// comment), and there's no real multi-application backend in this
-// prototype, so there's exactly one live request to show per session. The
-// `[bundleId]` route segment exists purely so this page's URL shape matches
-// appraisalAppraiserBundle's own list -> detail split; it's a fixed
-// placeholder ("current"), not a real ID, and this component ignores it —
-// it reads review.appraisal directly, same as the single-page view this
-// replaced did.
+// Detail page for the Appraisal Fee Approver — reached by clicking one
+// Appraisal Fee row on the merged "Fee Approvals" list
+// (fee-approvals-view.tsx), at
+// paths.admin.feeApprovalsDetail('appraisal-fee', bundleId). Fee approval
+// moved from one whole-application batch status to one status PER bundle
+// (see docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md),
+// so this page now looks up ONE bundle by `bundleId` — same convention
+// appraisal-appraiser-bundle-view.tsx already uses for its own per-bundle
+// lookup — instead of reading review.appraisal's old batch fields
+// directly. Rendered by the `/admin/fee-approvals/[kind]/[[...bundleId]]`
+// route.
 //
 // Header card matches the system's standard summary-card shape (same as
 // appraisal-appraiser-bundle-view.tsx's own header) — a 42px icon-avatar +
 // applicant name as the title (15px/800) + "App No. … · email" subtitle, a
-// StatusBadge top-right (derived from feeApprovalStatus), then a
-// bordered/tinted FactChip strip below (local copy of
+// StatusBadge top-right (derived from this bundle's own feeApprovalStatus),
+// then a bordered/tinted FactChip strip below (local copy of
 // appraisal-appraiser-bundle-view.tsx's own unexported FactChip — same
 // 11px uppercase label / 13.5px bold value shape, kept in sync manually
 // rather than sharing a module, matching this codebase's convention for
-// this exact component) for Properties (count), Total Appraisal Fee, and
-// Requested On. `propertyCount` sums every bundle's own `tctGroupIds.length`
-// (a single AppraisalReportBundle already covers however many properties
-// were assigned together) — an earlier version showed `reportBundles.length`
-// instead, which undercounts a request with one multi-collateral bundle
-// covering 5 TCTs as "1 property" instead of 5; fixed to match the same
-// convention the list page's own "Properties" column uses.
+// this exact component) for Properties (this bundle's own TCT count),
+// Appraisal Fee, and Requested On.
 //
 // Below the FactChip strip, a `Divider` then a **"View Appraisal
 // Documents"** button — matching the Call Report page's own collapsible
 // summary card (`ApplicationDetailsCard`, `application-details-card.tsx`,
-// rendered on `call-report-view.tsx` — the actual reference this layout
-// was built to match, not the Requirement Checklist card's own summary,
-// which an earlier version incorrectly copied instead): header row, then
-// the bordered/tinted FactChip strip, then a `Divider`, then a row of
-// compact outlined navy buttons ("View full application", "Initial
-// credit checking result", "View all officer notes" on that card) sitting
-// left-aligned at the bottom, NOT one full-width button. The header
-// card's own outer padding also matches that reference exactly —
-// `p: { xs: 2.5, md: 3 }`, the tighter override
-// `ApplicationDetailsCard`'s collapsible variant uses instead of the
-// plain `adminCardSx` default (`p: { xs: 3, md: 4 }`) — since it's this
-// specific card being matched, not just its internal layout. This button
-// opens a read-only Dialog listing every APPRAISAL_DOC_META document,
-// grouped per TCT group, across every bundle in the request (same
-// `ReadOnlyRequirementDocRow` component
-// `appraisal-appraiser-bundle-view.tsx`'s own Appraisal Documents section
-// uses) — the Fee Approver's only way to see the underlying property
-// documents without navigating away from this page. (Two earlier
-// attempts got this wrong: first the button sat inline beside the
-// title/StatusBadge in the header row; then it became a full-width
-// button below the FactChip strip with no Divider. Both were replaced
-// with this — a `Divider` followed by a compact, left-aligned outlined
-// button, exactly matching `ApplicationDetailsCard`'s own bottom action
-// row.)
+// rendered on `call-report-view.tsx`): header row, then the
+// bordered/tinted FactChip strip, then a `Divider`, then a row of compact
+// outlined navy buttons sitting left-aligned at the bottom, NOT one
+// full-width button. The header card's own outer padding also matches
+// that reference exactly — `p: { xs: 2.5, md: 3 }`. This button opens a
+// read-only Dialog listing every APPRAISAL_DOC_META document for this
+// one bundle's TCT groups (same `ReadOnlyRequirementDocRow` component
+// appraisal-appraiser-bundle-view.tsx's own Appraisal Documents section
+// uses).
 //
-// Below that, an "Appraisal Fee Details" card holds the full per-bundle
-// breakdown (TCT numbers, appraiser — bold navy, `#1C2A6E`, deliberately
-// more prominent than the muted-gray fee description beneath it, since an
-// earlier version rendered both at the same small muted weight, making
-// the appraiser's name easy to miss — fee amount/description or "No fee
-// needed") plus the running total — this is the same content the old
-// single-page view rendered inline, just relocated onto its own card
-// here. Approve/Decline live at the bottom of this same card, unchanged
-// from the old view: both still call the batch-level
-// approveAppraisalFees()/declineAppraisalFees(reason) context methods, and
-// approving still applies to every bundle in the request at once, not just
-// one property. The "There's no real Head login in this prototype…"
-// disclaimer line that used to sit under these buttons has been removed.
+// Below that, an "Appraisal Fee Details" card holds this one bundle's own
+// TCT numbers, appraiser (bold navy, `#1C2A6E`), and fee amount/
+// description — this is the same content the old view rendered for every
+// bundle in a loop; now there's exactly one bundle per detail page, so no
+// loop or running total is needed. Approve/Decline live at the bottom of
+// this same card, calling the per-bundle
+// approveAppraisalBundleFee(bundleId)/declineAppraisalBundleFee(bundleId,
+// reason) context methods — each applies to only this one bundle, not
+// every bundle on the application.
 // ----------------------------------------------------------------------
 
 const FEE_APPROVAL_STATUS_COPY: Record<FeeApprovalStatus, { label: string; tone: SemanticTone }> = {
@@ -152,80 +124,20 @@ function FactChip({ label, value }: { label: string; value?: string }) {
   );
 }
 
-export function AppraisalFeeApprovalBundleView() {
+export function AppraisalFeeApprovalBundleView({ bundleId }: { bundleId: string }) {
   const { signUpData } = useRegistration();
-  const {
-    review,
-    approveAppraisalFees,
-    declineAppraisalFees,
-    submitAppraisalFeesForApproval,
-    resetAppraisalFees,
-    setAppraisalBundleFee,
-  } = useAdmin();
+  const { review, approveAppraisalBundleFee, declineAppraisalBundleFee } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
-  const { feeApprovalStatus, feeSubmittedAt, reportBundles } = review.appraisal;
+  const { reportBundles } = review.appraisal;
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
-  const [justApproved, setJustApproved] = useState(false);
   const [docsOpen, setDocsOpen] = useState(false);
 
-  // `justApproved` only exists to distinguish "you just now clicked Approve
-  // this visit" from "this was already approved before you got here" (see
-  // the two approved-copy variants below) — it must never outlive the
-  // 'approved' status itself. Without this, re-arming the request via
-  // "Simulate: Reset Appraisal Fees" while still sitting on THIS page
-  // (rather than navigating away and back, which remounts the component
-  // and resets local state naturally) would flip feeApprovalStatus back to
-  // 'pending-approval' while justApproved stayed stuck true from the
-  // earlier approval — `isPending && !justApproved` would then be false,
-  // hiding the Approve/Decline buttons entirely and falling through to the
-  // 'not-submitted' copy ("No Appraisal Fees have been submitted…") even
-  // though the StatusBadge correctly says "For Approval": a contradictory
-  // dead end reachable only via the reset action fired from this page.
-  useEffect(() => {
-    if (feeApprovalStatus !== 'approved') setJustApproved(false);
-  }, [feeApprovalStatus]);
+  const bundle = reportBundles.find((b) => b.id === bundleId);
 
-  // Same dev/testing shortcut as the Appraiser page's own "Simulate:
-  // Reset Appraisal Fees", but re-armed in place immediately afterward —
-  // resetAppraisalFees() alone only blanks each bundle's own fee fields
-  // (feeApprovalStatus: 'not-submitted'), which would otherwise leave
-  // this page on a dead end (no Approve/Decline, no live request) until
-  // the list page's own seed effect happened to run. This workspace
-  // always keeps one live, actionable "For Approval" request in front of
-  // the approver, so the reset button re-populates the same sample fee
-  // decision and resubmits right here, same as the list page's own
-  // 'not-submitted' re-arm branch.
-  useRegisterPageActions(
-    useMemo(
-      () => [
-        {
-          key: 'simulate-reset-appraisal-fees',
-          label: 'Simulate: Reset Appraisal Fees',
-          icon: 'solar:restart-bold-duotone',
-          color: '#5A6273',
-          onClick: () => {
-            resetAppraisalFees();
-            reportBundles.forEach((bundle) => {
-              setAppraisalBundleFee(bundle.id, {
-                feeNeeded: 'yes',
-                feeAmount: '5000',
-                feeDescription: 'Site visit + valuation fee',
-                feeRemarks: '',
-              });
-            });
-            submitAppraisalFeesForApproval();
-          },
-        },
-      ],
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [reportBundles]
-    )
-  );
-
-  if (!signUpData) {
+  if (!signUpData || !bundle) {
     return (
       <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
         <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
@@ -236,7 +148,7 @@ export function AppraisalFeeApprovalBundleView() {
           <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
             This request isn&apos;t in your current session.
           </Typography>
-          <Button component={RouterLink} href={paths.admin.appraisalFeeApproval} variant="outlined">
+          <Button component={RouterLink} href={paths.admin.feeApprovals} variant="outlined">
             Back to Fee Approvals
           </Button>
         </Box>
@@ -245,20 +157,16 @@ export function AppraisalFeeApprovalBundleView() {
   }
 
   const applicantName = `${signUpData.firstName} ${signUpData.lastName}`;
-  const feeBundles = reportBundles.filter((bundle) => bundle.feeNeeded === 'yes');
-  const totalFeeAmount = feeBundles.reduce((sum, bundle) => sum + (Number(bundle.feeAmount) || 0), 0);
-  // Same fix as the list page's own "Properties" column — a single bundle
-  // already covers however many properties were assigned together
-  // (bundle.tctGroupIds), so this counts every TCT group across every
-  // bundle in the request, not the number of bundles themselves.
-  const propertyCount = reportBundles.reduce((sum, bundle) => sum + bundle.tctGroupIds.length, 0);
-  const copy = FEE_APPROVAL_STATUS_COPY[feeApprovalStatus];
-  const isPending = feeApprovalStatus === 'pending-approval';
+  const propertyCount = bundle.tctGroupIds.length;
+  const bundleTctNumbers = appraisalGroups
+    .filter((group) => bundle.tctGroupIds.includes(group.id))
+    .map((group) => group.tctNumber);
+  const copy = FEE_APPROVAL_STATUS_COPY[bundle.feeApprovalStatus];
+  const isPending = bundle.feeApprovalStatus === 'pending-approval';
 
   const confirmApprove = () => {
     setConfirmOpen(false);
-    approveAppraisalFees();
-    setJustApproved(true);
+    approveAppraisalBundleFee(bundle.id);
   };
 
   const closeDecline = () => {
@@ -266,20 +174,9 @@ export function AppraisalFeeApprovalBundleView() {
     setDeclineReason('');
   };
 
-  // Rather than resetting to 'declined' and leaving this page on a dead
-  // end until the list page's own seed effect re-arms it on next visit,
-  // this immediately re-submits the same bundles for approval right
-  // here — this workspace always shows one live, actionable "For
-  // Approval" request, the same guarantee the list page makes, so
-  // staying on this page (or navigating back/forward) never lands on a
-  // dead end either. declineAppraisalFees only ever touches the
-  // batch-level feeApprovalStatus/feeDeclineReason, never each bundle's
-  // own feeNeeded/feeAmount/feeDescription (see admin-context.tsx), so
-  // re-submitting the same bundles is safe and doesn't invent new data.
   const confirmDecline = () => {
     if (!declineReason.trim()) return;
-    declineAppraisalFees(declineReason.trim());
-    submitAppraisalFeesForApproval();
+    declineAppraisalBundleFee(bundle.id, declineReason.trim());
     setDeclineOpen(false);
     setDeclineReason('');
   };
@@ -290,7 +187,7 @@ export function AppraisalFeeApprovalBundleView() {
         <Box>
           <Button
             component={RouterLink}
-            href={paths.admin.appraisalFeeApproval}
+            href={paths.admin.feeApprovals}
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={18} />}
             sx={{ color: '#5A6273', fontWeight: 600, fontSize: 13, px: 0.5 }}
           >
@@ -344,10 +241,10 @@ export function AppraisalFeeApprovalBundleView() {
             }}
           >
             <FactChip label="Properties" value={String(propertyCount)} />
-            <FactChip label="Total Appraisal Fee" value={fCurrency(totalFeeAmount)} />
+            <FactChip label="Appraisal Fee" value={fCurrency(bundle.feeAmount)} />
             <FactChip
               label="Requested On"
-              value={feeSubmittedAt ? new Date(feeSubmittedAt).toLocaleDateString() : undefined}
+              value={bundle.feeSubmittedAt ? new Date(bundle.feeSubmittedAt).toLocaleDateString() : undefined}
             />
           </Stack>
 
@@ -378,62 +275,30 @@ export function AppraisalFeeApprovalBundleView() {
             Appraisal Fee Details
           </Typography>
 
-          <Stack spacing={1.25}>
-            {reportBundles.map((bundle) => {
-              const bundleTctNumbers = appraisalGroups
-                .filter((group) => bundle.tctGroupIds.includes(group.id))
-                .map((group) => group.tctNumber);
-              return (
-                <Stack
-                  key={bundle.id}
-                  direction={{ xs: 'column', sm: 'row' }}
-                  alignItems={{ xs: 'flex-start', sm: 'center' }}
-                  justifyContent="space-between"
-                  spacing={1.5}
-                  sx={{ p: 1.75, borderRadius: '10px', border: '1px solid #EEF0F5', bgcolor: '#F9FAFC' }}
-                >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
-                      {bundleTctNumbers.join(', ')}
-                    </Typography>
-                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1C2A6E', mt: 0.5 }}>
-                      {bundle.appraiserName ?? 'No appraiser assigned'}
-                    </Typography>
-                    {bundle.feeNeeded === 'yes' && bundle.feeDescription && (
-                      <Typography sx={{ fontSize: 12, color: '#8891A6', mt: 0.5 }}>
-                        {bundle.feeDescription}
-                      </Typography>
-                    )}
-                  </Box>
-                  {bundle.feeNeeded === 'yes' ? (
-                    <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#1C2A6E', flexShrink: 0 }}>
-                      {fCurrency(bundle.feeAmount)}
-                    </Typography>
-                  ) : (
-                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#8891A6', flexShrink: 0 }}>
-                      No fee needed
-                    </Typography>
-                  )}
-                </Stack>
-              );
-            })}
-
-            {feeBundles.length > 0 && (
-              <>
-                <Divider sx={{ my: 0.5, borderColor: '#EEF0F5' }} />
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 0.5, py: 0.75 }}>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#5A6273' }}>
-                    Total Appraisal Fees
-                  </Typography>
-                  <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#1C2A6E' }}>
-                    {fCurrency(totalFeeAmount)}
-                  </Typography>
-                </Stack>
-              </>
-            )}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            justifyContent="space-between"
+            spacing={1.5}
+            sx={{ p: 1.75, borderRadius: '10px', border: '1px solid #EEF0F5', bgcolor: '#F9FAFC' }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
+                {bundleTctNumbers.join(', ')}
+              </Typography>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1C2A6E', mt: 0.5 }}>
+                {bundle.appraiserName ?? 'No appraiser assigned'}
+              </Typography>
+              {bundle.feeDescription && (
+                <Typography sx={{ fontSize: 12, color: '#8891A6', mt: 0.5 }}>{bundle.feeDescription}</Typography>
+              )}
+            </Box>
+            <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#1C2A6E', flexShrink: 0 }}>
+              {fCurrency(bundle.feeAmount)}
+            </Typography>
           </Stack>
 
-          {isPending && !justApproved ? (
+          {isPending ? (
             <Stack spacing={1.25} sx={{ mt: 3 }}>
               <Typography sx={{ fontSize: 12.5, color: '#5A6273' }}>
                 This request is waiting on your decision before the officer can advise the client to
@@ -446,7 +311,7 @@ export function AppraisalFeeApprovalBundleView() {
                   startIcon={<Iconify icon="solar:check-circle-bold" width={18} />}
                   sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.5, '&:hover': { bgcolor: '#14205A' } }}
                 >
-                  Approve Appraisal Fees
+                  Approve Appraisal Fee
                 </Button>
                 <Button
                   onClick={() => setDeclineOpen(true)}
@@ -454,7 +319,7 @@ export function AppraisalFeeApprovalBundleView() {
                   startIcon={<Iconify icon="solar:close-circle-bold" width={18} />}
                   sx={{ color: '#B32C22', borderColor: '#F3C4BE', borderRadius: '10px', px: 2.5, '&:hover': { borderColor: '#B32C22', bgcolor: 'rgba(179,44,34,0.04)' } }}
                 >
-                  Decline Appraisal Fees
+                  Decline Appraisal Fee
                 </Button>
               </Stack>
             </Stack>
@@ -462,21 +327,19 @@ export function AppraisalFeeApprovalBundleView() {
             <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mt: 3 }}>
               <Iconify
                 icon={
-                  feeApprovalStatus === 'approved'
+                  bundle.feeApprovalStatus === 'approved'
                     ? 'solar:check-circle-bold-duotone'
                     : 'solar:info-circle-bold-duotone'
                 }
                 width={20}
-                sx={{ color: feeApprovalStatus === 'approved' ? '#0C8A4F' : '#8891A6' }}
+                sx={{ color: bundle.feeApprovalStatus === 'approved' ? '#0C8A4F' : '#8891A6' }}
               />
               <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
-                {feeApprovalStatus === 'approved'
-                  ? justApproved
-                    ? `Approved the Appraisal Fees for ${applicantName}.`
-                    : `You already approved the Appraisal Fees for ${applicantName}.`
-                  : feeApprovalStatus === 'declined'
+                {bundle.feeApprovalStatus === 'approved'
+                  ? `Approved the Appraisal Fee for ${applicantName}.`
+                  : bundle.feeApprovalStatus === 'declined'
                     ? 'This request was declined — the appraiser has been asked to revise it.'
-                    : `No Appraisal Fees have been submitted for ${applicantName} yet.`}
+                    : `No Appraisal Fee has been submitted for ${applicantName} yet.`}
               </Typography>
             </Stack>
           )}
@@ -486,13 +349,12 @@ export function AppraisalFeeApprovalBundleView() {
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="Approve Appraisal Fees?"
+        title="Approve Appraisal Fee?"
         content={
           <>
-            Approving lets the officer advise the client to settle the fees for{' '}
-            <strong>{applicantName}</strong>
-            {feeBundles.length > 0 ? <> ({fCurrency(totalFeeAmount)} total)</> : null}. This can’t be
-            undone from here.
+            Approving lets the officer advise the client to settle this fee for{' '}
+            <strong>{applicantName}</strong> ({fCurrency(bundle.feeAmount)}). This can’t be undone from
+            here.
           </>
         }
         action={
@@ -554,31 +416,29 @@ export function AppraisalFeeApprovalBundleView() {
         </DialogTitle>
         <DialogContent sx={{ px: 3, pt: 0.5, pb: 3 }}>
           <Stack spacing={2.5}>
-            {reportBundles.flatMap((bundle) =>
-              appraisalGroups
-                .filter((group) => bundle.tctGroupIds.includes(group.id))
-                .map((group) => (
-                  <Box key={group.id} sx={{ border: '1px solid #EEF0F5', borderRadius: '12px', p: 2 }}>
-                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.25 }}>
-                      {group.tctNumber}
-                    </Typography>
-                    <Stack spacing={1.25}>
-                      {APPRAISAL_DOC_META.map((meta) => {
-                        const doc = group.documents.find((groupDoc) => groupDoc.key === meta.key);
-                        if (!doc) return null;
-                        return (
-                          <ReadOnlyRequirementDocRow
-                            key={meta.key}
-                            label={meta.label}
-                            doc={doc}
-                            applicantName={applicantName}
-                          />
-                        );
-                      })}
-                    </Stack>
-                  </Box>
-                ))
-            )}
+            {appraisalGroups
+              .filter((group) => bundle.tctGroupIds.includes(group.id))
+              .map((group) => (
+                <Box key={group.id} sx={{ border: '1px solid #EEF0F5', borderRadius: '12px', p: 2 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A', mb: 1.25 }}>
+                    {group.tctNumber}
+                  </Typography>
+                  <Stack spacing={1.25}>
+                    {APPRAISAL_DOC_META.map((meta) => {
+                      const doc = group.documents.find((groupDoc) => groupDoc.key === meta.key);
+                      if (!doc) return null;
+                      return (
+                        <ReadOnlyRequirementDocRow
+                          key={meta.key}
+                          label={meta.label}
+                          doc={doc}
+                          applicantName={applicantName}
+                        />
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              ))}
           </Stack>
         </DialogContent>
       </Dialog>

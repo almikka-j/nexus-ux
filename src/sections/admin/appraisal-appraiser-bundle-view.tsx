@@ -33,7 +33,7 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
-import { AppraiserAssignmentCard } from './appraisal/appraiser-assignment-card';
+import { AppraiserAssignmentCard, AppraisalReportSubmitCard } from './appraisal/appraiser-assignment-card';
 import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
 
 import type { AppraisalCollateralType } from 'src/auth/admin-context';
@@ -84,33 +84,37 @@ import type { AppraisalCollateralType } from 'src/auth/admin-context';
 // (`feeApprovalStatus === 'not-submitted' || 'declined'`), the Yes/No
 // FeeNeededOption pair + Request Amount/Description/Remarks fields for
 // *this* bundle,
-// followed by a "Submit Fees for Approval" button — gated on the same
-// `canSubmit` (every pledged property assigned + every bundle has a
-// complete fee decision) as before, and still submitting the WHOLE
-// batch, not just this bundle. Once submitted, the same modal instead
-// shows a read-only summary (amount/description/remarks, or "No fee
-// needed") plus a "Requested on {date}" line sourced from
-// `Appraisal.feeSubmittedAt` (an ISO string stamped by
-// `submitAppraisalFeesForApproval()` the moment the batch is sent, same
-// `new Date().toISOString()` convention every other admin-context.tsx
-// timestamp uses — cleared back to `null` if the batch is later
-// declined, since a decline effectively un-submits it), and the trigger
-// button relabels to "View" with no submit footer. (An earlier version
-// moved that read-only summary out of the
-// modal entirely, straight onto the card, and dropped the button/modal
-// for that case — reverted back to the modal since it reads better kept
-// consistent with the editable flow rather than splitting the fee UI
-// across two different presentations.) Separately, once `!feeEditable`
-// (the batch has actually been submitted — pending-approval, approved,
-// or settled), a "{amount} requested" subtitle shows under the
-// title/badge row on the card itself, so the appraiser can see at a
-// glance what was actually requested without opening the "View Appraisal
-// Fee" modal at all; only shown when `feeNeeded === 'yes'`, since a
-// no-fee bundle has no amount to summarize this way — that case already
-// has its own "No Fee" badge. Deliberately absent while still
-// `feeEditable` (a draft, not yet submitted) — an in-progress Yes/No +
-// amount decision the appraiser hasn't sent yet isn't a "request" to
-// summarize on the card; it only earns the subtitle once it's actually
+// followed by a "Submit Fee for Approval" button — gated on `canSubmit`
+// (this bundle's own fee decision is complete). Fee approval is per-
+// bundle (see
+// docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md):
+// submitting only sends THIS bundle's own fee, never a sibling bundle's,
+// and there is no whole-application gate requiring every bundle to have
+// a decision first. Once submitted, the same modal instead shows a
+// read-only summary (amount/description/remarks, or "No fee needed")
+// plus a "Requested on {date}" line sourced from this bundle's own
+// `feeSubmittedAt` (an ISO string stamped by
+// `submitAppraisalBundleFeeForApproval(bundleId)` the moment this
+// bundle's fee is sent, same `new Date().toISOString()` convention every
+// other admin-context.tsx timestamp uses — cleared back to `null` if
+// this bundle's fee is later declined, since a decline effectively
+// un-submits it), and the trigger button relabels to "View" with no
+// submit footer. (An earlier version moved that read-only summary out of
+// the modal entirely, straight onto the card, and dropped the
+// button/modal for that case — reverted back to the modal since it reads
+// better kept consistent with the editable flow rather than splitting
+// the fee UI across two different presentations.) Separately, once
+// `!feeEditable` (this bundle's own fee has actually been submitted —
+// pending-approval, approved, or settled), a "{amount} requested"
+// subtitle shows under the title/badge row on the card itself, so the
+// appraiser can see at a glance what was actually requested without
+// opening the "View Appraisal Fee" modal at all; only shown when
+// `feeNeeded === 'yes'`, since a no-fee bundle has no amount to summarize
+// this way — that case already has its own "No Fee" badge. Deliberately
+// absent while still `feeEditable` (a draft, not yet submitted) — an
+// in-progress Yes/No + amount decision the appraiser hasn't sent yet
+// isn't a "request" to summarize on the card; it only earns the subtitle
+// once it's actually
 // been requested.
 //
 // Every "Simulate: ..." dev/testing shortcut this page registers
@@ -119,23 +123,30 @@ import type { AppraisalCollateralType } from 'src/auth/admin-context';
 // showed "Approve/Decline" while `feeApprovalStatus === 'pending-approval'`
 // and "Payment Received" only once advised, meaning most of the popover
 // was empty on a fresh bundle. Instead, every action now calls a shared
-// `ensureFeeBatchSubmitted()` helper first: if the batch is still
+// `ensureFeeSubmitted()` helper first: if THIS bundle's own fee is still
 // `not-submitted` or `declined`, it fills in this bundle's fee decision
 // (sample ₱2,500, if still `feeNeeded === null`) and calls
-// `submitAppraisalFeesForApproval()`, so there's always something real
-// to approve/decline/settle no matter which button gets clicked first.
-// "Simulate: Another Officer Approves/Declines Appraisal Fees" —
-// repeated here from the sibling list page (appraisal-appraiser-view.tsx)
-// so a tester who navigated straight into a single bundle's detail page
+// `submitAppraisalBundleFeeForApproval(bundleId)`, so there's always
+// something real to approve/decline/settle no matter which button gets
+// clicked first — every action here only ever touches this one bundle,
+// never a sibling bundle on the same application (fee approval is
+// per-bundle, see
+// docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md).
+// "Simulate: Another Officer Approves/Declines Appraisal Fee" — repeated
+// here from the sibling list page (appraisal-appraiser-view.tsx) so a
+// tester who navigated straight into a single bundle's detail page
 // doesn't have to go back to the list — ensures submission, then approve
-// calls `approveAppraisalFees()` directly; decline opens this page's own
-// `ConfirmDialog` (a local copy of the list page's decline dialog, not a
-// shared component) asking for a reason, then calls
-// `declineAppraisalFees(reason)`. "Simulate: Payment Received (Sendit)"
-// cascades further still — ensures submission, approves if not already
-// approved, then stamps `clientNotifiedAt`/`sentToOdooAt`/
-// `paymentReceivedAt` all at once — so clicking it alone from a
-// completely fresh bundle takes it all the way to "Settled" in one click.
+// calls `approveAppraisalBundleFee(bundleId)` directly; decline opens
+// this page's own `ConfirmDialog` (a local copy of the list page's
+// decline dialog, not a shared component) asking for a reason, then
+// calls `declineAppraisalBundleFee(bundleId, reason)`. "Simulate:
+// Payment Received (Sendit)" cascades further still — ensures
+// submission, approves this bundle's fee if not already approved, then
+// stamps the whole-application `clientNotifiedAt`/`sentToOdooAt`/
+// `paymentReceivedAt` all at once (these three stay whole-application,
+// not per-bundle — see admin-context.tsx's `Appraisal` type) — so
+// clicking it alone from a completely fresh bundle takes it all the way
+// to "Settled" in one click.
 // "Simulate: Fill Sample Report" is independent of all of the above — a
 // report can be filled in whenever, it's never gated on the fee — and
 // fills in `buildSampleAppraisalReport()`'s data
@@ -155,15 +166,16 @@ import type { AppraisalCollateralType } from 'src/auth/admin-context';
 // the same values in by hand — "Submit Appraisal Report" still has to be
 // clicked separately to actually submit and lock it.
 //
-// `feeApprovalStatus: 'declined'` is a real, visible status — not an
-// instant silent reset. `declineAppraisalFees()` sets
-// `feeApprovalStatus: 'declined'` and stores `feeDeclineReason`, but
-// deliberately leaves every bundle's `feeNeeded`/`feeAmount`/
-// `feeDescription`/`feeRemarks` exactly as they were (an earlier version
-// wiped them back to blank/null on decline — changed so revising means
-// editing what's there, not retyping from scratch). `feeEditable` is
+// `feeApprovalStatus: 'declined'` (this bundle's own, per-bundle field
+// now) is a real, visible status — not an instant silent reset.
+// `declineAppraisalBundleFee(bundleId, reason)` sets this bundle's own
+// `feeApprovalStatus: 'declined'` and stores its own `feeDeclineReason`,
+// but deliberately leaves its `feeNeeded`/`feeAmount`/`feeDescription`/
+// `feeRemarks` exactly as they were (an earlier version wiped them back
+// to blank/null on decline — changed so revising means editing what's
+// there, not retyping from scratch). `feeEditable` is
 // `feeApprovalStatus === 'not-submitted' || 'declined'`, so a declined
-// batch behaves exactly like a fresh draft: the Appraisal Fee card shows
+// bundle behaves exactly like a fresh draft: the Appraisal Fee card shows
 // a "Declined" badge (`tone: 'error'`) instead of "Draft", plus a full
 // "Reason for decline" banner as its own row below the title/button row
 // (a warning-triangle Iconify icon + uppercase label + the stored
@@ -181,12 +193,12 @@ import type { AppraisalCollateralType } from 'src/auth/admin-context';
 // modal too, above the editable fields, but that duplicated what the
 // card right behind it already shows the moment the modal is closed, so
 // it was removed; the reason lives on the card only now. Editing the
-// fields and clicking "Submit Fees for Approval" again is the exact same
+// fields and clicking "Submit Fee for Approval" again is the exact same
 // action as the very first submission, just starting from the previous
 // values instead of blank ones.
-// `submitAppraisalFeesForApproval()` clears `feeDeclineReason` back to
-// `''` the moment it's called, so a stale reason never lingers once
-// resubmitted. (3) Appraisal Documents — every
+// `submitAppraisalBundleFeeForApproval(bundleId)` clears this bundle's
+// own `feeDeclineReason` back to `''` the moment it's called, so a stale
+// reason never lingers once resubmitted. (3) Appraisal Documents — every
 // APPRAISAL_DOC_META document for
 // each pledged property this bundle covers, read-only
 // (ReadOnlyRequirementDocRow, same as credit-investigation-view.tsx's own
@@ -234,7 +246,7 @@ import type { AppraisalCollateralType } from 'src/auth/admin-context';
 // section, these per-property groups are ALWAYS collapsible, independent
 // of `docsCollapsible`/the fee gate: there's no reason to lock away the
 // ability to tuck one property's already-reviewed documents aside just
-// because the batch fee hasn't been submitted yet. `expandedGroupIds`
+// because this bundle's own fee hasn't been submitted yet. `expandedGroupIds`
 // tracks which ones are open (absent from that set means collapsed, the
 // default for every group), so expanding one property's list never
 // affects any other. A bundle covering only one TCT skips that extra
@@ -359,14 +371,14 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
     setAppraisal,
     setAppraisalBundleFee,
     setAppraisalBundleReport,
-    submitAppraisalFeesForApproval,
-    approveAppraisalFees,
-    declineAppraisalFees,
-    resetAppraisalFees,
+    submitAppraisalBundleFeeForApproval,
+    approveAppraisalBundleFee,
+    declineAppraisalBundleFee,
+    resetAppraisalBundleFees,
+    resetAppraisalBundleReport,
   } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
-  const { feeApprovalStatus, feeDeclineReason, feeSubmittedAt, feeApprovedAt, paymentReceivedAt, reportBundles } =
-    review.appraisal;
+  const { paymentReceivedAt, reportBundles } = review.appraisal;
 
   const [feeModalOpen, setFeeModalOpen] = useState(false);
   const [feeDeclineOpen, setFeeDeclineOpen] = useState(false);
@@ -377,52 +389,56 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
   // auto-completing whatever earlier steps it depends on first, instead
   // of only appearing once those steps already happened. Fills in this
   // bundle's fee decision (sample ₱2,500 fee) if it's still undecided
-  // and submits the whole batch if it hasn't been sent yet, so "Approve"
-  // (or anything past it) always has something real to act on.
-  const ensureFeeBatchSubmitted = () => {
-    if (feeApprovalStatus === 'not-submitted' || feeApprovalStatus === 'declined') {
-      const currentBundle = reportBundles.find((entry) => entry.id === bundleId);
-      if (currentBundle && currentBundle.feeNeeded === null) {
+  // and submits THIS BUNDLE's own fee if it hasn't been sent yet — fee
+  // approval is per-bundle now (see
+  // docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md),
+  // so this only ever touches the current bundle, never any sibling
+  // bundle on the same application.
+  const ensureFeeSubmitted = () => {
+    const currentBundle = reportBundles.find((entry) => entry.id === bundleId);
+    if (!currentBundle) return;
+    if (currentBundle.feeApprovalStatus === 'not-submitted' || currentBundle.feeApprovalStatus === 'declined') {
+      if (currentBundle.feeNeeded === null) {
         setAppraisalBundleFee(currentBundle.id, {
           feeNeeded: 'yes',
           feeAmount: '2500',
           feeDescription: 'Site visit + valuation fee',
         });
       }
-      submitAppraisalFeesForApproval();
+      submitAppraisalBundleFeeForApproval(currentBundle.id);
     }
   };
 
   // Same simulated second-officer approval/decline the list page
   // (appraisal-appraiser-view.tsx) already registers — repeated here so
   // it's also reachable while looking at a single bundle's own detail
-  // page, not just from the list.
+  // page, not just from the list. Both act on this bundle only.
   useRegisterPageActions(
     useMemo(
       () => [
         {
           key: 'simulate-appraisal-fee-approval',
-          label: 'Simulate: Another Officer Approves Appraisal Fees',
+          label: 'Simulate: Another Officer Approves Appraisal Fee',
           icon: 'solar:user-check-bold-duotone',
           color: '#0C8A4F',
           onClick: () => {
-            ensureFeeBatchSubmitted();
-            approveAppraisalFees();
+            ensureFeeSubmitted();
+            approveAppraisalBundleFee(bundleId);
           },
         },
         {
           key: 'simulate-appraisal-fee-decline',
-          label: 'Simulate: Another Officer Declines Appraisal Fees',
+          label: 'Simulate: Another Officer Declines Appraisal Fee',
           icon: 'solar:user-cross-bold-duotone',
           color: '#B32C22',
           onClick: () => {
-            ensureFeeBatchSubmitted();
+            ensureFeeSubmitted();
             setFeeDeclineOpen(true);
           },
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [feeApprovalStatus, reportBundles]
+      [reportBundles]
     )
   );
 
@@ -431,7 +447,10 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
   // repeated here as a quiet settings-popover entry (not a visible card,
   // since this page already has enough going on), always visible and
   // cascading through submit -> approve -> advise -> pay so it reaches
-  // "Settled" from any starting state in one click.
+  // "Settled" from any starting state in one click. clientNotifiedAt/
+  // sentToOdooAt/paymentReceivedAt stay whole-application (see
+  // admin-context.tsx's Appraisal type) — only this bundle's own fee
+  // submit/approve is scoped to it.
   useRegisterPageActions(
     useMemo(
       () => [
@@ -441,15 +460,18 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
           icon: 'solar:card-recive-bold-duotone',
           color: '#0C8A4F',
           onClick: () => {
-            ensureFeeBatchSubmitted();
-            if (feeApprovalStatus !== 'approved') approveAppraisalFees();
+            ensureFeeSubmitted();
+            const currentBundle = reportBundles.find((entry) => entry.id === bundleId);
+            if (currentBundle && currentBundle.feeApprovalStatus !== 'approved') {
+              approveAppraisalBundleFee(bundleId);
+            }
             const now = new Date().toISOString();
             setAppraisal({ clientNotifiedAt: now, sentToOdooAt: now, paymentReceivedAt: now });
           },
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [feeApprovalStatus, reportBundles]
+      [reportBundles]
     )
   );
 
@@ -486,29 +508,49 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
     )
   );
 
-  // Always available — wipes the whole fee flow (batch status/dates plus
-  // every bundle's own fee decision) back to its very first state, so a
-  // tester can restart the request/approve/decline/settle cycle from
-  // scratch without leaving this page. Does not touch report/assignment
-  // data, only fee fields (see resetAppraisalFees in admin-context.tsx).
+  // Always available — wipes this bundle's own fee flow (status/dates
+  // plus its own fee decision) back to its very first state, so a tester
+  // can restart the request/approve/decline/settle cycle from scratch
+  // without leaving this page. Does not touch report/assignment data,
+  // only this bundle's fee fields (see resetAppraisalBundleFees in
+  // admin-context.tsx) — every other bundle on the application is
+  // untouched.
+  //
+  // "Simulate: Reset Report" is the report's own equivalent — restores
+  // this bundle's `report` back to a genuinely blank, editable state
+  // (uploadedAt: null, every field cleared, landTitles rebuilt fresh) via
+  // resetAppraisalBundleReport. Exists so a bundle that reads as
+  // "submitted" from earlier testing (Submit Appraisal Report, or "Simulate:
+  // Appraiser Submits Report" on the Officer's page) can be restored to
+  // editable without clearing the whole session's localStorage — added
+  // after a report stuck in a submitted state made every other Simulate
+  // action on this page (Fill Sample Report included) silently no-op,
+  // since those all correctly guard on `!report.uploadedAt`.
   useRegisterPageActions(
     useMemo(
       () => [
         {
           key: 'simulate-reset-appraisal-fees',
-          label: 'Simulate: Reset Appraisal Fees',
+          label: 'Simulate: Reset Appraisal Fee',
           icon: 'solar:restart-bold-duotone',
           color: '#5A6273',
-          onClick: () => resetAppraisalFees(),
+          onClick: () => resetAppraisalBundleFees(bundleId),
+        },
+        {
+          key: 'simulate-reset-appraisal-report',
+          label: 'Simulate: Reset Report',
+          icon: 'solar:restart-bold-duotone',
+          color: '#5A6273',
+          onClick: () => resetAppraisalBundleReport(bundleId),
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      []
+      [bundleId]
     )
   );
-  // Starts expanded — while the fee batch is still a draft, document
-  // review is the thing the appraiser needs to be looking at, and the
-  // section isn't even collapsible yet (see docsCollapsible below).
+  // Starts expanded — while this bundle's own fee is still a draft,
+  // document review is the thing the appraiser needs to be looking at,
+  // and the section isn't even collapsible yet (see docsCollapsible below).
   const [docsExpanded, setDocsExpanded] = useState(true);
   // Per-TCT-group expand state for the nested document lists inside
   // Appraisal Documents — keyed by group id, present in this set means
@@ -516,24 +558,27 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
 
   const bundle = reportBundles.find((entry) => entry.id === bundleId);
-  const feeSettled = feeApprovalStatus === 'approved' && !!paymentReceivedAt;
+  // paymentReceivedAt stays whole-application (the client-advisory step —
+  // see admin-context.tsx's Appraisal type); this bundle's own
+  // feeApprovalStatus is per-bundle now.
+  const feeSettled = bundle?.feeApprovalStatus === 'approved' && !!paymentReceivedAt;
 
-  // Declined behaves like a draft again — every bundle's previous
+  // Declined behaves like a draft again — this bundle's previous
   // Yes/No/amount/description/remarks were left untouched by
-  // declineAppraisalFees(), so editing (and re-submitting) works exactly
-  // the same as the very first time, just starting from those prior
-  // values instead of blank fields.
-  const feeEditable = feeApprovalStatus === 'not-submitted' || feeApprovalStatus === 'declined';
+  // declineAppraisalBundleFee(), so editing (and re-submitting) works
+  // exactly the same as the very first time, just starting from those
+  // prior values instead of blank fields.
+  const feeEditable = bundle?.feeApprovalStatus === 'not-submitted' || bundle?.feeApprovalStatus === 'declined';
 
-  // Not collapsible at all while the batch fee request is still
+  // Not collapsible at all while this bundle's own fee request is still
   // editable — not-submitted OR declined-and-being-revised — see the
   // header comment for the full rationale.
   const docsCollapsible = !feeEditable;
 
-  // Auto-collapse the moment the fee batch is (re-)submitted — fires on
-  // any editable -> non-editable transition (not-submitted -> submitted,
-  // or declined -> resubmitted), never on every render, so a manual
-  // re-open afterward is never fought by this effect.
+  // Auto-collapse the moment this bundle's own fee is (re-)submitted —
+  // fires on any editable -> non-editable transition (not-submitted ->
+  // submitted, or declined -> resubmitted), never on every render, so a
+  // manual re-open afterward is never fought by this effect.
   const wasFeeEditableRef = useRef(feeEditable);
   useEffect(() => {
     if (wasFeeEditableRef.current && !feeEditable) {
@@ -544,7 +589,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
 
   if (!signUpData || !bundle) {
     return (
-      <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+      <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 }, maxWidth: '1040px !important' }}>
         <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
           <Iconify icon="solar:document-text-bold-duotone" width={48} sx={{ color: '#C7CCDA', mb: 2 }} />
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
@@ -573,56 +618,52 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
 
   const status = bundle.report.uploadedAt
     ? 'reported'
-    : bundle.feeNeeded === 'no' || (feeApprovalStatus === 'approved' && feeSettled)
+    : bundle.feeNeeded === 'no' || (bundle.feeApprovalStatus === 'approved' && feeSettled)
       ? 'for-report'
-      : feeApprovalStatus === 'pending-approval'
+      : bundle.feeApprovalStatus === 'pending-approval'
         ? 'for-approval'
         : 'on-process';
   const copy = STATUS_COPY[status];
 
   const hasValidFeeAmount = Number(bundle.feeAmount) > 0;
   const feeStatusKey =
-    feeApprovalStatus === 'declined'
+    bundle.feeApprovalStatus === 'declined'
       ? 'declined'
       : bundle.feeNeeded === 'no'
         ? 'no-fee'
         : feeSettled
           ? 'settled'
-          : feeApprovalStatus === 'approved'
+          : bundle.feeApprovalStatus === 'approved'
             ? 'approved'
-            : feeApprovalStatus === 'pending-approval'
+            : bundle.feeApprovalStatus === 'pending-approval'
               ? 'pending-approval'
               : 'not-submitted';
   const feeCopy = FEE_STATUS_COPY[feeStatusKey];
 
   // A bundle that doesn't need a fee at all has nothing to wait on —
   // there's no payment to settle, so the report form unlocks the moment
-  // that decision is made, without waiting for the batch's
-  // submit→approve→pay cycle (which may still be running for other
-  // bundles that DO need a fee).
+  // that decision is made, without waiting for this bundle's own
+  // submit→approve→pay cycle.
   const reportUnlocked = bundle.feeNeeded === 'no' || feeSettled;
 
-  // Same batch-submit gate the list page uses — submitting always sends
-  // every bundle at once, not just this one, so it can't go out until
-  // every pledged property is assigned and has a fee decision.
-  const allGroupsAssigned = appraisalGroups.length > 0 && appraisalGroups.every((group) => group.reportId !== null);
-  const allBundlesHaveFeeDecision =
-    reportBundles.length > 0 &&
-    reportBundles.every(
-      (entry) =>
-        entry.feeNeeded === 'no' ||
-        (entry.feeNeeded === 'yes' && Number(entry.feeAmount) > 0 && !!entry.feeDescription.trim())
-    );
-  const canSubmit = feeEditable && allGroupsAssigned && allBundlesHaveFeeDecision;
+  // This bundle submits its own fee for approval independent of every
+  // sibling bundle on the same application — no whole-application gate
+  // requiring every bundle to have a fee decision first (that batch-wide
+  // gate existed when approval was batch-level; see
+  // docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md).
+  // It only needs its OWN fee decision to be complete.
+  const hasOwnFeeDecision =
+    bundle.feeNeeded === 'no' || (bundle.feeNeeded === 'yes' && Number(bundle.feeAmount) > 0 && !!bundle.feeDescription.trim());
+  const canSubmit = feeEditable && hasOwnFeeDecision;
 
   const confirmSubmitForApproval = () => {
-    submitAppraisalFeesForApproval();
+    submitAppraisalBundleFeeForApproval(bundle.id);
     setFeeModalOpen(false);
   };
 
   const confirmFeeDecline = () => {
     if (!feeDeclineReasonDraft.trim()) return;
-    declineAppraisalFees(feeDeclineReasonDraft.trim());
+    declineAppraisalBundleFee(bundle.id, feeDeclineReasonDraft.trim());
     setFeeDeclineOpen(false);
     setFeeDeclineReasonDraft('');
   };
@@ -687,7 +728,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
   );
 
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 }, maxWidth: '1040px !important' }}>
       <Stack spacing={3}>
         <Box>
           <Button
@@ -782,8 +823,8 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
               {!feeEditable && bundle.feeNeeded === 'yes' && hasValidFeeAmount && (
                 <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.5 }}>
                   {fCurrency(bundle.feeAmount)} requested
-                  {feeStatusKey === 'approved' && feeApprovedAt
-                    ? ` · Approved on ${new Date(feeApprovedAt).toLocaleDateString()}`
+                  {feeStatusKey === 'approved' && bundle.feeApprovedAt
+                    ? ` · Approved on ${new Date(bundle.feeApprovedAt).toLocaleDateString()}`
                     : ''}
                 </Typography>
               )}
@@ -813,7 +854,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
             </Button>
           </Stack>
 
-          {feeApprovalStatus === 'declined' && feeDeclineReason && (
+          {bundle.feeApprovalStatus === 'declined' && bundle.feeDeclineReason && (
             <Stack
               direction="row"
               spacing={1.25}
@@ -829,7 +870,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
                 <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: TONE_COLORS.error.text, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                   Reason for decline
                 </Typography>
-                <Typography sx={{ fontSize: 13, color: TONE_COLORS.error.text }}>{feeDeclineReason}</Typography>
+                <Typography sx={{ fontSize: 13, color: TONE_COLORS.error.text }}>{bundle.feeDeclineReason}</Typography>
               </Stack>
             </Stack>
           )}
@@ -865,7 +906,10 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
         </Box>
 
         {reportUnlocked ? (
-          <AppraiserAssignmentCard bundleId={bundle.id} tctNumbers={bundleTctNumbers} />
+          <>
+            <AppraiserAssignmentCard bundleId={bundle.id} tctNumbers={bundleTctNumbers} />
+            <AppraisalReportSubmitCard bundleId={bundle.id} />
+          </>
         ) : (
           <Box sx={{ ...adminCardSx, textAlign: 'center' }}>
             <Typography sx={{ fontSize: 13, color: '#8891A6' }}>
@@ -889,11 +933,11 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
                 Appraisal Fee
               </Typography>
               <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.5 }}>
-                {feeApprovalStatus === 'declined'
-                  ? 'Declined — revise this property’s fee, then submit the batch again.'
+                {bundle.feeApprovalStatus === 'declined'
+                  ? 'Declined — revise this property’s fee, then submit it again.'
                   : feeEditable
-                    ? 'Decide this property’s fee, then submit the whole batch for approval.'
-                    : 'This property’s fee decision, as part of the submitted batch.'}
+                    ? 'Decide this property’s fee, then submit it for approval.'
+                    : 'This property’s submitted fee decision.'}
               </Typography>
             </Box>
             <IconButton size="small" onClick={() => setFeeModalOpen(false)} sx={{ mt: -0.5, mr: -0.5 }}>
@@ -1000,14 +1044,14 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
               {bundle.feeRemarks && (
                 <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Remarks: {bundle.feeRemarks}</Typography>
               )}
-              {feeSubmittedAt && (
+              {bundle.feeSubmittedAt && (
                 <Typography sx={{ fontSize: 11.5, color: '#ADB3C2', pt: 0.5, borderTop: '1px solid #EEF0F5' }}>
-                  Requested on {new Date(feeSubmittedAt).toLocaleDateString()}
+                  Requested on {new Date(bundle.feeSubmittedAt).toLocaleDateString()}
                 </Typography>
               )}
-              {feeApprovalStatus === 'approved' && feeApprovedAt && (
+              {bundle.feeApprovalStatus === 'approved' && bundle.feeApprovedAt && (
                 <Typography sx={{ fontSize: 11.5, color: '#0C8A4F' }}>
-                  Approved on {new Date(feeApprovedAt).toLocaleDateString()}
+                  Approved on {new Date(bundle.feeApprovedAt).toLocaleDateString()}
                 </Typography>
               )}
             </Stack>
@@ -1016,9 +1060,9 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
               <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#8891A6', py: 1 }}>
                 No fee needed for this property.
               </Typography>
-              {feeSubmittedAt && (
+              {bundle.feeSubmittedAt && (
                 <Typography sx={{ fontSize: 11.5, color: '#ADB3C2' }}>
-                  Requested on {new Date(feeSubmittedAt).toLocaleDateString()}
+                  Requested on {new Date(bundle.feeSubmittedAt).toLocaleDateString()}
                 </Typography>
               )}
             </Stack>
@@ -1034,7 +1078,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
               startIcon={<Iconify icon="solar:send-square-bold" width={16} />}
               sx={{ bgcolor: '#1C2A6E', borderRadius: '10px', boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
             >
-              Submit Fees for Approval
+              Submit Fee for Approval
             </Button>
           </Stack>
         )}

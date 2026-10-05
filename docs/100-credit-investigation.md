@@ -219,7 +219,8 @@ action available on this page.
 
 Now documented in its own file — see `docs/140-request-credit-investigation-fee.md`
 (the request-side `CiFeeCard`) and `docs/150-request-credit-investigation-fee-approval.md`
-(the dedicated Credit Investigation - Fee Approval screens). The CI Report card below is
+(the CI Fee Approval detail page — its list is now the merged "Fee
+Approvals" page, `docs/155-request-fee-approvals.md`). The CI Report card below is
 locked (shown as a dashed placeholder) until `ciFeeStatus === 'approved'`
 or `'not-applicable'`.
 

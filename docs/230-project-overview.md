@@ -189,10 +189,12 @@ Exposed via `useAdmin()` (grouped by area):
 - **Appraisal:** `setAppraisal`, `createAppraisalReportBundle`,
   `setAppraisalBundleAppraiserType`, `setAppraisalBundleFee`,
   `setAppraisalBundleReport`, `setAppraisalBundleLandTitle`,
-  `deleteAppraisalReportBundle`, `clearAllAppraisalBundleReports`,
-  `submitAppraisalFeesForApproval`, `approveAppraisalFees`,
-  `declineAppraisalFees`, `resetAppraisalFees`, `setAppraisalFeePayment`,
-  `markAppraisalFeeAsPaid`.
+  `deleteAppraisalReportBundle`, `clearAllAppraisalBundleReports`. Fee
+  approval/payment are per-bundle (each takes a `bundleId` — see
+  `docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md`):
+  `submitAppraisalBundleFeeForApproval`, `approveAppraisalBundleFee`,
+  `declineAppraisalBundleFee`, `resetAppraisalBundleFees`,
+  `setAppraisalBundleFeePayment`, `markAppraisalBundleFeeAsPaid`.
 - **Financial Evaluation:** `setCashFlowStatement`, `addCashFlowOtherLoan`,
   `removeCashFlowOtherLoan`, `updateCashFlowOtherLoan`; `addBankStatement`,
   `updateBankStatement`, `removeBankStatement`, `addBankStatementDeposit`,
@@ -975,32 +977,35 @@ The admin shell renders one of two nav components depending on the current
   *from* Reconsideration's "No — Notify Client" outcome — see below), just
   with no nav link to either. See `docs/130-sales-reject-application.md`.
 
-**"Credit Investigation - Fee Approval"** (`path: paths.admin.ciFeeApproval`) is nested as the
+**"Fee Approvals"** (`path: paths.admin.feeApprovals`) is nested as the
 first entry (`approvalItems`, `config-nav-admin.tsx`) under a separate
-**"Request"** nav dropdown, alongside the Appraisal roster/fee-approval/
-approver screens (see `docs/170-request-appraiser.md`,
-`docs/190-request-appraisal-fee-approval.md`, and
+**"Request"** nav dropdown, alongside the Appraisal roster/report-approval
+screens (see `docs/170-request-appraiser.md` and
 `docs/200-request-appraisal-report-approval.md`) — a secondary/
 occasional-use group of Request-role screens, distinct from the main
-pipeline's "Comprehensive Credit Checking" queues. It offers a second,
-fuller-review way to approve or decline the live application's pending CI
-Fee — a list page (`ci-fee-approval-view.tsx`, one row per pending
-request, auto-seeding a sample request on an empty session) that drills
-into a detail page (`ci-fee-approval-bundle-view.tsx`, at
-`paths.admin.ciFeeApprovalBundle()`) with the fee breakdown and Approve/
-Decline actions — alongside the existing "Simulate: Another Officer
-Approves CI Fee" / "Simulate: Another Officer Declines CI Fee" page
-actions on Credit Investigation; see
-`docs/150-request-credit-investigation-fee-approval.md` for the full detail.
+pipeline's "Comprehensive Credit Checking" queues. It merges what used to
+be two separate nav entries ("Credit Investigation - Fee Approval" and
+"Appraisal - Fee Approval") into one combined list
+(`fee-approvals-view.tsx`) offering a second, fuller-review way to
+approve or decline both the live application's pending CI Fee and its
+pending Appraisal Fee request — one row per fee type (a "Type" column
+distinguishes them), each drilling into its own detail page
+(`ci-fee-approval-bundle-view.tsx` / `appraisal-fee-approval-bundle-view.tsx`,
+at `paths.admin.feeApprovalsDetail('ci-fee' | 'appraisal-fee')`) with that
+fee's breakdown and Approve/Decline actions — alongside the existing
+"Simulate: Another Officer Approves/Declines CI Fee" page actions on
+Credit Investigation; see `docs/155-request-fee-approvals.md` for the
+full detail.
 
-**"Call Report - Report Approval"** (`path: paths.admin.callReportApproval`) sits directly
-after Credit Investigation - Fee Approval in the same `approvalItems` list —
-the second-officer approval gate Call Report's own "Submit for Approval"
-action feeds into (list `call-report-approval-view.tsx` -> detail
-`call-report-approval-bundle-view.tsx`); unlike CI Fee/Appraisal Fee, there is
-no inline page-action shortcut on Call Report itself — this screen is the
-only way a submitted Call Report gets approved. See
-`docs/160-request-call-report-approval.md`.
+**"Report Approvals"** (`path: paths.admin.reportApprovals`) sits directly
+after Fee Approvals in the same `approvalItems` list — a merged list
+combining the second-officer approval gate Call Report's own "Submit for
+Approval" action feeds into, and the Appraisal Head Approval step (list
+`report-approvals-view.tsx` -> detail `call-report-approval-bundle-view.tsx`
+/ `appraisal-approver-bundle-view.tsx`); unlike CI Fee/Appraisal Fee,
+there is no inline page-action shortcut on Call Report itself — this
+screen is the only way a submitted Call Report gets approved. See
+`docs/165-request-report-approvals.md`.
 
 Both section headers are **non-clickable labels** (`path: null` in
 `adminNavData` — no `href`, clicking anywhere on the row just toggles that

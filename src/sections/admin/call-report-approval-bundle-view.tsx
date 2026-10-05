@@ -28,13 +28,14 @@ import { SALES_REJECT_REASONS, buildDecisionReason } from './call-report/call-re
 import type { CallReportApprovalStatus } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
-// Detail page for the Call Report Approver — reached by clicking the one
-// row on "Call Report Approvals" (call-report-approval-view.tsx), at
-// paths.admin.callReportApprovalBundle(). Same list -> detail split and
-// fixed-placeholder-segment convention as ci-fee-approval-bundle-view.tsx
-// — Call Report's approval status lives on a single flat
-// review.callReport object (no bundles/multi-property concept), so
-// there's no bundle ID to look up either.
+// Detail page for the Call Report Approver — reached by clicking the
+// Call Report row on the merged "Report Approvals" list
+// (report-approvals-view.tsx), at
+// paths.admin.reportApprovalsDetail('call-report'). Rendered by the
+// `/admin/report-approvals/[kind]` route — Call Report's approval status
+// lives on a single flat review.callReport object (no bundles/
+// multi-property concept), so this component ignores the `kind` param
+// and reads context directly.
 //
 // The full Call Report result is displayed inline on this page (via
 // CallReportResultContent — the same body CallReportResultModal wraps
@@ -75,7 +76,7 @@ export function CallReportApprovalBundleView() {
           <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
             This request isn&apos;t in your current session.
           </Typography>
-          <Button component={RouterLink} href={paths.admin.callReportApproval} variant="outlined">
+          <Button component={RouterLink} href={paths.admin.reportApprovals} variant="outlined">
             Back to Call Report Approvals
           </Button>
         </Box>
@@ -125,7 +126,7 @@ export function CallReportApprovalBundleView() {
         <Box>
           <Button
             component={RouterLink}
-            href={paths.admin.callReportApproval}
+            href={paths.admin.reportApprovals}
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={18} />}
             sx={{ color: '#5A6273', fontWeight: 600, fontSize: 13, px: 0.5 }}
           >

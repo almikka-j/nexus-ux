@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 
-import { CiFeeApprovalView } from 'src/sections/admin/ci-fee-approval-view';
+import { FeeApprovalsView } from 'src/sections/admin/fee-approvals-view';
 
 // ----------------------------------------------------------------------
 
 export const metadata: Metadata = {
-  title: 'Credit Investigation - Fee Approval | HHC LMS',
+  title: 'Fee Approvals | HHC LMS',
 };
 
 export default function Page() {
-  return <CiFeeApprovalView />;
+  return <FeeApprovalsView />;
 }

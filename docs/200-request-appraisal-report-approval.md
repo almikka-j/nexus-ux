@@ -1,94 +1,48 @@
-# Appraisal - Approver Report (My Approvals)
+# Appraisal - Approver Report (Report Approvals)
 
 > **Maintenance rule:** update this file whenever
-> `appraisal-approver-view.tsx` (list) or
-> `appraisal-approver-bundle-view.tsx` (detail) change. Companion to
-> `docs/110-appraisal.md` (the Officer's `HeadApprovalCard` writes the exact
-> same `headApprovalStatus` fields these screens do),
+> `appraisal-approver-bundle-view.tsx` (the detail page — the only page
+> this doc still covers) changes. Companion to `docs/110-appraisal.md`
+> (the Officer's `HeadApprovalCard` writes the exact same
+> `headApprovalStatus` fields this screen does),
 > `docs/170-request-appraiser.md` (which owns `AppraisalReportView`, the
-> read-only report component this detail page renders, and the report form
-> that produces it), `docs/190-request-appraisal-fee-approval.md` (the fee
-> side of the same Approver's two duties), and
-> `docs/225-admin-design-system.md` (the admin design system — list →
-> detail split per §10, the "Your Decision" card is the §10 decision-gate
-> pattern, and Decline uses a §6 `ConfirmDialog`).
+> read-only report component this detail page renders, and the report
+> form that produces it), `docs/190-request-appraisal-fee-approval.md`
+> (the fee side of the same Approver's two duties),
+> `docs/165-request-report-approvals.md` (**the merged list page** —
+> `appraisal-approver-view.tsx` was deleted and folded into
+> `report-approvals-view.tsx`; see that doc for the list-page behavior
+> this doc used to cover, including the conditional-row gate), and
+> `docs/225-admin-design-system.md` (the admin design system — the "Your
+> Decision" card is the §10 decision-gate pattern, and Decline uses a §6
+> `ConfirmDialog`).
 
 ## What this is
 
-**`/admin/appraisal-approver`** (`appraisal-approver-view.tsx`) —
-**"My Approvals"** for the Head/Approver's "reviewed and noted" step, the
-report side of the Approver's two duties. Nav label reworded from
-"Appraisal Approver" to **"Appraisal - Approver Report"** now that both
-duties sit side by side under the **"Request"** nav dropdown
-(`approvalItems`, `src/layouts/admin/config-nav-admin.tsx` — the variable
-name is unchanged even though the rendered section title moved from
-"Approval" to "Request") instead of a generic "Approval" grouping. This is
-not `application-list-view.tsx`'s `?step=` queue; it's a standalone view
-filtering on a derived condition ("awaiting Head Approval"), which is not a
-`ReviewStep`.
+**The detail page** (`appraisal-approver-bundle-view.tsx`, reached at
+`paths.admin.reportApprovalsDetail('appraisal')`) is the Head/Approver's
+"reviewed and noted" step, the report side of the Approver's two duties.
 
-**A list page**, same list → detail split as its sibling "Appraisal -
-Approver Fee" (an earlier pass had restructured this one too, then reverted
-it back to a single flat page with no report content shown at all; it has
-since been restructured again — this time to stay, since the Head/Approver
-reviewing a report they can't see defeats the point of a review step).
+**The list page that used to link here
+(`appraisal-approver-view.tsx`) was deleted and merged into
+`report-approvals-view.tsx`** — one combined "Report Approvals" list
+showing this row alongside the Call Report row (nav label **"Report
+Approvals"**, replacing the former separate "Call Report - Report
+Approval" / "Appraisal - Report Approval" nav entries). See
+`docs/165-request-report-approvals.md` for the merged list page's own
+row-gating (this row is genuinely conditional — it only appears once
+every pledged property's report has been submitted and
+`headApprovalStatus === 'pending'`), columns, and auto-seed rules.
 
-**Framed as the signed-in role's own personal workspace**, not a generic
-admin-facing queue — a small uppercase eyebrow label naming the role,
-first-person copy throughout, and no sample filler rows from other
-unrelated applications. This is why `SampleApplicationEntry`
-(`sample-applications.ts`) carries no
-`ciFee`/`appraisalFeePending`/`appraisalAwaitingHeadApproval` fields (all
-removed) — this screen only ever shows the one live application's own
-state, sourced entirely from `review.appraisal` in `AdminContext`. There is
-no role/permission system in this app (`AdminUser` has no role field —
-every session is one undifferentiated admin), so nothing mechanically gates
-who can open it; the personal framing is a UI/workflow choice, not access
-control. Its actions never redirect or show a one-time outcome screen —
-the page stays put and the card updates in place, matching how
-`head-approval-card.tsx` on `appraisal-view.tsx` already behaves.
-
-## The list page
-
-Shows one table row whenever every pledged property is covered by a
-submitted report bundle and `headApprovalStatus === 'pending'`
-(`isPending = !!signUpData && reportSubmitted && headApprovalStatus ===
-'pending'` — the same `reportSubmitted` computation `appraisal-view.tsx`
-uses to unlock its own Head Approval card, duplicated here rather than
-shared since the two files don't currently import from each other).
-Clicking it navigates to `/admin/appraisal-approver/[bundleId]`
-(`appraisal-approver-bundle-view.tsx`, a fixed `'current'` placeholder
-segment, not a real ID, same convention as
-`appraisal-fee-approval-bundle-view.tsx` — there's no real
-multi-application backend, so there's no real request ID to route on).
-
-### Auto-load and seed
-
-**This list page goes one step further than the Appraiser's and Fee
-Approver's own seeds, since it only ever shows a row once every pledged
-property's report is submitted, not merely fee-approved.** If the session
-hydrates with no live application, it loads `SAMPLE_APPLICATION`; if there
-are no `reportBundles` yet, it seeds one the same way the others do (every
-still-unassigned, docs-complete `appraisalGroups` entry folded into one
-consolidated bundle) with the fee already settled — `feeApprovalStatus:
-'approved'` plus `feeSubmittedAt`/`feeApprovedAt`/`clientNotifiedAt`/
-`sentToOdooAt`/`paymentReceivedAt` all stamped directly via `setAppraisal()`
-in the same effect, skipping the request/approve steps entirely since
-nothing on this page needs to show them mid-flight.
-
-A second effect then finds the first bundle still missing a submitted
-report (`!bundle.report.uploadedAt`) and fills it in via
-`buildSampleAppraisalReport(bundle, tctNumbers, applicantName, true)` —
-`submit: true`, unlike the Appraiser/Fee list seeds' own "fill sample
-report" actions, which pass `false` and leave `uploadedAt` unset for a
-human to submit by hand (see `docs/170-request-appraiser.md`); this seed needs
-the report to land already-submitted, since that's the only state this page
-renders a row for. The net effect: the very first time this page is visited
-in a fresh session, `signUpData` loads, the bundle is created with its fee
-pre-settled, then (next render) the report gets filled in and submitted —
-the list already shows one genuinely active "For Approval" row within two
-effect passes, without ever having to drive the Appraiser page manually
-first.
+**Framed as the signed-in role's own personal workspace** used to apply
+to the list page; the merged list page no longer shows a role-specific
+eyebrow label at all (see `docs/165-request-report-approvals.md`). This
+detail page itself is unchanged: its actions never redirect or show a
+one-time outcome screen — the page stays put and the card updates in
+place, matching how `head-approval-card.tsx` on `appraisal-view.tsx`
+already behaves. There is no role/permission system in this app
+(`AdminUser` has no role field), so nothing mechanically gates who can
+open it.
 
 ## The detail page
 
@@ -197,8 +151,9 @@ No completeness gate beyond "a report has been submitted".
 - **`buildSampleAppraisalReport()` stamps a `SAMPLE_COLLATERAL_PHOTO`
   data URI** on every land title because this page cannot attach a real
   photo itself.
-- **No request ID** — fixed `/current` route segment; the component reads
-  `review.appraisal` directly.
+- **No request ID** — the detail route (`/admin/report-approvals/appraisal`)
+  uses `kind` as a real discriminator, not a per-request ID; the component
+  reads `review.appraisal` directly.
 - All state lives in `review.appraisal` in `localStorage`.
 
 ## Non-Goals / Open Items

@@ -52,9 +52,8 @@ export function AppraisalRequestView() {
   const { signUpData } = useRegistration();
   const { review } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
-  const { feeApprovalStatus, paymentReceivedAt, reportBundles } = review.appraisal;
+  const { paymentReceivedAt, reportBundles } = review.appraisal;
 
-  const feeSettled = feeApprovalStatus === 'approved' && !!paymentReceivedAt;
   const hasRequests = !!signUpData && reportBundles.length > 0;
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
 
@@ -115,7 +114,8 @@ export function AppraisalRequestView() {
                       const bundleTctNumbers = appraisalGroups
                         .filter((group) => bundle.tctGroupIds.includes(group.id))
                         .map((group) => group.tctNumber);
-                      const status = getAppraisalBundleStatus(bundle, feeApprovalStatus, feeSettled);
+                      const feeSettled = bundle.feeApprovalStatus === 'approved' && !!paymentReceivedAt;
+                      const status = getAppraisalBundleStatus(bundle, feeSettled);
                       const copy = APPRAISAL_BUNDLE_STATUS_COPY[status];
                       const toneColors = TONE_COLORS[copy.tone];
 

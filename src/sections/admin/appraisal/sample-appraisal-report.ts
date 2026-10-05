@@ -62,6 +62,28 @@ const SAMPLE_COLLATERAL_PHOTO =
     </svg>`
   )}#.jpg`;
 
+// Simulated "AI-generated" lot plot diagram — same technique as
+// SAMPLE_COLLATERAL_PHOTO above (inline SVG data URI, `#.jpg` fragment so
+// FileThumbnail's extension sniff treats it as an image). No real
+// mapping/AI service is called; see appraiser-assignment-card.tsx's
+// buildLotPlotImage for the same generator the "Generate Lot Plot" button
+// itself calls.
+const SAMPLE_LOT_PLOT =
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320">
+      <rect width="480" height="320" fill="#EEF1FE"/>
+      <rect x="20" y="20" width="440" height="280" fill="none" stroke="#1C2A6E" stroke-width="2" stroke-dasharray="6 4"/>
+      <polygon points="90,250 90,90 300,60 390,180 260,260" fill="#C9D3F5" stroke="#1C2A6E" stroke-width="2"/>
+      <circle cx="90" cy="90" r="4" fill="#1C2A6E"/>
+      <circle cx="300" cy="60" r="4" fill="#1C2A6E"/>
+      <circle cx="390" cy="180" r="4" fill="#1C2A6E"/>
+      <circle cx="260" cy="260" r="4" fill="#1C2A6E"/>
+      <circle cx="90" cy="250" r="4" fill="#1C2A6E"/>
+      <text x="240" y="160" font-family="sans-serif" font-size="13" font-weight="700" fill="#1C2A6E" text-anchor="middle">LOT PLOT</text>
+      <text x="240" y="300" font-family="sans-serif" font-size="12" fill="#5A6273" text-anchor="middle">14.2569, 121.0583</text>
+    </svg>`
+  )}#.jpg`;
+
 export function buildSampleAppraisalReport(
   bundle: AppraisalReportBundle,
   bundleTctNumbers: string[],
@@ -94,6 +116,9 @@ export function buildSampleAppraisalReport(
     requestingOfficer: 'Ramon Cruz',
     branch: 'Head Office',
 
+    accountName: applicantName,
+    accountAddress: `${bundleTctNumbers.join(', ')}, Quezon City, Metro Manila`,
+
     registeredOwner: applicantName,
     locationOfProperty: `${bundleTctNumbers.join(', ')}, Quezon City, Metro Manila`,
     landTitles: bundle.report.landTitles.map((title) => ({
@@ -107,9 +132,20 @@ export function buildSampleAppraisalReport(
       zonalValue: '15,000',
       boundaries: 'N: Lot 6; S: Lot 8; E: Road Lot; W: Lot 5',
       technicalSpecification: 'Rectangular lot, level with road, residential zone',
-      photoFileName: 'Collateral-Photo-Sample.svg',
-      photoFileUrl: SAMPLE_COLLATERAL_PHOTO,
-      photoUploadedAt: now,
+      fmvRcn: '3,750,000',
+      constructionStatusPercent: '100',
+      depreciatedValue: '2,500,000',
+      appraisedValueP: '2,500,000',
+      latitude: '14.2569',
+      longitude: '121.0583',
+      lotPlotFileName: 'Lot-Plot-Sample.svg',
+      lotPlotFileUrl: SAMPLE_LOT_PLOT,
+      lotPlotGeneratedAt: now,
+      collateralPhotos: [1, 2, 3, 4].map((index) => ({
+        fileName: `Collateral-Photo-Sample-${index}.svg`,
+        fileUrl: SAMPLE_COLLATERAL_PHOTO,
+        uploadedAt: now,
+      })),
     })),
     encumbrancesRemarks: 'None noted at time of inspection.',
 
@@ -128,6 +164,11 @@ export function buildSampleAppraisalReport(
     utilityWater: 'Maynilad',
     utilityTelephone: 'PLDT',
 
+    buildingYearConstructed: '2020',
+    buildingCondition: 'Good',
+    buildingConstruction: 'Med',
+    buildingEstFloorArea: '1.00',
+
     generalConstructionFeatures: 'Single-detached, two-storey residential building',
     floorLevel: 'Ground + 2nd floor',
     externalWalls: 'CHB, painted',
@@ -136,18 +177,25 @@ export function buildSampleAppraisalReport(
     doorsWindows: 'Wood panel doors, aluminum sliding windows',
     ceilingRoofing: 'Long-span roofing, gypsum ceiling',
 
-    basisSource: 'Comparable sales within the vicinity',
-    basisLocation: 'Same barangay',
-    basisAreaSize: '250',
-    basisPriceType: 'Selling price',
-    basisSellingPrice: '18,000',
+    basisOfValuationComparables: [
+      {
+        id: crypto.randomUUID(),
+        source: 'BIR RDO 59',
+        location: 'Same barangay',
+        areaSize: '250',
+        priceType: 'Zonal Valuation',
+        value: '15,000',
+      },
+      {
+        id: crypto.randomUUID(),
+        source: 'Comparable sales within the vicinity',
+        location: 'Same barangay',
+        areaSize: '250',
+        priceType: 'Selling Price',
+        value: '18,000',
+      },
+    ],
     fairMarketValuePerSqm: '15,000',
-
-    itemOfProperty: 'Residential lot and improvement',
-    fmvRcn: '3,750,000',
-    constructionStatusPercent: '100',
-    depreciatedValue: '2,500,000',
-    appraisedValueP: '2,500,000',
 
     appraisedValue: '2500000',
     roundedFigures: '2,500,000',
@@ -155,9 +203,20 @@ export function buildSampleAppraisalReport(
     loanableAmount: '2,000,000',
 
     preparedBy: bundle.appraiserName ?? 'Appraiser',
+    preparedAt: null,
     reviewedBy: 'Maria Santos',
+    reviewedAt: null,
     endorsedBy: 'Jose Reyes',
+    endorsedAt: null,
     notedBy: 'Ramon Cruz',
+    notedAt: null,
+
+    subdivisionPlanFileName: 'Subdivision-Plan-Sample.svg',
+    subdivisionPlanFileUrl: SAMPLE_COLLATERAL_PHOTO,
+    subdivisionPlanUploadedAt: now,
+    taxMapFileName: 'Tax-Map-Sample.svg',
+    taxMapFileUrl: SAMPLE_COLLATERAL_PHOTO,
+    taxMapUploadedAt: now,
 
     uploadedAt: submit ? now : null,
   };

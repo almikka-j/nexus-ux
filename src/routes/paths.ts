@@ -69,19 +69,6 @@ export const paths = {
     // being generalized past sample-only rows.
     applicantProfile: (email: string) => `/admin/applications/profile/${email}`,
     negativeList: '/admin/negative-list',
-    ciFeeApproval: '/admin/ci-fee-approval',
-    // Same fixed-placeholder-segment convention as appraisalFeeApprovalBundle
-    // — CI Fee is a single flat per-application request (no bundles), so
-    // there's no real request ID to route on; this only keeps the URL shape
-    // consistent with the list -> detail split every other fee-approval flow
-    // uses.
-    ciFeeApprovalBundle: () => '/admin/ci-fee-approval/current',
-    callReportApproval: '/admin/call-report-approval',
-    // Same fixed-placeholder-segment convention as ciFeeApprovalBundle —
-    // no real multi-application backend, so there's no real request ID to
-    // route on; this only keeps the URL shape consistent with the other
-    // approval flows' list -> detail split.
-    callReportApprovalBundle: () => '/admin/call-report-approval/current',
     appraisalAppraiser: '/admin/appraisal-appraiser',
     appraisalAppraiserBundle: (bundleId: string) => `/admin/appraisal-appraiser/${bundleId}`,
     // Officer-facing read-only status list of every appraiser assignment
@@ -93,29 +80,38 @@ export const paths = {
     // into the same appraisalAppraiserBundle detail route rather than
     // having its own.
     appraisalRequest: '/admin/appraisal-request',
-    appraisalFeeApproval: '/admin/appraisal-fee-approval',
-    // There's no real per-application backend in this prototype — one live
-    // session always means one live fee-approval request, so there's no
-    // real bundle/request ID to route on. Uses a fixed placeholder segment
-    // rather than an actual ID purely to keep this page's URL shape
-    // consistent with appraisalAppraiserBundle's own list -> detail split.
-    appraisalFeeApprovalBundle: () => '/admin/appraisal-fee-approval/current',
-    appraisalApprover: '/admin/appraisal-approver',
-    // Same fixed-placeholder-segment convention as appraisalFeeApprovalBundle
-    // — no real multi-application backend, so there's no real request ID to
-    // route on; this only keeps the URL shape consistent with the
-    // appraisalAppraiserBundle/appraisalFeeApprovalBundle list -> detail split.
-    appraisalApproverBundle: () => '/admin/appraisal-approver/current',
+    // Merged CI Fee Approval + Appraisal Fee Approval into one combined
+    // list — see docs/155-request-fee-approvals.md. `kind` is a real
+    // discriminator (same convention as `paymentDetail`), not a dummy
+    // placeholder — there's still no real per-request ID in this
+    // prototype (at most one row of each kind per session), but which of
+    // the two fee types the detail page shows is meaningful.
+    feeApprovals: '/admin/fee-approvals',
+    // CI Fee has no bundle concept (one flat per-application request), so
+    // its detail route takes no id. Appraisal Fee approval moved from one
+    // whole-application batch status to one status PER bundle (see
+    // docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md),
+    // so its detail route now needs a real bundleId — the second
+    // argument is required for 'appraisal-fee' and ignored for 'ci-fee'.
+    feeApprovalsDetail: (kind: 'ci-fee' | 'appraisal-fee', bundleId?: string) =>
+      kind === 'appraisal-fee' ? `/admin/fee-approvals/appraisal-fee/${bundleId}` : '/admin/fee-approvals/ci-fee',
+    // Merged Call Report Approval + Appraisal Report (Head) Approval into
+    // one combined list — see docs/165-request-report-approvals.md. `kind`
+    // is a real discriminator (same convention as `feeApprovalsDetail`),
+    // not a dummy placeholder — there's still no real per-request ID in
+    // this prototype (at most one row of each kind per session), but which
+    // of the two report types the detail page shows is meaningful.
+    reportApprovals: '/admin/report-approvals',
+    reportApprovalsDetail: (kind: 'call-report' | 'appraisal') => `/admin/report-approvals/${kind}`,
     // A single unified queue of every approved CI Fee / Appraisal Fee
     // request awaiting payment — see docs/210-request-payments.md.
     payment: '/admin/payment',
-    // list -> detail split, same convention as ciFeeApprovalBundle /
-    // appraisalFeeApprovalBundle above. `kind` is a real discriminator
-    // (not a dummy placeholder like those two) — there's still no real
-    // per-request ID in this prototype (at most one row of each kind per
-    // session), but which of the two fee types the detail page shows is
-    // meaningful, unlike "current".
-    paymentDetail: (kind: 'ci-fee' | 'appraisal-fee') => `/admin/payment/${kind}`,
+    // list -> detail split, same convention as feeApprovalsDetail above —
+    // Appraisal Fee's payment is per-bundle now too (see
+    // feeApprovalsDetail's own comment), so this needs the same
+    // bundleId. CI Fee stays one flat request, no id.
+    paymentDetail: (kind: 'ci-fee' | 'appraisal-fee', bundleId?: string) =>
+      kind === 'appraisal-fee' ? `/admin/payment/appraisal-fee/${bundleId}` : '/admin/payment/ci-fee',
     // Dev/reference-only: a live gallery of the admin design-system
     // primitives (tokens, StatusBadge, buttons, the card + CollapsibleSection
     // header contract, the admin table recipe, ConfirmDialog tones). Not in

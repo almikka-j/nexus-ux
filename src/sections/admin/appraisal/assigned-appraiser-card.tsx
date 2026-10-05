@@ -37,8 +37,7 @@ import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './apprai
 export function AssignedAppraiserCard() {
   const { review } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
-  const { reportBundles, feeApprovalStatus, paymentReceivedAt } = review.appraisal;
-  const feeSettled = feeApprovalStatus === 'approved' && !!paymentReceivedAt;
+  const { reportBundles, paymentReceivedAt } = review.appraisal;
 
   // Which reported bundles are collapsed (default: all expanded).
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
@@ -64,7 +63,8 @@ export function AssignedAppraiserCard() {
           const bundleTctNumbers = appraisalGroups
             .filter((group) => bundle.tctGroupIds.includes(group.id))
             .map((group) => group.tctNumber);
-          const status = getAppraisalBundleStatus(bundle, feeApprovalStatus, feeSettled);
+          const feeSettled = bundle.feeApprovalStatus === 'approved' && !!paymentReceivedAt;
+          const status = getAppraisalBundleStatus(bundle, feeSettled);
           const copy = status === 'reported' ? null : APPRAISAL_BUNDLE_STATUS_COPY[status];
           const toneColors = copy ? TONE_COLORS[copy.tone] : null;
           const isReported = status === 'reported';

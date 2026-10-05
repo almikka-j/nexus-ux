@@ -32,13 +32,15 @@ import type { PaymentDetails } from 'src/auth/admin-context';
 // Appraisal Fee alike — so an officer sees what still needs to be paid
 // out without checking two different screens. See docs/210-request-payments.md.
 //
-// Row source: a CI Fee row exists whenever ciFeeStatus === 'approved'; an
-// Appraisal Fee row exists whenever feeApprovalStatus === 'approved' AND
-// at least one bundle actually needs a fee (feeNeeded === 'yes' — a batch
-// where every bundle answered "No" has nothing to pay). Since this
-// prototype has no real multi-application backend, at most one row of
-// each kind ever exists in a live session, same ceiling as every other
-// list page here.
+// Row source: a CI Fee row exists whenever ciFeeStatus === 'approved'
+// (still one flat row — CI Fee has no bundle concept). An Appraisal Fee
+// row exists PER BUNDLE whose own feeApprovalStatus === 'approved' —
+// since fee approval moved from one whole-application batch status down
+// onto each bundle (see
+// docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md),
+// Payment follows the same per-bundle shape: two bundles on the same
+// application can each be paid independently, on their own schedule. A
+// `feeNeeded !== 'yes'` bundle never gets a row (nothing to pay).
 //
 // Rows are never hidden once paid — sorted unpaid-first, paid rows sink
 // to the bottom of the same table (an explicit design decision, not the
@@ -46,31 +48,39 @@ import type { PaymentDetails } from 'src/auth/admin-context';
 // always a visible record of what was already paid.
 //
 // Clicking a row navigates to a real detail page
-// (paths.admin.paymentDetail(kind), payment-detail-view.tsx) — same
-// list -> detail split every other fee flow in this app uses
-// (ci-fee-approval-view.tsx, appraisal-fee-approval-view.tsx,
-// appraisal-appraiser-view.tsx). An earlier version opened a Dialog here
-// instead; that was replaced with a full page so the full CI Fee /
-// Appraisal Fee request details render alongside the payment form,
-// matching how every other approval flow in this app shows its request.
+// (paths.admin.paymentDetail(kind, bundleId), payment-detail-view.tsx) —
+// same list -> detail split every other fee flow in this app uses. An
+// earlier version opened a Dialog here instead; that was replaced with a
+// full page so the full CI Fee / Appraisal Fee request details render
+// alongside the payment form, matching how every other approval flow in
+// this app shows its request.
 // ----------------------------------------------------------------------
 
-type PaymentRow = {
-  kind: 'ci-fee' | 'appraisal-fee';
-  amount: number;
-  approvedAt: string | null;
-  payment: PaymentDetails;
-};
+type PaymentRow =
+  | {
+      kind: 'ci-fee';
+      amount: number;
+      approvedAt: string | null;
+      payment: PaymentDetails;
+    }
+  | {
+      kind: 'appraisal-fee';
+      bundleId: string;
+      amount: number;
+      approvedAt: string | null;
+      payment: PaymentDetails;
+    };
 
 export function PaymentView() {
   const router = useRouter();
   const { signUpData } = useRegistration();
   const { review } = useAdmin();
   const { ciFeeStatus, ciFeeAmount, ciFeeApprovedAt, ciFeePayment } = review.creditInvestigation;
-  const { feeApprovalStatus, feeApprovedAt, feePayment, reportBundles } = review.appraisal;
+  const { reportBundles } = review.appraisal;
 
-  const feeBundles = reportBundles.filter((bundle) => bundle.feeNeeded === 'yes');
-  const appraisalFeeTotal = feeBundles.reduce((sum, bundle) => sum + (Number(bundle.feeAmount) || 0), 0);
+  const approvedFeeBundles = reportBundles.filter(
+    (bundle) => bundle.feeNeeded === 'yes' && bundle.feeApprovalStatus === 'approved'
+  );
 
   const rows: PaymentRow[] = useMemo(() => {
     const result: PaymentRow[] = [];
@@ -82,19 +92,22 @@ export function PaymentView() {
         payment: ciFeePayment,
       });
     }
-    if (signUpData && feeApprovalStatus === 'approved' && feeBundles.length > 0) {
-      result.push({
-        kind: 'appraisal-fee',
-        amount: appraisalFeeTotal,
-        approvedAt: feeApprovedAt,
-        payment: feePayment,
+    if (signUpData) {
+      approvedFeeBundles.forEach((bundle) => {
+        result.push({
+          kind: 'appraisal-fee',
+          bundleId: bundle.id,
+          amount: Number(bundle.feeAmount) || 0,
+          approvedAt: bundle.feeApprovedAt,
+          payment: bundle.feePayment,
+        });
       });
     }
     // Unpaid rows first, paid rows sink to the bottom — nothing is ever
     // hidden once paid.
     return result.sort((a, b) => Number(!!a.payment.paidAt) - Number(!!b.payment.paidAt));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signUpData, ciFeeStatus, ciFeeAmount, ciFeeApprovedAt, ciFeePayment, feeApprovalStatus, feeBundles.length, appraisalFeeTotal, feeApprovedAt, feePayment]);
+  }, [signUpData, ciFeeStatus, ciFeeAmount, ciFeeApprovedAt, ciFeePayment, approvedFeeBundles]);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
   const applicantAppNo = signUpData ? getLoanNumber(signUpData.email) : '';
@@ -154,9 +167,15 @@ export function PaymentView() {
                   <TableBody>
                     {rows.map((row) => (
                       <TableRow
-                        key={row.kind}
+                        key={row.kind === 'appraisal-fee' ? row.bundleId : row.kind}
                         hover
-                        onClick={() => router.push(paths.admin.paymentDetail(row.kind))}
+                        onClick={() =>
+                          router.push(
+                            row.kind === 'appraisal-fee'
+                              ? paths.admin.paymentDetail('appraisal-fee', row.bundleId)
+                              : paths.admin.paymentDetail('ci-fee')
+                          )
+                        }
                         sx={{
                           cursor: 'pointer',
                           '& td': {

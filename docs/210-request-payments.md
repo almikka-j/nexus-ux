@@ -4,22 +4,23 @@
 > `payment-detail-view.tsx`, the `PaymentDetails`/`PaymentMethod`/
 > `PAYMENT_METHOD_OPTIONS`/`DEPOSITED_TO_ROSTER`/`createEmptyPaymentDetails`
 > shapes in `admin-context.tsx`, or the `ciFeeApprovedAt`/`ciFeePayment`/
-> `feePayment` fields change. Companion to `docs/100-credit-investigation.md`
-> (CI Fee), `docs/170-request-appraiser.md` (Appraisal Fee) — these pages read
-> both flows' approved-fee state but own no fee-decision fields themselves —
-> and `docs/225-admin-design-system.md` (the admin design system — the
-> payment-detail form follows §8 form patterns; `ReportFileDropzone` is a
-> §6 "pending component extraction" pattern; the table follows the §6
-> recipe).
+> per-bundle `feePayment` fields change. Companion to
+> `docs/100-credit-investigation.md` (CI Fee), `docs/170-request-appraiser.md`
+> (Appraisal Fee) — these pages read both flows' approved-fee state but own
+> no fee-decision fields themselves — `docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md`
+> (the design doc that moved Appraisal Fee's payment down onto each bundle,
+> described below), and `docs/225-admin-design-system.md` (the admin
+> design system — the payment-detail form follows §8 form patterns;
+> `ReportFileDropzone` is a §6 "pending component extraction" pattern; the
+> table follows the §6 recipe).
 
 ## What this is
 
 A dedicated admin nav page, nav label **"Payment Verification"**
 (`src/sections/admin/payment-view.tsx`, rendered at `/admin/payment`,
-nested last under the same **"Request"** nav dropdown as Credit
-Investigation - Fee Approval / Appraiser / Appraisal - Request /
-Appraisal - Fee Approval / Appraisal - Report Approval). It's a single
-unified queue of every **approved** fee
+nested last under the same **"Request"** nav dropdown as Fee Approvals /
+Report Approvals / Appraiser / Appraisal - Request). It's a
+single unified queue of every **approved** fee
 request — CI Fee and Appraisal Fee alike — so an officer records how a
 fee was actually paid/deposited without checking two different screens.
 
@@ -36,24 +37,24 @@ adds that internal record, for both fee types, without touching
 
 ## Row source
 
-At most one row of each kind ever exists in a live session (same "at most
-one real row" ceiling as every other list page in this prototype — no
-real multi-application backend):
+At most one CI Fee row, and up to one Appraisal Fee row **per bundle**,
+ever exist in a live session (no real multi-application backend):
 
 - **CI Fee row** — whenever `review.creditInvestigation.ciFeeStatus ===
-  'approved'`.
-- **Appraisal Fee row** — whenever `review.appraisal.feeApprovalStatus
-  === 'approved'` **and** at least one `reportBundles` entry has
-  `feeNeeded === 'yes'` (a batch where every bundle answered "No" has
-  nothing to pay, so no row).
+  'approved'`. Still one flat row — CI Fee has no bundle concept.
+- **Appraisal Fee row** — **one per `AppraisalReportBundle`** whose own
+  `feeNeeded === 'yes'` and `feeApprovalStatus === 'approved'`. Fee
+  approval moved from a single whole-application batch status down onto
+  each bundle (see
+  `docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md`),
+  so Payment follows the same shape: two bundles on the same application
+  can each be paid independently, on their own schedule. A `feeNeeded !==
+  'yes'` bundle, or one whose own fee isn't yet approved, never gets a
+  row.
 
-**Appraisal Fee is one row per batch, not per bundle.** Appraisal Fee is
-proposed per bundle but submitted/approved together as a single batch
-(see `docs/170-request-appraiser.md` "Appraisal Fee"); paying it is likewise one
-action — one payment method, one OR number, one attachment — matching how
-it's actually approved. The row's Amount is the sum of every
-`feeNeeded === 'yes'` bundle's `feeAmount`, same total
-`AppraisalAppraiserView`'s "Advise Client" dialog already computes.
+Each Appraisal Fee row's Amount is that one bundle's own `feeAmount` —
+not a sum across bundles, since paying is now a per-bundle action too
+(one payment method, one OR number, one attachment, per bundle).
 
 ## Columns and sort
 
@@ -75,25 +76,28 @@ Empty state: "No fee requests are ready for payment yet."
 ## Payment detail page
 
 Clicking a row navigates to a real detail page —
-`paths.admin.paymentDetail(kind)` → `/admin/payment/{kind}`
-(`payment-detail-view.tsx`, `PaymentDetailView({ kind })`) — same
-list → detail split every other fee flow in this app already uses
-(`ci-fee-approval-view.tsx` → `ci-fee-approval-bundle-view.tsx`,
-`appraisal-fee-approval-view.tsx` → `appraisal-fee-approval-bundle-view.tsx`).
-An earlier version of this page used a `Dialog` opened from the list
+`paths.admin.paymentDetail(kind, bundleId?)` → `/admin/payment/{kind}`
+or `/admin/payment/appraisal-fee/{bundleId}`
+(`payment-detail-view.tsx`, `PaymentDetailView({ kind, bundleId })`) —
+same list → detail split every other fee flow in this app already uses
+(`fee-approvals-view.tsx` → `ci-fee-approval-bundle-view.tsx` /
+`appraisal-fee-approval-bundle-view.tsx`, see
+`docs/155-request-fee-approvals.md`). An earlier version of this page
+used a `Dialog` opened from the list
 instead; that was replaced with this full page so the complete CI Fee /
 Appraisal Fee request details render alongside the payment form on one
 page, matching how every other approval flow in this app shows its
 request, instead of a compact popup.
 
-`kind` (`'ci-fee' | 'appraisal-fee'`) is a **real discriminator**, not a
-dummy placeholder like `ciFeeApprovalBundle()`'s/
-`appraisalFeeApprovalBundle()`'s fixed `"current"` segment — there's
-still no real per-request ID in this prototype (at most one row of each
-kind per session), but which of the two fee types the page shows is
-meaningful, so the app-router `[kind]/page.tsx` reads and validates it
-(falling back to `'ci-fee'` for an unrecognized value — a stray URL, not
-something the UI itself ever produces).
+`kind` (`'ci-fee' | 'appraisal-fee'`) is a **real discriminator**. CI Fee
+needs no id (one flat request); Appraisal Fee now requires a real
+`bundleId` (the actual `AppraisalReportBundle.id`, not an opaque
+placeholder like the old fixed `"current"` segment), since payment is
+per-bundle. The underlying route is an optional catch-all
+(`[kind]/[[...bundleId]]/page.tsx`, shared with Fee Approvals' own route
+shape — see `docs/155-request-fee-approvals.md`), falling back to
+`'ci-fee'` for an unrecognized `kind` value (a stray URL, not something
+the UI itself ever produces).
 
 **Layout**, top to bottom:
 
@@ -107,19 +111,17 @@ something the UI itself ever produces).
    those two reference pages already reimplement, kept in sync manually
    rather than sharing a module, same as every other admin file with this
    exact component. Below a `Divider`, the same card continues straight
-   into the full breakdown content the CI Fee / Appraisal Fee Approval
-   detail pages already render: CI Fee shows one row
+   into the full breakdown content: CI Fee shows one row
    (`ciFeeAmountDescription` + `ciFeeRemarks` + `ciFeeAmount`); Appraisal
-   Fee shows one row per bundle (TCT numbers, appraiser name — bold navy,
-   same emphasis convention as the Approval detail page — fee
-   description/amount or "No fee needed"), then a running Total row.
-   (An earlier version split this into two separate cards — a header card
-   and a standalone "{Fee} Details" card below it; they were merged into
-   one card since there was nothing else distinguishing them as separate
-   sections.) This content is read-only — there is no Approve/Decline
-   here, the fee is already approved by the time it reaches Payment; it
-   exists purely so the officer sees full request context without
-   navigating back to the approval flow's own detail page.
+   Fee shows **this one bundle's own** row (TCT numbers, appraiser name —
+   bold navy, same emphasis convention as the Approval detail page — fee
+   description/amount) — no loop over multiple bundles and no running
+   total, since payment is per-bundle now (see
+   `docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md`).
+   This content is read-only — there is no Approve/Decline here, the fee
+   is already approved by the time it reaches Payment; it exists purely
+   so the officer sees full request context without navigating back to
+   the approval flow's own detail page.
 3. **"Payment Details" card** — the actual form. Follows the
    `docs/225-admin-design-system.md` §8 form conventions: label above each
    field, a native `type="date"` for OR Date, and a **disabled "Mark as
@@ -147,9 +149,10 @@ something the UI itself ever produces).
      stays disabled until Payment Method, Deposited To, OR No., OR Date,
      and the attachment are all filled in.
 
-Clicking it calls `setCiFeePayment(data)` / `setAppraisalFeePayment(data)`
-with every field, then `markCiFeeAsPaid()` / `markAppraisalFeeAsPaid()` in
-the same click — there is no separate "save draft" phase the way the fee
+Clicking it calls `setCiFeePayment(data)` /
+`setAppraisalBundleFeePayment(bundleId, data)` with every field, then
+`markCiFeeAsPaid()` / `markAppraisalBundleFeeAsPaid(bundleId)` in the
+same click — there is no separate "save draft" phase the way the fee
 request flows have a `'not-submitted'` draft state; filling in the form
 and marking paid is one step.
 
@@ -180,8 +183,8 @@ before this — stamped the moment `ciFeeStatus` becomes
 one), `credit-investigation-view.tsx`'s "Fill with Sample Data" (which
 skips straight to `'approved'`, so it stamps both
 `ciFeeSubmittedAt`/`ciFeeApprovedAt` at once) and its inline "Simulate:
-Another Officer Approves CI Fee" page action, `ci-fee-approval-view.tsx`'s
-auto-seed effect, and `ci-fee-approval-bundle-view.tsx`'s decline path
+Another Officer Approves CI Fee" page action, `fee-approvals-view.tsx`'s
+CI Fee auto-seed effect, and `ci-fee-approval-bundle-view.tsx`'s decline path
 (which immediately re-submits a fresh request — see
 `docs/150-request-credit-investigation-fee-approval.md`). Cleared back to `null` everywhere
 `ciFeeApprovedAt` is also cleared (`handleClearSampleData`,
@@ -211,27 +214,30 @@ export type PaymentDetails = {
 export function createEmptyPaymentDetails(): PaymentDetails;
 ```
 
-- `CreditInvestigation.ciFeePayment: PaymentDetails` — plus two new
-  fields: `ciFeeSubmittedAt: string | null` (see "Requested By /
-  Requested On" above) and `ciFeeApprovedAt: string | null`, stamped the
-  moment `ciFeeStatus` becomes `'approved'` (added alongside this page,
-  since Appraisal Fee already had `feeSubmittedAt`/`feeApprovedAt` but CI
-  Fee had no equivalent timestamps). Stamped at all three places
+- `CreditInvestigation.ciFeePayment: PaymentDetails` — plus two fields:
+  `ciFeeSubmittedAt: string | null` (see "Requested By / Requested On"
+  above) and `ciFeeApprovedAt: string | null`, stamped the moment
+  `ciFeeStatus` becomes `'approved'`. Stamped at all three places
   `ciFeeStatus: 'approved'` is set: `credit-investigation-view.tsx`'s
   "Fill with Sample Data" and its inline "Simulate: Another Officer
   Approves CI Fee" page action, and `ci-fee-approval-bundle-view.tsx`'s
   real approve action.
-- `Appraisal.feePayment: PaymentDetails` — one record for the whole fee
-  batch, not per bundle (see "Row source" above).
+- `AppraisalReportBundle.feePayment: PaymentDetails` — one record **per
+  bundle**, not one for the whole application (moved down from
+  `Appraisal.feePayment` alongside the rest of the per-bundle
+  fee-approval restructure — see
+  `docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md`).
 - Both factory-initialized via `createEmptyPaymentDetails()`, same
-  convention as every other nested object in `createInitialReview()`.
-- New `AdminContext` actions: `setCiFeePayment(data)`,
-  `markCiFeeAsPaid()`, `setAppraisalFeePayment(data)`,
-  `markAppraisalFeeAsPaid()`.
+  convention as every other nested object in `createInitialReview()`/
+  the bundle factory.
+- `AdminContext` actions: `setCiFeePayment(data)`, `markCiFeeAsPaid()`,
+  `setAppraisalBundleFeePayment(bundleId, data)`,
+  `markAppraisalBundleFeeAsPaid(bundleId)`.
 - **Declining or resetting a fee clears its payment record and approved
-  timestamp back to empty/null** — `declineAppraisalFees()` and
-  `resetAppraisalFees()` both reset `feePayment`; CI Fee's two decline
-  call sites (`credit-investigation-view.tsx`'s inline decline,
+  timestamp back to empty/null** — `declineAppraisalBundleFee(bundleId,
+  reason)` and `resetAppraisalBundleFees(bundleId)` both reset that one
+  bundle's own `feePayment`; CI Fee's two decline call sites
+  (`credit-investigation-view.tsx`'s inline decline,
   `ci-fee-approval-bundle-view.tsx`'s decline) and its "Remove Sample
   Data" clear (`handleClearSampleData`) all reset `ciFeeApprovedAt` and
   `ciFeePayment` the same way — a declined-then-resubmitted-then-
@@ -243,10 +249,11 @@ export function createEmptyPaymentDetails(): PaymentDetails;
 No approve/decline here — the fee is already approved by the time it
 reaches Payment. The only action is **"Mark as Paid"** (gated on Payment
 Method, Deposited To, OR No., OR Date, and the attachment — Remarks
-optional), which calls `setCiFeePayment` / `setAppraisalFeePayment` then
-`markCiFeeAsPaid()` / `markAppraisalFeeAsPaid()` in one click. Once paid,
-every field is read-only with no revise/undo, matching every other
-terminal action in this app.
+optional), which calls `setCiFeePayment` /
+`setAppraisalBundleFeePayment(bundleId, ...)` then `markCiFeeAsPaid()` /
+`markAppraisalBundleFeeAsPaid(bundleId)` in one click. Once paid, every
+field is read-only with no revise/undo, matching every other terminal
+action in this app.
 
 ## Fabricated Claims — Real vs. Simulated
 
@@ -254,10 +261,11 @@ terminal action in this app.
   everything is a locally-stored simulated record.
 - **Deposited To** is a fixed sample roster (`DEPOSITED_TO_ROSTER`), no
   real bank/accounting link.
-- **`kind` (`'ci-fee' | 'appraisal-fee'`) is a real discriminator**, but
-  there is still no per-request ID (at most one row of each kind per
-  session).
-- All state lives in `ciFeePayment` / `feePayment` in `AdminContext`
+- **`kind`/`bundleId` are real discriminators** — CI Fee has no id (one
+  flat request); Appraisal Fee's `bundleId` is the real
+  `AppraisalReportBundle.id`, not an opaque placeholder.
+- All state lives in `ciFeePayment` (CreditInvestigation) /
+  `feePayment` (per bundle, on `AppraisalReportBundle`) in `AdminContext`
   (`localStorage`).
 
 ## Non-Goals / Open Items

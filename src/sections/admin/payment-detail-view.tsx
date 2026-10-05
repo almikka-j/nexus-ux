@@ -30,12 +30,15 @@ import { PAYMENT_METHOD_OPTIONS, DEPOSITED_TO_ROSTER } from 'src/auth/admin-cont
 
 // ----------------------------------------------------------------------
 // Detail page for one Payment row — reached by clicking a row on the
-// Payment list (payment-view.tsx), at paths.admin.paymentDetail(kind).
-// Same list -> detail split every other fee flow in this app uses
-// (ci-fee-approval-bundle-view.tsx, appraisal-fee-approval-bundle-view.tsx)
-// — `kind` ('ci-fee' | 'appraisal-fee') is a real discriminator, not a
-// dummy placeholder like those two pages' fixed "current" segment, since
-// which fee type this page shows is meaningful. See docs/210-request-payments.md.
+// Payment list (payment-view.tsx), at
+// paths.admin.paymentDetail(kind, bundleId). Same list -> detail split
+// every other fee flow in this app uses (ci-fee-approval-bundle-view.tsx,
+// appraisal-fee-approval-bundle-view.tsx) — `kind` ('ci-fee' |
+// 'appraisal-fee') is a real discriminator. Appraisal Fee's approval (and
+// now its payment) is per-bundle — see
+// docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md
+// — so this page looks up ONE bundle by `bundleId` for that kind; CI Fee
+// has no bundle concept and ignores the id entirely (one flat request).
 //
 // Header card matches the same standard summary-card shape as those two
 // reference pages — a 42px icon-avatar + applicant name as the title
@@ -47,12 +50,12 @@ import { PAYMENT_METHOD_OPTIONS, DEPOSITED_TO_ROSTER } from 'src/auth/admin-cont
 //
 // Below the header: a "{Fee} Details" card holding the SAME full
 // breakdown content the CI Fee / Appraisal Fee Approval detail pages
-// already render (CI Fee: description/amount/remarks; Appraisal Fee:
-// per-bundle TCT numbers + appraiser + fee amount/"No fee needed", plus
-// the running total) — this page is read-only for that content (no
-// Approve/Decline here, this fee is already approved by the time it
-// reaches Payment), it exists purely so the officer sees the full request
-// context without navigating back to the approval flow's own detail page.
+// already render (CI Fee: description/amount/remarks; Appraisal Fee: this
+// one bundle's own TCT numbers + appraiser + fee amount) — this page is
+// read-only for that content (no Approve/Decline here, this fee is
+// already approved by the time it reaches Payment), it exists purely so
+// the officer sees the full request context without navigating back to
+// the approval flow's own detail page.
 //
 // Then a "Payment Details" card — the actual form (Payment Method /
 // Deposited To / OR No. / OR Date / Attachment / Remarks) + "Mark as
@@ -167,14 +170,14 @@ function ReportFileDropzone({
   );
 }
 
-export function PaymentDetailView({ kind }: { kind: PaymentKind }) {
+export function PaymentDetailView({ kind, bundleId }: { kind: PaymentKind; bundleId?: string }) {
   const { signUpData, application } = useRegistration();
   const {
     review,
     setCiFeePayment,
     markCiFeeAsPaid,
-    setAppraisalFeePayment,
-    markAppraisalFeeAsPaid,
+    setAppraisalBundleFeePayment,
+    markAppraisalBundleFeeAsPaid,
   } = useAdmin();
   const {
     ciFeeStatus,
@@ -186,14 +189,17 @@ export function PaymentDetailView({ kind }: { kind: PaymentKind }) {
     ciFeePayment,
   } = review.creditInvestigation;
   const { appraisalGroups } = review.requirementChecklist;
-  const { feeApprovalStatus, feeSubmittedAt, feeApprovedAt, feePayment, reportBundles } = review.appraisal;
+  const { reportBundles } = review.appraisal;
 
-  const feeBundles = reportBundles.filter((bundle) => bundle.feeNeeded === 'yes');
-  const appraisalFeeTotal = feeBundles.reduce((sum, bundle) => sum + (Number(bundle.feeAmount) || 0), 0);
+  const bundle = kind === 'appraisal-fee' ? reportBundles.find((b) => b.id === bundleId) : undefined;
+  const bundleTctNumbers = bundle
+    ? appraisalGroups.filter((group) => bundle.tctGroupIds.includes(group.id)).map((group) => group.tctNumber)
+    : [];
 
-  const requestExists = kind === 'ci-fee' ? ciFeeStatus === 'approved' : feeApprovalStatus === 'approved' && feeBundles.length > 0;
+  const requestExists =
+    kind === 'ci-fee' ? ciFeeStatus === 'approved' : !!bundle && bundle.feeApprovalStatus === 'approved';
 
-  if (!signUpData || !requestExists) {
+  if (!signUpData || !requestExists || (kind === 'appraisal-fee' && !bundle)) {
     return (
       <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
         <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
@@ -212,23 +218,26 @@ export function PaymentDetailView({ kind }: { kind: PaymentKind }) {
     );
   }
 
+  // `bundle` is guaranteed defined here for kind === 'appraisal-fee' — the
+  // early return above already covers `!bundle`.
+  const activeBundle = bundle!;
   const applicantName = `${signUpData.firstName} ${signUpData.lastName}`;
-  const amount = kind === 'ci-fee' ? Number(ciFeeAmount) || 0 : appraisalFeeTotal;
-  const requestedAt = kind === 'ci-fee' ? ciFeeSubmittedAt : feeSubmittedAt;
-  const approvedAt = kind === 'ci-fee' ? ciFeeApprovedAt : feeApprovedAt;
+  const amount = kind === 'ci-fee' ? Number(ciFeeAmount) || 0 : Number(activeBundle.feeAmount) || 0;
+  const requestedAt = kind === 'ci-fee' ? ciFeeSubmittedAt : activeBundle.feeSubmittedAt;
+  const approvedAt = kind === 'ci-fee' ? ciFeeApprovedAt : activeBundle.feeApprovedAt;
   // Both fee types are requested by whichever officer owns the
   // application — there's no separate "requested by" field on either
   // CreditInvestigation or Appraisal, since it's always the same
   // case-owning officer shown as "Officer: …" elsewhere in this app
   // (application-details-card.tsx, application-review-header.tsx).
   const requestedBy = application.assignedOfficer;
-  const payment = kind === 'ci-fee' ? ciFeePayment : feePayment;
+  const payment = kind === 'ci-fee' ? ciFeePayment : activeBundle.feePayment;
   const isPaid = !!payment.paidAt;
   const editable = !isPaid;
 
   const setPayment = (data: Partial<PaymentDetails>) =>
-    kind === 'ci-fee' ? setCiFeePayment(data) : setAppraisalFeePayment(data);
-  const markAsPaid = () => (kind === 'ci-fee' ? markCiFeeAsPaid() : markAppraisalFeeAsPaid());
+    kind === 'ci-fee' ? setCiFeePayment(data) : setAppraisalBundleFeePayment(activeBundle.id, data);
+  const markAsPaid = () => (kind === 'ci-fee' ? markCiFeeAsPaid() : markAppraisalBundleFeeAsPaid(activeBundle.id));
 
   const attachmentFile = payment.attachmentFileName ? new File([], payment.attachmentFileName) : null;
   const handleAttachmentChange = (file: File | null) => {
@@ -332,45 +341,29 @@ export function PaymentDetailView({ kind }: { kind: PaymentKind }) {
               </Typography>
             </Stack>
           ) : (
-            <Stack spacing={1.25}>
-              {reportBundles.map((bundle) => {
-                const bundleTctNumbers = appraisalGroups
-                  .filter((group) => bundle.tctGroupIds.includes(group.id))
-                  .map((group) => group.tctNumber);
-                return (
-                  <Stack
-                    key={bundle.id}
-                    direction={{ xs: 'column', sm: 'row' }}
-                    alignItems={{ xs: 'flex-start', sm: 'center' }}
-                    justifyContent="space-between"
-                    spacing={1.5}
-                    sx={{ p: 1.75, borderRadius: '10px', border: '1px solid #EEF0F5', bgcolor: '#F9FAFC' }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
-                        {bundleTctNumbers.join(', ')}
-                      </Typography>
-                      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1C2A6E', mt: 0.5 }}>
-                        {bundle.appraiserName ?? 'No appraiser assigned'}
-                      </Typography>
-                      {bundle.feeNeeded === 'yes' && bundle.feeDescription && (
-                        <Typography sx={{ fontSize: 12, color: '#8891A6', mt: 0.5 }}>
-                          {bundle.feeDescription}
-                        </Typography>
-                      )}
-                    </Box>
-                    {bundle.feeNeeded === 'yes' ? (
-                      <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#1C2A6E', flexShrink: 0 }}>
-                        {fCurrency(bundle.feeAmount)}
-                      </Typography>
-                    ) : (
-                      <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#8891A6', flexShrink: 0 }}>
-                        No fee needed
-                      </Typography>
-                    )}
-                  </Stack>
-                );
-              })}
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              alignItems={{ xs: 'flex-start', sm: 'center' }}
+              justifyContent="space-between"
+              spacing={1.5}
+              sx={{ p: 1.75, borderRadius: '10px', border: '1px solid #EEF0F5', bgcolor: '#F9FAFC' }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
+                  {bundleTctNumbers.join(', ')}
+                </Typography>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1C2A6E', mt: 0.5 }}>
+                  {activeBundle.appraiserName ?? 'No appraiser assigned'}
+                </Typography>
+                {activeBundle.feeDescription && (
+                  <Typography sx={{ fontSize: 12, color: '#8891A6', mt: 0.5 }}>
+                    {activeBundle.feeDescription}
+                  </Typography>
+                )}
+              </Box>
+              <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#1C2A6E', flexShrink: 0 }}>
+                {fCurrency(activeBundle.feeAmount)}
+              </Typography>
             </Stack>
           )}
 

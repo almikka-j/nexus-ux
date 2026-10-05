@@ -25,16 +25,14 @@ import { getLoanNumber } from 'src/utils/get-loan-number';
 import type { CiFeeStatus } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
-// Detail page for the CI Fee Approver — reached by clicking the one row on
-// the "Fee Approvals" list (ci-fee-approval-view.tsx), at
-// paths.admin.ciFeeApprovalBundle(). Same list -> detail split as
-// appraisal-fee-approval-view.tsx -> appraisal-fee-approval-bundle-view.tsx,
-// adapted for CI Fee's flat per-application shape: `ciFeeStatus` lives on a
-// single flat review.creditInvestigation object (no bundles/multi-property
-// concept, unlike Appraisal), so there's no bundle ID to look up either —
-// the `[bundleId]` route segment exists purely so this page's URL shape
-// matches the other fee-approval flows' list -> detail split; it's a fixed
-// placeholder ("current"), not a real ID, and this component ignores it.
+// Detail page for the CI Fee Approver — reached by clicking the CI Fee row
+// on the merged "Fee Approvals" list (fee-approvals-view.tsx), at
+// paths.admin.feeApprovalsDetail('ci-fee'). Rendered by the
+// `/admin/fee-approvals/[kind]` route, adapted for CI Fee's flat
+// per-application shape: `ciFeeStatus` lives on a single flat
+// review.creditInvestigation object (no bundles/multi-property concept,
+// unlike Appraisal), so there's nothing to look up from the `kind` param
+// either — this component ignores it and reads context directly.
 //
 // Header card matches the same standard summary-card shape as
 // appraisal-fee-approval-bundle-view.tsx's own header — a 42px icon-avatar +
@@ -126,7 +124,7 @@ export function CiFeeApprovalBundleView() {
           <Typography sx={{ fontSize: 14, color: '#8891A6', mb: 2.5 }}>
             This request isn&apos;t in your current session.
           </Typography>
-          <Button component={RouterLink} href={paths.admin.ciFeeApproval} variant="outlined">
+          <Button component={RouterLink} href={paths.admin.feeApprovals} variant="outlined">
             Back to Fee Approvals
           </Button>
         </Box>
@@ -178,7 +176,7 @@ export function CiFeeApprovalBundleView() {
         <Box>
           <Button
             component={RouterLink}
-            href={paths.admin.ciFeeApproval}
+            href={paths.admin.feeApprovals}
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={18} />}
             sx={{ color: '#5A6273', fontWeight: 600, fontSize: 13, px: 0.5 }}
           >

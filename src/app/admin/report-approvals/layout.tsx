@@ -11,7 +11,7 @@ import { AdminLayout } from 'src/layouts/admin/layout';
 
 // ----------------------------------------------------------------------
 
-export default function AppraisalFeeApprovalLayout({ children }: { children: React.ReactNode }) {
+export default function ReportApprovalsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { adminUser, hydrated } = useAdmin();
 

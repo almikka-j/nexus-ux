@@ -17,7 +17,7 @@ import { Iconify } from 'src/components/iconify';
 import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { CollapsibleSection } from 'src/components/collapsible-section';
 
-import type { AppraisalReportLandTitle } from 'src/auth/admin-context';
+import type { CollateralPhoto, AppraisalReportLandTitle } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Read-only rendering of a submitted in-house Appraisal Report
@@ -89,6 +89,76 @@ function Field({ label, value, span = 1 }: { label: string; value: string; span?
   );
 }
 
+// One signature entry — eyebrow label + bold name, in its own bordered
+// box. Same pattern credit-checking-result-modal.tsx's own "Prepared by"
+// block uses (Box/p:2/borderRadius:12px/border:1px solid #EEF0F5, an
+// eyebrow SectionLabel, then the name in bold dark text), applied here to
+// all four Prepared/Reviewed/Endorsed/Noted By entries instead of the
+// hairline-underline Field style every other value on this card uses.
+// `stampedAt` shows the sequential sign-off chain's own timestamp
+// underneath the name, when that step has actually been stamped.
+function SignatureBlock({ label, name, stampedAt }: { label: string; name: string; stampedAt?: string | null }) {
+  if (!name) return null;
+  return (
+    <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
+      <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6' }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mt: 1 }}>{name}</Typography>
+      {stampedAt && (
+        <Typography sx={{ fontSize: 11, color: '#0C8A4F', mt: 0.5 }}>
+          {new Date(stampedAt).toLocaleString()}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+// A bundle-wide supporting document link (Subdivision Plan, Tax Map) —
+// distinct from each title's own Collateral Photos gallery and Lot Plot
+// image, since these two are per-report, not per-TCT. Read-only "View"
+// link, same convention the external-appraiser report file uses.
+function FileAttachmentLink({ label, fileName, fileUrl }: { label: string; fileName: string | null; fileUrl: string }) {
+  return (
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={1.25}
+      sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', flex: 1, minWidth: 0 }}
+    >
+      <Iconify icon="solar:file-check-bold-duotone" width={20} sx={{ color: '#1C2A6E', flexShrink: 0 }} />
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>{label}</Typography>
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#344054' }} noWrap>
+          {fileName ?? label}
+        </Typography>
+      </Box>
+      <Box
+        component="a"
+        href={fileUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{
+          ...outlinedNavyButtonSx,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0.5,
+          px: 1.25,
+          py: 0.5,
+          borderRadius: '8px',
+          border: '1px solid',
+          fontSize: 12.5,
+          fontWeight: 700,
+          textDecoration: 'none',
+          flexShrink: 0,
+        }}
+      >
+        View
+      </Box>
+    </Stack>
+  );
+}
+
 // Responsive field grid — 2 columns on mobile, 4 on desktop, matching a
 // typical printed form's row-of-boxes layout. `Field` itself returns null
 // for an empty value, so an all-empty row collapses to nothing.
@@ -139,7 +209,8 @@ function AppraisedValueHero({ appraisedValue, amountInWords }: { appraisedValue:
 // Glance summary — the fastest way to see every property's own
 // collateral photo without opening the full report. Purely a preview:
 // clicking opens the full photo, same as the full report's own photo
-// blocks.
+// blocks. A title with multiple photos shows its first one here — the
+// full gallery lives on LandTitlePhotoGallery inside the full report.
 function PhotoChipRow({ titles }: { titles: { tctNumber: string; photoFileUrl: string | null }[] }) {
   const withPhotos = titles.filter((title) => title.photoFileUrl);
   if (withPhotos.length === 0) return null;
@@ -200,53 +271,56 @@ function PhotoChipRow({ titles }: { titles: { tctNumber: string; photoFileUrl: s
   );
 }
 
-// Photo sits beside its fields in one row instead of stacked above a grid
-// that only fills part of the row — a fixed-width photo column keeps
-// every title's photo the same size regardless of how much text sits
-// beside it.
-function LandTitlePhoto({ photoFileUrl, tctNumber }: { photoFileUrl: string; tctNumber: string }) {
+// Every Collateral Photo uploaded for a title, as a wrapping grid of
+// square thumbnails — replaces the old single hero photo now that a
+// title can have more than one. Each thumbnail opens its own full photo
+// in a new tab, same "click to view full size" convention the old single
+// photo used.
+function LandTitlePhotoGallery({ photos, tctNumber }: { photos: CollateralPhoto[]; tctNumber: string }) {
+  if (photos.length === 0) return null;
   return (
-    <Box
-      component="a"
-      href={photoFileUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      sx={{
-        display: 'block',
-        width: { xs: '100%', sm: 200 },
-        flexShrink: 0,
-        aspectRatio: '4 / 3',
-        borderRadius: '10px',
-        overflow: 'hidden',
-        border: '1px solid #EBEDF3',
-        position: 'relative',
-        '&:hover .exhibit-zoom': { opacity: 1 },
-      }}
-    >
-      <Box
-        component="img"
-        src={photoFileUrl}
-        alt={`Collateral photo — TCT No. ${tctNumber}`}
-        sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
-      />
-      <Stack
-        className="exhibit-zoom"
-        direction="row"
-        alignItems="center"
-        spacing={0.75}
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          justifyContent: 'center',
-          bgcolor: 'rgba(20,23,42,0.4)',
-          opacity: 0,
-          transition: 'opacity 0.15s ease',
-        }}
-      >
-        <Iconify icon="solar:magnifer-bold" width={18} sx={{ color: 'common.white' }} />
-        <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: 'common.white' }}>View full photo</Typography>
-      </Stack>
-    </Box>
+    <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25} sx={{ width: { xs: '100%', sm: 200 }, flexShrink: 0 }}>
+      {photos.map((photo, index) => (
+        <Box
+          key={`${photo.fileUrl}-${index}`}
+          component="a"
+          href={photo.fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{
+            display: 'block',
+            width: 92,
+            aspectRatio: '4 / 3',
+            borderRadius: '10px',
+            overflow: 'hidden',
+            border: '1px solid #EBEDF3',
+            position: 'relative',
+            '&:hover .exhibit-zoom': { opacity: 1 },
+          }}
+        >
+          <Box
+            component="img"
+            src={photo.fileUrl}
+            alt={`Collateral photo ${index + 1} — TCT No. ${tctNumber}`}
+            sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
+          />
+          <Box
+            className="exhibit-zoom"
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              display: 'grid',
+              placeItems: 'center',
+              bgcolor: 'rgba(20,23,42,0.4)',
+              opacity: 0,
+              transition: 'opacity 0.15s ease',
+            }}
+          >
+            <Iconify icon="solar:magnifer-bold" width={16} sx={{ color: 'common.white' }} />
+          </Box>
+        </Box>
+      ))}
+    </Stack>
   );
 }
 
@@ -271,7 +345,7 @@ function LandTitleSummary({
 }) {
   const detail = (
     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: showToggle ? 2 : 0 }}>
-      {title.photoFileUrl && !showToggle && <LandTitlePhoto photoFileUrl={title.photoFileUrl} tctNumber={tctNumber} />}
+      {!showToggle && <LandTitlePhotoGallery photos={title.collateralPhotos} tctNumber={tctNumber} />}
 
       <Stack spacing={1.75} sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 2.5, rowGap: 1.75 }}>
@@ -282,6 +356,10 @@ function LandTitleSummary({
           <Field label="Book No. / Page No." value={title.bookPageNo} />
           <Field label="Title Registration Date" value={title.titleRegistrationDate} />
           <Field label="Title Registration Place" value={title.titleRegistrationPlace} span={2} />
+          <Field label="FMV / RCN (PHP)" value={title.fmvRcn} />
+          <Field label="Construction Status %" value={title.constructionStatusPercent} />
+          <Field label="Depreciated Value" value={title.depreciatedValue} />
+          <Field label="Appraised Value (P)" value={title.appraisedValueP} />
         </Box>
 
         {(title.boundaries || title.technicalSpecification) && (
@@ -303,6 +381,36 @@ function LandTitleSummary({
               </Box>
             )}
           </Stack>
+        )}
+
+        {(title.latitude || title.longitude || title.lotPlotFileUrl) && (
+          <Box sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #E3E7F5', bgcolor: '#F7F8FE' }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.25 }}>
+              <Iconify icon="solar:map-point-bold-duotone" width={16} sx={{ color: '#1C2A6E' }} />
+              <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#1C2A6E' }}>
+                Lot Plotting
+              </Typography>
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 2.5, rowGap: 1.75, flex: 1, minWidth: 0 }}>
+                <Field label="Latitude" value={title.latitude} />
+                <Field label="Longitude" value={title.longitude} />
+              </Box>
+              {title.lotPlotFileUrl && (
+                <Box sx={{ width: { xs: '100%', sm: 200 }, flexShrink: 0 }}>
+                  <Box
+                    component="img"
+                    src={title.lotPlotFileUrl}
+                    alt={`Lot plot — TCT No. ${tctNumber}`}
+                    sx={{ width: '100%', aspectRatio: '3 / 2', objectFit: 'contain', bgcolor: '#EEF1FE', borderRadius: '10px', border: '1px solid #DDE3F5', display: 'block' }}
+                  />
+                  <Typography sx={{ fontSize: 10.5, color: '#8891A6', mt: 0.75, textAlign: 'center' }}>
+                    Simulated preview
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+          </Box>
         )}
       </Stack>
     </Stack>
@@ -334,9 +442,9 @@ function LandTitleSummary({
           width={18}
           sx={{ color: '#8891A6', flexShrink: 0, transition: 'transform 0.15s ease', transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
         />
-        {title.photoFileUrl && (
+        {title.collateralPhotos[0] && (
           <Box sx={{ width: 40, height: 40, flexShrink: 0, borderRadius: '8px', overflow: 'hidden', border: '1px solid #EBEDF3' }}>
-            <Box component="img" src={title.photoFileUrl} alt="" sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }} />
+            <Box component="img" src={title.collateralPhotos[0].fileUrl} alt="" sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }} />
           </Box>
         )}
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -353,9 +461,9 @@ function LandTitleSummary({
       </Stack>
       <Collapse in={expanded}>
         <Box sx={{ px: 2, pb: 2 }}>
-          {title.photoFileUrl && (
+          {title.collateralPhotos.length > 0 && (
             <Box sx={{ mb: 2 }}>
-              <LandTitlePhoto photoFileUrl={title.photoFileUrl} tctNumber={tctNumber} />
+              <LandTitlePhotoGallery photos={title.collateralPhotos} tctNumber={tctNumber} />
             </Box>
           )}
           {detail}
@@ -478,7 +586,7 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
         <PhotoChipRow
           titles={titleGroups.map((group) => ({
             tctNumber: group.tctNumber,
-            photoFileUrl: report.landTitles.find((entry) => entry.tctGroupId === group.id)?.photoFileUrl ?? null,
+            photoFileUrl: report.landTitles.find((entry) => entry.tctGroupId === group.id)?.collateralPhotos[0]?.fileUrl ?? null,
           }))}
         />
       </Stack>
@@ -508,6 +616,8 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
             <Field label="Date Inspected" value={report.dateInspected} />
             <Field label="Requesting Officer" value={report.requestingOfficer} />
             <Field label="Branch" value={report.branch} />
+            <Field label="Account Name" value={report.accountName} span={2} />
+            <Field label="Address" value={report.accountAddress} span={2} />
           </FieldGrid>
 
           <Stack spacing={1.5}>
@@ -573,6 +683,12 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
               onToggle={() => toggle('construction')}
             >
               <Stack spacing={1.75}>
+                <FieldGrid>
+                  <Field label="Year Constructed" value={report.buildingYearConstructed} />
+                  <Field label="Condition" value={report.buildingCondition} />
+                  <Field label="Construction" value={report.buildingConstruction} />
+                  <Field label="Est. Floor Area (sq.m.)" value={report.buildingEstFloorArea} />
+                </FieldGrid>
                 <Field label="General Construction Features" value={report.generalConstructionFeatures} span={4} />
                 <FieldGrid>
                   <Field label="Floor Level" value={report.floorLevel} />
@@ -592,14 +708,20 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
               expanded={!!expanded.basis}
               onToggle={() => toggle('basis')}
             >
-              <FieldGrid>
+              <Stack spacing={1.5}>
+                {report.basisOfValuationComparables.map((comparable) => (
+                  <Box key={comparable.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
+                    <FieldGrid>
+                      <Field label="Source" value={comparable.source} />
+                      <Field label="Location" value={comparable.location} />
+                      <Field label="Area Size" value={comparable.areaSize} />
+                      <Field label="Price Type" value={comparable.priceType} />
+                      <Field label="Value" value={comparable.value} />
+                    </FieldGrid>
+                  </Box>
+                ))}
                 <Field label="Fair Market Value as per square meter" value={report.fairMarketValuePerSqm} span={2} />
-                <Field label="Selling Price" value={report.basisSellingPrice} />
-                <Field label="Area Size" value={report.basisAreaSize} />
-                <Field label="Source" value={report.basisSource} />
-                <Field label="Location" value={report.basisLocation} />
-                <Field label="Price Type" value={report.basisPriceType} />
-              </FieldGrid>
+              </Stack>
             </CollapsibleSection>
           </Box>
 
@@ -616,25 +738,18 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
             <SectionLabel>Valuation</SectionLabel>
             <FieldGrid>
               <Field label="Loanable Amount" value={report.loanableAmount} span={2} />
-              <Field label="Rounded Figures" value={report.roundedFigures} />
-              <Field label="Appraised Value (P)" value={report.appraisedValueP} />
-            </FieldGrid>
-            <FieldGrid>
-              <Field label="Item of Property" value={report.itemOfProperty} span={2} />
-              <Field label="FMV / RCN (PHP)" value={report.fmvRcn} />
-              <Field label="Construction Status %" value={report.constructionStatusPercent} />
-              <Field label="Depreciated Value" value={report.depreciatedValue} span={4} />
+              <Field label="Rounded Figures" value={report.roundedFigures} span={2} />
             </FieldGrid>
           </Stack>
 
           <Stack spacing={1.5}>
             <SectionLabel>Prepared / Reviewed / Endorsed / Noted By</SectionLabel>
-            <FieldGrid>
-              <Field label="Prepared by" value={report.preparedBy} />
-              <Field label="Reviewed by" value={report.reviewedBy} />
-              <Field label="Endorsed by" value={report.endorsedBy} />
-              <Field label="Noted by" value={report.notedBy} />
-            </FieldGrid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+              <SignatureBlock label="Prepared by" name={report.preparedBy} stampedAt={report.preparedAt} />
+              <SignatureBlock label="Reviewed by" name={report.reviewedBy} stampedAt={report.reviewedAt} />
+              <SignatureBlock label="Endorsed by" name={report.endorsedBy} stampedAt={report.endorsedAt} />
+              <SignatureBlock label="Noted by" name={report.notedBy} stampedAt={report.notedAt} />
+            </Box>
           </Stack>
 
           {report.recommendation && (
@@ -643,6 +758,20 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
               <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
                 {report.recommendation}
               </Typography>
+            </Stack>
+          )}
+
+          {(report.subdivisionPlanFileUrl || report.taxMapFileUrl) && (
+            <Stack spacing={1.5}>
+              <SectionLabel>File Attachment</SectionLabel>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                {report.subdivisionPlanFileUrl && (
+                  <FileAttachmentLink label="Subdivision Plan" fileName={report.subdivisionPlanFileName} fileUrl={report.subdivisionPlanFileUrl} />
+                )}
+                {report.taxMapFileUrl && (
+                  <FileAttachmentLink label="Tax Map" fileName={report.taxMapFileName} fileUrl={report.taxMapFileUrl} />
+                )}
+              </Stack>
             </Stack>
           )}
         </Stack>

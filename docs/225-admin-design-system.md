@@ -732,6 +732,11 @@ from the **real** shared token/component (label anything showcase-only):
   values straight into state; not a workflow.
 - **Outreach** ("client notified", "sent to Odoo", email/WhatsApp/Viber
   "Request Documents") — labels only; nothing is sent.
+- **Lot Plot generation** (Appraisal Report, per TCT/OCT) — "Generate Lot
+  Plot" writes a canned inline SVG placeholder image, printed with the
+  appraiser's own manually-typed latitude/longitude; no real AI, mapping,
+  or GIS service is called, and there is no address/geocoding lookup
+  (`docs/170-request-appraiser.md`'s "Land Title Fields").
 - **Loading delays** where they exist (e.g. the borrower selfie timer) are
   fixed `setTimeout`s, not real work — and none are in the admin portal.
 

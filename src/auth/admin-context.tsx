@@ -892,6 +892,16 @@ export type FeeApprovalStatus = 'not-submitted' | 'pending-approval' | 'approved
 
 export type AppraiserType = 'inhouse' | 'external';
 
+// One uploaded Collateral Photo — same fileName/fileUrl/uploadedAt
+// triplet shape every other single-file upload in this app uses, just an
+// array entry instead of a single field, since a title can have more
+// than one collateral photo.
+export type CollateralPhoto = {
+  fileName: string;
+  fileUrl: string;
+  uploadedAt: string;
+};
+
 // Per-title (TCT/OCT) land details inside an in-house Appraisal Report,
 // one entry per AppraisalTctGroup covered by the bundle — mirrors the
 // "LAND" / "BOUNDARIES" / "TECHNICAL SPECIFICATION" tables in the printed
@@ -907,14 +917,28 @@ export type AppraisalReportLandTitle = {
   zonalValue: string;
   boundaries: string;
   technicalSpecification: string;
-  // One photo of the collateral itself, per TCT/OCT — same
-  // fileName/fileUrl/uploadedAt triplet every other single-file upload in
-  // this app uses (RequirementDoc, the external-appraiser report file,
-  // etc.), not an array, since exactly one photo per title is all this
-  // needs.
-  photoFileName: string | null;
-  photoFileUrl: string | null;
-  photoUploadedAt: string | null;
+  // This title's own row in the PDF's "Item of Property" valuation table —
+  // moved here from the flat AppraisalReport so a bundle covering several
+  // TCTs shows one valuation row per title (matching the printed report)
+  // instead of one shared row for the whole bundle.
+  fmvRcn: string;
+  constructionStatusPercent: string;
+  depreciatedValue: string;
+  appraisedValueP: string;
+  // Lot plotting — manually typed coordinates (no geocoding/address lookup
+  // integration exists yet) plus a "Generate Lot Plot" button that produces
+  // a simulated plot-diagram image, same fileName/fileUrl/generatedAt
+  // triplet shape as the Collateral Photo fields below. No real AI/mapping
+  // service is called — see docs/170-request-appraiser.md's "Fabricated
+  // Claims" section.
+  latitude: string;
+  longitude: string;
+  lotPlotFileName: string | null;
+  lotPlotFileUrl: string | null;
+  lotPlotGeneratedAt: string | null;
+  // Collateral photos of this title — multiple uploads supported, each
+  // one appended on drop rather than replacing the previous photo.
+  collateralPhotos: CollateralPhoto[];
 };
 
 function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLandTitle {
@@ -929,9 +953,40 @@ function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLand
     zonalValue: '',
     boundaries: '',
     technicalSpecification: '',
-    photoFileName: null,
-    photoFileUrl: null,
-    photoUploadedAt: null,
+    fmvRcn: '',
+    constructionStatusPercent: '',
+    depreciatedValue: '',
+    appraisedValueP: '',
+    latitude: '',
+    longitude: '',
+    lotPlotFileName: null,
+    lotPlotFileUrl: null,
+    lotPlotGeneratedAt: null,
+    collateralPhotos: [],
+  };
+}
+
+// One comparable-sale/valuation source in the "Basis of Valuation (Land)"
+// section — the printed PDF lists several (BIR zonal valuation, plus
+// several appraisers' own selling/bid price citations), each with its own
+// Source/Location/Area Size/Price Type/Value, not a single set of fields.
+export type BasisOfValuationComparable = {
+  id: string;
+  source: string;
+  location: string;
+  areaSize: string;
+  priceType: string;
+  value: string;
+};
+
+function createBasisOfValuationComparable(): BasisOfValuationComparable {
+  return {
+    id: crypto.randomUUID(),
+    source: '',
+    location: '',
+    areaSize: '',
+    priceType: '',
+    value: '',
   };
 }
 
@@ -951,6 +1006,12 @@ export type AppraisalReport = {
   dateInspected: string;
   requestingOfficer: string;
   branch: string;
+
+  // The PDF's own letterhead fields — Account Name/Address — distinct
+  // from Registered Owner/Location of Property below (the title's own
+  // registered name/address, which can differ from the borrower account).
+  accountName: string;
+  accountAddress: string;
 
   registeredOwner: string;
   locationOfProperty: string;
@@ -972,6 +1033,14 @@ export type AppraisalReport = {
   utilityWater: string;
   utilityTelephone: string;
 
+  // The PDF's "Improvement" building summary table ("Building 1") — one
+  // record for the whole report, not an array; a report covering several
+  // TCTs/lots still describes just the one improvement/building on site.
+  buildingYearConstructed: string;
+  buildingCondition: string;
+  buildingConstruction: string;
+  buildingEstFloorArea: string;
+
   generalConstructionFeatures: string;
   floorLevel: string;
   externalWalls: string;
@@ -980,30 +1049,34 @@ export type AppraisalReport = {
   doorsWindows: string;
   ceilingRoofing: string;
 
-  basisSource: string;
-  basisLocation: string;
-  basisAreaSize: string;
-  basisPriceType: string;
-  basisSellingPrice: string;
+  // Multiple comparable-sale sources — see BasisOfValuationComparable
+  // above. Replaces the old single basisSource/basisLocation/basisAreaSize/
+  // basisPriceType/basisSellingPrice fields.
+  basisOfValuationComparables: BasisOfValuationComparable[];
   fairMarketValuePerSqm: string;
 
   remarksAdditionalInfo: string;
-
-  itemOfProperty: string;
-  fmvRcn: string;
-  constructionStatusPercent: string;
-  depreciatedValue: string;
-  appraisedValueP: string;
 
   appraisedValue: string;
   roundedFigures: string;
   amountInWords: string;
   loanableAmount: string;
 
+  // Sequential sign-off chain — Prepared, then Reviewed, then Endorsed,
+  // then Noted, each gated on the previous step already being stamped
+  // (see setAppraisalBundleSignatoryStamp in AdminContext). Each step
+  // carries both the name and the ISO timestamp it was stamped, since
+  // stamping is a distinct "Simulate: Approve as {Role}" action, not
+  // implied by typing the name. This chain is independent of Submit
+  // Appraisal Report / Head Approval — it never gates either.
   preparedBy: string;
+  preparedAt: string | null;
   reviewedBy: string;
+  reviewedAt: string | null;
   endorsedBy: string;
+  endorsedAt: string | null;
   notedBy: string;
+  notedAt: string | null;
 
   // Legacy free-text fields, kept for the officer-facing summary and the
   // Recommendation input the source process diagram calls for — distinct
@@ -1011,6 +1084,18 @@ export type AppraisalReport = {
   propertyDetails: string;
   remarks: string;
   recommendation: string;
+
+  // Bundle-wide supporting documents from the PDF's own "File Attachment"
+  // section — distinct from each title's own Collateral Photos (per-TCT,
+  // multiple) and Lot Plot image: exactly one Subdivision Plan and one Tax
+  // Map for the whole report, same fileName/fileUrl/uploadedAt triplet
+  // every other single-file upload in this app uses.
+  subdivisionPlanFileName: string | null;
+  subdivisionPlanFileUrl: string | null;
+  subdivisionPlanUploadedAt: string | null;
+  taxMapFileName: string | null;
+  taxMapFileUrl: string | null;
+  taxMapUploadedAt: string | null;
 
   fileName: string | null;
   fileUrl: string | null;
@@ -1036,12 +1121,30 @@ export type AppraisalReportBundle = {
   targetCompletionDate: string | null;
   // Proposed at assign time (Assign Appraiser modal's Yes/No + fields) —
   // this bundle's own draft fee, independent of every other bundle's.
-  // Locks once the whole batch is submitted (Appraisal.feeApprovalStatus
+  // Locks once this bundle's own fee is submitted (feeApprovalStatus
   // !== 'not-submitted'); a decline resets these back to undecided.
   feeNeeded: FeeNeeded;
   feeAmount: string;
   feeDescription: string;
   feeRemarks: string;
+  // Fee-approval fields — one decision PER BUNDLE (per appraiser
+  // assignment), not one shared status for the whole application. Moved
+  // down from Appraisal (which used to hold a single batch-level status
+  // for every bundle at once) so two bundles on the same application can
+  // be at different approval states — see
+  // docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md.
+  // A `feeNeeded: 'no'` bundle keeps these fields (default
+  // 'not-submitted') but is never shown on the Fee Approvals list — same
+  // convention every `feeBundles = reportBundles.filter(b =>
+  // b.feeNeeded === 'yes')` fee-total site already uses.
+  feeApprovalStatus: FeeApprovalStatus;
+  feeDeclineReason: string;
+  feeSubmittedAt: string | null;
+  feeApprovedAt: string | null;
+  // This bundle's own payment record, once its own fee is approved — see
+  // createEmptyPaymentDetails below. Moved down from Appraisal for the
+  // same reason as the fee-approval fields above.
+  feePayment: PaymentDetails;
   report: AppraisalReport;
 };
 
@@ -1106,20 +1209,20 @@ export function createEmptyPaymentDetails(): PaymentDetails {
 }
 
 export type Appraisal = {
-  // Whole-application batch state every bundle's individually-proposed
-  // fee travels through together — see FeeApprovalStatus above.
-  feeApprovalStatus: FeeApprovalStatus;
-  feeDeclineReason: string;
-  feeSubmittedAt: string | null;
-  feeApprovedAt: string | null;
+  // Fee approval/payment used to live here as one shared batch status —
+  // moved down onto AppraisalReportBundle itself (feeApprovalStatus,
+  // feeDeclineReason, feeSubmittedAt, feeApprovedAt, feePayment) so each
+  // bundle (appraiser assignment) has its own independent decision. See
+  // docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md.
+  //
+  // clientNotifiedAt/sentToOdooAt/paymentReceivedAt deliberately stay
+  // here, whole-application — the simulated Sendit/Odoo client-advisory
+  // step has no natural per-bundle framing and applies once per
+  // application regardless of how many separate appraiser
+  // assignments/fees it has.
   clientNotifiedAt: string | null;
   sentToOdooAt: string | null;
   paymentReceivedAt: string | null;
-  // The LMS's own internal payment record for the whole approved fee
-  // batch (one record, not per bundle — see createEmptyPaymentDetails
-  // above). Reset back to empty whenever the batch is declined or reset,
-  // same as every other batch-level fee field.
-  feePayment: PaymentDetails;
   reportBundles: AppraisalReportBundle[];
   headApprovalStatus: HeadApprovalStatus;
   headApprovalDeclineReason: string;
@@ -1571,36 +1674,69 @@ type AdminContextValue = AdminState & {
     tctGroupId: string,
     data: Partial<AppraisalReportLandTitle>
   ) => void;
+  // "Basis of Valuation (Land)" comparables — a report-wide array (see
+  // BasisOfValuationComparable), not per-TCT.
+  addAppraisalBundleComparable: (bundleId: string) => void;
+  updateAppraisalBundleComparable: (
+    bundleId: string,
+    comparableId: string,
+    data: Partial<Omit<BasisOfValuationComparable, 'id'>>
+  ) => void;
+  removeAppraisalBundleComparable: (bundleId: string, comparableId: string) => void;
+  // Sequential Prepared -> Reviewed -> Endorsed -> Noted sign-off chain —
+  // stamps the given role's name + ISO timestamp, gated on the previous
+  // role already being stamped (Prepared has no prior step). Independent
+  // of Submit Appraisal Report / Head Approval; simulates "another
+  // person" approving, same convention this app's other
+  // "Simulate: Another Officer Approves ___" actions use.
+  stampAppraisalBundleSignatory: (
+    bundleId: string,
+    role: 'prepared' | 'reviewed' | 'endorsed' | 'noted',
+    name: string
+  ) => void;
   deleteAppraisalReportBundle: (bundleId: string) => void;
   clearAllAppraisalBundleReports: () => void;
-  // The "one buong request" batch action — every bundle must already have
-  // an appraiser AND a fee decision (feeNeeded !== null) before this can
-  // fire; see appraisal-tct-table.tsx's gating logic.
-  // Fires from `'not-submitted'` OR `'declined'` — a decline leaves every
-  // bundle's Yes/No/amount/description/remarks exactly as they were (see
-  // declineAppraisalFees below), so re-submitting after revising them is
-  // the same call as the very first submission, just from a different
-  // starting status.
-  submitAppraisalFeesForApproval: () => void;
-  approveAppraisalFees: () => void;
-  declineAppraisalFees: (reason: string) => void;
-  // Dev/testing shortcut — wipes the whole fee flow back to its very
-  // first state: batch status back to 'not-submitted', every batch-level
-  // date/reason field back to null/'', and every bundle's own
-  // feeNeeded/feeAmount/feeDescription/feeRemarks back to
-  // null/''/''/''. Does NOT touch reportBundles' appraiser
+  // Per-bundle fee-approval actions — each bundle (appraiser assignment)
+  // has its OWN feeApprovalStatus now, submitted/approved/declined
+  // independently of every other bundle on the same application. See
+  // docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md.
+  // A bundle submits on its own once its own fee decision is filled in
+  // (feeNeeded !== null) — no whole-application gate requiring every
+  // sibling bundle to also have a decision first.
+  // Fires from `'not-submitted'` OR `'declined'` — a decline leaves this
+  // bundle's own Yes/No/amount/description/remarks exactly as they were
+  // (see declineAppraisalBundleFee below), so re-submitting after
+  // revising them is the same call as the very first submission, just
+  // from a different starting status.
+  submitAppraisalBundleFeeForApproval: (bundleId: string) => void;
+  approveAppraisalBundleFee: (bundleId: string) => void;
+  declineAppraisalBundleFee: (bundleId: string, reason: string) => void;
+  // Dev/testing shortcut — wipes one bundle's fee flow back to its very
+  // first state: that bundle's own feeApprovalStatus back to
+  // 'not-submitted', its own date/reason fields back to null/'', and its
+  // own feeNeeded/feeAmount/feeDescription/feeRemarks back to
+  // null/''/''/''. Does NOT touch that bundle's appraiser
   // assignment/report content — only the fee decision fields — so a
   // tester can restart the fee request/approval/settlement cycle without
-  // losing the bundle's assignment or an already-filled-in report.
-  resetAppraisalFees: () => void;
-  // Payment (docs/210-request-payments.md) — one shared shape, two independent fee
-  // flows. setXPayment merges partial edits into the draft; markXAsPaid
-  // stamps paidAt, same "one final action, no separate save-draft state"
-  // convention the modal itself follows.
+  // losing the bundle's assignment or an already-filled-in report. Every
+  // other bundle on the application is untouched.
+  resetAppraisalBundleFees: (bundleId: string) => void;
+  // Restores this one bundle's own report back to a genuinely fresh,
+  // blank, editable state (uploadedAt/headApprovalStatus-independent —
+  // it only touches this bundle's `report`) — for a tester stuck on a
+  // bundle whose report reads as submitted from earlier testing, without
+  // needing to reset the whole session. Sibling bundles are untouched.
+  resetAppraisalBundleReport: (bundleId: string) => void;
+  // Payment (docs/210-request-payments.md) — one shared shape. setXPayment
+  // merges partial edits into the draft; markXAsPaid stamps paidAt, same
+  // "one final action, no separate save-draft state" convention the
+  // modal itself follows. CI Fee stays one flat payment record (no bundle
+  // concept); Appraisal Fee's payment is now per-bundle, same as its
+  // approval.
   setCiFeePayment: (data: Partial<PaymentDetails>) => void;
   markCiFeeAsPaid: () => void;
-  setAppraisalFeePayment: (data: Partial<PaymentDetails>) => void;
-  markAppraisalFeeAsPaid: () => void;
+  setAppraisalBundleFeePayment: (bundleId: string, data: Partial<PaymentDetails>) => void;
+  markAppraisalBundleFeeAsPaid: (bundleId: string) => void;
   addCreditInvestigationDocument: (
     label: string,
     uploadedBy: string,
@@ -2154,14 +2290,9 @@ function createInitialFinancialHighlights(): FinancialHighlights {
 
 function createInitialAppraisal(): Appraisal {
   return {
-    feeApprovalStatus: 'not-submitted',
-    feeDeclineReason: '',
-    feeSubmittedAt: null,
-    feeApprovedAt: null,
     clientNotifiedAt: null,
     sentToOdooAt: null,
     paymentReceivedAt: null,
-    feePayment: createEmptyPaymentDetails(),
     reportBundles: [],
     headApprovalStatus: 'pending',
     headApprovalDeclineReason: '',
@@ -2227,6 +2358,90 @@ function createAppraisalGroup(
   };
 }
 
+// A fully blank AppraisalReport for the given TCTs — shared by the
+// bundle-creation factory below and resetAppraisalBundleReport (the
+// "Simulate: Reset Report" action), so a bundle stuck in a submitted/
+// filled-in state from earlier testing can be restored to a genuinely
+// fresh, editable report without re-seeding the whole session.
+function createBlankAppraisalReport(tctGroupIds: string[]): AppraisalReport {
+  return {
+    dateReport: '',
+    dateInspected: '',
+    requestingOfficer: '',
+    branch: '',
+
+    accountName: '',
+    accountAddress: '',
+
+    registeredOwner: '',
+    locationOfProperty: '',
+    landTitles: tctGroupIds.map((tctGroupId) => createAppraisalReportLandTitle(tctGroupId)),
+    encumbrancesRemarks: '',
+
+    streetFrontage: '',
+    streetWidth: '',
+    surfacing: '',
+    averageDepth: '',
+    approxShape: '',
+    topography: '',
+    neighborhood: '',
+    presentUse: '',
+    highestAndBestUse: '',
+
+    utilityPublicConveyance: '',
+    utilityElectricity: '',
+    utilityWater: '',
+    utilityTelephone: '',
+
+    buildingYearConstructed: '',
+    buildingCondition: '',
+    buildingConstruction: '',
+    buildingEstFloorArea: '',
+
+    generalConstructionFeatures: '',
+    floorLevel: '',
+    externalWalls: '',
+    interiorWallsPartitions: '',
+    flooring: '',
+    doorsWindows: '',
+    ceilingRoofing: '',
+
+    basisOfValuationComparables: [],
+    fairMarketValuePerSqm: '',
+
+    remarksAdditionalInfo: '',
+
+    appraisedValue: '',
+    roundedFigures: '',
+    amountInWords: '',
+    loanableAmount: '',
+
+    preparedBy: '',
+    preparedAt: null,
+    reviewedBy: '',
+    reviewedAt: null,
+    endorsedBy: '',
+    endorsedAt: null,
+    notedBy: '',
+    notedAt: null,
+
+    propertyDetails: '',
+    remarks: '',
+    recommendation: '',
+
+    subdivisionPlanFileName: null,
+    subdivisionPlanFileUrl: null,
+    subdivisionPlanUploadedAt: null,
+    taxMapFileName: null,
+    taxMapFileUrl: null,
+    taxMapUploadedAt: null,
+
+    fileName: null,
+    fileUrl: null,
+    uploadedAt: null,
+  };
+}
+
 function createAppraisalReportBundle(
   tctGroupIds: string[],
   appraiserType: AppraiserType,
@@ -2244,73 +2459,12 @@ function createAppraisalReportBundle(
     feeAmount: fee?.feeAmount ?? '',
     feeDescription: fee?.feeDescription ?? '',
     feeRemarks: fee?.feeRemarks ?? '',
-    report: {
-      dateReport: '',
-      dateInspected: '',
-      requestingOfficer: '',
-      branch: '',
-
-      registeredOwner: '',
-      locationOfProperty: '',
-      landTitles: tctGroupIds.map((tctGroupId) => createAppraisalReportLandTitle(tctGroupId)),
-      encumbrancesRemarks: '',
-
-      streetFrontage: '',
-      streetWidth: '',
-      surfacing: '',
-      averageDepth: '',
-      approxShape: '',
-      topography: '',
-      neighborhood: '',
-      presentUse: '',
-      highestAndBestUse: '',
-
-      utilityPublicConveyance: '',
-      utilityElectricity: '',
-      utilityWater: '',
-      utilityTelephone: '',
-
-      generalConstructionFeatures: '',
-      floorLevel: '',
-      externalWalls: '',
-      interiorWallsPartitions: '',
-      flooring: '',
-      doorsWindows: '',
-      ceilingRoofing: '',
-
-      basisSource: '',
-      basisLocation: '',
-      basisAreaSize: '',
-      basisPriceType: '',
-      basisSellingPrice: '',
-      fairMarketValuePerSqm: '',
-
-      remarksAdditionalInfo: '',
-
-      itemOfProperty: '',
-      fmvRcn: '',
-      constructionStatusPercent: '',
-      depreciatedValue: '',
-      appraisedValueP: '',
-
-      appraisedValue: '',
-      roundedFigures: '',
-      amountInWords: '',
-      loanableAmount: '',
-
-      preparedBy: '',
-      reviewedBy: '',
-      endorsedBy: '',
-      notedBy: '',
-
-      propertyDetails: '',
-      remarks: '',
-      recommendation: '',
-
-      fileName: null,
-      fileUrl: null,
-      uploadedAt: null,
-    },
+    feeApprovalStatus: 'not-submitted',
+    feeDeclineReason: '',
+    feeSubmittedAt: null,
+    feeApprovedAt: null,
+    feePayment: createEmptyPaymentDetails(),
+    report: createBlankAppraisalReport(tctGroupIds),
   };
 }
 
@@ -2863,6 +3017,8 @@ function readStoredState(): AdminState {
                 dateInspected: '',
                 requestingOfficer: '',
                 branch: '',
+                accountName: '',
+                accountAddress: '',
                 registeredOwner: '',
                 locationOfProperty: '',
                 encumbrancesRemarks: '',
@@ -2879,6 +3035,10 @@ function readStoredState(): AdminState {
                 utilityElectricity: '',
                 utilityWater: '',
                 utilityTelephone: '',
+                buildingYearConstructed: '',
+                buildingCondition: '',
+                buildingConstruction: '',
+                buildingEstFloorArea: '',
                 generalConstructionFeatures: '',
                 floorLevel: '',
                 externalWalls: '',
@@ -2886,29 +3046,30 @@ function readStoredState(): AdminState {
                 flooring: '',
                 doorsWindows: '',
                 ceilingRoofing: '',
-                basisSource: '',
-                basisLocation: '',
-                basisAreaSize: '',
-                basisPriceType: '',
-                basisSellingPrice: '',
+                basisOfValuationComparables: [],
                 fairMarketValuePerSqm: '',
                 remarksAdditionalInfo: '',
-                itemOfProperty: '',
-                fmvRcn: '',
-                constructionStatusPercent: '',
-                depreciatedValue: '',
-                appraisedValueP: '',
                 appraisedValue: '',
                 roundedFigures: '',
                 amountInWords: '',
                 loanableAmount: '',
                 preparedBy: '',
+                preparedAt: null,
                 reviewedBy: '',
+                reviewedAt: null,
                 endorsedBy: '',
+                endorsedAt: null,
                 notedBy: '',
+                notedAt: null,
                 propertyDetails: '',
                 remarks: '',
                 recommendation: '',
+                subdivisionPlanFileName: null,
+                subdivisionPlanFileUrl: null,
+                subdivisionPlanUploadedAt: null,
+                taxMapFileName: null,
+                taxMapFileUrl: null,
+                taxMapUploadedAt: null,
                 fileName: null,
                 fileUrl: null,
                 uploadedAt: null,
@@ -3727,93 +3888,133 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             },
           },
         })),
-      submitAppraisalFeesForApproval: () =>
+      submitAppraisalBundleFeeForApproval: (bundleId) =>
         setState((prev) => ({
           ...prev,
           review: {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              feeApprovalStatus: 'pending-approval',
-              feeDeclineReason: '',
-              feeSubmittedAt: new Date().toISOString(),
-              feeApprovedAt: null,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      feeApprovalStatus: 'pending-approval',
+                      feeDeclineReason: '',
+                      feeSubmittedAt: new Date().toISOString(),
+                      feeApprovedAt: null,
+                    }
+              ),
             },
           },
         })),
-      approveAppraisalFees: () =>
+      approveAppraisalBundleFee: (bundleId) =>
         setState((prev) => ({
           ...prev,
           review: {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              feeApprovalStatus: 'approved',
-              feeApprovedAt: new Date().toISOString(),
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : { ...bundle, feeApprovalStatus: 'approved', feeApprovedAt: new Date().toISOString() }
+              ),
             },
           },
         })),
-      declineAppraisalFees: (reason) =>
+      declineAppraisalBundleFee: (bundleId, reason) =>
         setState((prev) => ({
           ...prev,
           review: {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              feeApprovalStatus: 'declined',
-              feeDeclineReason: reason,
-              // A declined batch's payment record (if any was somehow
-              // entered while pending) doesn't apply to whatever gets
-              // resubmitted/approved next — same reset every other
-              // batch-level fee field gets on decline/resubmit.
-              feePayment: createEmptyPaymentDetails(),
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      feeApprovalStatus: 'declined',
+                      feeDeclineReason: reason,
+                      // A declined bundle's payment record (if any was
+                      // somehow entered while pending) doesn't apply to
+                      // whatever gets resubmitted/approved next — same
+                      // reset every other per-bundle fee field gets on
+                      // decline/resubmit.
+                      feePayment: createEmptyPaymentDetails(),
+                    }
+              ),
             },
           },
         })),
-      resetAppraisalFees: () =>
+      resetAppraisalBundleFees: (bundleId) =>
         setState((prev) => ({
           ...prev,
           review: {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              feeApprovalStatus: 'not-submitted',
-              feeDeclineReason: '',
-              feeSubmittedAt: null,
-              feeApprovedAt: null,
-              clientNotifiedAt: null,
-              sentToOdooAt: null,
-              paymentReceivedAt: null,
-              feePayment: createEmptyPaymentDetails(),
-              reportBundles: prev.review.appraisal.reportBundles.map((bundle) => ({
-                ...bundle,
-                feeNeeded: null,
-                feeAmount: '',
-                feeDescription: '',
-                feeRemarks: '',
-              })),
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      feeNeeded: null,
+                      feeAmount: '',
+                      feeDescription: '',
+                      feeRemarks: '',
+                      feeApprovalStatus: 'not-submitted',
+                      feeDeclineReason: '',
+                      feeSubmittedAt: null,
+                      feeApprovedAt: null,
+                      feePayment: createEmptyPaymentDetails(),
+                    }
+              ),
             },
           },
         })),
-      setAppraisalFeePayment: (data) =>
+      resetAppraisalBundleReport: (bundleId) =>
         setState((prev) => ({
           ...prev,
           review: {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              feePayment: { ...prev.review.appraisal.feePayment, ...data },
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : { ...bundle, report: createBlankAppraisalReport(bundle.tctGroupIds) }
+              ),
             },
           },
         })),
-      markAppraisalFeeAsPaid: () =>
+      setAppraisalBundleFeePayment: (bundleId, data) =>
         setState((prev) => ({
           ...prev,
           review: {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              feePayment: { ...prev.review.appraisal.feePayment, paidAt: new Date().toISOString() },
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId ? bundle : { ...bundle, feePayment: { ...bundle.feePayment, ...data } }
+              ),
+            },
+          },
+        })),
+      markAppraisalBundleFeeAsPaid: (bundleId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : { ...bundle, feePayment: { ...bundle.feePayment, paidAt: new Date().toISOString() } }
+              ),
             },
           },
         })),
@@ -3875,6 +4076,108 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                       },
                     }
               ),
+            },
+          },
+        })),
+      addAppraisalBundleComparable: (bundleId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      report: {
+                        ...bundle.report,
+                        basisOfValuationComparables: [
+                          ...bundle.report.basisOfValuationComparables,
+                          createBasisOfValuationComparable(),
+                        ],
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      updateAppraisalBundleComparable: (bundleId, comparableId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      report: {
+                        ...bundle.report,
+                        basisOfValuationComparables: bundle.report.basisOfValuationComparables.map((comparable) =>
+                          comparable.id !== comparableId ? comparable : { ...comparable, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      removeAppraisalBundleComparable: (bundleId, comparableId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      report: {
+                        ...bundle.report,
+                        basisOfValuationComparables: bundle.report.basisOfValuationComparables.filter(
+                          (comparable) => comparable.id !== comparableId
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      stampAppraisalBundleSignatory: (bundleId, role, name) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) => {
+                if (bundle.id !== bundleId) return bundle;
+                const { report } = bundle;
+                // Sequential gate — each step requires the previous one to
+                // already be stamped; Prepared has no prior step.
+                const gateMet =
+                  role === 'prepared' ||
+                  (role === 'reviewed' && !!report.preparedAt) ||
+                  (role === 'endorsed' && !!report.reviewedAt) ||
+                  (role === 'noted' && !!report.endorsedAt);
+                if (!gateMet) return bundle;
+                const now = new Date().toISOString();
+                const stampFields: Partial<AppraisalReport> =
+                  role === 'prepared'
+                    ? { preparedBy: name, preparedAt: now }
+                    : role === 'reviewed'
+                      ? { reviewedBy: name, reviewedAt: now }
+                      : role === 'endorsed'
+                        ? { endorsedBy: name, endorsedAt: now }
+                        : { notedBy: name, notedAt: now };
+                return { ...bundle, report: { ...report, ...stampFields } };
+              }),
             },
           },
         })),

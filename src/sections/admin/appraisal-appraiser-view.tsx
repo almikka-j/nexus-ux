@@ -78,16 +78,20 @@ import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './apprai
 // directly in the table; that was replaced with real navigation to a
 // dedicated page per bundle instead of an in-place toggle.)
 //
-// "Submit Fees for Approval" itself lives ONLY on the per-bundle detail
+// "Submit Fee for Approval" itself lives ONLY on the per-bundle detail
 // page now (appraisal-appraiser-bundle-view.tsx), not here — an earlier
 // version also had that button (plus its own ConfirmDialog/canSubmit
 // gate) directly below this table, but it was removed once the detail
 // page grew the same action, so the request only ever happens from
 // inside an assignment's own page, not duplicated on the list too. The
 // "Advise Client" / "Payment Received" card, though, still stays here —
-// those only apply once the whole batch is already `approved`, a
-// whole-batch state better surfaced on this list (where every bundle's
-// status is visible at a glance) than from inside one bundle's page.
+// fee approval is per-bundle (see
+// docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md),
+// but "Advise Client"/"Payment Received" themselves stay whole-
+// application (paymentReceivedAt has no per-bundle framing), so this
+// card shows whenever ANY bundle's own fee is approved and unsettled —
+// better surfaced on this list (where every bundle's status is visible
+// at a glance) than from inside one bundle's page.
 //
 // (Removed: an "Available for Assignment" section used to sit above this
 // table, listing every pledged property not yet claimed by any appraiser
@@ -115,13 +119,13 @@ export function AppraisalAppraiserView() {
     setAppraisalBundleReport,
     setCreditInvestigation,
     createAppraisalReportBundle,
-    submitAppraisalFeesForApproval,
-    approveAppraisalFees,
-    declineAppraisalFees,
-    resetAppraisalFees,
+    submitAppraisalBundleFeeForApproval,
+    approveAppraisalBundleFee,
+    declineAppraisalBundleFee,
+    resetAppraisalBundleFees,
   } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
-  const { feeApprovalStatus, clientNotifiedAt, paymentReceivedAt, reportBundles } = review.appraisal;
+  const { clientNotifiedAt, paymentReceivedAt, reportBundles } = review.appraisal;
 
   const hasApplication = !!signUpData && !!application.personalInfo;
 
@@ -159,22 +163,31 @@ export function AppraisalAppraiserView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, hasApplication, reportBundles.length]);
 
-  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineBundleId, setDeclineBundleId] = useState<string | null>(null);
   const [declineReasonDraft, setDeclineReasonDraft] = useState('');
   const [adviseClientOpen, setAdviseClientOpen] = useState(false);
 
-  const feeSettled = feeApprovalStatus === 'approved' && !!paymentReceivedAt;
   const hasActiveAssignments = !!signUpData && reportBundles.length > 0;
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
 
-  const feeBundles = reportBundles.filter((bundle) => bundle.feeNeeded === 'yes');
-  const totalFeeAmount = feeBundles.reduce((sum, bundle) => sum + (Number(bundle.feeAmount) || 0), 0);
+  // "Approved and unsettled" now spans every bundle whose OWN fee is
+  // approved but payment hasn't been received yet — fee approval moved
+  // from one whole-application batch status to one per bundle (see
+  // docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md).
+  // paymentReceivedAt itself stays whole-application (the client-advisory
+  // step never had a per-bundle framing), so once it's set every
+  // approved bundle is considered settled together.
+  const approvedFeeBundles = reportBundles.filter(
+    (bundle) => bundle.feeNeeded === 'yes' && bundle.feeApprovalStatus === 'approved'
+  );
+  const totalFeeAmount = approvedFeeBundles.reduce((sum, bundle) => sum + (Number(bundle.feeAmount) || 0), 0);
+  const hasUnsettledApprovedFee = approvedFeeBundles.length > 0 && !paymentReceivedAt;
 
   const confirmFeeDecline = () => {
-    if (!declineReasonDraft.trim()) return;
-    declineAppraisalFees(declineReasonDraft.trim());
-    setDeclineOpen(false);
+    if (!declineReasonDraft.trim() || !declineBundleId) return;
+    declineAppraisalBundleFee(declineBundleId, declineReasonDraft.trim());
+    setDeclineBundleId(null);
     setDeclineReasonDraft('');
   };
 
@@ -186,53 +199,62 @@ export function AppraisalAppraiserView() {
   // Every simulate action below is always visible in the Settings
   // popover, regardless of current state — clicking one "just works" by
   // auto-completing whatever earlier steps it depends on first, instead
-  // of only appearing once those steps already happened. Fills in any
-  // bundle whose fee decision is still undecided (sample ₱2,500 fee) and
-  // submits the batch if it hasn't been sent yet, so "Approve" (or
-  // anything past it) always has something real to act on.
-  const ensureFeeBatchSubmitted = () => {
-    if (feeApprovalStatus === 'not-submitted' || feeApprovalStatus === 'declined') {
-      reportBundles.forEach((bundle) => {
-        if (bundle.feeNeeded === null) {
-          setAppraisalBundleFee(bundle.id, {
-            feeNeeded: 'yes',
-            feeAmount: '2500',
-            feeDescription: 'Site visit + valuation fee',
-          });
-        }
+  // of only appearing once those steps already happened. Acts on the
+  // FIRST bundle needing a decision — fee approval is per-bundle now, so
+  // there's no single whole-application status to submit; this mirrors
+  // how a tester would naturally work through bundles one at a time via
+  // this always-visible shortcut.
+  const ensureFeeSubmitted = () => {
+    const bundle = reportBundles.find(
+      (entry) => entry.feeApprovalStatus === 'not-submitted' || entry.feeApprovalStatus === 'declined'
+    );
+    if (!bundle) return null;
+    if (bundle.feeNeeded === null) {
+      setAppraisalBundleFee(bundle.id, {
+        feeNeeded: 'yes',
+        feeAmount: '2500',
+        feeDescription: 'Site visit + valuation fee',
       });
-      submitAppraisalFeesForApproval();
     }
+    submitAppraisalBundleFeeForApproval(bundle.id);
+    return bundle.id;
   };
 
   // Simulated second-officer approval/decline, same convention as
-  // credit-investigation-view.tsx's CI Fee page actions.
+  // credit-investigation-view.tsx's CI Fee page actions. Acts on the
+  // first bundle awaiting a decision.
   useRegisterPageActions(
     useMemo(
       () => [
         {
           key: 'simulate-appraisal-fee-approval',
-          label: 'Simulate: Another Officer Approves Appraisal Fees',
+          label: 'Simulate: Another Officer Approves Appraisal Fee',
           icon: 'solar:user-check-bold-duotone',
           color: '#0C8A4F',
           onClick: () => {
-            ensureFeeBatchSubmitted();
-            approveAppraisalFees();
+            const bundleId =
+              ensureFeeSubmitted() ??
+              reportBundles.find((entry) => entry.feeApprovalStatus === 'pending-approval')?.id ??
+              null;
+            if (bundleId) approveAppraisalBundleFee(bundleId);
           },
         },
         {
           key: 'simulate-appraisal-fee-decline',
-          label: 'Simulate: Another Officer Declines Appraisal Fees',
+          label: 'Simulate: Another Officer Declines Appraisal Fee',
           icon: 'solar:user-cross-bold-duotone',
           color: '#B32C22',
           onClick: () => {
-            ensureFeeBatchSubmitted();
-            setDeclineOpen(true);
+            const bundleId =
+              ensureFeeSubmitted() ??
+              reportBundles.find((entry) => entry.feeApprovalStatus === 'pending-approval')?.id ??
+              null;
+            if (bundleId) setDeclineBundleId(bundleId);
           },
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [feeApprovalStatus, reportBundles]
+      [reportBundles]
     )
   );
 
@@ -270,12 +292,15 @@ export function AppraisalAppraiserView() {
   );
 
   // Always visible — cascades through every prerequisite (submit ->
-  // approve -> advise client) before stamping `paymentReceivedAt`, same
-  // "just works from any state" convention every other simulate action
-  // on this page now follows. Same underlying transition the "Simulate:
-  // Payment Received (Sendit)" button in the visible "Advise client to
-  // settle" card below performs — this is the always-available popover
-  // shortcut for it, not a duplicate of the officer-facing card itself.
+  // approve every bundle -> advise client) before stamping
+  // `paymentReceivedAt`, same "just works from any state" convention
+  // every other simulate action on this page now follows. Same
+  // underlying transition the "Simulate: Payment Received (Sendit)"
+  // button in the visible "Advise client to settle" card below performs
+  // — this is the always-available popover shortcut for it, not a
+  // duplicate of the officer-facing card itself. Approves every bundle
+  // that still needs a decision (not just the first) since
+  // `paymentReceivedAt` settles all approved bundles together.
   useRegisterPageActions(
     useMemo(
       () => [
@@ -285,15 +310,28 @@ export function AppraisalAppraiserView() {
           icon: 'solar:card-recive-bold-duotone',
           color: '#0C8A4F',
           onClick: () => {
-            ensureFeeBatchSubmitted();
-            if (feeApprovalStatus !== 'approved') approveAppraisalFees();
+            reportBundles.forEach((bundle) => {
+              if (bundle.feeNeeded === null) {
+                setAppraisalBundleFee(bundle.id, {
+                  feeNeeded: 'yes',
+                  feeAmount: '2500',
+                  feeDescription: 'Site visit + valuation fee',
+                });
+              }
+              if (bundle.feeApprovalStatus === 'not-submitted' || bundle.feeApprovalStatus === 'declined') {
+                submitAppraisalBundleFeeForApproval(bundle.id);
+              }
+              if (bundle.feeApprovalStatus !== 'approved') {
+                approveAppraisalBundleFee(bundle.id);
+              }
+            });
             const now = new Date().toISOString();
             setAppraisal({ clientNotifiedAt: now, sentToOdooAt: now, paymentReceivedAt: now });
           },
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [feeApprovalStatus, reportBundles]
+      [reportBundles]
     )
   );
 
@@ -340,10 +378,11 @@ export function AppraisalAppraiserView() {
     )
   );
 
-  // Always available — wipes the whole Appraisal Fee flow (batch
-  // status/dates plus every bundle's own fee decision) back to its very
-  // first state, same `resetAppraisalFees()` the bundle detail page also
-  // registers this action from. Does not touch report/assignment data,
+  // Always available — wipes every bundle's own fee flow (status/dates
+  // plus its own fee decision) back to its very first state, same
+  // `resetAppraisalBundleFees(bundleId)` the bundle detail page also
+  // registers this action from, just applied to every bundle here since
+  // this is the whole-list view. Does not touch report/assignment data,
   // only fee fields.
   useRegisterPageActions(
     useMemo(
@@ -353,11 +392,11 @@ export function AppraisalAppraiserView() {
           label: 'Simulate: Reset Appraisal Fees',
           icon: 'solar:restart-bold-duotone',
           color: '#5A6273',
-          onClick: () => resetAppraisalFees(),
+          onClick: () => reportBundles.forEach((bundle) => resetAppraisalBundleFees(bundle.id)),
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      []
+      [reportBundles]
     )
   );
 
@@ -419,20 +458,21 @@ export function AppraisalAppraiserView() {
                       const bundleTctNumbers = appraisalGroups
                         .filter((group) => bundle.tctGroupIds.includes(group.id))
                         .map((group) => group.tctNumber);
-                      const status = getAppraisalBundleStatus(bundle, feeApprovalStatus, feeSettled);
+                      const feeSettled = bundle.feeApprovalStatus === 'approved' && !!paymentReceivedAt;
+                      const status = getAppraisalBundleStatus(bundle, feeSettled);
                       const copy = APPRAISAL_BUNDLE_STATUS_COPY[status];
                       const toneColors = TONE_COLORS[copy.tone];
 
                       const feeStatusKey =
-                        feeApprovalStatus === 'declined'
+                        bundle.feeApprovalStatus === 'declined'
                           ? 'declined'
                           : bundle.feeNeeded === 'no'
                             ? 'no-fee'
                             : feeSettled
                               ? 'settled'
-                              : feeApprovalStatus === 'approved'
+                              : bundle.feeApprovalStatus === 'approved'
                                 ? 'approved'
-                                : feeApprovalStatus === 'pending-approval'
+                                : bundle.feeApprovalStatus === 'pending-approval'
                                   ? 'pending-approval'
                                   : 'not-submitted';
                       const feeCopy = FEE_STATUS_COPY[feeStatusKey];
@@ -538,7 +578,7 @@ export function AppraisalAppraiserView() {
 
         {signUpData && (
           <>
-            {hasActiveAssignments && feeApprovalStatus === 'approved' && !feeSettled && (
+            {hasActiveAssignments && hasUnsettledApprovedFee && (
               <Stack spacing={1.25} sx={{ ...adminCardSx }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" spacing={1.5}>
                   <Box>
@@ -580,9 +620,9 @@ export function AppraisalAppraiserView() {
       </Stack>
 
       <ConfirmDialog
-        open={declineOpen}
-        onClose={() => setDeclineOpen(false)}
-        title="Reason for declining Appraisal Fees"
+        open={!!declineBundleId}
+        onClose={() => setDeclineBundleId(null)}
+        title="Reason for declining Appraisal Fee"
         content={
           <TextField
             autoFocus
@@ -647,10 +687,10 @@ export function AppraisalAppraiserView() {
             <Stack spacing={1.5} sx={{ mt: 1 }}>
               <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
                 This will notify the client that their Appraisal Fees are ready to be settled, for{' '}
-                {feeBundles.length} propert{feeBundles.length === 1 ? 'y' : 'ies'} needing a fee.
+                {approvedFeeBundles.length} propert{approvedFeeBundles.length === 1 ? 'y' : 'ies'} needing a fee.
               </Typography>
               <Stack spacing={1}>
-                {feeBundles.map((bundle) => {
+                {approvedFeeBundles.map((bundle) => {
                   const bundleTctNumbers = appraisalGroups
                     .filter((group) => bundle.tctGroupIds.includes(group.id))
                     .map((group) => group.tctNumber);
