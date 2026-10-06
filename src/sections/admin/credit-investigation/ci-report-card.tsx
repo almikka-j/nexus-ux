@@ -144,48 +144,6 @@ export function CiReportCard() {
         Upload the site-visit transcript to auto-fill applicable fields, or type directly into any field below.
       </Typography>
 
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1.5}
-        sx={{ p: 2, mb: 2.5, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}
-      >
-        <input ref={inputRef} type="file" accept=".txt,.doc,.docx,.pdf" hidden onChange={handleTranscriptUpload} />
-        <Iconify icon="solar:mic-bold-duotone" width={20} sx={{ color: '#5A6273', flexShrink: 0 }} />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
-            {report.transcriptFileName ?? 'No transcript uploaded'}
-          </Typography>
-          {report.transcriptFileName && (
-            <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
-              Uploaded {new Date(report.transcriptUploadedAt!).toLocaleDateString('en-PH', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </Typography>
-          )}
-        </Box>
-        <Button
-          onClick={() => inputRef.current?.click()}
-          variant="outlined"
-          size="small"
-          startIcon={<Iconify icon="solar:upload-bold-duotone" width={16} />}
-          sx={{ ...outlinedNavyButtonSx, flexShrink: 0 }}
-        >
-          {report.transcriptFileName ? 'Replace transcript' : 'Upload transcript'}
-        </Button>
-      </Stack>
-
-      {aiSummary && (
-        <Box sx={{ p: 2, mb: 2.5, borderRadius: '11px', bgcolor: '#EEF1FE', border: '1px solid #DCE1F7' }}>
-          <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#3448B0', mb: 0.75 }}>
-            AI Summary
-          </Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{aiSummary}</Typography>
-        </Box>
-      )}
-
       <Stack spacing={1.5} sx={{ mb: report.type ? 2.5 : 0 }}>
         <SectionLabel>Report Type</SectionLabel>
         <RadioRow
@@ -249,6 +207,15 @@ export function CiReportCard() {
             </Box>
           )}
 
+          <TextField
+            label="Date Inspected"
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            value={report.visitDate}
+            onChange={(event) => setCiReport({ visitDate: event.target.value })}
+            sx={{ ...fieldSx, maxWidth: { sm: 260 }, mb: 2.5 }}
+          />
+
           {/* Header: read-only Residence + Business/Work address, from application data */}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
             <Box sx={{ flex: 1, p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
@@ -298,15 +265,6 @@ function ConsumerReportSections({
 }) {
   return (
     <Stack spacing={2.5}>
-      <TextField
-        label="Date Inspected"
-        type="date"
-        InputLabelProps={{ shrink: true }}
-        value={report.visitDate}
-        onChange={(event) => onChange({ visitDate: event.target.value })}
-        sx={{ ...fieldSx, maxWidth: { sm: 260 } }}
-      />
-
       <RichTextField
         label="Subject As Of"
         value={report.subjectAsOf}

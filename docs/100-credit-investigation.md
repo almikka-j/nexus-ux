@@ -324,8 +324,10 @@ In order:
 **Commercial** renders a different, smaller section set instead (moved into
 its own file, `credit-investigation/ci-report-commercial-sections.tsx`, to
 keep `ci-report-card.tsx` from growing further — it was already ~960 lines
-before this). The shared header block (read-only Residence Address +
-Business/Work Address) still renders for both types, same as before. In
+before this). The transcript upload row, AI Summary, Date Inspected
+(`report.visitDate`), and the read-only Residence Address + Business/Work
+Address header block are all shared — rendered once in `CiReportCard`
+itself, above the type branch, same for both Consumer and Commercial. In
 order, each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`):
 
