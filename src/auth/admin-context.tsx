@@ -437,6 +437,54 @@ export type CiTradeEntry = {
   yearsOfDealing: string;
 };
 
+export type CiReportType = 'commercial' | 'consumer' | '';
+
+export type CiCommercialTradeEntry = {
+  id: string;
+  companyName: string;
+  contactPerson: string;
+  position: string;
+  mobileNumber: string;
+  email: string;
+  telephoneNo: string;
+  localExtension: string;
+  transactionDetails: string;
+  paymentTerms: string;
+  yearsOfContract: string;
+  remarks: string;
+};
+
+export type CiManagementEntry = {
+  id: string;
+  fullName: string;
+  birthdate: string;
+  birthPlace: string;
+  nationality: string;
+  spousePartner: string;
+  homeAddress: string;
+  jobTitle: string;
+  education: string;
+  otherBusiness: string;
+  tin: string;
+  mobileNumber: string;
+};
+
+export type CiSubStockholderEntry = {
+  id: string;
+  name: string;
+  amountSubscribed: string;
+  amountPaidUp: string;
+};
+
+export type CiStockholderEntry = {
+  id: string;
+  stockholderName: string;
+  amountSubscribed: string;
+  amountPaidUp: string;
+  isCorporation: 'yes' | 'no' | '';
+  subStockholders: CiSubStockholderEntry[];
+};
+
 export type CiIncomeSourceEntry = {
   id: string;
   source: string;
@@ -797,6 +845,10 @@ export type CreditInvestigationDoc = RequirementDoc & {
 };
 
 export type CiReport = {
+  // Report type — manually picked by the officer; gates which sections
+  // render in CiReportCard. '' means undecided.
+  type: CiReportType;
+
   // Site visit
   visitDate: string;
   subjectAsOf: string; // rich text (HTML)
@@ -868,6 +920,30 @@ export type CiReport = {
   // Recommendation
   recommendation: 'proceed-as-requested' | 'proceed-with-conditions' | 'needs-additional-verification' | '';
   recommendationNotes: string;
+
+  // Business profile (Commercial only)
+  businessOwner: string;
+  businessTerritory: string;
+  businessRegularEmployees: string;
+  businessContractualEmployees: string;
+
+  // Location and facility (Commercial only)
+  premisesConstructionDescription: string;
+  premisesAreaDescription: string;
+  locationOwned: 'yes' | 'no' | '';
+  locationOwnRentDetails: string;
+  equipmentDescription: string;
+  equipmentOwned: 'yes' | 'no' | '';
+  equipmentLeasePrice: string;
+
+  // Trade Checking (Commercial only) — parallel to the existing
+  // suppliers/customers: CiTradeEntry[] used by the Consumer branch.
+  commercialSuppliers: CiCommercialTradeEntry[];
+  commercialCustomers: CiCommercialTradeEntry[];
+
+  // Management and Ownership (Commercial only)
+  management: CiManagementEntry[];
+  stockholders: CiStockholderEntry[];
 
   // Transcript
   transcriptFileName: string | null;
@@ -1804,6 +1880,7 @@ function createInitialCreditInvestigationDocuments(): CreditInvestigationDoc[] {
 
 function createInitialCiReport(): CiReport {
   return {
+    type: '',
     visitDate: '',
     subjectAsOf: '',
     spouseNotes: '',
@@ -1849,6 +1926,21 @@ function createInitialCiReport(): CiReport {
     commentsNotes: '',
     recommendation: '',
     recommendationNotes: '',
+    businessOwner: '',
+    businessTerritory: '',
+    businessRegularEmployees: '',
+    businessContractualEmployees: '',
+    premisesConstructionDescription: '',
+    premisesAreaDescription: '',
+    locationOwned: '',
+    locationOwnRentDetails: '',
+    equipmentDescription: '',
+    equipmentOwned: '',
+    equipmentLeasePrice: '',
+    commercialSuppliers: [],
+    commercialCustomers: [],
+    management: [],
+    stockholders: [],
     transcriptFileName: null,
     transcriptUploadedAt: null,
   };
