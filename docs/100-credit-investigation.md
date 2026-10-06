@@ -332,31 +332,37 @@ itself, above the type branch, same for both Consumer and Commercial. In
 order, each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`):
 
-- **Business Profile** — Owner, Territory, No. of regular employees, No.
-  of contractual employees (all plain `CiReport` string fields,
+- **Business profile** — subtitled "From the business applied on the Call
+  Report." Owner, Territory, No. of regular employees, No. of
+  contractual employees (all plain `CiReport` string fields,
   `businessOwner`/`businessTerritory`/`businessRegularEmployees`/
   `businessContractualEmployees`).
-- **Location and Facility** — a bordered sub-box (same convention as the
+- **Location and facility** — a bordered sub-box (same convention as the
   Consumer branch's Residence/Neighborhood box) holding: Premises
   (Construction description, Area description), a "Location owned?"
   Yes/No `RadioRow` next to "Own or rent (details)"
   (`locationOwned`/`locationOwnRentDetails`), then Equipment (a
   description field), and an "Equipment owned?" Yes/No `RadioRow` next to
   "Equipment lease price" (`equipmentOwned`/`equipmentLeasePrice`).
-- **Trade Checking** — two independent repeatable arrays, Suppliers and
-  Customers (`commercialSuppliers`/`commercialCustomers:
+- **Trade Checking** — one bordered card, subtitled "Customers and
+  suppliers verified during the visit.", holding two independent
+  repeatable arrays in order — **Customers** first, then **Suppliers**
+  (`commercialCustomers`/`commercialSuppliers:
   CiCommercialTradeEntry[]`) — a **new, separate entry type** from the
   Consumer branch's own `CiTradeEntry`, since the Commercial shape is
   company-level (Company name, Contact person, Position, Mobile number,
   Email, Telephone no., Local/extension, Transaction details, Payment
   terms, Years of contract, Remarks) rather than Consumer's individual
-  name/address/dealing shape. Same add/remove-per-entry UX as every other
-  repeatable section in this card.
-- **Management and Ownership** — two repeatable sub-sections:
+  name/address/dealing shape. Add buttons read "Add customer"/"Add
+  supplier" (lowercase, matching the reference tool). Same
+  add/remove-per-entry UX as every other repeatable section in this card.
+- **Management and Ownership** — one bordered card, subtitled "Who runs
+  the business and who owns it.", holding two repeatable sub-sections:
   - **Management** (`management: CiManagementEntry[]`) — Full name,
     Birthdate, Birth place, Nationality, Spouse/partner, Home address,
     Job title, Education, Other business, TIN, Mobile number per entry.
-  - **Major Stockholders** (`stockholders: CiStockholderEntry[]`) —
+    "Add management" trigger.
+  - **Major stockholders** (`stockholders: CiStockholderEntry[]`) —
     Stockholder name, Amount subscribed, Amount paid-up, then an "Is the
     stockholder a corporation?" Yes/No `RadioRow`
     (`isCorporation: 'yes' | 'no' | ''`). When `'yes'`, a nested
@@ -370,10 +376,11 @@ order, each implemented in `CommercialReportSections`
     sub-stockholders are never affected. Toggling "Is the stockholder a
     corporation?" from Yes back to No only hides the Sub-stockholders
     block (the data is not cleared), so toggling back to Yes restores
-    whatever was already entered.
-- **Comments** — `commentsNotes`, the same shared `RichTextField` field
-  the Consumer branch's own Comments section uses (so text typed here
-  survives switching to Consumer and back).
+    whatever was already entered. "Add stockholder" trigger.
+- **Comments** — subtitled "Overall remarks from the investigation.",
+  `commentsNotes`, the same shared `RichTextField` field the Consumer
+  branch's own Comments section uses (so text typed here survives
+  switching to Consumer and back).
 
 No Recommendation section inside the Commercial branch — the page's own
 Decision Gate ("Proceed application?", outside `CiReportCard`) already

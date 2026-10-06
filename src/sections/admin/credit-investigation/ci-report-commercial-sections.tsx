@@ -66,7 +66,7 @@ function CommercialTradeCheckingSection({
 
   return (
     <Stack spacing={1.5}>
-      <SectionLabel>Trade Checking — {title}</SectionLabel>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
       <Stack spacing={1.5}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
@@ -174,7 +174,7 @@ function CommercialTradeCheckingSection({
           startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
           sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
         >
-          Add {title.slice(0, -1)}
+          Add {title.slice(0, -1).toLowerCase()}
         </Button>
       </Stack>
     </Stack>
@@ -212,7 +212,7 @@ function ManagementSection({
 
   return (
     <Stack spacing={1.5}>
-      <SectionLabel>Management</SectionLabel>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Management</Typography>
       <Stack spacing={1.5}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
@@ -321,7 +321,7 @@ function ManagementSection({
           startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
           sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
         >
-          Add Management
+          Add management
         </Button>
       </Stack>
     </Stack>
@@ -394,7 +394,7 @@ function StockholdersSection({
 
   return (
     <Stack spacing={1.5}>
-      <SectionLabel>Major Stockholders</SectionLabel>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Major stockholders</Typography>
       <Stack spacing={1.5}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
@@ -524,8 +524,13 @@ export function CommercialReportSections({
 }) {
   return (
     <Stack spacing={2.5}>
+      <Stack spacing={0.25}>
+        <SectionLabel>Business profile</SectionLabel>
+        <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+          From the business applied on the Call Report.
+        </Typography>
+      </Stack>
       <Stack spacing={1.5}>
-        <SectionLabel>Business Profile</SectionLabel>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           <TextField
             label="Owner"
@@ -557,7 +562,7 @@ export function CommercialReportSections({
       </Stack>
 
       <Stack spacing={1.5}>
-        <SectionLabel>Location and Facility</SectionLabel>
+        <SectionLabel>Location and facility</SectionLabel>
         <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
           <Stack spacing={2}>
             <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Premises</Typography>
@@ -613,35 +618,58 @@ export function CommercialReportSections({
         </Box>
       </Stack>
 
-      <CommercialTradeCheckingSection
-        title="Suppliers"
-        entries={report.commercialSuppliers}
-        onChange={(commercialSuppliers) => onChange({ commercialSuppliers })}
-      />
-      <CommercialTradeCheckingSection
-        title="Customers"
-        entries={report.commercialCustomers}
-        onChange={(commercialCustomers) => onChange({ commercialCustomers })}
-      />
+      <Box sx={{ p: 2, borderRadius: '13px', border: '1px solid #EEF0F5', bgcolor: 'common.white' }}>
+        <Stack spacing={0.25} sx={{ mb: 2 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Trade Checking</Typography>
+          <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+            Customers and suppliers verified during the visit.
+          </Typography>
+        </Stack>
+        <Stack spacing={2.5}>
+          <CommercialTradeCheckingSection
+            title="Customers"
+            entries={report.commercialCustomers}
+            onChange={(commercialCustomers) => onChange({ commercialCustomers })}
+          />
+          <CommercialTradeCheckingSection
+            title="Suppliers"
+            entries={report.commercialSuppliers}
+            onChange={(commercialSuppliers) => onChange({ commercialSuppliers })}
+          />
+        </Stack>
+      </Box>
 
-      <Stack spacing={1.5}>
-        <SectionLabel>Management and Ownership</SectionLabel>
-        <ManagementSection
-          entries={report.management}
-          onChange={(management) => onChange({ management })}
-        />
-        <StockholdersSection
-          entries={report.stockholders}
-          onChange={(stockholders) => onChange({ stockholders })}
+      <Box sx={{ p: 2, borderRadius: '13px', border: '1px solid #EEF0F5', bgcolor: 'common.white' }}>
+        <Stack spacing={0.25} sx={{ mb: 2 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Management and Ownership</Typography>
+          <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+            Who runs the business and who owns it.
+          </Typography>
+        </Stack>
+        <Stack spacing={2.5}>
+          <ManagementSection
+            entries={report.management}
+            onChange={(management) => onChange({ management })}
+          />
+          <StockholdersSection
+            entries={report.stockholders}
+            onChange={(stockholders) => onChange({ stockholders })}
+          />
+        </Stack>
+      </Box>
+
+      <Stack spacing={0.25}>
+        <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Comments</Typography>
+        <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 1 }}>
+          Overall remarks from the investigation.
+        </Typography>
+        <RichTextField
+          label="Comments"
+          value={report.commentsNotes}
+          onChange={(html) => onChange({ commentsNotes: html })}
+          placeholder="Any additional remarks…"
         />
       </Stack>
-
-      <RichTextField
-        label="Comments"
-        value={report.commentsNotes}
-        onChange={(html) => onChange({ commentsNotes: html })}
-        placeholder="Any additional remarks…"
-      />
     </Stack>
   );
 }
