@@ -10,6 +10,8 @@ import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
@@ -136,25 +138,49 @@ export function CiReportCard() {
 
   return (
     <Box sx={adminCardSx}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-        <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
-        <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>CI Report</Typography>
-      </Stack>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2.5 }}>
-        Upload the site-visit transcript to auto-fill applicable fields, or type directly into any field below.
-      </Typography>
-
-      <Stack spacing={1.5} sx={{ mb: report.type ? 2.5 : 0 }}>
-        <SectionLabel>Report Type</SectionLabel>
-        <RadioRow
-          label="Is this a Commercial or Consumer investigation?"
-          value={report.type}
-          options={[
-            { value: 'commercial' as const, label: 'Commercial' },
-            { value: 'consumer' as const, label: 'Consumer' },
-          ]}
-          onChange={(value) => setCiReport({ type: value })}
-        />
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        spacing={1.5}
+        sx={{ mb: report.type ? 2.5 : 1.5 }}
+      >
+        <Box>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#8891A6' }} />
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>CI Report</Typography>
+          </Stack>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mt: 0.5 }}>
+            Upload the site-visit transcript to auto-fill applicable fields, or type directly into any field below.
+          </Typography>
+        </Box>
+        <ToggleButtonGroup
+          value={report.type || null}
+          exclusive
+          size="small"
+          onChange={(_event, value) => {
+            if (value) setCiReport({ type: value });
+          }}
+          sx={{
+            flexShrink: 0,
+            '& .MuiToggleButton-root': {
+              textTransform: 'none',
+              fontSize: 13,
+              fontWeight: 700,
+              px: 2,
+              borderColor: '#DDE1EA',
+              color: '#5A6273',
+              '&.Mui-selected': {
+                bgcolor: '#1C2A6E',
+                color: 'common.white',
+                '&:hover': { bgcolor: '#14205A' },
+              },
+            },
+          }}
+        >
+          <ToggleButton value="commercial">Commercial</ToggleButton>
+          <ToggleButton value="consumer">Consumer</ToggleButton>
+        </ToggleButtonGroup>
       </Stack>
 
       {!report.type && (

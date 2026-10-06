@@ -237,12 +237,13 @@ a reference CI Report layout. Full rationale and section-by-section spec:
 `docs/superpowers/specs/2026-08-06-ci-report-redesign-design.md`.
 
 **Report Type.** Before any section renders, the officer must pick a
-**Report Type** — Commercial or Consumer — via a `RadioRow` at the top of
-`CiReportCard` (`report.type: CiReportType`, `'' | 'commercial' | 'consumer'`,
-defaults to `''`/undecided). While `type === ''`, only the type selector and
-a plain "Select a report type to continue." message render — no transcript
-upload row, no sections. This is a manually-picked field, not inferred from
-any existing application data (loan type, employment status, etc.).
+**Report Type** — Commercial or Consumer — via a `ToggleButtonGroup` placed
+beside the card's title/description in its header row (`report.type:
+CiReportType`, `'' | 'commercial' | 'consumer'`, defaults to
+`''`/undecided). While `type === ''`, only the header and a plain "Select a
+report type to continue." message render — no transcript upload row, no
+sections. This is a manually-picked field, not inferred from any existing
+application data (loan type, employment status, etc.).
 
 Switching the type later only changes which section set is visible —
 nothing is cleared. Both types' fields coexist on the same `CiReport`
