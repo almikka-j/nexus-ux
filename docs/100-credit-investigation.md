@@ -4,6 +4,7 @@
 > or its supporting files (`credit-investigation-docs.ts`,
 > `credit-investigation-risk.ts`, `credit-investigation-transcript.ts`,
 > `credit-investigation/ci-report-card.tsx`,
+> `credit-investigation/ci-report-commercial-sections.tsx`,
 > `credit-investigation/credit-investigation-doc-row.tsx`,
 > `components/rich-text-field/rich-text-field.tsx`) change. Companion to
 > `docs/230-project-overview.md`,
@@ -233,7 +234,26 @@ was substantially redesigned from an earlier 5-section version (Site Visit
 Details, Borrower/Residence Verification, Neighborhood Check, Findings &
 Assessment, Recommendation) into a much fuller ~15-section report, matching
 a reference CI Report layout. Full rationale and section-by-section spec:
-`docs/superpowers/specs/2026-08-06-ci-report-redesign-design.md`. In order:
+`docs/superpowers/specs/2026-08-06-ci-report-redesign-design.md`.
+
+**Report Type.** Before any section renders, the officer must pick a
+**Report Type** — Commercial or Consumer — via a `RadioRow` at the top of
+`CiReportCard` (`report.type: CiReportType`, `'' | 'commercial' | 'consumer'`,
+defaults to `''`/undecided). While `type === ''`, only the type selector and
+a plain "Select a report type to continue." message render — no transcript
+upload row, no sections. This is a manually-picked field, not inferred from
+any existing application data (loan type, employment status, etc.).
+
+Switching the type later only changes which section set is visible —
+nothing is cleared. Both types' fields coexist on the same `CiReport`
+object; whichever type isn't currently selected simply isn't rendered, so
+an officer can switch back and forth without losing previously-entered
+data on either side.
+
+**Consumer** renders the full ~15-section structure below, unchanged from
+before Report Type existed. Full rationale and section-by-section spec for
+this branch: `docs/superpowers/specs/2026-08-06-ci-report-redesign-design.md`.
+In order:
 
 - **Header** — read-only Residence Address + Business/Work Address, shown
   side by side in a two-column block. Sourced entirely from
@@ -298,6 +318,63 @@ a reference CI Report layout. Full rationale and section-by-section spec:
   `credit-investigation-risk.ts` doesn't read at all — `report` isn't
   consulted by `buildCreditInvestigationSummary` in the first place, which
   reads solely from the Document Checklist.
+
+### Commercial CI Report sections
+
+**Commercial** renders a different, smaller section set instead (moved into
+its own file, `credit-investigation/ci-report-commercial-sections.tsx`, to
+keep `ci-report-card.tsx` from growing further — it was already ~960 lines
+before this). The shared header block (read-only Residence Address +
+Business/Work Address) still renders for both types, same as before. In
+order, each implemented in `CommercialReportSections`
+(`credit-investigation/ci-report-commercial-sections.tsx`):
+
+- **Business Profile** — Owner, Territory, No. of regular employees, No.
+  of contractual employees (all plain `CiReport` string fields,
+  `businessOwner`/`businessTerritory`/`businessRegularEmployees`/
+  `businessContractualEmployees`).
+- **Location and Facility** — a bordered sub-box (same convention as the
+  Consumer branch's Residence/Neighborhood box) holding: Premises
+  (Construction description, Area description), a "Location owned?"
+  Yes/No `RadioRow` next to "Own or rent (details)"
+  (`locationOwned`/`locationOwnRentDetails`), then Equipment (a
+  description field), and an "Equipment owned?" Yes/No `RadioRow` next to
+  "Equipment lease price" (`equipmentOwned`/`equipmentLeasePrice`).
+- **Trade Checking** — two independent repeatable arrays, Suppliers and
+  Customers (`commercialSuppliers`/`commercialCustomers:
+  CiCommercialTradeEntry[]`) — a **new, separate entry type** from the
+  Consumer branch's own `CiTradeEntry`, since the Commercial shape is
+  company-level (Company name, Contact person, Position, Mobile number,
+  Email, Telephone no., Local/extension, Transaction details, Payment
+  terms, Years of contract, Remarks) rather than Consumer's individual
+  name/address/dealing shape. Same add/remove-per-entry UX as every other
+  repeatable section in this card.
+- **Management and Ownership** — two repeatable sub-sections:
+  - **Management** (`management: CiManagementEntry[]`) — Full name,
+    Birthdate, Birth place, Nationality, Spouse/partner, Home address,
+    Job title, Education, Other business, TIN, Mobile number per entry.
+  - **Major Stockholders** (`stockholders: CiStockholderEntry[]`) —
+    Stockholder name, Amount subscribed, Amount paid-up, then an "Is the
+    stockholder a corporation?" Yes/No `RadioRow`
+    (`isCorporation: 'yes' | 'no' | ''`). When `'yes'`, a nested
+    **Sub-stockholders** list (`subStockholders: CiSubStockholderEntry[]`,
+    Sub-stockholder name/Amount subscribed/Amount paid-up per entry)
+    renders directly below that one stockholder, with its own "Add
+    sub-stockholder" trigger scoped to that stockholder only. This is the
+    one genuinely nested array in this app's `CiReport` — mutations locate
+    the parent stockholder by id before touching its own
+    `subStockholders` array, so a sibling stockholder's own
+    sub-stockholders are never affected. Toggling "Is the stockholder a
+    corporation?" from Yes back to No only hides the Sub-stockholders
+    block (the data is not cleared), so toggling back to Yes restores
+    whatever was already entered.
+- **Comments** — `commentsNotes`, the same shared `RichTextField` field
+  the Consumer branch's own Comments section uses (so text typed here
+  survives switching to Consumer and back).
+
+No Recommendation section inside the Commercial branch — the page's own
+Decision Gate ("Proceed application?", outside `CiReportCard`) already
+serves that role for both types, same as it always has.
 
 **Pre-fill vs. blank on first open:** only fields with a clear existing
 source pre-fill automatically — header address, Employment Status, Loan
@@ -393,6 +470,21 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-06
+
+- **Commercial/Consumer Report Types added.** `CiReportCard` now starts
+  with a manually-picked Report Type selector (`report.type:
+  CiReportType`); nothing else renders until a type is picked. Consumer
+  renders the existing ~15-section structure unchanged. Commercial renders
+  a new, smaller section set (Business Profile, Location and Facility,
+  Trade Checking with a new `CiCommercialTradeEntry` shape, Management and
+  Ownership with a nested Stockholder → Sub-stockholder structure,
+  Comments), moved into a new file
+  (`credit-investigation/ci-report-commercial-sections.tsx`) to keep
+  `ci-report-card.tsx`'s size in check. Switching type never clears data
+  on either side. See `docs/superpowers/specs/2026-10-05-ci-report-
+  commercial-consumer-types-design.md` for the full design rationale.
 
 ### Date not confirmed
 
