@@ -29,6 +29,8 @@ import { RichTextField } from 'src/components/rich-text-field';
 import { buildTranscriptAutoFill } from '../credit-investigation-transcript';
 import { RadioRow } from '../call-report/call-report-types';
 
+import { CommercialReportSections } from './ci-report-commercial-sections';
+
 // ----------------------------------------------------------------------
 // The ~15-section CI Report. Replaces the old 5-section version
 // (Site Visit Details, Borrower/Residence Verification, Neighborhood
@@ -49,9 +51,9 @@ import { RadioRow } from '../call-report/call-report-types';
 // never touches the header block, Loan Purpose, or Comaker.
 // ----------------------------------------------------------------------
 
-const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } };
+export const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } };
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', letterSpacing: '0.02em' }}>
       {children}
@@ -184,136 +186,230 @@ export function CiReportCard() {
         </Box>
       )}
 
-      {/* Header: read-only Residence + Business/Work address, from application data */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
-        <Box sx={{ flex: 1, p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-          <SectionLabel>Residence Address</SectionLabel>
-          <Typography sx={{ fontSize: 13.5, color: '#14172A', mt: 0.75 }}>
-            {report.residencePermanentAddress || 'Not on file'}
-          </Typography>
-        </Box>
-        <Box sx={{ flex: 1, p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-          <SectionLabel>Business/Work Address</SectionLabel>
-          <Typography sx={{ fontSize: 13.5, color: '#14172A', mt: 0.75 }}>
-            {isBusinessOwner ? report.employerAddress || 'Not yet entered below' : 'Not applicable'}
-          </Typography>
-        </Box>
+      <Stack spacing={1.5} sx={{ mb: report.type ? 2.5 : 0 }}>
+        <SectionLabel>Report Type</SectionLabel>
+        <RadioRow
+          label="Is this a Commercial or Consumer investigation?"
+          value={report.type}
+          options={[
+            { value: 'commercial' as const, label: 'Commercial' },
+            { value: 'consumer' as const, label: 'Consumer' },
+          ]}
+          onChange={(value) => setCiReport({ type: value })}
+        />
       </Stack>
 
-      <Stack spacing={2.5}>
-        <TextField
-          label="Date Inspected"
-          type="date"
-          InputLabelProps={{ shrink: true }}
-          value={report.visitDate}
-          onChange={(event) => setCiReport({ visitDate: event.target.value })}
-          sx={{ ...fieldSx, maxWidth: { sm: 260 } }}
-        />
+      {!report.type && (
+        <Typography sx={{ fontSize: 13.5, color: '#8891A6', fontStyle: 'italic' }}>
+          Select a report type to continue.
+        </Typography>
+      )}
 
-        <RichTextField
-          label="Subject As Of"
-          value={report.subjectAsOf}
-          onChange={(html) => setCiReport({ subjectAsOf: html })}
-          placeholder="Summary of the investigation as of the visit date…"
-        />
-
-        <RichTextField
-          label="Spouse"
-          value={report.spouseNotes}
-          onChange={(html) => setCiReport({ spouseNotes: html })}
-          placeholder="Spouse name, citizenship, and any relevant notes…"
-        />
-
-        <ChildrenSection
-          entries={report.children}
-          onChange={(children) => setCiReport({ children })}
-        />
-
-        <ResidenceNeighborhoodSection report={report} onChange={setCiReport} />
-
-        <EmploymentSection report={report} onChange={setCiReport} isBusinessOwner={isBusinessOwner} />
-
-        <TradeCheckingSection
-          title="Suppliers"
-          entries={report.suppliers}
-          onChange={(suppliers) => setCiReport({ suppliers })}
-        />
-        <TradeCheckingSection
-          title="Customers"
-          entries={report.customers}
-          onChange={(customers) => setCiReport({ customers })}
-        />
-
-        <RichTextField
-          label="Assets"
-          value={report.assetsNotes}
-          onChange={(html) => setCiReport({ assetsNotes: html })}
-          placeholder="Real property, vehicles, and other notable assets…"
-        />
-
-        <OtherIncomeSection
-          entries={report.otherIncomeSources}
-          onChange={(otherIncomeSources) => setCiReport({ otherIncomeSources })}
-        />
-
-        <RichTextField
-          label="Loan Purpose (Required)"
-          value={report.loanPurposeNotes}
-          onChange={(html) => setCiReport({ loanPurposeNotes: html })}
-          placeholder="What the loan proceeds will be used for…"
-        />
-
-        <BankVerificationSection
-          entries={report.bankAccounts}
-          onChange={(bankAccounts) => setCiReport({ bankAccounts })}
-        />
-
-        <NegativeRecordSection report={report} applicantName={applicantName} onChange={setCiReport} />
-
-        <ComakerSection comakers={comakers} />
-
-        <RichTextField
-          label="Health and Habits"
-          value={report.healthAndHabitsNotes}
-          onChange={(html) => setCiReport({ healthAndHabitsNotes: html })}
-          placeholder="Lifestyle, health, or habit observations relevant to the investigation…"
-        />
-
-        <RichTextField
-          label="Comments"
-          value={report.commentsNotes}
-          onChange={(html) => setCiReport({ commentsNotes: html })}
-          placeholder="Any additional remarks…"
-        />
-
-        <Stack spacing={1.25}>
-          <SectionLabel>Recommendation</SectionLabel>
-          <TextField
-            fullWidth
-            select
-            label="Preliminary recommendation"
-            value={report.recommendation}
-            onChange={(event) =>
-              setCiReport({ recommendation: event.target.value as typeof report.recommendation })
-            }
-            sx={fieldSx}
+      {report.type !== '' && (
+        <>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ p: 2, mb: 2.5, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}
           >
-            <MenuItem value="proceed-as-requested">Proceed as requested</MenuItem>
-            <MenuItem value="proceed-with-conditions">Proceed with conditions</MenuItem>
-            <MenuItem value="needs-additional-verification">Needs additional verification</MenuItem>
-          </TextField>
-          <TextField
-            fullWidth
-            multiline
-            minRows={2}
-            label="Notes"
-            value={report.recommendationNotes}
-            onChange={(event) => setCiReport({ recommendationNotes: event.target.value })}
-            sx={fieldSx}
-          />
-        </Stack>
-      </Stack>
+            <input ref={inputRef} type="file" accept=".txt,.doc,.docx,.pdf" hidden onChange={handleTranscriptUpload} />
+            <Iconify icon="solar:mic-bold-duotone" width={20} sx={{ color: '#5A6273', flexShrink: 0 }} />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
+                {report.transcriptFileName ?? 'No transcript uploaded'}
+              </Typography>
+              {report.transcriptFileName && (
+                <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
+                  Uploaded {new Date(report.transcriptUploadedAt!).toLocaleDateString('en-PH', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </Typography>
+              )}
+            </Box>
+            <Button
+              onClick={() => inputRef.current?.click()}
+              variant="outlined"
+              size="small"
+              startIcon={<Iconify icon="solar:upload-bold-duotone" width={16} />}
+              sx={{ ...outlinedNavyButtonSx, flexShrink: 0 }}
+            >
+              {report.transcriptFileName ? 'Replace transcript' : 'Upload transcript'}
+            </Button>
+          </Stack>
+
+          {aiSummary && (
+            <Box sx={{ p: 2, mb: 2.5, borderRadius: '11px', bgcolor: '#EEF1FE', border: '1px solid #DCE1F7' }}>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#3448B0', mb: 0.75 }}>
+                AI Summary
+              </Typography>
+              <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{aiSummary}</Typography>
+            </Box>
+          )}
+
+          {/* Header: read-only Residence + Business/Work address, from application data */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
+            <Box sx={{ flex: 1, p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+              <SectionLabel>Residence Address</SectionLabel>
+              <Typography sx={{ fontSize: 13.5, color: '#14172A', mt: 0.75 }}>
+                {report.residencePermanentAddress || 'Not on file'}
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1, p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+              <SectionLabel>Business/Work Address</SectionLabel>
+              <Typography sx={{ fontSize: 13.5, color: '#14172A', mt: 0.75 }}>
+                {isBusinessOwner ? report.employerAddress || 'Not yet entered below' : 'Not applicable'}
+              </Typography>
+            </Box>
+          </Stack>
+
+          {report.type === 'consumer' && (
+            <ConsumerReportSections
+              report={report}
+              onChange={setCiReport}
+              comakers={comakers}
+              applicantName={applicantName}
+              isBusinessOwner={isBusinessOwner}
+            />
+          )}
+          {report.type === 'commercial' && (
+            <CommercialReportSections report={report} onChange={setCiReport} />
+          )}
+        </>
+      )}
     </Box>
+  );
+}
+
+function ConsumerReportSections({
+  report,
+  onChange,
+  comakers,
+  applicantName,
+  isBusinessOwner,
+}: {
+  report: CiReport;
+  onChange: (data: Partial<CiReport>) => void;
+  comakers: CiComakerEntry[];
+  applicantName: string;
+  isBusinessOwner: boolean;
+}) {
+  return (
+    <Stack spacing={2.5}>
+      <TextField
+        label="Date Inspected"
+        type="date"
+        InputLabelProps={{ shrink: true }}
+        value={report.visitDate}
+        onChange={(event) => onChange({ visitDate: event.target.value })}
+        sx={{ ...fieldSx, maxWidth: { sm: 260 } }}
+      />
+
+      <RichTextField
+        label="Subject As Of"
+        value={report.subjectAsOf}
+        onChange={(html) => onChange({ subjectAsOf: html })}
+        placeholder="Summary of the investigation as of the visit date…"
+      />
+
+      <RichTextField
+        label="Spouse"
+        value={report.spouseNotes}
+        onChange={(html) => onChange({ spouseNotes: html })}
+        placeholder="Spouse name, citizenship, and any relevant notes…"
+      />
+
+      <ChildrenSection
+        entries={report.children}
+        onChange={(children) => onChange({ children })}
+      />
+
+      <ResidenceNeighborhoodSection report={report} onChange={onChange} />
+
+      <EmploymentSection report={report} onChange={onChange} isBusinessOwner={isBusinessOwner} />
+
+      <TradeCheckingSection
+        title="Suppliers"
+        entries={report.suppliers}
+        onChange={(suppliers) => onChange({ suppliers })}
+      />
+      <TradeCheckingSection
+        title="Customers"
+        entries={report.customers}
+        onChange={(customers) => onChange({ customers })}
+      />
+
+      <RichTextField
+        label="Assets"
+        value={report.assetsNotes}
+        onChange={(html) => onChange({ assetsNotes: html })}
+        placeholder="Real property, vehicles, and other notable assets…"
+      />
+
+      <OtherIncomeSection
+        entries={report.otherIncomeSources}
+        onChange={(otherIncomeSources) => onChange({ otherIncomeSources })}
+      />
+
+      <RichTextField
+        label="Loan Purpose (Required)"
+        value={report.loanPurposeNotes}
+        onChange={(html) => onChange({ loanPurposeNotes: html })}
+        placeholder="What the loan proceeds will be used for…"
+      />
+
+      <BankVerificationSection
+        entries={report.bankAccounts}
+        onChange={(bankAccounts) => onChange({ bankAccounts })}
+      />
+
+      <NegativeRecordSection report={report} applicantName={applicantName} onChange={onChange} />
+
+      <ComakerSection comakers={comakers} />
+
+      <RichTextField
+        label="Health and Habits"
+        value={report.healthAndHabitsNotes}
+        onChange={(html) => onChange({ healthAndHabitsNotes: html })}
+        placeholder="Lifestyle, health, or habit observations relevant to the investigation…"
+      />
+
+      <RichTextField
+        label="Comments"
+        value={report.commentsNotes}
+        onChange={(html) => onChange({ commentsNotes: html })}
+        placeholder="Any additional remarks…"
+      />
+
+      <Stack spacing={1.25}>
+        <SectionLabel>Recommendation</SectionLabel>
+        <TextField
+          fullWidth
+          select
+          label="Preliminary recommendation"
+          value={report.recommendation}
+          onChange={(event) =>
+            onChange({ recommendation: event.target.value as typeof report.recommendation })
+          }
+          sx={fieldSx}
+        >
+          <MenuItem value="proceed-as-requested">Proceed as requested</MenuItem>
+          <MenuItem value="proceed-with-conditions">Proceed with conditions</MenuItem>
+          <MenuItem value="needs-additional-verification">Needs additional verification</MenuItem>
+        </TextField>
+        <TextField
+          fullWidth
+          multiline
+          minRows={2}
+          label="Notes"
+          value={report.recommendationNotes}
+          onChange={(event) => onChange({ recommendationNotes: event.target.value })}
+          sx={fieldSx}
+        />
+      </Stack>
+    </Stack>
   );
 }
 
@@ -500,7 +596,7 @@ const EMPLOYMENT_TYPE_OPTIONS: { value: 'direct' | 'agency' | 'self-employed'; l
   { value: 'self-employed', label: 'Self-Employed' },
 ];
 
-const YES_NO_OPTIONS: { value: 'yes' | 'no'; label: string }[] = [
+export const YES_NO_OPTIONS: { value: 'yes' | 'no'; label: string }[] = [
   { value: 'yes', label: 'Yes' },
   { value: 'no', label: 'No' },
 ];
