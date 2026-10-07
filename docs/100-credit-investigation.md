@@ -345,18 +345,27 @@ groups use, not MUI Tabs: **Field Investigation**, **Trade Checking**,
 **Management and Ownership**, **Comments**, each with its own
 `useState`-backed expanded/collapsed toggle, all expanded by default.
 
-A local `CommercialSectionNav` component — a sticky left sidebar, one row
-per section, scroll-jump on click, active-section highlight on normal
+A `CommercialSectionNav` component — a sticky left sidebar, one row per
+section, scroll-jump on click, active-section highlight on normal
 scroll — sits beside the four cards, reproducing the reference tool's own
 left nav inside this single-card layout rather than as separate pages.
-It reuses `useActiveSection()` (`requirement-checklist-section-nav.tsx`,
-IntersectionObserver-based) exactly as Requirement Checklist's own
-`RequirementChecklistSectionNav` does, but is its own slimmer component
-rather than that one reused directly — Requirement Checklist's nav is
-tightly coupled to a document received/total progress bar and per-item
-status dot that don't apply here, since Commercial sections are just form
-fields with nothing to count. Clicking a nav item expands that section
-(if collapsed) and smooth-scrolls to it.
+It lives in `ci-report-card.tsx` itself (not inside
+`CommercialReportSections`), mirroring exactly how Requirement
+Checklist's own `RequirementChecklistSectionNav` sits in
+`requirement-checklist-view.tsx` as a sibling to the cards it jumps
+between, outside any one of them, rather than nested inside a single
+card — `CiReportCard` owns the section-expanded state, the ref map, and
+the active-section tracking, and passes `sectionRefs`/`expandedSections`/
+`onToggleSection` down into `CommercialReportSections` as props, so that
+component stays a plain stack of cards with no nav logic of its own. It
+reuses `useActiveSection()` (`requirement-checklist-section-nav.tsx`,
+IntersectionObserver-based) exactly as Requirement Checklist's own nav
+does, but is its own slimmer component rather than that one reused
+directly — Requirement Checklist's nav is tightly coupled to a document
+received/total progress bar and per-item status dot that don't apply
+here, since Commercial sections are just form fields with nothing to
+count. Clicking a nav item expands that section (if collapsed) and
+smooth-scrolls to it.
 
 Collapsing a section (or navigating away from it) never clears its
 data — every section's fields live on the

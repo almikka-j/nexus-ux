@@ -1,12 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
-
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import ButtonBase from '@mui/material/ButtonBase';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
@@ -16,7 +13,6 @@ import { RichTextField } from 'src/components/rich-text-field';
 import { CollapsibleSection } from 'src/components/collapsible-section/collapsible-section';
 
 import { RadioRow } from '../call-report/call-report-types';
-import { useActiveSection } from '../requirement-checklist-section-nav';
 import { fieldSx, SectionLabel, YES_NO_OPTIONS } from './ci-report-card';
 
 import type {
@@ -520,146 +516,42 @@ function StockholdersSection({
   );
 }
 
-const COMMERCIAL_SECTION_NAV_ITEMS = [
+export type CommercialSectionKey =
+  | 'fieldInvestigation'
+  | 'tradeChecking'
+  | 'managementAndOwnership'
+  | 'comments';
+
+export const COMMERCIAL_SECTION_NAV_ITEMS: { key: CommercialSectionKey; label: string }[] = [
   { key: 'fieldInvestigation', label: 'Field Investigation' },
   { key: 'tradeChecking', label: 'Trade Checking' },
   { key: 'managementAndOwnership', label: 'Management and Ownership' },
   { key: 'comments', label: 'Comments' },
-] as const;
-
-// Slim sticky jump-nav for the four Commercial CI Report sections —
-// same scroll-jump + active-highlight mechanics as
-// RequirementChecklistSectionNav (requirement-checklist-section-nav.tsx),
-// but without that component's document-count/progress-bar styling,
-// since there's nothing to count here — just form fields.
-function CommercialSectionNav({
-  activeKey,
-  onJump,
-}: {
-  activeKey: string | null;
-  onJump: (key: string) => void;
-}) {
-  return (
-    <Box
-      sx={{
-        borderRadius: '14px',
-        bgcolor: 'common.white',
-        border: '1px solid #EBEDF3',
-        boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
-        overflow: 'hidden',
-      }}
-    >
-      <Box sx={{ px: 2, pt: 1.75, pb: 1 }}>
-        <Typography
-          sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8891A6' }}
-        >
-          Sections
-        </Typography>
-      </Box>
-      <Stack sx={{ px: 1, pb: 1 }} spacing={0.25}>
-        {COMMERCIAL_SECTION_NAV_ITEMS.map((item) => {
-          const isActive = activeKey === item.key;
-          return (
-            <ButtonBase
-              key={item.key}
-              onClick={() => onJump(item.key)}
-              sx={{
-                position: 'relative',
-                justifyContent: 'flex-start',
-                textAlign: 'left',
-                pl: 1.75,
-                pr: 1.25,
-                py: 0.85,
-                borderRadius: '9px',
-                bgcolor: isActive ? '#F5F7FF' : 'transparent',
-                transition: 'background-color 0.15s ease',
-                '&:hover': { bgcolor: isActive ? '#F5F7FF' : '#FAFBFD' },
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  left: 0,
-                  top: 6,
-                  bottom: 6,
-                  width: 3,
-                  borderRadius: 999,
-                  bgcolor: isActive ? '#1C2A6E' : 'transparent',
-                  transition: 'background-color 0.15s ease',
-                },
-              }}
-            >
-              <Typography
-                noWrap
-                sx={{
-                  fontSize: 13,
-                  fontWeight: isActive ? 700 : 600,
-                  color: isActive ? '#1C2A6E' : '#14172A',
-                }}
-              >
-                {item.label}
-              </Typography>
-            </ButtonBase>
-          );
-        })}
-      </Stack>
-    </Box>
-  );
-}
+];
 
 export function CommercialReportSections({
   report,
   onChange,
+  sectionRefs,
+  expandedSections,
+  onToggleSection,
 }: {
   report: CiReport;
   onChange: (data: Partial<CiReport>) => void;
+  sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>;
+  expandedSections: Record<CommercialSectionKey, boolean>;
+  onToggleSection: (key: CommercialSectionKey) => void;
 }) {
-  const [fieldInvestigationExpanded, setFieldInvestigationExpanded] = useState(true);
-  const [tradeCheckingExpanded, setTradeCheckingExpanded] = useState(true);
-  const [managementExpanded, setManagementExpanded] = useState(true);
-  const [commentsExpanded, setCommentsExpanded] = useState(true);
-
-  const sectionRefs = useRef(new Map<string, HTMLDivElement | null>());
-  const activeKey = useActiveSection(
-    sectionRefs,
-    COMMERCIAL_SECTION_NAV_ITEMS.map((item) => item.key)
-  );
-
-  const expandSetters: Record<string, (value: boolean) => void> = {
-    fieldInvestigation: setFieldInvestigationExpanded,
-    tradeChecking: setTradeCheckingExpanded,
-    managementAndOwnership: setManagementExpanded,
-    comments: setCommentsExpanded,
-  };
-
-  const handleJump = (key: string) => {
-    expandSetters[key]?.(true);
-    requestAnimationFrame(() => {
-      sectionRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-
   return (
-    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
-      <Box
-        sx={{
-          width: { xs: 1, md: 220 },
-          flexShrink: 0,
-          position: { md: 'sticky' },
-          top: { md: 92 },
-          order: { xs: -1, md: 0 },
-        }}
-      >
-        <CommercialSectionNav activeKey={activeKey} onJump={handleJump} />
-      </Box>
-
-      <Stack spacing={2.5} sx={{ flex: 1, minWidth: 0, width: 1 }}>
+    <Stack spacing={2.5}>
       <Box
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('fieldInvestigation', el); }}
         sx={adminCardSx}
       >
         <CollapsibleSection
           title="Field Investigation"
-          expanded={fieldInvestigationExpanded}
-          onToggle={() => setFieldInvestigationExpanded((prev) => !prev)}
+          expanded={expandedSections.fieldInvestigation}
+          onToggle={() => onToggleSection('fieldInvestigation')}
         >
           <Stack spacing={2.5}>
             <Stack spacing={0.25}>
@@ -766,8 +658,8 @@ export function CommercialReportSections({
         <CollapsibleSection
           title="Trade Checking"
           subtitle="Customers and suppliers verified during the visit."
-          expanded={tradeCheckingExpanded}
-          onToggle={() => setTradeCheckingExpanded((prev) => !prev)}
+          expanded={expandedSections.tradeChecking}
+          onToggle={() => onToggleSection('tradeChecking')}
         >
           <Stack spacing={2.5}>
             <CommercialTradeCheckingSection
@@ -791,8 +683,8 @@ export function CommercialReportSections({
         <CollapsibleSection
           title="Management and Ownership"
           subtitle="Who runs the business and who owns it."
-          expanded={managementExpanded}
-          onToggle={() => setManagementExpanded((prev) => !prev)}
+          expanded={expandedSections.managementAndOwnership}
+          onToggle={() => onToggleSection('managementAndOwnership')}
         >
           <Stack spacing={2.5}>
             <ManagementSection
@@ -814,8 +706,8 @@ export function CommercialReportSections({
         <CollapsibleSection
           title="Comments"
           subtitle="Overall remarks from the investigation."
-          expanded={commentsExpanded}
-          onToggle={() => setCommentsExpanded((prev) => !prev)}
+          expanded={expandedSections.comments}
+          onToggle={() => onToggleSection('comments')}
         >
           <RichTextField
             label="Comments"
@@ -825,7 +717,6 @@ export function CommercialReportSections({
           />
         </CollapsibleSection>
       </Box>
-      </Stack>
     </Stack>
   );
 }

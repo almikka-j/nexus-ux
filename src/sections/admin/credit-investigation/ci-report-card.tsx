@@ -1,13 +1,14 @@
 // src/sections/admin/credit-investigation/ci-report-card.tsx
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
+import ButtonBase from '@mui/material/ButtonBase';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import ToggleButton from '@mui/material/ToggleButton';
@@ -30,8 +31,13 @@ import { RichTextField } from 'src/components/rich-text-field';
 
 import { buildTranscriptAutoFill } from '../credit-investigation-transcript';
 import { RadioRow } from '../call-report/call-report-types';
+import { useActiveSection } from '../requirement-checklist-section-nav';
 
-import { CommercialReportSections } from './ci-report-commercial-sections';
+import {
+  CommercialReportSections,
+  COMMERCIAL_SECTION_NAV_ITEMS,
+  type CommercialSectionKey,
+} from './ci-report-commercial-sections';
 
 // ----------------------------------------------------------------------
 // The ~15-section CI Report. Replaces the old 5-section version
@@ -63,6 +69,87 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Slim sticky jump-nav for the four Commercial CI Report sections —
+// same scroll-jump + active-highlight mechanics as
+// RequirementChecklistSectionNav (requirement-checklist-section-nav.tsx),
+// but without that component's document-count/progress-bar styling,
+// since there's nothing to count here — just form fields. Lives outside
+// CommercialReportSections (sibling to it, both inside CiReportCard),
+// mirroring how Requirement Checklist's own nav sits outside the cards
+// it jumps between rather than nested inside one of them.
+function CommercialSectionNav({
+  activeKey,
+  onJump,
+}: {
+  activeKey: string | null;
+  onJump: (key: CommercialSectionKey) => void;
+}) {
+  return (
+    <Box
+      sx={{
+        borderRadius: '14px',
+        bgcolor: 'common.white',
+        border: '1px solid #EBEDF3',
+        boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
+        overflow: 'hidden',
+      }}
+    >
+      <Box sx={{ px: 2, pt: 1.75, pb: 1 }}>
+        <Typography
+          sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8891A6' }}
+        >
+          Sections
+        </Typography>
+      </Box>
+      <Stack sx={{ px: 1, pb: 1 }} spacing={0.25}>
+        {COMMERCIAL_SECTION_NAV_ITEMS.map((item) => {
+          const isActive = activeKey === item.key;
+          return (
+            <ButtonBase
+              key={item.key}
+              onClick={() => onJump(item.key)}
+              sx={{
+                position: 'relative',
+                justifyContent: 'flex-start',
+                textAlign: 'left',
+                pl: 1.75,
+                pr: 1.25,
+                py: 0.85,
+                borderRadius: '9px',
+                bgcolor: isActive ? '#F5F7FF' : 'transparent',
+                transition: 'background-color 0.15s ease',
+                '&:hover': { bgcolor: isActive ? '#F5F7FF' : '#FAFBFD' },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  left: 0,
+                  top: 6,
+                  bottom: 6,
+                  width: 3,
+                  borderRadius: 999,
+                  bgcolor: isActive ? '#1C2A6E' : 'transparent',
+                  transition: 'background-color 0.15s ease',
+                },
+              }}
+            >
+              <Typography
+                noWrap
+                sx={{
+                  fontSize: 13,
+                  fontWeight: isActive ? 700 : 600,
+                  color: isActive ? '#1C2A6E' : '#14172A',
+                }}
+              >
+                {item.label}
+              </Typography>
+            </ButtonBase>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
+}
+
 export function CiReportCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { signUpData, application } = useRegistration();
@@ -72,6 +159,26 @@ export function CiReportCard() {
   const { personalInfo, financialInfo } = application;
 
   const isMarried = personalInfo?.civilStatus === 'Married';
+
+  const [commercialExpanded, setCommercialExpanded] = useState<Record<CommercialSectionKey, boolean>>({
+    fieldInvestigation: true,
+    tradeChecking: true,
+    managementAndOwnership: true,
+    comments: true,
+  });
+  const commercialSectionRefs = useRef(new Map<string, HTMLDivElement | null>());
+  const commercialActiveKey = useActiveSection(
+    commercialSectionRefs,
+    COMMERCIAL_SECTION_NAV_ITEMS.map((item) => item.key)
+  );
+  const handleToggleCommercialSection = (key: CommercialSectionKey) =>
+    setCommercialExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  const handleJumpToCommercialSection = (key: CommercialSectionKey) => {
+    setCommercialExpanded((prev) => ({ ...prev, [key]: true }));
+    requestAnimationFrame(() => {
+      commercialSectionRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   // One-time pre-fill from application/Call Report data — fires only while
   // the target field is still at its untouched default, so it can never
@@ -270,7 +377,28 @@ export function CiReportCard() {
             </>
           )}
           {report.type === 'commercial' && (
-            <CommercialReportSections report={report} onChange={setCiReport} />
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
+              <Box
+                sx={{
+                  width: { xs: 1, md: 220 },
+                  flexShrink: 0,
+                  position: { md: 'sticky' },
+                  top: { md: 92 },
+                  order: { xs: -1, md: 0 },
+                }}
+              >
+                <CommercialSectionNav activeKey={commercialActiveKey} onJump={handleJumpToCommercialSection} />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0, width: 1 }}>
+                <CommercialReportSections
+                  report={report}
+                  onChange={setCiReport}
+                  sectionRefs={commercialSectionRefs}
+                  expandedSections={commercialExpanded}
+                  onToggleSection={handleToggleCommercialSection}
+                />
+              </Box>
+            </Stack>
           )}
         </>
       )}
