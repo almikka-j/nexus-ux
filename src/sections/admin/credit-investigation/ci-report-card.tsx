@@ -61,6 +61,14 @@ import {
 
 export const fieldSx = { '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } };
 
+// Same look as fieldSx, but forces a white fill on a read-only field so
+// it renders identically to every editable field around it instead of
+// MUI's default readOnly/outlined styling, which otherwise reads as
+// grayed-out/disabled even though the field isn't actually disabled.
+const readOnlyFieldSx = {
+  '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14, bgcolor: 'common.white' },
+};
+
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', letterSpacing: '0.02em' }}>
@@ -853,7 +861,7 @@ function ResidenceNeighborhoodSection({
         label="Permanent address"
         value={report.residencePermanentAddress}
         InputProps={{ readOnly: true }}
-        sx={fieldSx}
+        sx={readOnlyFieldSx}
       />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <RadioRow
@@ -953,7 +961,7 @@ function EmploymentSection({
         label="Employment Status"
         value={report.employmentStatus}
         InputProps={{ readOnly: true }}
-        sx={fieldSx}
+        sx={readOnlyFieldSx}
       />
       <RadioRow
         label="Employment Type"
