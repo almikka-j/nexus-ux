@@ -478,6 +478,32 @@ MUI default breakpoints, **not overridden**: `xs 0` / `sm 600` / `md 900`
 - **Status:** recipe only — the closest shared implementation is
   `BureauTable`, still local to its file. **Pending component extraction.**
 
+### FactChip / FactChipRow (recipe, not a component)
+
+- A horizontal strip of label-over-value cells for a card/modal's
+  quick-read summary (e.g. Loan Type / Amount / Term / Purpose / Gross
+  Monthly Income / Date Filed).
+- **Cell (`FactChip`):** label `fontSize: 11 / 700`, uppercase,
+  `letterSpacing: 0.04em`, `#9AA2B4`; value `fontSize: 13.5 / 700`,
+  `#14172A`, `mt: 0.25`. `flex: '1 1 128px'`, `px: 1.75, py: 1`. A
+  `borderRight: 1px solid #EEF0F5` divides cells on `sm`+ (none on `xs`,
+  none on the last cell).
+- **Row (`FactChipRow`):** `direction="row"`, `flexWrap="wrap"`,
+  `borderRadius: 12px`, `border: 1px solid #EEF0F5`, `bgcolor: '#FAFBFD'`,
+  `overflow: hidden`.
+- **Reference impls:** `application-details-card.tsx` (Loan Type / Amount
+  / Term / Purpose / Gross Monthly Income / Date Filed),
+  `appraisal-report-preview.tsx` (Date Report / Date Inspected /
+  Requesting Officer / Branch / Account Name / Address — the only file
+  that names/exports `FactChipRow`), `appraisal-appraiser-bundle-view.tsx`,
+  `appraisal-approver-bundle-view.tsx`, `appraisal-fee-approval-bundle-view.tsx`,
+  `cash-flow-statement-card.tsx`, `ci-fee-approval-bundle-view.tsx`,
+  `financial-statement-modal.tsx`, `financial-statement-report.tsx`,
+  `payment-detail-view.tsx`.
+- **Status:** reimplemented locally per screen, kept in sync by
+  convention — **pending component extraction.** Visual showcase:
+  `design-system-view.tsx`'s "FactChip" section.
+
 ### Empty state (pattern, not a component)
 
 - A centered box: `1px dashed #E1E4ED`, `borderRadius: 10`–`11px`, muted
@@ -667,6 +693,8 @@ from the **real** shared token/component (label anything showcase-only):
    (not duplicated on the showcase).
 10. **Tables & lists** — the admin table recipe with 3 sample rows
     (labelled *demo data*).
+10a. **FactChip** — a live `FactChipRow` of 6 `FactChip` cells (labelled
+    *demo data*; not a shared component — see §6's FactChip entry).
 10. **Badges & status indicators** — `StatusBadge` in all tones, with and
     without icon; a `CollapsibleSectionBadge`.
 11. **Alerts / feedback** — a tinted callout box in each of the 5 tones;
@@ -705,6 +733,7 @@ from the **real** shared token/component (label anything showcase-only):
 | Form fields | `Field` / `CurrencyField` / `PercentField` / `IntegerField` re-declared per file. | Never extracted into a shared component. | `cash-flow-statement-card.tsx`, `bureau-reports-card.tsx`, `bank-statement-modal.tsx`, `credit-investigation-view.tsx` | Temporary — pending extraction. |
 | Admin table | The recipe is copied per screen; `BureauTable` is the closest shared impl but local to its file. | Not extracted. | `bureau-results-tables.tsx` and callers | Temporary — pending extraction. |
 | Empty state | Dashed-box pattern copied per screen. | Not extracted. | multiple | Temporary — pending extraction. |
+| FactChip / FactChipRow | Label-over-value summary-strip cells copied per screen; `appraisal-report-preview.tsx` is the only file that names/exports `FactChipRow`. | Not extracted. | `application-details-card.tsx`, `appraisal-report-preview.tsx`, `appraisal-appraiser-bundle-view.tsx`, `cash-flow-statement-card.tsx`, `financial-statement-report.tsx`, `payment-detail-view.tsx`, and others | Temporary — pending extraction. |
 | Primary button | The navy `bgcolor/radius/px/hover` block is hand-repeated (no `primaryNavyButtonSx` token). | Only `outlinedNavyButtonSx` was tokenised. | `admin-tokens.ts` + call sites | Temporary — candidate token. |
 | Cash Flow Statement card | Header-only `CollapsibleSection` (no body, no chevron). | The whole card is just a labelled Manage/View row. | `cash-flow-statement-card.tsx` | Permanent, intentional (a supported mode). |
 | AI review card — content varies by screen | All four screens share one `AiReviewCard` shell, but: **Initial Credit Checking** renders the **rich** variant (Overall Assessment + typed findings + Recommended Action + Review Basis + Required Verification) and merges a "View Initial Credit Checking Result" `footer` row; the other three render the **compact** variant (summary + recommendation only). **Initial Credit Checking** uses the **5-level `SCREENING_RISK_STYLES`** scale; the other three use the **3-level `AI_REVIEW_RISK_STYLES`** readiness scale. **Credit Investigation**'s card starts **collapsed once CI Fee is approved** (`expanded={ciFeeStatus !== 'approved'}`); the others start expanded. | Each screen computes different data and has a different workflow — the visual pattern is standardized, the content is not forced identical. | `components/admin-ui/ai-review-card.tsx` + the four view files | Permanent, intentional. |
@@ -774,6 +803,13 @@ any of these change:
 
 ## 16. Change History
 
+- **2026-10-07** — added the **FactChip / FactChipRow** recipe (§6, §12,
+  §13): label-over-value summary-strip cells, already reimplemented
+  locally across 9+ screens (Application Details Card, Appraisal Report
+  Preview, Cash Flow Statement, Financial Statement Report, Payment
+  Detail, etc.) but never documented here before. Added a live showcase
+  section to `design-system-view.tsx` with 6 demo cells, and a
+  pending-extraction entry in Known Exceptions.
 - **2026-09-08** — created: the token/component rulebook + the
   `/admin/design-system` live gallery, wired into the floating settings
   popover.

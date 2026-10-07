@@ -126,7 +126,7 @@ const KNOWN_EXCEPTIONS: string[] = [
   'ConfirmDialog declares a `tone` prop that is never used — colour comes from the `confirmDialogActionToneSx` spread instead. Do not pass `tone`. (Documented, not fixed.)',
   'ApplicationDetailsCard uses tighter padding (p {xs:2.5, md:3}) than adminCardSx.',
   'Initial Credit Checking split layout uses maxWidth="xl" instead of "lg".',
-  'Field / CurrencyField / ReportFileDropzone / empty-state / admin table are inline patterns re-declared per file — pending component extraction.',
+  'Field / CurrencyField / ReportFileDropzone / empty-state / admin table / FactChip are inline patterns re-declared per file — pending component extraction.',
   'Primary navy button style is hand-repeated (no primaryNavyButtonSx token yet).',
   'Cash Flow Statement card is a header-only CollapsibleSection (no body, no chevron) — a supported mode.',
 ];
@@ -205,6 +205,51 @@ function ShowcaseNote({ children }: { children: React.ReactNode }) {
     <Typography sx={{ fontSize: 12, color: '#98A1B3', mt: 1.5, fontStyle: 'italic' }}>
       {children}
     </Typography>
+  );
+}
+
+// FactChip / FactChipRow — a horizontal strip of label-over-value cells
+// (uppercase gray label, bold dark value), used for a quick read-only
+// summary at the top of a card or modal. Not a shared component yet —
+// every screen that uses it (application-details-card.tsx,
+// appraisal-report-preview.tsx, appraisal-appraiser-bundle-view.tsx,
+// cash-flow-statement-card.tsx, financial-statement-report.tsx,
+// payment-detail-view.tsx, and others) reimplements it locally, kept in
+// sync by convention rather than a shared module. Shown here exactly as
+// those screens render it, for visual reference.
+function FactChip({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <Box
+      sx={{
+        flex: '1 1 128px',
+        minWidth: 0,
+        px: 1.75,
+        py: 1,
+        borderRight: { xs: 'none', sm: '1px solid #EEF0F5' },
+        '&:last-of-type': { borderRight: 'none' },
+      }}
+    >
+      <Typography
+        sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#9AA2B4' }}
+      >
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A', mt: 0.25 }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
+function FactChipRow({ children }: { children: React.ReactNode }) {
+  return (
+    <Stack
+      direction="row"
+      flexWrap="wrap"
+      sx={{ borderRadius: '12px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD', overflow: 'hidden' }}
+    >
+      {children}
+    </Stack>
   );
 }
 
@@ -686,6 +731,26 @@ export function DesignSystemView() {
           <ShowcaseNote>
             Demo data. Recipe only — closest shared impl is `BureauTable` (bureau-results-tables.tsx),
             still local. Pending component extraction.
+          </ShowcaseNote>
+        </SectionCard>
+
+        {/* FactChip --------------------------------------------------- */}
+        <SectionCard
+          title="FactChip — quick-read summary strip"
+          subtitle="Label-over-value cells in a horizontal strip. Used for a card/modal's at-a-glance summary."
+        >
+          <FactChipRow>
+            <FactChip label="Loan Type" value="Personal Loan" />
+            <FactChip label="Amount" value="₱150,000" />
+            <FactChip label="Term" value="24 months" />
+            <FactChip label="Purpose" value="Home Improvement" />
+            <FactChip label="Gross Monthly Income" value="₱45,000" />
+            <FactChip label="Date Filed" value="8/29/2026" />
+          </FactChipRow>
+          <ShowcaseNote>
+            Demo data. Not a shared component — reimplemented locally per screen (see the code comment
+            above `FactChip` in this file for every current usage site). Pending extraction into a
+            shared module.
           </ShowcaseNote>
         </SectionCard>
 
