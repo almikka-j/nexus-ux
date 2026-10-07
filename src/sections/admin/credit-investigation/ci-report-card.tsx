@@ -244,7 +244,21 @@ export function CiReportCard() {
     : null;
 
   return (
-    <Box sx={adminCardSx}>
+    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
+      {report.type === 'commercial' && (
+        <Box
+          sx={{
+            width: { xs: 1, md: 220 },
+            flexShrink: 0,
+            position: { md: 'sticky' },
+            top: { md: 92 },
+            order: { xs: -1, md: 0 },
+          }}
+        >
+          <CommercialSectionNav activeKey={commercialActiveKey} onJump={handleJumpToCommercialSection} />
+        </Box>
+      )}
+      <Box sx={{ ...adminCardSx, flex: 1, minWidth: 0, width: 1 }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         justifyContent="space-between"
@@ -377,32 +391,18 @@ export function CiReportCard() {
             </>
           )}
           {report.type === 'commercial' && (
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
-              <Box
-                sx={{
-                  width: { xs: 1, md: 220 },
-                  flexShrink: 0,
-                  position: { md: 'sticky' },
-                  top: { md: 92 },
-                  order: { xs: -1, md: 0 },
-                }}
-              >
-                <CommercialSectionNav activeKey={commercialActiveKey} onJump={handleJumpToCommercialSection} />
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 0, width: 1 }}>
-                <CommercialReportSections
-                  report={report}
-                  onChange={setCiReport}
-                  sectionRefs={commercialSectionRefs}
-                  expandedSections={commercialExpanded}
-                  onToggleSection={handleToggleCommercialSection}
-                />
-              </Box>
-            </Stack>
+            <CommercialReportSections
+              report={report}
+              onChange={setCiReport}
+              sectionRefs={commercialSectionRefs}
+              expandedSections={commercialExpanded}
+              onToggleSection={handleToggleCommercialSection}
+            />
           )}
         </>
       )}
-    </Box>
+      </Box>
+    </Stack>
   );
 }
 

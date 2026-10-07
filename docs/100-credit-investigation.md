@@ -347,15 +347,16 @@ groups use, not MUI Tabs: **Field Investigation**, **Trade Checking**,
 
 A `CommercialSectionNav` component — a sticky left sidebar, one row per
 section, scroll-jump on click, active-section highlight on normal
-scroll — sits beside the four cards, reproducing the reference tool's own
-left nav inside this single-card layout rather than as separate pages.
-It lives in `ci-report-card.tsx` itself (not inside
-`CommercialReportSections`), mirroring exactly how Requirement
-Checklist's own `RequirementChecklistSectionNav` sits in
+scroll — sits beside the **entire CI Report card**, not inside it:
+`CiReportCard`'s own `return` is a row `Stack` (nav column, only rendered
+when `report.type === 'commercial'`, plus the `adminCardSx` card as a
+sibling column holding the title, the type toggle, the transcript row,
+Date Inspected, and the Consumer/Commercial branch). This mirrors exactly
+how Requirement Checklist's own `RequirementChecklistSectionNav` sits in
 `requirement-checklist-view.tsx` as a sibling to the cards it jumps
-between, outside any one of them, rather than nested inside a single
-card — `CiReportCard` owns the section-expanded state, the ref map, and
-the active-section tracking, and passes `sectionRefs`/`expandedSections`/
+between — outside every card, not nested inside one, same as here.
+`CiReportCard` owns the section-expanded state, the ref map, and the
+active-section tracking, and passes `sectionRefs`/`expandedSections`/
 `onToggleSection` down into `CommercialReportSections` as props, so that
 component stays a plain stack of cards with no nav logic of its own. It
 reuses `useActiveSection()` (`requirement-checklist-section-nav.tsx`,
