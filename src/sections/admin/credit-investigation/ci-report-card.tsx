@@ -28,6 +28,7 @@ import type {
 import { Iconify } from 'src/components/iconify';
 import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { RichTextField } from 'src/components/rich-text-field';
+import { CollapsibleSection } from 'src/components/collapsible-section/collapsible-section';
 
 import { buildTranscriptAutoFill } from '../credit-investigation-transcript';
 import { RadioRow } from '../call-report/call-report-types';
@@ -69,20 +70,24 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Slim sticky jump-nav for the four Commercial CI Report sections —
-// same scroll-jump + active-highlight mechanics as
+// Slim sticky jump-nav for the CI Report's section groups (both report
+// types) — same scroll-jump + active-highlight mechanics as
 // RequirementChecklistSectionNav (requirement-checklist-section-nav.tsx),
 // but without that component's document-count/progress-bar styling,
 // since there's nothing to count here — just form fields. Lives outside
-// CommercialReportSections (sibling to it, both inside CiReportCard),
-// mirroring how Requirement Checklist's own nav sits outside the cards
-// it jumps between rather than nested inside one of them.
-function CommercialSectionNav({
+// ConsumerReportSections/CommercialReportSections (sibling to them, both
+// inside CiReportCard), mirroring how Requirement Checklist's own nav
+// sits outside the cards it jumps between rather than nested inside one
+// of them. Shared by both report types — only the `items`/`activeKey`
+// passed in differ.
+function CiSectionNav<K extends string>({
+  items,
   activeKey,
   onJump,
 }: {
+  items: { key: K; label: string }[];
   activeKey: string | null;
-  onJump: (key: CommercialSectionKey) => void;
+  onJump: (key: K) => void;
 }) {
   return (
     <Box
@@ -102,7 +107,7 @@ function CommercialSectionNav({
         </Typography>
       </Box>
       <Stack sx={{ px: 1, pb: 1 }} spacing={0.25}>
-        {COMMERCIAL_SECTION_NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const isActive = activeKey === item.key;
           return (
             <ButtonBase
@@ -150,6 +155,27 @@ function CommercialSectionNav({
   );
 }
 
+type ConsumerSectionKey =
+  | 'family'
+  | 'residenceNeighborhood'
+  | 'employment'
+  | 'tradeChecking'
+  | 'financialInformation'
+  | 'loanPurpose'
+  | 'comaker'
+  | 'investigationFindings';
+
+const CONSUMER_SECTION_NAV_ITEMS: { key: ConsumerSectionKey; label: string }[] = [
+  { key: 'family', label: 'Family' },
+  { key: 'residenceNeighborhood', label: 'Residence/Neighborhood' },
+  { key: 'employment', label: 'Employment' },
+  { key: 'tradeChecking', label: 'Trade Checking' },
+  { key: 'financialInformation', label: 'Financial Information' },
+  { key: 'loanPurpose', label: 'Loan Purpose' },
+  { key: 'comaker', label: 'Comaker' },
+  { key: 'investigationFindings', label: 'Investigation Findings / Observations' },
+];
+
 export function CiReportCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { signUpData, application } = useRegistration();
@@ -177,6 +203,30 @@ export function CiReportCard() {
     setCommercialExpanded((prev) => ({ ...prev, [key]: true }));
     requestAnimationFrame(() => {
       commercialSectionRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const [consumerExpanded, setConsumerExpanded] = useState<Record<ConsumerSectionKey, boolean>>({
+    family: true,
+    residenceNeighborhood: true,
+    employment: true,
+    tradeChecking: true,
+    financialInformation: true,
+    loanPurpose: true,
+    comaker: true,
+    investigationFindings: true,
+  });
+  const consumerSectionRefs = useRef(new Map<string, HTMLDivElement | null>());
+  const consumerActiveKey = useActiveSection(
+    consumerSectionRefs,
+    CONSUMER_SECTION_NAV_ITEMS.map((item) => item.key)
+  );
+  const handleToggleConsumerSection = (key: ConsumerSectionKey) =>
+    setConsumerExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  const handleJumpToConsumerSection = (key: ConsumerSectionKey) => {
+    setConsumerExpanded((prev) => ({ ...prev, [key]: true }));
+    requestAnimationFrame(() => {
+      consumerSectionRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   };
 
@@ -255,7 +305,28 @@ export function CiReportCard() {
             order: { xs: -1, md: 0 },
           }}
         >
-          <CommercialSectionNav activeKey={commercialActiveKey} onJump={handleJumpToCommercialSection} />
+          <CiSectionNav
+            items={COMMERCIAL_SECTION_NAV_ITEMS}
+            activeKey={commercialActiveKey}
+            onJump={handleJumpToCommercialSection}
+          />
+        </Box>
+      )}
+      {report.type === 'consumer' && (
+        <Box
+          sx={{
+            width: { xs: 1, md: 220 },
+            flexShrink: 0,
+            position: { md: 'sticky' },
+            top: { md: 92 },
+            order: { xs: -1, md: 0 },
+          }}
+        >
+          <CiSectionNav
+            items={CONSUMER_SECTION_NAV_ITEMS}
+            activeKey={consumerActiveKey}
+            onJump={handleJumpToConsumerSection}
+          />
         </Box>
       )}
       <Box sx={{ ...adminCardSx, flex: 1, minWidth: 0, width: 1 }}>
@@ -388,8 +459,10 @@ export function CiReportCard() {
                 report={report}
                 onChange={setCiReport}
                 comakers={comakers}
-                applicantName={applicantName}
                 isBusinessOwner={isBusinessOwner}
+                sectionRefs={consumerSectionRefs}
+                expandedSections={consumerExpanded}
+                onToggleSection={handleToggleConsumerSection}
               />
             </>
           )}
@@ -413,119 +486,222 @@ function ConsumerReportSections({
   report,
   onChange,
   comakers,
-  applicantName,
   isBusinessOwner,
+  sectionRefs,
+  expandedSections,
+  onToggleSection,
 }: {
   report: CiReport;
   onChange: (data: Partial<CiReport>) => void;
   comakers: CiComakerEntry[];
-  applicantName: string;
   isBusinessOwner: boolean;
+  sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>;
+  expandedSections: Record<ConsumerSectionKey, boolean>;
+  onToggleSection: (key: ConsumerSectionKey) => void;
 }) {
   return (
     <Stack spacing={2.5}>
-      <RichTextField
-        label="Subject As Of"
-        value={report.subjectAsOf}
-        onChange={(html) => onChange({ subjectAsOf: html })}
-        placeholder="Summary of the investigation as of the visit date…"
-      />
-
-      <RichTextField
-        label="Spouse"
-        value={report.spouseNotes}
-        onChange={(html) => onChange({ spouseNotes: html })}
-        placeholder="Spouse name, citizenship, and any relevant notes…"
-      />
-
-      <ChildrenSection
-        entries={report.children}
-        onChange={(children) => onChange({ children })}
-      />
-
-      <ResidenceNeighborhoodSection report={report} onChange={onChange} />
-
-      <EmploymentSection report={report} onChange={onChange} isBusinessOwner={isBusinessOwner} />
-
-      <TradeCheckingSection
-        title="Suppliers"
-        entries={report.suppliers}
-        onChange={(suppliers) => onChange({ suppliers })}
-      />
-      <TradeCheckingSection
-        title="Customers"
-        entries={report.customers}
-        onChange={(customers) => onChange({ customers })}
-      />
-
-      <RichTextField
-        label="Assets"
-        value={report.assetsNotes}
-        onChange={(html) => onChange({ assetsNotes: html })}
-        placeholder="Real property, vehicles, and other notable assets…"
-      />
-
-      <OtherIncomeSection
-        entries={report.otherIncomeSources}
-        onChange={(otherIncomeSources) => onChange({ otherIncomeSources })}
-      />
-
-      <RichTextField
-        label="Loan Purpose (Required)"
-        value={report.loanPurposeNotes}
-        onChange={(html) => onChange({ loanPurposeNotes: html })}
-        placeholder="What the loan proceeds will be used for…"
-      />
-
-      <BankVerificationSection
-        entries={report.bankAccounts}
-        onChange={(bankAccounts) => onChange({ bankAccounts })}
-      />
-
-      <NegativeRecordSection report={report} applicantName={applicantName} onChange={onChange} />
-
-      <ComakerSection comakers={comakers} />
-
-      <RichTextField
-        label="Health and Habits"
-        value={report.healthAndHabitsNotes}
-        onChange={(html) => onChange({ healthAndHabitsNotes: html })}
-        placeholder="Lifestyle, health, or habit observations relevant to the investigation…"
-      />
-
-      <RichTextField
-        label="Comments"
-        value={report.commentsNotes}
-        onChange={(html) => onChange({ commentsNotes: html })}
-        placeholder="Any additional remarks…"
-      />
-
-      <Stack spacing={1.25}>
-        <SectionLabel>Recommendation</SectionLabel>
-        <TextField
-          fullWidth
-          select
-          label="Preliminary recommendation"
-          value={report.recommendation}
-          onChange={(event) =>
-            onChange({ recommendation: event.target.value as typeof report.recommendation })
-          }
-          sx={fieldSx}
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('family', el); }}
+        sx={adminCardSx}
+      >
+        <CollapsibleSection
+          title="Family"
+          subtitle="The applicant's spouse and children."
+          expanded={expandedSections.family}
+          onToggle={() => onToggleSection('family')}
         >
-          <MenuItem value="proceed-as-requested">Proceed as requested</MenuItem>
-          <MenuItem value="proceed-with-conditions">Proceed with conditions</MenuItem>
-          <MenuItem value="needs-additional-verification">Needs additional verification</MenuItem>
-        </TextField>
-        <TextField
-          fullWidth
-          multiline
-          minRows={2}
-          label="Notes"
-          value={report.recommendationNotes}
-          onChange={(event) => onChange({ recommendationNotes: event.target.value })}
-          sx={fieldSx}
-        />
-      </Stack>
+          <Stack spacing={2.5}>
+            <RichTextField
+              label="Spouse"
+              value={report.spouseNotes}
+              onChange={(html) => onChange({ spouseNotes: html })}
+              placeholder="Spouse name, citizenship, and any relevant notes…"
+            />
+            <ChildrenSection
+              entries={report.children}
+              onChange={(children) => onChange({ children })}
+            />
+          </Stack>
+        </CollapsibleSection>
+      </Box>
+
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('residenceNeighborhood', el); }}
+        sx={adminCardSx}
+      >
+        <CollapsibleSection
+          title="Residence/Neighborhood"
+          subtitle="The permanent address on file, and the present address if the applicant lives elsewhere."
+          expanded={expandedSections.residenceNeighborhood}
+          onToggle={() => onToggleSection('residenceNeighborhood')}
+        >
+          <ResidenceNeighborhoodSection report={report} onChange={onChange} />
+        </CollapsibleSection>
+      </Box>
+
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('employment', el); }}
+        sx={adminCardSx}
+      >
+        <CollapsibleSection
+          title="Employment"
+          subtitle="Employer or business, income, workforce and registration details."
+          expanded={expandedSections.employment}
+          onToggle={() => onToggleSection('employment')}
+        >
+          <EmploymentSection report={report} onChange={onChange} isBusinessOwner={isBusinessOwner} />
+        </CollapsibleSection>
+      </Box>
+
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('tradeChecking', el); }}
+        sx={adminCardSx}
+      >
+        <CollapsibleSection
+          title="Trade Checking"
+          subtitle="Customers and suppliers verified during the visit."
+          expanded={expandedSections.tradeChecking}
+          onToggle={() => onToggleSection('tradeChecking')}
+        >
+          <Stack spacing={2.5}>
+            <TradeCheckingSection
+              title="Customers"
+              entries={report.customers}
+              onChange={(customers) => onChange({ customers })}
+            />
+            <TradeCheckingSection
+              title="Suppliers"
+              entries={report.suppliers}
+              onChange={(suppliers) => onChange({ suppliers })}
+            />
+          </Stack>
+        </CollapsibleSection>
+      </Box>
+
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('financialInformation', el); }}
+        sx={adminCardSx}
+      >
+        <CollapsibleSection
+          title="Financial Information"
+          subtitle="Assets, other sources of income and bank accounts."
+          expanded={expandedSections.financialInformation}
+          onToggle={() => onToggleSection('financialInformation')}
+        >
+          <Stack spacing={2.5}>
+            <RichTextField
+              label="Assets"
+              value={report.assetsNotes}
+              onChange={(html) => onChange({ assetsNotes: html })}
+              placeholder="Real property, vehicles, and other notable assets…"
+            />
+            <OtherIncomeSection
+              entries={report.otherIncomeSources}
+              onChange={(otherIncomeSources) => onChange({ otherIncomeSources })}
+            />
+            <BankVerificationSection
+              entries={report.bankAccounts}
+              onChange={(bankAccounts) => onChange({ bankAccounts })}
+            />
+          </Stack>
+        </CollapsibleSection>
+      </Box>
+
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('loanPurpose', el); }}
+        sx={adminCardSx}
+      >
+        <CollapsibleSection
+          title="Loan Purpose"
+          subtitle="Required. What the loan proceeds will be used for."
+          expanded={expandedSections.loanPurpose}
+          onToggle={() => onToggleSection('loanPurpose')}
+        >
+          <RichTextField
+            label="Loan Purpose"
+            value={report.loanPurposeNotes}
+            onChange={(html) => onChange({ loanPurposeNotes: html })}
+            placeholder="What the loan proceeds will be used for…"
+          />
+        </CollapsibleSection>
+      </Box>
+
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('comaker', el); }}
+        sx={adminCardSx}
+      >
+        <CollapsibleSection
+          title="Comaker"
+          subtitle="The comakers backing this loan."
+          expanded={expandedSections.comaker}
+          onToggle={() => onToggleSection('comaker')}
+        >
+          <ComakerSection comakers={comakers} />
+        </CollapsibleSection>
+      </Box>
+
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('investigationFindings', el); }}
+        sx={adminCardSx}
+      >
+        <CollapsibleSection
+          title="Investigation Findings / Observations"
+          subtitle="The officer's assessment from the field visit, document review, and the preliminary recommendation."
+          expanded={expandedSections.investigationFindings}
+          onToggle={() => onToggleSection('investigationFindings')}
+        >
+          <Stack spacing={2.5}>
+            <RichTextField
+              label="Subject As Of"
+              value={report.subjectAsOf}
+              onChange={(html) => onChange({ subjectAsOf: html })}
+              placeholder="Summary of the investigation as of the visit date…"
+            />
+
+            <RichTextField
+              label="Health and Habits"
+              value={report.healthAndHabitsNotes}
+              onChange={(html) => onChange({ healthAndHabitsNotes: html })}
+              placeholder="Lifestyle, health, or habit observations relevant to the investigation…"
+            />
+
+            <RichTextField
+              label="Comments"
+              value={report.commentsNotes}
+              onChange={(html) => onChange({ commentsNotes: html })}
+              placeholder="Any additional remarks…"
+            />
+
+            <Stack spacing={1.25}>
+              <SectionLabel>Recommendation</SectionLabel>
+              <TextField
+                fullWidth
+                select
+                label="Preliminary recommendation"
+                value={report.recommendation}
+                onChange={(event) =>
+                  onChange({ recommendation: event.target.value as typeof report.recommendation })
+                }
+                sx={fieldSx}
+              >
+                <MenuItem value="proceed-as-requested">Proceed as requested</MenuItem>
+                <MenuItem value="proceed-with-conditions">Proceed with conditions</MenuItem>
+                <MenuItem value="needs-additional-verification">Needs additional verification</MenuItem>
+              </TextField>
+              <TextField
+                fullWidth
+                multiline
+                minRows={2}
+                label="Notes"
+                value={report.recommendationNotes}
+                onChange={(event) => onChange({ recommendationNotes: event.target.value })}
+                sx={fieldSx}
+              />
+            </Stack>
+          </Stack>
+        </CollapsibleSection>
+      </Box>
     </Stack>
   );
 }
@@ -1098,50 +1274,6 @@ function BankVerificationSection({
           Add Bank Account
         </Button>
       </Stack>
-    </Stack>
-  );
-}
-
-const NEGATIVE_FINDING_OPTIONS: {
-  value: 'no-negative-findings-both-cmap-nfis' | 'negative-findings-found';
-  label: string;
-}[] = [
-  { value: 'no-negative-findings-both-cmap-nfis', label: 'No negative findings both CMAP & NFIS' },
-  { value: 'negative-findings-found', label: 'Negative findings found' },
-];
-
-function NegativeRecordSection({
-  report,
-  applicantName,
-  onChange,
-}: {
-  report: CiReport;
-  applicantName: string;
-  onChange: (data: Partial<CiReport>) => void;
-}) {
-  return (
-    <Stack spacing={1.5}>
-      <SectionLabel>Negative Record</SectionLabel>
-      <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-        <Stack spacing={2}>
-          <Typography sx={{ fontSize: 12.5, color: '#5A6273', lineHeight: 1.6 }}>
-            {report.negativeRecordSourceNote}
-            {report.visitDate || '[visit date pending]'}
-          </Typography>
-          <RadioRow
-            label={`${applicantName} — Borrower`}
-            value={report.negativeRecordFinding}
-            options={NEGATIVE_FINDING_OPTIONS}
-            onChange={(value) => onChange({ negativeRecordFinding: value })}
-          />
-          <RichTextField
-            label="Remarks"
-            value={report.negativeRecordRemarks}
-            onChange={(html) => onChange({ negativeRecordRemarks: html })}
-            placeholder="Details on any negative findings…"
-          />
-        </Stack>
-      </Box>
     </Stack>
   );
 }

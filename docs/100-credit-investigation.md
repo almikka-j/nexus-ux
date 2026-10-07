@@ -251,76 +251,89 @@ object; whichever type isn't currently selected simply isn't rendered, so
 an officer can switch back and forth without losing previously-entered
 data on either side.
 
-**Consumer** renders the full ~15-section structure below, unchanged from
-before Report Type existed. Full rationale and section-by-section spec for
-this branch: `docs/superpowers/specs/2026-08-06-ci-report-redesign-design.md`.
-In order:
+**Consumer** was restructured (2026-10-07) from its earlier flat ~15-item
+list into 8 collapsible card-sections matching a reference "Field
+Investigation" tool exactly, each a `CollapsibleSection` inside its own
+`adminCardSx` box — same pattern as Commercial (see below) and as
+Requirement Checklist's own Credit Investigation/Appraisal/Financial
+Evaluation groups. A sticky left `CiSectionNav` (shared component, see
+Commercial's own description below) lists these 8 sections and
+scroll-jumps/expands on click, same mechanism as Commercial's nav. Shared
+header fields (transcript upload, AI Summary, Inspection/Date Inspected)
+still render once, above the Consumer/Commercial branch, same as always;
+the read-only Residence Address + Business/Work Address block remains
+Consumer-only, rendered just above these 8 sections. In order:
 
-- **Header** — read-only Residence Address + Business/Work Address, shown
-  side by side in a two-column block. Sourced entirely from
-  `application.personalInfo`/`financialInfo`, never edited on this card;
-  Business/Work Address reads "Not applicable" whenever
-  `financialInfo.employmentStatus !== 'Business Owner'`.
-- **Inspection** — a labeled section (`SectionLabel`, same convention as
-  every other grouped field below) holding one field, Date Inspected
-  (`report.visitDate`); previously sat alone with no label.
-- **Subject As Of** — `RichTextField`, blank until the officer types or a
-  transcript is uploaded.
-- **Spouse** — `RichTextField`, pre-filled once with a plain-text scaffold
-  (name + birthday) built from `personalInfo.spouse*` fields when
-  `civilStatus === 'Married'`; blank otherwise. Free-text afterward, not a
-  locked value.
-- **Children** — repeatable `CiChildEntry` array (Name, Age,
-  Occupation/School), same add/remove-per-entry pattern as Call Report's
-  Collateral Information.
-- **Residence/Neighborhood** — structured fields in a bordered box:
-  Permanent address (read-only, from `personalInfo`), Leased type, Length
-  of stay, Landmark, Remarks, followed by a **"PRESENT ADDRESS (if
-  different)"** sub-block mirroring the same five fields for when the
-  applicant's current residence differs from the address on file.
-- **Employment** — structured fields in a bordered box. Employment Status
-  is pre-filled read-only from `financialInfo.employmentStatus`; Employment
-  Type, Employer/Business Name, Position, Address, Tel./Email, Salary,
-  Annual Income, Length of Service, employee counts, Unionized, SEC/DTI
-  registration, and Remarks are officer-entered or transcript-filled. The
-  Business/Employer Name and Address labels switch to "Business"
+- **Family** — subtitled "The applicant's spouse and children." Spouse
+  (`RichTextField`, pre-filled once with a plain-text scaffold — name +
+  birthday — built from `personalInfo.spouse*` fields when
+  `civilStatus === 'Married'`; blank otherwise, free-text afterward, not a
+  locked value) and Children (repeatable `CiChildEntry` array: Name, Age,
+  Occupation/School).
+- **Residence/Neighborhood** — subtitled "The permanent address on file,
+  and the present address if the applicant lives elsewhere." Permanent
+  address (read-only, from `personalInfo`), Leased type, Length of stay,
+  Landmark, Remarks, followed by a **"PRESENT ADDRESS (if different)"**
+  sub-block mirroring the same five fields for when the applicant's
+  current residence differs from the address on file.
+- **Employment** — subtitled "Employer or business, income, workforce and
+  registration details." Employment Status (pre-filled read-only from
+  `financialInfo.employmentStatus`), Employment Type, Employer/Business
+  Name, Position, Address, Tel./Email, Salary, Annual Income, Length of
+  Service, employee counts, Unionized, SEC/DTI registration, and Remarks.
+  The Business/Employer Name and Address labels switch to "Business"
   terminology when `financialInfo.employmentStatus === 'Business Owner'`.
-- **Trade Checking** — two independent repeatable `CiTradeEntry` arrays,
-  **Suppliers** and **Customers**, each with its own "Add Supplier"/"Add
-  Customer" trigger (Name, Address, Contact Number, Nature of Dealing,
-  Years of Dealing).
-- **Assets** — `RichTextField`, blank by default.
-- **Other Source of Income** — repeatable `CiIncomeSourceEntry` array
-  (Source, Monthly Amount, Remarks).
-- **Loan Purpose (Required)** — `RichTextField`, pre-filled once from
-  `financialInfo.loanPurpose` if present. Labeled required to match the
-  reference layout, but nothing on this page currently blocks "Proceed" on
-  CI Report field completeness — same permissive-gate convention as the
-  rest of this page's decision flow.
-- **Bank Verification** — repeatable `CiBankAccountEntry` array (Bank Name,
-  Account Type, Account Number, Average Monthly Balance).
-- **Negative Record** — a fixed, non-editable disclosure line
-  (`negativeRecordSourceNote`, naming BAP/CMAP as the source and the visit
-  date), a `RadioRow` finding ("No negative findings both CMAP & NFIS" /
-  "Negative findings found") next to the applicant's own name, and a
-  `RichTextField` for Remarks.
-- **Comaker** — **read-only**, sourced directly from
-  `review.callReport.comakers` (no local `CiReport` fields of its own).
-  Renders each comaker as a compact row (name, relationship, address,
-  contact); shows "No data found. Please add comaker information on Call
-  Report." when the array is empty. The write side of this data lives on
-  Call Report's own Comaker card — see
-  `docs/080-account-solicitation-call-report.md`'s "The 12 section cards"
-  table, section 12.
-- **Health and Habits** — `RichTextField`, blank by default.
-- **Comments** — `RichTextField`, blank by default.
-- **Recommendation** — kept unchanged from the original CI Report:
-  preliminary recommendation select (`'proceed-as-requested' |
-  'proceed-with-conditions' | 'needs-additional-verification'`) + notes,
-  placed last. This is the only CI Report field
-  `credit-investigation-risk.ts` doesn't read at all — `report` isn't
-  consulted by `buildCreditInvestigationSummary` in the first place, which
-  reads solely from the Document Checklist.
+- **Trade Checking** — subtitled "Customers and suppliers verified during
+  the visit." Two independent repeatable `CiTradeEntry` arrays, in
+  order **Customers** first then **Suppliers** (reordered to match the
+  reference, same Customers-before-Suppliers order as the Commercial
+  branch) — each with its own "Add Customer"/"Add Supplier" trigger
+  (Name, Address, Contact Number, Nature of Dealing, Years of Dealing).
+- **Financial Information** — subtitled "Assets, other sources of income
+  and bank accounts." Assets (`RichTextField`), Other Source of Income
+  (repeatable `CiIncomeSourceEntry` array: Source, Monthly Amount,
+  Remarks), Bank Verification (repeatable `CiBankAccountEntry` array:
+  Bank Name, Account Type, Account Number, Average Monthly Balance) — all
+  three previously separate top-level items, now one grouped section.
+- **Loan Purpose** — subtitled "Required. What the loan proceeds will be
+  used for." `RichTextField`, pre-filled once from
+  `financialInfo.loanPurpose` if present. Nothing on this page currently
+  blocks "Proceed" on CI Report field completeness — same permissive-gate
+  convention as the rest of this page's decision flow.
+- **Comaker** — subtitled "The comakers backing this loan." Still
+  **read-only**, sourced directly from `review.callReport.comakers` (no
+  local `CiReport` fields of its own); display unchanged for now (renders
+  each comaker as a compact row — name, relationship, address, contact —
+  or "No data found. Please add comaker information on Call Report." when
+  empty). The write side of this data lives on Call Report's own Comaker
+  card — see `docs/080-account-solicitation-call-report.md`'s "The 12
+  section cards" table, section 12. **Known gap:** the reference tool's
+  Comaker section shows substantially more fields (Prefix/Suffix, Civil
+  status, Birth date, Age, Birth place, Citizenship, Job title, Business
+  name, Office address, Length of service) and multiple comakers, none of
+  which `CiComakerEntry`/Call Report's single-comaker `comakerChange` form
+  currently capture — tracked as a separate follow-up task, not yet
+  implemented.
+- **Investigation Findings / Observations** — subtitled "The officer's
+  assessment from the field visit, document review, and the preliminary
+  recommendation." Subject As Of, Health and Habits, and Comments
+  (`RichTextField`s, previously three separate top-level items), plus
+  Recommendation (preliminary recommendation select —
+  `'proceed-as-requested' | 'proceed-with-conditions' |
+  'needs-additional-verification'` — + notes, kept last within this
+  section). This is the only CI Report field `credit-investigation-risk.ts`
+  doesn't read at all — `report` isn't consulted by
+  `buildCreditInvestigationSummary` in the first place, which reads
+  solely from the Document Checklist.
+
+**Negative Record removed from view.** The reference tool has no Negative
+Record section at all, so it no longer renders in the Consumer branch (nor
+did it ever render in Commercial). Its `CiReport` fields
+(`negativeRecordSourceNote`/`negativeRecordFinding`/`negativeRecordRemarks`)
+are untouched in the data model — existing reports with this data keep it,
+simply no longer editable or visible from this page. The `NegativeRecordSection`
+component and its `NEGATIVE_FINDING_OPTIONS` constant were deleted from
+`ci-report-card.tsx` as genuinely dead code once nothing called them.
 
 ### Commercial CI Report sections
 
@@ -347,28 +360,32 @@ groups use, not MUI Tabs: **Field Investigation**, **Trade Checking**,
 **Management and Ownership**, **Comments**, each with its own
 `useState`-backed expanded/collapsed toggle, all expanded by default.
 
-A `CommercialSectionNav` component — a sticky left sidebar, one row per
-section, scroll-jump on click, active-section highlight on normal
-scroll — sits beside the **entire CI Report card**, not inside it:
-`CiReportCard`'s own `return` is a row `Stack` (nav column, only rendered
-when `report.type === 'commercial'`, plus the `adminCardSx` card as a
+A `CiSectionNav<K>` component (generic over the section-key type, shared
+by both report types — see the Consumer section above) — a sticky left
+sidebar, one row per section, scroll-jump on click, active-section
+highlight on normal scroll — sits beside the **entire CI Report card**,
+not inside it: `CiReportCard`'s own `return` is a row `Stack` (nav column,
+rendered for whichever type is active, plus the `adminCardSx` card as a
 sibling column holding the title, the type toggle, the transcript row,
 Date Inspected, and the Consumer/Commercial branch). This mirrors exactly
 how Requirement Checklist's own `RequirementChecklistSectionNav` sits in
 `requirement-checklist-view.tsx` as a sibling to the cards it jumps
 between — outside every card, not nested inside one, same as here.
-`CiReportCard` owns the section-expanded state, the ref map, and the
-active-section tracking, and passes `sectionRefs`/`expandedSections`/
-`onToggleSection` down into `CommercialReportSections` as props, so that
-component stays a plain stack of cards with no nav logic of its own. It
-reuses `useActiveSection()` (`requirement-checklist-section-nav.tsx`,
-IntersectionObserver-based) exactly as Requirement Checklist's own nav
-does, but is its own slimmer component rather than that one reused
-directly — Requirement Checklist's nav is tightly coupled to a document
-received/total progress bar and per-item status dot that don't apply
-here, since Commercial sections are just form fields with nothing to
-count. Clicking a nav item expands that section (if collapsed) and
-smooth-scrolls to it.
+`CiReportCard` owns both types' section-expanded state, ref maps, and
+active-section tracking (`commercialExpanded`/`commercialSectionRefs`/
+`commercialActiveKey` and `consumerExpanded`/`consumerSectionRefs`/
+`consumerActiveKey`, same shape, kept separate since the two types have
+different section sets), and passes `sectionRefs`/`expandedSections`/
+`onToggleSection` down into `CommercialReportSections`/
+`ConsumerReportSections` as props, so neither component carries its own
+nav logic. It reuses `useActiveSection()`
+(`requirement-checklist-section-nav.tsx`, IntersectionObserver-based)
+exactly as Requirement Checklist's own nav does, but is its own slimmer
+component rather than that one reused directly — Requirement Checklist's
+nav is tightly coupled to a document received/total progress bar and
+per-item status dot that don't apply here, since both report types are
+just form fields with nothing to count. Clicking a nav item expands that
+section (if collapsed) and smooth-scrolls to it.
 
 Collapsing a section (or navigating away from it) never clears its
 data — every section's fields live on the
@@ -526,6 +543,28 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-07
+
+- **Consumer CI Report restructured into 8 collapsible sections + sticky
+  nav, matching a reference "Field Investigation" tool.** Previously a
+  flat list of ~15 top-level items; now grouped as Family, Residence/
+  Neighborhood, Employment, Trade Checking, Financial Information, Loan
+  Purpose, Comaker, Investigation Findings / Observations — each a
+  `CollapsibleSection` in its own `adminCardSx` box, same pattern as
+  Commercial. The `CommercialSectionNav` component was generalized into
+  `CiSectionNav<K>` and is now shared by both report types; `CiReportCard`
+  tracks each type's own section-expanded state and active-section
+  separately. Trade Checking's Customers/Suppliers order flipped to match
+  the reference (Customers first). Negative Record no longer renders in
+  either report type — its `CiReport` fields are untouched, just no
+  longer shown; the now-dead `NegativeRecordSection` component and
+  `NEGATIVE_FINDING_OPTIONS` constant were deleted. Comaker's display is
+  unchanged for now — the reference tool's much larger Comaker field set
+  (Prefix/Suffix, Civil status, Birth date, Job title, Business name,
+  etc., across multiple comakers) is a known, tracked gap, deferred to a
+  separate follow-up since it requires expanding Call Report's own
+  single-comaker `comakerChange` write form first.
 
 ### 2026-10-06
 
