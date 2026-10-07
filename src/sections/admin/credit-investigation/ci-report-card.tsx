@@ -242,30 +242,32 @@ export function CiReportCard() {
             sx={{ ...fieldSx, maxWidth: { sm: 260 }, mb: 2.5 }}
           />
 
-          {/* Header: read-only Residence + Business/Work address, from application data */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
-            <Box sx={{ flex: 1, p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-              <SectionLabel>Residence Address</SectionLabel>
-              <Typography sx={{ fontSize: 13.5, color: '#14172A', mt: 0.75 }}>
-                {report.residencePermanentAddress || 'Not on file'}
-              </Typography>
-            </Box>
-            <Box sx={{ flex: 1, p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
-              <SectionLabel>Business/Work Address</SectionLabel>
-              <Typography sx={{ fontSize: 13.5, color: '#14172A', mt: 0.75 }}>
-                {isBusinessOwner ? report.employerAddress || 'Not yet entered below' : 'Not applicable'}
-              </Typography>
-            </Box>
-          </Stack>
-
           {report.type === 'consumer' && (
-            <ConsumerReportSections
-              report={report}
-              onChange={setCiReport}
-              comakers={comakers}
-              applicantName={applicantName}
-              isBusinessOwner={isBusinessOwner}
-            />
+            <>
+              {/* Header: read-only Residence + Business/Work address, from application data */}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
+                <Box sx={{ flex: 1, p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+                  <SectionLabel>Residence Address</SectionLabel>
+                  <Typography sx={{ fontSize: 13.5, color: '#14172A', mt: 0.75 }}>
+                    {report.residencePermanentAddress || 'Not on file'}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1, p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}>
+                  <SectionLabel>Business/Work Address</SectionLabel>
+                  <Typography sx={{ fontSize: 13.5, color: '#14172A', mt: 0.75 }}>
+                    {isBusinessOwner ? report.employerAddress || 'Not yet entered below' : 'Not applicable'}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <ConsumerReportSections
+                report={report}
+                onChange={setCiReport}
+                comakers={comakers}
+                applicantName={applicantName}
+                isBusinessOwner={isBusinessOwner}
+              />
+            </>
           )}
           {report.type === 'commercial' && (
             <CommercialReportSections report={report} onChange={setCiReport} />
