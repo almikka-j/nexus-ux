@@ -353,12 +353,18 @@ The reference tool itself is a separate multi-page app (its own left
 sidebar, one page per section, a "Download Report" button) — this app
 keeps the single-card, long-scrolling CI Report convention instead, so
 `CommercialReportSections` reproduces the reference's four groupings as
-four `CollapsibleSection`s (`src/components/collapsible-section`), each in
-its own `adminCardSx` box — the exact same pattern Requirement
-Checklist's own Credit Investigation/Appraisal/Financial Evaluation
-groups use, not MUI Tabs: **Field Investigation**, **Trade Checking**,
-**Management and Ownership**, **Comments**, each with its own
-`useState`-backed expanded/collapsed toggle, all expanded by default.
+four plain `adminCardSx` boxes (title + subtitle header, no chevron, no
+collapse/expand) — **Field Investigation**, **Trade Checking**,
+**Management and Ownership**, **Comments**, all always fully visible.
+These were originally `CollapsibleSection`s, same as Consumer's own 8
+sections below, but were changed to plain non-collapsible cards for
+Commercial specifically — Consumer kept `CollapsibleSection`. The
+`expandedSections`/`onToggleSection` props still exist on
+`CommercialReportSections` and `CiReportCard` still threads
+`commercialExpanded`/`handleToggleCommercialSection` through them, even
+though nothing in Commercial's own render reads `expandedSections`
+anymore — left in place deliberately rather than torn out, in case a
+later change needs collapsibility back.
 
 A `CiSectionNav<K>` component (generic over the section-key type, shared
 by both report types — see the Consumer section above) — a sticky left
@@ -384,13 +390,14 @@ exactly as Requirement Checklist's own nav does, but is its own slimmer
 component rather than that one reused directly — Requirement Checklist's
 nav is tightly coupled to a document received/total progress bar and
 per-item status dot that don't apply here, since both report types are
-just form fields with nothing to count. Clicking a nav item expands that
-section (if collapsed) and smooth-scrolls to it.
+just form fields with nothing to count. Clicking a nav item smooth-scrolls
+to that section (and, for Consumer, expands it if collapsed — Commercial
+has nothing to expand, every Commercial section is always visible).
 
-Collapsing a section (or navigating away from it) never clears its
-data — every section's fields live on the
-same `CiReport` object regardless of which sections are expanded, same
-principle as switching the Commercial/Consumer type itself.
+Switching between Commercial and Consumer (or, for Consumer, collapsing a
+section) never clears data — every section's fields live on the
+same `CiReport` object regardless of which sections are expanded/visible,
+same principle as switching the Commercial/Consumer type itself.
 
 **Info chips header.** Above the transcript upload row (so it's the very
 first thing under the CI Report title/type toggle, for Commercial only),
@@ -639,6 +646,22 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-07 (Commercial sections made non-collapsible)
+
+- **Field Investigation, Trade Checking, Management and Ownership, and
+  Comments are no longer `CollapsibleSection`s for Commercial** — each is
+  now a plain `adminCardSx` box with a title/subtitle header, always
+  fully visible, no chevron, no collapse/expand. Consumer's own 8
+  sections are unaffected and still use `CollapsibleSection`.
+- `expandedSections`/`onToggleSection` still exist as props on
+  `CommercialReportSections`, and `CiReportCard` still maintains
+  `commercialExpanded`/`handleToggleCommercialSection` state and threads
+  them through — deliberately left in place as unused rather than torn
+  out, in case collapsibility is wanted back later.
+- The sticky left nav (`CiSectionNav`) still works for Commercial —
+  clicking a section still smooth-scrolls to it; there's just nothing
+  left to expand once there, since every section is already visible.
 
 ### 2026-10-07 (info-chips/fillable-fields follow-up, transcript Remove)
 

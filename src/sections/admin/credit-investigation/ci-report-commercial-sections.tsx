@@ -10,7 +10,6 @@ import Typography from '@mui/material/Typography';
 import { Iconify } from 'src/components/iconify';
 import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { RichTextField } from 'src/components/rich-text-field';
-import { CollapsibleSection } from 'src/components/collapsible-section/collapsible-section';
 
 import { RadioRow } from '../call-report/call-report-types';
 import { fieldSx, SectionLabel, YES_NO_OPTIONS } from './ci-report-card';
@@ -548,148 +547,142 @@ export function CommercialReportSections({
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('fieldInvestigation', el); }}
         sx={adminCardSx}
       >
-        <CollapsibleSection
-          title="Field Investigation"
-          expanded={expandedSections.fieldInvestigation}
-          onToggle={() => onToggleSection('fieldInvestigation')}
-        >
-          <Stack spacing={2.5}>
-            <Stack spacing={1.5}>
-              <SectionLabel>Business profile</SectionLabel>
-              <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: -1 }}>
-                From the business applied on the Call Report.
-              </Typography>
+        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Field Investigation</Typography>
+        </Stack>
+        <Stack spacing={2.5}>
+          <Stack spacing={1.5}>
+            <SectionLabel>Business profile</SectionLabel>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: -1 }}>
+              From the business applied on the Call Report.
+            </Typography>
+            <TextField
+              label="Line of Business"
+              value={report.businessLineOfBusiness}
+              onChange={(event) => onChange({ businessLineOfBusiness: event.target.value })}
+              sx={fieldSx}
+            />
+          </Stack>
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Location and facility</SectionLabel>
+            <Stack spacing={2}>
+              <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Premises</Typography>
               <TextField
-                label="Line of Business"
-                value={report.businessLineOfBusiness}
-                onChange={(event) => onChange({ businessLineOfBusiness: event.target.value })}
+                label="Construction description"
+                value={report.premisesConstructionDescription}
+                onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
                 sx={fieldSx}
               />
-            </Stack>
+              <TextField
+                label="Area description"
+                value={report.premisesAreaDescription}
+                onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
+                sx={fieldSx}
+              />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
+                <RadioRow
+                  label="Location owned?"
+                  value={report.locationOwned}
+                  options={YES_NO_OPTIONS}
+                  onChange={(value) => onChange({ locationOwned: value })}
+                />
+                <TextField
+                  label="Own or rent (details)"
+                  value={report.locationOwnRentDetails}
+                  onChange={(event) => onChange({ locationOwnRentDetails: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+              </Stack>
 
-            <Stack spacing={1.5}>
-              <SectionLabel>Location and facility</SectionLabel>
-              <Stack spacing={2}>
-                <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Premises</Typography>
-                <TextField
-                  label="Construction description"
-                  value={report.premisesConstructionDescription}
-                  onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
-                  sx={fieldSx}
+              <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Equipment</Typography>
+              <TextField
+                label="Equipment"
+                value={report.equipmentDescription}
+                onChange={(event) => onChange({ equipmentDescription: event.target.value })}
+                sx={fieldSx}
+              />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
+                <RadioRow
+                  label="Equipment owned?"
+                  value={report.equipmentOwned}
+                  options={YES_NO_OPTIONS}
+                  onChange={(value) => onChange({ equipmentOwned: value })}
                 />
                 <TextField
-                  label="Area description"
-                  value={report.premisesAreaDescription}
-                  onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
-                  sx={fieldSx}
+                  label="Equipment lease price"
+                  value={report.equipmentLeasePrice}
+                  onChange={(event) => onChange({ equipmentLeasePrice: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
                 />
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
-                  <RadioRow
-                    label="Location owned?"
-                    value={report.locationOwned}
-                    options={YES_NO_OPTIONS}
-                    onChange={(value) => onChange({ locationOwned: value })}
-                  />
-                  <TextField
-                    label="Own or rent (details)"
-                    value={report.locationOwnRentDetails}
-                    onChange={(event) => onChange({ locationOwnRentDetails: event.target.value })}
-                    sx={{ ...fieldSx, flex: 1 }}
-                  />
-                </Stack>
-
-                <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Equipment</Typography>
-                <TextField
-                  label="Equipment"
-                  value={report.equipmentDescription}
-                  onChange={(event) => onChange({ equipmentDescription: event.target.value })}
-                  sx={fieldSx}
-                />
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
-                  <RadioRow
-                    label="Equipment owned?"
-                    value={report.equipmentOwned}
-                    options={YES_NO_OPTIONS}
-                    onChange={(value) => onChange({ equipmentOwned: value })}
-                  />
-                  <TextField
-                    label="Equipment lease price"
-                    value={report.equipmentLeasePrice}
-                    onChange={(event) => onChange({ equipmentLeasePrice: event.target.value })}
-                    sx={{ ...fieldSx, flex: 1 }}
-                  />
-                </Stack>
               </Stack>
             </Stack>
           </Stack>
-        </CollapsibleSection>
+        </Stack>
       </Box>
 
       <Box
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('tradeChecking', el); }}
         sx={adminCardSx}
       >
-        <CollapsibleSection
-          title="Trade Checking"
-          subtitle="Customers and suppliers verified during the visit."
-          expanded={expandedSections.tradeChecking}
-          onToggle={() => onToggleSection('tradeChecking')}
-        >
-          <Stack spacing={2.5}>
-            <CommercialTradeCheckingSection
-              title="Customers"
-              entries={report.commercialCustomers}
-              onChange={(commercialCustomers) => onChange({ commercialCustomers })}
-            />
-            <CommercialTradeCheckingSection
-              title="Suppliers"
-              entries={report.commercialSuppliers}
-              onChange={(commercialSuppliers) => onChange({ commercialSuppliers })}
-            />
-          </Stack>
-        </CollapsibleSection>
+        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Trade Checking</Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+            Customers and suppliers verified during the visit.
+          </Typography>
+        </Stack>
+        <Stack spacing={2.5}>
+          <CommercialTradeCheckingSection
+            title="Customers"
+            entries={report.commercialCustomers}
+            onChange={(commercialCustomers) => onChange({ commercialCustomers })}
+          />
+          <CommercialTradeCheckingSection
+            title="Suppliers"
+            entries={report.commercialSuppliers}
+            onChange={(commercialSuppliers) => onChange({ commercialSuppliers })}
+          />
+        </Stack>
       </Box>
 
       <Box
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('managementAndOwnership', el); }}
         sx={adminCardSx}
       >
-        <CollapsibleSection
-          title="Management and Ownership"
-          subtitle="Who runs the business and who owns it."
-          expanded={expandedSections.managementAndOwnership}
-          onToggle={() => onToggleSection('managementAndOwnership')}
-        >
-          <Stack spacing={2.5}>
-            <ManagementSection
-              entries={report.management}
-              onChange={(management) => onChange({ management })}
-            />
-            <StockholdersSection
-              entries={report.stockholders}
-              onChange={(stockholders) => onChange({ stockholders })}
-            />
-          </Stack>
-        </CollapsibleSection>
+        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Management and Ownership</Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+            Who runs the business and who owns it.
+          </Typography>
+        </Stack>
+        <Stack spacing={2.5}>
+          <ManagementSection
+            entries={report.management}
+            onChange={(management) => onChange({ management })}
+          />
+          <StockholdersSection
+            entries={report.stockholders}
+            onChange={(stockholders) => onChange({ stockholders })}
+          />
+        </Stack>
       </Box>
 
       <Box
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('comments', el); }}
         sx={adminCardSx}
       >
-        <CollapsibleSection
-          title="Comments"
-          subtitle="Overall remarks from the investigation."
-          expanded={expandedSections.comments}
-          onToggle={() => onToggleSection('comments')}
-        >
-          <RichTextField
-            label="Comments"
-            value={report.commentsNotes}
-            onChange={(html) => onChange({ commentsNotes: html })}
-            placeholder="Any additional remarks…"
-          />
-        </CollapsibleSection>
+        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Comments</Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+            Overall remarks from the investigation.
+          </Typography>
+        </Stack>
+        <RichTextField
+          label="Comments"
+          value={report.commentsNotes}
+          onChange={(html) => onChange({ commentsNotes: html })}
+          placeholder="Any additional remarks…"
+        />
       </Box>
     </Stack>
   );
