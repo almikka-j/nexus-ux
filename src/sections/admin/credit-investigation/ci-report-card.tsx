@@ -354,14 +354,17 @@ export function CiReportCard() {
             </Box>
           )}
 
-          <TextField
-            label="Date Inspected"
-            type="date"
-            InputLabelProps={{ shrink: true }}
-            value={report.visitDate}
-            onChange={(event) => setCiReport({ visitDate: event.target.value })}
-            sx={{ ...fieldSx, maxWidth: { sm: 260 }, mb: 2.5 }}
-          />
+          <Stack spacing={1.5} sx={{ mb: 2.5 }}>
+            <SectionLabel>Inspection</SectionLabel>
+            <TextField
+              label="Date Inspected"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={report.visitDate}
+              onChange={(event) => setCiReport({ visitDate: event.target.value })}
+              sx={{ ...fieldSx, maxWidth: { sm: 260 } }}
+            />
+          </Stack>
 
           {report.type === 'consumer' && (
             <>

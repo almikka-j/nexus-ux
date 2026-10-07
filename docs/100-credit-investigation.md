@@ -261,7 +261,9 @@ In order:
   `application.personalInfo`/`financialInfo`, never edited on this card;
   Business/Work Address reads "Not applicable" whenever
   `financialInfo.employmentStatus !== 'Business Owner'`.
-- **Date Inspected** — single date field (`report.visitDate`).
+- **Inspection** — a labeled section (`SectionLabel`, same convention as
+  every other grouped field below) holding one field, Date Inspected
+  (`report.visitDate`); previously sat alone with no label.
 - **Subject As Of** — `RichTextField`, blank until the officer types or a
   transcript is uploaded.
 - **Spouse** — `RichTextField`, pre-filled once with a plain-text scaffold
