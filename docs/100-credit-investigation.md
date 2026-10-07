@@ -344,7 +344,22 @@ Checklist's own Credit Investigation/Appraisal/Financial Evaluation
 groups use, not MUI Tabs: **Field Investigation**, **Trade Checking**,
 **Management and Ownership**, **Comments**, each with its own
 `useState`-backed expanded/collapsed toggle, all expanded by default.
-Collapsing one never clears its data — every section's fields live on the
+
+A local `CommercialSectionNav` component — a sticky left sidebar, one row
+per section, scroll-jump on click, active-section highlight on normal
+scroll — sits beside the four cards, reproducing the reference tool's own
+left nav inside this single-card layout rather than as separate pages.
+It reuses `useActiveSection()` (`requirement-checklist-section-nav.tsx`,
+IntersectionObserver-based) exactly as Requirement Checklist's own
+`RequirementChecklistSectionNav` does, but is its own slimmer component
+rather than that one reused directly — Requirement Checklist's nav is
+tightly coupled to a document received/total progress bar and per-item
+status dot that don't apply here, since Commercial sections are just form
+fields with nothing to count. Clicking a nav item expands that section
+(if collapsed) and smooth-scrolls to it.
+
+Collapsing a section (or navigating away from it) never clears its
+data — every section's fields live on the
 same `CiReport` object regardless of which sections are expanded, same
 principle as switching the Commercial/Consumer type itself. In order,
 each implemented in `CommercialReportSections`
