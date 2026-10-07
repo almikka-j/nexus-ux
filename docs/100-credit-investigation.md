@@ -396,15 +396,16 @@ principle as switching the Commercial/Consumer type itself.
 first thing under the CI Report title/type toggle, for Commercial only),
 a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
 
-- **12 read-only fields as a `FactChipRow`/`FactChip` grid** — this
+- **13 read-only fields as a `FactChipRow`/`FactChip` grid** — this
   app's existing label-over-value quick-read summary pattern (see
   `docs/225-admin-design-system.md` §6 and its live showcase on
   `/admin/design-system`), reused here with a local copy (not a shared
   component yet anywhere in this app) instead of inventing a new layout.
   Company Name, Business Address, Contact No., Email Address, Website,
   TIN No., Loan Type, Amount Applied, Loan Purpose, Organization Type,
-  Registration Number, Registration Date, and a Negative Records link
-  ("See report"), in that order. Unlike every other screen's `FactChip`
+  Registration Number, Registration Date, a Negative Records link ("See
+  report"), and Line of Business, in that order. Unlike every other
+  screen's `FactChip`
   copy (a flex-wrap row), this one is a **3-column CSS grid** (1 column
   on mobile) — flex-wrap has no way to know which cell starts a new
   visual line, so a per-cell divider either doubled up or went missing
@@ -431,16 +432,22 @@ a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
     Business Address because it's also genuinely long (a full street
     address) — followed by the remaining 9 chips (Contact No. through
     Registration Number), exactly 3 complete rows of 3.
-  - **`position="last"`, 2 columns:** Registration Date and Negative
-    Records (the link, "See report") — exactly 2 chips, so they share
-    their own 2-column grid rather than being `wide` individually (which
-    would stack them as two separate full-width lines) or joining the
-    main 3-column grid (which would leave 1 empty, stray-divider cell).
+  - **`position="last"`, 3 columns (default):** Registration Date,
+    Negative Records (the link, "See report"), and **Line of Business**
+    (`report.businessLineOfBusiness`, read-only here — matches the
+    reference, which shows it without an input box) — exactly 3 chips,
+    one complete row, so no `wide`/leftover-cell handling is needed for
+    this segment at all.
 
   Changing this field list must keep the running chip count divisible by
   whichever segment it lands in, or add/adjust a segment boundary —
   `wide`/`cols`/`position` all exist specifically to keep every segment's
-  grid exactly full.
+  grid exactly full. Every `edge={{ right, bottom }}` on a chip marks
+  that it sits on the *strip's own* outer edge on that side (last column
+  of a row, or last row of its segment) — its divider is skipped there,
+  since the segment's own border already draws that edge; without this,
+  the cell's divider and the segment border occupy the same pixel and
+  visibly double up.
 
   None of these fields are user-editable; most have no equivalent
   anywhere in this app's data model (no company-profile backend exists),
@@ -452,25 +459,22 @@ a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
   present, falling back to the sample value otherwise. Every `FactChip`
   value also wraps long text (`overflowWrap`/`wordBreak`) rather than
   clipping it.
-- **6 fillable rows below the strip** (`InfoChipFieldRow`, red required
-  asterisk where the
-  reference shows one) — Authorized Capital Stock*, Line of Business
-  (read-only row, not fillable — matches the reference, which shows it
-  without an input box), Territory*, Regular Employees, Contractual
-  Employees, Owner*, Date Inspected* — all real, editable `CiReport`
-  fields (`businessAuthorizedCapitalStock`/`businessLineOfBusiness`/
-  `businessTerritory`/`businessRegularEmployees`/
-  `businessContractualEmployees`/`businessOwner`/`visitDate`). These are
-  the **only** place these fields are editable — removed from Commercial's
-  own Business Profile section (which used to duplicate Owner/Territory/
-  employee counts) and from the shared Inspection block (Date
-  Inspected is now Commercial-only here; Consumer still has its own
-  Inspection section with the same `visitDate` field, unchanged).
-- **Negative Records** — a link ("See initial credit checking report") to
-  `paths.admin.creditChecking(applicantEmail)`, not a field — the
-  underlying negative-record data already lives on a different page
-  (Initial Credit Checking), so this is scoped to navigation rather than
-  display.
+- **6 fillable fields below the strip**, in a plain label-above-input
+  layout (no gray box, no bordered card — same convention as every other
+  grouped field elsewhere in this card, e.g. Location and Facility) —
+  Authorized Capital Stock\*, Territory\*, Regular Employees, Contractual
+  Employees, Owner\*, Date Inspected\* (`\*` via a `requiredLabel()`
+  helper that embeds this app's standard red asterisk span into the
+  `TextField` `label` prop, not MUI's own `required` boolean, which
+  renders an unstyled default asterisk). All real, editable `CiReport`
+  fields (`businessAuthorizedCapitalStock`/`businessTerritory`/
+  `businessRegularEmployees`/`businessContractualEmployees`/
+  `businessOwner`/`visitDate`). These are the **only** place these fields
+  are editable — removed from Commercial's own Business Profile section
+  (which used to duplicate Owner/Territory/employee counts) and from the
+  shared Inspection block (Date Inspected is now Commercial-only here;
+  Consumer still has its own Inspection section with the same
+  `visitDate` field, unchanged).
 
 In order, each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`):
@@ -573,6 +577,13 @@ convenience, not a lock: every field stays editable before and after
 upload, and re-uploading a new transcript re-runs auto-fill and overwrites
 the fields it covers.
 
+Once a transcript exists, the upload row shows two actions: **Replace
+transcript** (pick a different file; re-runs auto-fill) and **Remove**
+(red, trash icon) — clears `transcriptFileName`/`transcriptUploadedAt`
+with no replacement file needed, for when an officer wants the transcript
+record gone with nothing to put in its place. Remove does not revert the
+fields auto-fill already wrote; they stay as regular editable fields.
+
 ## Decision Gate — Proceed application?
 
 Two actions, both requiring no document/report completeness gate (matching
@@ -628,6 +639,34 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-07 (info-chips/fillable-fields follow-up, transcript Remove)
+
+- Moved **Line of Business** from the fillable-fields section into the
+  `FactChip` info header (now a 3-chip final segment: Registration Date,
+  Negative Records, Line of Business — all read-only, Line of Business
+  still reads `report.businessLineOfBusiness`).
+- Converted the 6 remaining fillable fields (Authorized Capital Stock,
+  Territory, Regular Employees, Contractual Employees, Owner, Date
+  Inspected) from the bordered-gray-card `InfoChipFieldRow` layout to a
+  plain label-above-input layout, matching every other grouped field in
+  this card — no gray box. Deleted the now-unused `InfoChipRow`/
+  `InfoChipFieldRow` components; added a `requiredLabel()` helper that
+  embeds this app's standard red asterisk span into a `TextField`
+  `label`, replacing MUI's own `required` prop (which renders an
+  unstyled default asterisk).
+- Fixed stray/doubled divider lines in the `FactChip` grid: added a
+  per-chip `edge={{ right, bottom }}` prop so a chip on the strip's own
+  outer edge skips its divider on that side instead of drawing it right
+  on top of the segment's own border.
+- **Transcript upload row:** added a "Remove" action (red, trash icon,
+  shown only once a transcript exists) that clears
+  `transcriptFileName`/`transcriptUploadedAt` without needing a
+  replacement file — previously the only way to clear a transcript was
+  to upload a different file over it ("Replace transcript"), with no way
+  to delete one outright. Does not revert fields auto-fill already
+  wrote; those stay as regular editable fields the officer may have
+  built on since.
 
 ### 2026-10-07 (Commercial info-chips header)
 

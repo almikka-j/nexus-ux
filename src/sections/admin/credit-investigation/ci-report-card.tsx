@@ -268,7 +268,29 @@ function useCiActiveSection(
 // continuous strip instead of two stacked cards — only the very top and
 // very bottom corners round, and the second segment has no top border of
 // its own (flush against the first segment's bottom edge).
-function FactChip({ label, value, wide }: { label: string; value: React.ReactNode; wide?: boolean }) {
+function FactChip({
+  label,
+  value,
+  wide,
+  edge = {},
+}: {
+  label: string;
+  value: React.ReactNode;
+  wide?: boolean;
+  // Mark true for a cell that sits on the strip's own outer right/bottom
+  // edge — its divider is skipped on that side so it doesn't double up
+  // against the container's own border (every non-wide chip's right
+  // edge is "outer" when it's the last column in its row; every chip's
+  // bottom edge is "outer" when it's in the segment's last row). Fixed,
+  // hand-placed layout below, so these are set explicitly per chip
+  // rather than computed — a grid of opaque `children` can't introspect
+  // its own row/column position from inside `FactChipRow`.
+  edge?: { right?: boolean; bottom?: boolean };
+}) {
+  const shadowParts = [
+    !edge.right && 'inset -1px 0 0 0 #EEF0F5',
+    !edge.bottom && 'inset 0 -1px 0 0 #EEF0F5',
+  ].filter(Boolean);
   return (
     <Box
       sx={{
@@ -277,13 +299,12 @@ function FactChip({ label, value, wide }: { label: string; value: React.ReactNod
         px: 1.75,
         py: 1,
         bgcolor: 'common.white',
-        // Only right + bottom edges draw a divider (inset box-shadow, so
-        // it doesn't consume grid track space like a border would) — the
-        // container's own top+left border supplies the other two edges
-        // of the overall strip. Every internal line is then drawn once,
-        // by exactly one cell, instead of two adjacent cells each
-        // outlining their shared edge and doubling it up.
-        boxShadow: 'inset -1px -1px 0 0 #EEF0F5',
+        // Divider box-shadows instead of borders (doesn't consume grid
+        // track space) — only on the right/bottom edges that are
+        // genuinely internal (shared with another cell), never on an
+        // edge that's actually the strip's own outer border, which would
+        // otherwise double up with FactChipRow's border on that side.
+        ...(shadowParts.length > 0 ? { boxShadow: shadowParts.join(', ') } : {}),
       }}
     >
       <Typography
@@ -341,47 +362,16 @@ function FactChipRow({
   );
 }
 
-// Read-only "LABEL : value" row — label left, colon, value right, one
-// per line. Used for Line of Business, the one read-only row interleaved
-// among the fillable fields below (FactChip isn't used here since this
-// section is a vertical label-above-input list, not a wrapping strip).
-function InfoChipRow({ label, children }: { label: string; children: React.ReactNode }) {
+// Builds a TextField `label` with this app's standard red required
+// asterisk (see docs/225-admin-design-system.md §4 — a manual red `*`
+// span, not MUI's own `required` prop, which renders an unstyled default
+// asterisk inconsistent with the rest of this app).
+function requiredLabel(label: string): React.ReactNode {
   return (
-    <Stack direction="row" spacing={1.5} sx={{ py: 0.4 }}>
-      <Typography
-        sx={{ width: 190, flexShrink: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', color: '#14172A' }}
-      >
-        {label}
-      </Typography>
-      <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>:</Typography>
-      <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
-    </Stack>
-  );
-}
-
-// Same row shape, but for a fillable field below the read-only list —
-// label gets a red required asterisk when `required`, value column holds
-// an actual input instead of static text.
-function InfoChipFieldRow({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Stack direction="row" spacing={1.5} sx={{ py: 0.4 }} alignItems="flex-start">
-      <Typography
-        sx={{ width: 190, flexShrink: 0, pt: 1, fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', color: '#14172A' }}
-      >
-        {label}
-        {required && <Box component="span" sx={{ color: '#F04438' }}> *</Box>}
-      </Typography>
-      <Typography sx={{ fontSize: 13.5, color: '#5A6273', pt: 1 }}>:</Typography>
-      <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
-    </Stack>
+    <>
+      {label}
+      <Box component="span" sx={{ color: '#F04438' }}> *</Box>
+    </>
   );
 }
 
@@ -428,22 +418,31 @@ function CommercialInfoChips({
   return (
     <Box sx={{ mb: 2.5 }}>
       <FactChipRow position="first">
-        <FactChip label="Company Name" value={COMMERCIAL_SAMPLE_INFO.companyName} wide />
-        <FactChip label="Business Address" value={COMMERCIAL_SAMPLE_INFO.businessAddress} wide />
+        <FactChip label="Company Name" value={COMMERCIAL_SAMPLE_INFO.companyName} wide edge={{ right: true }} />
+        <FactChip label="Business Address" value={COMMERCIAL_SAMPLE_INFO.businessAddress} wide edge={{ right: true }} />
         <FactChip label="Contact No." value={COMMERCIAL_SAMPLE_INFO.contactNo} />
         <FactChip label="Email Address" value={COMMERCIAL_SAMPLE_INFO.emailAddress} />
-        <FactChip label="Website" value={COMMERCIAL_SAMPLE_INFO.website || '—'} />
+        <FactChip label="Website" value={COMMERCIAL_SAMPLE_INFO.website || '—'} edge={{ right: true }} />
         <FactChip label="TIN No." value={COMMERCIAL_SAMPLE_INFO.tinNo} />
         <FactChip label="Loan Type" value={loanTypeLabel} />
-        <FactChip label="Amount Applied" value={amountAppliedLabel} />
-        <FactChip label="Loan Purpose" value={loanPurposeLabel} />
-        <FactChip label="Organization Type" value={COMMERCIAL_SAMPLE_INFO.organizationType} />
-        <FactChip label="Registration Number" value={COMMERCIAL_SAMPLE_INFO.registrationNumber} />
+        <FactChip label="Amount Applied" value={amountAppliedLabel} edge={{ right: true }} />
+        <FactChip label="Loan Purpose" value={loanPurposeLabel} edge={{ bottom: true }} />
+        <FactChip label="Organization Type" value={COMMERCIAL_SAMPLE_INFO.organizationType} edge={{ bottom: true }} />
+        <FactChip
+          label="Registration Number"
+          value={COMMERCIAL_SAMPLE_INFO.registrationNumber}
+          edge={{ right: true, bottom: true }}
+        />
       </FactChipRow>
-      <FactChipRow cols={2} position="last">
-        <FactChip label="Registration Date" value={COMMERCIAL_SAMPLE_INFO.registrationDate} />
+      <FactChipRow position="last">
+        <FactChip
+          label="Registration Date"
+          value={COMMERCIAL_SAMPLE_INFO.registrationDate}
+          edge={{ bottom: true }}
+        />
         <FactChip
           label="Negative Records"
+          edge={{ bottom: true }}
           value={
             <Link
               component={RouterLink}
@@ -454,78 +453,70 @@ function CommercialInfoChips({
             </Link>
           }
         />
+        <FactChip
+          label="Line of Business"
+          value={report.businessLineOfBusiness || 'Transportation and Storage'}
+          edge={{ right: true, bottom: true }}
+        />
       </FactChipRow>
 
-      <Box sx={{ p: 2.5, mt: 2.5, borderRadius: '13px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-      <Stack spacing={0}>
-        <InfoChipFieldRow label="AUTHORIZED CAPITAL STOCK" required>
+      <Stack spacing={2} sx={{ mt: 2.5 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           <TextField
+            label={requiredLabel('Authorized Capital Stock')}
             value={report.businessAuthorizedCapitalStock}
             onChange={(event) => onChange({ businessAuthorizedCapitalStock: event.target.value })}
             placeholder="Capital Stock"
             fullWidth
-            size="small"
             sx={fieldSx}
           />
-        </InfoChipFieldRow>
-        <InfoChipRow label="LINE OF BUSINESS">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
-            {report.businessLineOfBusiness || 'Transportation and Storage'}
-          </Typography>
-        </InfoChipRow>
-        <InfoChipFieldRow label="TERRITORY" required>
           <TextField
+            label={requiredLabel('Territory')}
             value={report.businessTerritory}
             onChange={(event) => onChange({ businessTerritory: event.target.value })}
             placeholder="Territory"
             fullWidth
-            size="small"
             sx={fieldSx}
           />
-        </InfoChipFieldRow>
-        <InfoChipFieldRow label="REGULAR EMPLOYEES">
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           <TextField
+            label="Regular Employees"
             value={report.businessRegularEmployees}
             onChange={(event) => onChange({ businessRegularEmployees: event.target.value })}
             placeholder="0"
             fullWidth
-            size="small"
             sx={fieldSx}
           />
-        </InfoChipFieldRow>
-        <InfoChipFieldRow label="CONTRACTUAL EMPLOYEES">
           <TextField
+            label="Contractual Employees"
             value={report.businessContractualEmployees}
             onChange={(event) => onChange({ businessContractualEmployees: event.target.value })}
             placeholder="0"
             fullWidth
-            size="small"
             sx={fieldSx}
           />
-        </InfoChipFieldRow>
-        <InfoChipFieldRow label="OWNER" required>
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           <TextField
+            label={requiredLabel('Owner')}
             value={report.businessOwner}
             onChange={(event) => onChange({ businessOwner: event.target.value })}
             placeholder="Owner"
             fullWidth
-            size="small"
             sx={fieldSx}
           />
-        </InfoChipFieldRow>
-        <InfoChipFieldRow label="DATE INSPECTED" required>
           <TextField
+            label={requiredLabel('Date Inspected')}
             type="date"
             InputLabelProps={{ shrink: true }}
             value={report.visitDate}
             onChange={(event) => onChange({ visitDate: event.target.value })}
             fullWidth
-            size="small"
             sx={fieldSx}
           />
-        </InfoChipFieldRow>
+        </Stack>
       </Stack>
-      </Box>
     </Box>
   );
 }
@@ -643,6 +634,14 @@ export function CiReportCard() {
       subjectAsOf: autoFill.findingsNarrativeHtml,
     });
     event.target.value = '';
+  };
+
+  // Clears the transcript record only (filename + uploaded timestamp) —
+  // does not revert the fields auto-fill already wrote, since those are
+  // now just regular editable fields the officer may have built on. If a
+  // transcript is uploaded again later, auto-fill overwrites them afresh.
+  const handleRemoveTranscript = () => {
+    setCiReport({ transcriptFileName: null, transcriptUploadedAt: null });
   };
 
   const aiSummary = report.transcriptFileName
@@ -780,6 +779,16 @@ export function CiReportCard() {
             >
               {report.transcriptFileName ? 'Replace transcript' : 'Upload transcript'}
             </Button>
+            {report.transcriptFileName && (
+              <Button
+                onClick={handleRemoveTranscript}
+                size="small"
+                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
+                sx={{ color: '#F04438', flexShrink: 0 }}
+              >
+                Remove
+              </Button>
+            )}
           </Stack>
 
           {aiSummary && (
