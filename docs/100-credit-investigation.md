@@ -336,18 +336,21 @@ only inside the `report.type === 'consumer'` branch, directly above
 
 The reference tool itself is a separate multi-page app (its own left
 sidebar, one page per section, a "Download Report" button) — this app
-keeps the single-card CI Report convention instead, so
+keeps the single-card, long-scrolling CI Report convention instead, so
 `CommercialReportSections` reproduces the reference's four groupings as
-MUI `Tabs` inside the one card rather than as separate pages: **Field
-Investigation**, **Trade Checking**, **Management and Ownership**,
-**Comments** (local `useState<CommercialTab>`, defaults to "Field
-Investigation"). Switching tabs never clears data — every tab's fields
-live on the same `CiReport` object regardless of which tab is active, same
+four `CollapsibleSection`s (`src/components/collapsible-section`), each in
+its own `adminCardSx` box — the exact same pattern Requirement
+Checklist's own Credit Investigation/Appraisal/Financial Evaluation
+groups use, not MUI Tabs: **Field Investigation**, **Trade Checking**,
+**Management and Ownership**, **Comments**, each with its own
+`useState`-backed expanded/collapsed toggle, all expanded by default.
+Collapsing one never clears its data — every section's fields live on the
+same `CiReport` object regardless of which sections are expanded, same
 principle as switching the Commercial/Consumer type itself. In order,
 each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`):
 
-- **Field Investigation tab** — Business profile, subtitled "From the
+- **Field Investigation section** — Business profile, subtitled "From the
   business applied on the Call Report." (Owner, Territory, No. of
   regular employees, No. of contractual employees — all plain `CiReport`
   string fields, `businessOwner`/`businessTerritory`/
@@ -359,7 +362,7 @@ each implemented in `CommercialReportSections`
   (`locationOwned`/`locationOwnRentDetails`), then Equipment (a
   description field), and an "Equipment owned?" Yes/No `RadioRow` next to
   "Equipment lease price" (`equipmentOwned`/`equipmentLeasePrice`).
-- **Trade Checking tab** — subtitled "Customers and suppliers verified
+- **Trade Checking section** — subtitled "Customers and suppliers verified
   during the visit.", holding two independent repeatable arrays in order
   — **Customers** first, then **Suppliers**
   (`commercialCustomers`/`commercialSuppliers:
@@ -371,7 +374,7 @@ each implemented in `CommercialReportSections`
   name/address/dealing shape. Add buttons read "Add customer"/"Add
   supplier" (lowercase, matching the reference tool). Same
   add/remove-per-entry UX as every other repeatable section in this card.
-- **Management and Ownership tab** — subtitled "Who runs the business and
+- **Management and Ownership section** — subtitled "Who runs the business and
   who owns it.", holding two repeatable sub-sections:
   - **Management** (`management: CiManagementEntry[]`) — Full name,
     Birthdate, Birth place, Nationality, Spouse/partner, Home address,
@@ -392,7 +395,7 @@ each implemented in `CommercialReportSections`
     corporation?" from Yes back to No only hides the Sub-stockholders
     block (the data is not cleared), so toggling back to Yes restores
     whatever was already entered. "Add stockholder" trigger.
-- **Comments tab** — subtitled "Overall remarks from the investigation.",
+- **Comments section** — subtitled "Overall remarks from the investigation.",
   `commentsNotes`, the same shared `RichTextField` field the Consumer
   branch's own Comments section uses (so text typed here survives
   switching to Consumer and back).
