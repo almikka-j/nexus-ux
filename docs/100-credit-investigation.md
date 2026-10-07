@@ -390,15 +390,44 @@ section (if collapsed) and smooth-scrolls to it.
 Collapsing a section (or navigating away from it) never clears its
 data — every section's fields live on the
 same `CiReport` object regardless of which sections are expanded, same
-principle as switching the Commercial/Consumer type itself. In order,
-each implemented in `CommercialReportSections`
+principle as switching the Commercial/Consumer type itself.
+
+**Info chips header.** Above Field Investigation, a `CommercialInfoChips`
+block (`ci-report-card.tsx`) renders a read-only "LABEL : value" list in
+two space-saving columns, matching a reference tool's own info-chip
+header: Company Name, Business Address, Contact No., Email Address,
+Website, TIN No. on the left; Loan Type, Amount Applied, Loan Purpose,
+Organization Type, Registration Number, Registration Date, and a
+"Negative Records" link on the right. Most values are read straight from
+data collected earlier in the pipeline — `personalInfo`/`financialInfo`
+(application sign-up) and `report.secDtiRegNo`/`secDtiRegDate` (this
+report's own Employment section) — never re-entered here. Four fields
+have no equivalent anywhere else in the data model (Company Name, Contact
+No., Email Address, Website) and were added as new, directly-editable
+`CiReport` fields (`businessCompanyName`/`businessContactNumber`/
+`businessEmailAddress`/`businessWebsite`) right inside this header, since
+there's nowhere else for them to come from. "Negative Records" is a link
+("See initial credit checking report") to
+`paths.admin.creditChecking(applicantEmail)` — the reference's own
+Negative Records field, scoped to a link rather than a field since the
+underlying negative-record data already lives on a different page.
+Fields shown here that would otherwise duplicate a field already further
+down the form (Territory, Owner, Date Inspected) are intentionally
+**not** repeated in this header — the reference tool shows them twice,
+but this app shows each only once, in the section where it's actually
+edited (Business Profile, Field Investigation's own Date Inspected).
+
+In order, each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`):
 
 - **Field Investigation section** — Business profile, subtitled "From the
-  business applied on the Call Report." (Owner, Territory, No. of
-  regular employees, No. of contractual employees — all plain `CiReport`
-  string fields, `businessOwner`/`businessTerritory`/
-  `businessRegularEmployees`/`businessContractualEmployees`), then
+  business applied on the Call Report." Authorized Capital Stock, Line of
+  Business, Territory, No. of regular employees, No. of contractual
+  employees, Owner (all plain `CiReport` string fields —
+  `businessAuthorizedCapitalStock`/`businessLineOfBusiness`/
+  `businessTerritory`/`businessRegularEmployees`/
+  `businessContractualEmployees`/`businessOwner` — the first two newly
+  added to match the reference tool's own fillable fields), then
   Location and facility (plain fields, no bordered gray sub-box — same
   flat treatment as every grouped field in both report types now;
   Residence/Neighborhood and Employment's own bordered boxes were removed
@@ -545,6 +574,24 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-07 (Commercial info-chips header)
+
+- **Added `CommercialInfoChips`**, a read-only "LABEL : value" header
+  above Field Investigation for Commercial only, matching a reference
+  tool's own info-chip layout: Company Name, Business Address, Contact
+  No., Email Address, Website, TIN No. / Loan Type, Amount Applied, Loan
+  Purpose, Organization Type, Registration Number, Registration Date, a
+  Negative Records link — two columns, space-saving by design.
+- Added 6 new `CiReport` fields: `businessCompanyName`,
+  `businessContactNumber`, `businessEmailAddress`, `businessWebsite`
+  (editable directly in the header, since nothing else in the data model
+  captures them) and `businessAuthorizedCapitalStock`/
+  `businessLineOfBusiness` (new fillable fields in Business Profile,
+  matching the reference tool's own fillable-field set).
+- Deliberately did **not** duplicate Territory/Owner/Date Inspected in the
+  new header — the reference tool shows them in both places, but this app
+  only shows each field once, in the section where it's actually edited.
 
 ### 2026-10-07
 

@@ -5,6 +5,7 @@ import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
@@ -14,8 +15,12 @@ import Typography from '@mui/material/Typography';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
+import type { FinancialInfo, PersonalInfo } from 'src/auth/registration-context';
 import type {
   CiReport,
   CiChildEntry,
@@ -229,6 +234,152 @@ function useCiActiveSection(
   }, [keys.length, remountKey]);
 
   return activeKey;
+}
+
+// Read-only "LABEL : value" rows, two per row on larger screens, shown
+// once at the top of the Commercial branch (above Business Profile) —
+// matches a reference tool's info-chip header exactly. Space-saving by
+// design: every field here is read from data collected earlier in the
+// pipeline (application sign-up, Call Report), never re-entered — the
+// officer only fills in the fields that follow, in Business Profile and
+// beyond. Fields with no equivalent anywhere else in the data model
+// (Company Name, Contact No., Email Address, Website) were added as new
+// CiReport fields (businessCompanyName/businessContactNumber/
+// businessEmailAddress/businessWebsite) and ARE editable here, inline,
+// since there's nowhere else they could come from.
+function InfoChipRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Stack direction="row" spacing={1.5} sx={{ py: 0.5 }}>
+      <Typography
+        sx={{ width: 170, flexShrink: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', color: '#8891A6' }}
+      >
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>:</Typography>
+      <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
+    </Stack>
+  );
+}
+
+function CommercialInfoChips({
+  report,
+  financialInfo,
+  personalInfo,
+  loanType,
+  applicantEmail,
+  onChange,
+}: {
+  report: CiReport;
+  financialInfo: FinancialInfo | null;
+  personalInfo: PersonalInfo | null;
+  loanType: 'personal' | 'business' | null;
+  applicantEmail: string;
+  onChange: (data: Partial<CiReport>) => void;
+}) {
+  const businessAddress = personalInfo
+    ? [personalInfo.address, personalInfo.barangay, personalInfo.city, personalInfo.province]
+        .filter(Boolean)
+        .join(', ')
+    : '';
+
+  return (
+    <Box sx={{ p: 2.5, mb: 2.5, borderRadius: '13px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 0, md: 4 }}>
+        <Stack sx={{ flex: 1, minWidth: 0 }}>
+          <InfoChipRow label="COMPANY NAME">
+            <TextField
+              value={report.businessCompanyName}
+              onChange={(event) => onChange({ businessCompanyName: event.target.value })}
+              placeholder="Company name"
+              fullWidth
+              size="small"
+              sx={fieldSx}
+            />
+          </InfoChipRow>
+          <InfoChipRow label="BUSINESS ADDRESS">
+            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{businessAddress || 'Not on file'}</Typography>
+          </InfoChipRow>
+          <InfoChipRow label="CONTACT NO.">
+            <TextField
+              value={report.businessContactNumber}
+              onChange={(event) => onChange({ businessContactNumber: event.target.value })}
+              placeholder="Contact number"
+              fullWidth
+              size="small"
+              sx={fieldSx}
+            />
+          </InfoChipRow>
+          <InfoChipRow label="EMAIL ADDRESS">
+            <TextField
+              value={report.businessEmailAddress}
+              onChange={(event) => onChange({ businessEmailAddress: event.target.value })}
+              placeholder="Email address"
+              fullWidth
+              size="small"
+              sx={fieldSx}
+            />
+          </InfoChipRow>
+          <InfoChipRow label="WEBSITE">
+            <TextField
+              value={report.businessWebsite}
+              onChange={(event) => onChange({ businessWebsite: event.target.value })}
+              placeholder="Website (optional)"
+              fullWidth
+              size="small"
+              sx={fieldSx}
+            />
+          </InfoChipRow>
+          <InfoChipRow label="TIN No.">
+            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{personalInfo?.tinNumber || 'Not on file'}</Typography>
+          </InfoChipRow>
+        </Stack>
+
+        <Stack sx={{ flex: 1, minWidth: 0 }}>
+          <InfoChipRow label="LOAN TYPE">
+            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>
+              {loanType === 'business' ? 'Business Loan' : loanType === 'personal' ? 'Personal Loan' : 'Not on file'}
+            </Typography>
+          </InfoChipRow>
+          <InfoChipRow label="AMOUNT APPLIED">
+            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>
+              {financialInfo?.desiredLoanAmount
+                ? `Php ${Number(financialInfo.desiredLoanAmount).toLocaleString()}.00`
+                : 'Not on file'}
+            </Typography>
+          </InfoChipRow>
+          <InfoChipRow label="LOAN PURPOSE">
+            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{financialInfo?.loanPurpose || 'Not on file'}</Typography>
+          </InfoChipRow>
+          <InfoChipRow label="ORGANIZATION TYPE">
+            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{financialInfo?.businessType || 'Not on file'}</Typography>
+          </InfoChipRow>
+          <InfoChipRow label="REGISTRATION NUMBER">
+            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{report.secDtiRegNo || 'Not on file'}</Typography>
+          </InfoChipRow>
+          <InfoChipRow label="REGISTRATION DATE">
+            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>
+              {report.secDtiRegDate
+                ? new Date(report.secDtiRegDate).toLocaleDateString('en-PH', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: '2-digit',
+                  })
+                : 'Not on file'}
+            </Typography>
+          </InfoChipRow>
+          <InfoChipRow label="NEGATIVE RECORDS">
+            <Link
+              component={RouterLink}
+              href={paths.admin.creditChecking(encodeURIComponent(applicantEmail))}
+              sx={{ fontSize: 13.5, fontWeight: 700 }}
+            >
+              See initial credit checking report
+            </Link>
+          </InfoChipRow>
+        </Stack>
+      </Stack>
+    </Box>
+  );
 }
 
 export function CiReportCard() {
@@ -524,13 +675,23 @@ export function CiReportCard() {
             </>
           )}
           {report.type === 'commercial' && (
-            <CommercialReportSections
-              report={report}
-              onChange={setCiReport}
-              sectionRefs={commercialSectionRefs}
-              expandedSections={commercialExpanded}
-              onToggleSection={handleToggleCommercialSection}
-            />
+            <>
+              <CommercialInfoChips
+                report={report}
+                financialInfo={financialInfo}
+                personalInfo={personalInfo}
+                loanType={application.loanType}
+                applicantEmail={signUpData.email}
+                onChange={setCiReport}
+              />
+              <CommercialReportSections
+                report={report}
+                onChange={setCiReport}
+                sectionRefs={commercialSectionRefs}
+                expandedSections={commercialExpanded}
+                onToggleSection={handleToggleCommercialSection}
+              />
+            </>
           )}
         </>
       )}

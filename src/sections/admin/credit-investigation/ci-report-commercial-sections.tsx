@@ -561,11 +561,17 @@ export function CommercialReportSections({
               </Typography>
             </Stack>
             <Stack spacing={1.5}>
+              <TextField
+                label="Authorized Capital Stock"
+                value={report.businessAuthorizedCapitalStock}
+                onChange={(event) => onChange({ businessAuthorizedCapitalStock: event.target.value })}
+                sx={fieldSx}
+              />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
-                  label="Owner"
-                  value={report.businessOwner}
-                  onChange={(event) => onChange({ businessOwner: event.target.value })}
+                  label="Line of Business"
+                  value={report.businessLineOfBusiness}
+                  onChange={(event) => onChange({ businessLineOfBusiness: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
@@ -589,6 +595,12 @@ export function CommercialReportSections({
                   sx={{ ...fieldSx, flex: 1 }}
                 />
               </Stack>
+              <TextField
+                label="Owner"
+                value={report.businessOwner}
+                onChange={(event) => onChange({ businessOwner: event.target.value })}
+                sx={fieldSx}
+              />
             </Stack>
 
             <Stack spacing={1.5}>

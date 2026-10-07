@@ -922,6 +922,12 @@ export type CiReport = {
   recommendationNotes: string;
 
   // Business profile (Commercial only)
+  businessCompanyName: string;
+  businessContactNumber: string;
+  businessEmailAddress: string;
+  businessWebsite: string;
+  businessLineOfBusiness: string;
+  businessAuthorizedCapitalStock: string;
   businessOwner: string;
   businessTerritory: string;
   businessRegularEmployees: string;
@@ -1926,6 +1932,12 @@ function createInitialCiReport(): CiReport {
     commentsNotes: '',
     recommendation: '',
     recommendationNotes: '',
+    businessCompanyName: '',
+    businessContactNumber: '',
+    businessEmailAddress: '',
+    businessWebsite: '',
+    businessLineOfBusiness: '',
+    businessAuthorizedCapitalStock: '',
     businessOwner: '',
     businessTerritory: '',
     businessRegularEmployees: '',
