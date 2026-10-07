@@ -382,10 +382,11 @@ each implemented in `CommercialReportSections`
   regular employees, No. of contractual employees — all plain `CiReport`
   string fields, `businessOwner`/`businessTerritory`/
   `businessRegularEmployees`/`businessContractualEmployees`), then
-  Location and facility, a bordered sub-box (same convention as the
-  Consumer branch's Residence/Neighborhood box) holding: Premises
-  (Construction description, Area description), a "Location owned?"
-  Yes/No `RadioRow` next to "Own or rent (details)"
+  Location and facility (plain fields, no bordered sub-box — unlike the
+  Consumer branch's Residence/Neighborhood box, matching the reference
+  layout's own flatter treatment here) holding: Premises (Construction
+  description, Area description), a "Location owned?" Yes/No `RadioRow`
+  next to "Own or rent (details)"
   (`locationOwned`/`locationOwnRentDetails`), then Equipment (a
   description field), and an "Equipment owned?" Yes/No `RadioRow` next to
   "Equipment lease price" (`equipmentOwned`/`equipmentLeasePrice`).

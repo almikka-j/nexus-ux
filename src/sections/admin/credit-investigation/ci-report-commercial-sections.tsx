@@ -593,59 +593,57 @@ export function CommercialReportSections({
 
             <Stack spacing={1.5}>
               <SectionLabel>Location and facility</SectionLabel>
-              <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-                <Stack spacing={2}>
-                  <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Premises</Typography>
-                  <TextField
-                    label="Construction description"
-                    value={report.premisesConstructionDescription}
-                    onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
-                    sx={fieldSx}
+              <Stack spacing={2}>
+                <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Premises</Typography>
+                <TextField
+                  label="Construction description"
+                  value={report.premisesConstructionDescription}
+                  onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
+                  sx={fieldSx}
+                />
+                <TextField
+                  label="Area description"
+                  value={report.premisesAreaDescription}
+                  onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
+                  sx={fieldSx}
+                />
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
+                  <RadioRow
+                    label="Location owned?"
+                    value={report.locationOwned}
+                    options={YES_NO_OPTIONS}
+                    onChange={(value) => onChange({ locationOwned: value })}
                   />
                   <TextField
-                    label="Area description"
-                    value={report.premisesAreaDescription}
-                    onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
-                    sx={fieldSx}
+                    label="Own or rent (details)"
+                    value={report.locationOwnRentDetails}
+                    onChange={(event) => onChange({ locationOwnRentDetails: event.target.value })}
+                    sx={{ ...fieldSx, flex: 1 }}
                   />
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
-                    <RadioRow
-                      label="Location owned?"
-                      value={report.locationOwned}
-                      options={YES_NO_OPTIONS}
-                      onChange={(value) => onChange({ locationOwned: value })}
-                    />
-                    <TextField
-                      label="Own or rent (details)"
-                      value={report.locationOwnRentDetails}
-                      onChange={(event) => onChange({ locationOwnRentDetails: event.target.value })}
-                      sx={{ ...fieldSx, flex: 1 }}
-                    />
-                  </Stack>
-
-                  <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Equipment</Typography>
-                  <TextField
-                    label="Equipment"
-                    value={report.equipmentDescription}
-                    onChange={(event) => onChange({ equipmentDescription: event.target.value })}
-                    sx={fieldSx}
-                  />
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
-                    <RadioRow
-                      label="Equipment owned?"
-                      value={report.equipmentOwned}
-                      options={YES_NO_OPTIONS}
-                      onChange={(value) => onChange({ equipmentOwned: value })}
-                    />
-                    <TextField
-                      label="Equipment lease price"
-                      value={report.equipmentLeasePrice}
-                      onChange={(event) => onChange({ equipmentLeasePrice: event.target.value })}
-                      sx={{ ...fieldSx, flex: 1 }}
-                    />
-                  </Stack>
                 </Stack>
-              </Box>
+
+                <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Equipment</Typography>
+                <TextField
+                  label="Equipment"
+                  value={report.equipmentDescription}
+                  onChange={(event) => onChange({ equipmentDescription: event.target.value })}
+                  sx={fieldSx}
+                />
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
+                  <RadioRow
+                    label="Equipment owned?"
+                    value={report.equipmentOwned}
+                    options={YES_NO_OPTIONS}
+                    onChange={(value) => onChange({ equipmentOwned: value })}
+                  />
+                  <TextField
+                    label="Equipment lease price"
+                    value={report.equipmentLeasePrice}
+                    onChange={(event) => onChange({ equipmentLeasePrice: event.target.value })}
+                    sx={{ ...fieldSx, flex: 1 }}
+                  />
+                </Stack>
+              </Stack>
             </Stack>
           </Stack>
         </CollapsibleSection>
