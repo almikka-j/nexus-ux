@@ -332,25 +332,36 @@ read-only Residence Address + Business/Work Address header block is
 **Consumer-only** — it does not appear in the reference "Field
 Investigation — Commercial" layout this branch matches, so it renders
 only inside the `report.type === 'consumer'` branch, directly above
-`ConsumerReportSections`. In order, each implemented in
-`CommercialReportSections`
+`ConsumerReportSections`.
+
+The reference tool itself is a separate multi-page app (its own left
+sidebar, one page per section, a "Download Report" button) — this app
+keeps the single-card CI Report convention instead, so
+`CommercialReportSections` reproduces the reference's four groupings as
+MUI `Tabs` inside the one card rather than as separate pages: **Field
+Investigation**, **Trade Checking**, **Management and Ownership**,
+**Comments** (local `useState<CommercialTab>`, defaults to "Field
+Investigation"). Switching tabs never clears data — every tab's fields
+live on the same `CiReport` object regardless of which tab is active, same
+principle as switching the Commercial/Consumer type itself. In order,
+each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`):
 
-- **Business profile** — subtitled "From the business applied on the Call
-  Report." Owner, Territory, No. of regular employees, No. of
-  contractual employees (all plain `CiReport` string fields,
-  `businessOwner`/`businessTerritory`/`businessRegularEmployees`/
-  `businessContractualEmployees`).
-- **Location and facility** — a bordered sub-box (same convention as the
+- **Field Investigation tab** — Business profile, subtitled "From the
+  business applied on the Call Report." (Owner, Territory, No. of
+  regular employees, No. of contractual employees — all plain `CiReport`
+  string fields, `businessOwner`/`businessTerritory`/
+  `businessRegularEmployees`/`businessContractualEmployees`), then
+  Location and facility, a bordered sub-box (same convention as the
   Consumer branch's Residence/Neighborhood box) holding: Premises
   (Construction description, Area description), a "Location owned?"
   Yes/No `RadioRow` next to "Own or rent (details)"
   (`locationOwned`/`locationOwnRentDetails`), then Equipment (a
   description field), and an "Equipment owned?" Yes/No `RadioRow` next to
   "Equipment lease price" (`equipmentOwned`/`equipmentLeasePrice`).
-- **Trade Checking** — one bordered card, subtitled "Customers and
-  suppliers verified during the visit.", holding two independent
-  repeatable arrays in order — **Customers** first, then **Suppliers**
+- **Trade Checking tab** — subtitled "Customers and suppliers verified
+  during the visit.", holding two independent repeatable arrays in order
+  — **Customers** first, then **Suppliers**
   (`commercialCustomers`/`commercialSuppliers:
   CiCommercialTradeEntry[]`) — a **new, separate entry type** from the
   Consumer branch's own `CiTradeEntry`, since the Commercial shape is
@@ -360,8 +371,8 @@ only inside the `report.type === 'consumer'` branch, directly above
   name/address/dealing shape. Add buttons read "Add customer"/"Add
   supplier" (lowercase, matching the reference tool). Same
   add/remove-per-entry UX as every other repeatable section in this card.
-- **Management and Ownership** — one bordered card, subtitled "Who runs
-  the business and who owns it.", holding two repeatable sub-sections:
+- **Management and Ownership tab** — subtitled "Who runs the business and
+  who owns it.", holding two repeatable sub-sections:
   - **Management** (`management: CiManagementEntry[]`) — Full name,
     Birthdate, Birth place, Nationality, Spouse/partner, Home address,
     Job title, Education, Other business, TIN, Mobile number per entry.
@@ -381,7 +392,7 @@ only inside the `report.type === 'consumer'` branch, directly above
     corporation?" from Yes back to No only hides the Sub-stockholders
     block (the data is not cleared), so toggling back to Yes restores
     whatever was already entered. "Add stockholder" trigger.
-- **Comments** — subtitled "Overall remarks from the investigation.",
+- **Comments tab** — subtitled "Overall remarks from the investigation.",
   `commentsNotes`, the same shared `RichTextField` field the Consumer
   branch's own Comments section uses (so text typed here survives
   switching to Consumer and back).

@@ -1,6 +1,10 @@
 'use client';
 
+import { useState } from 'react';
+
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -515,6 +519,15 @@ function StockholdersSection({
   );
 }
 
+const COMMERCIAL_TABS = [
+  'Field Investigation',
+  'Trade Checking',
+  'Management and Ownership',
+  'Comments',
+] as const;
+
+type CommercialTab = (typeof COMMERCIAL_TABS)[number];
+
 export function CommercialReportSections({
   report,
   onChange,
@@ -522,110 +535,125 @@ export function CommercialReportSections({
   report: CiReport;
   onChange: (data: Partial<CiReport>) => void;
 }) {
+  const [tab, setTab] = useState<CommercialTab>('Field Investigation');
+
   return (
     <Stack spacing={2.5}>
-      <Stack spacing={0.25}>
-        <SectionLabel>Business profile</SectionLabel>
-        <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
-          From the business applied on the Call Report.
-        </Typography>
-      </Stack>
-      <Stack spacing={1.5}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-          <TextField
-            label="Owner"
-            value={report.businessOwner}
-            onChange={(event) => onChange({ businessOwner: event.target.value })}
-            sx={{ ...fieldSx, flex: 1 }}
-          />
-          <TextField
-            label="Territory"
-            value={report.businessTerritory}
-            onChange={(event) => onChange({ businessTerritory: event.target.value })}
-            sx={{ ...fieldSx, flex: 1 }}
-          />
-        </Stack>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-          <TextField
-            label="No. of regular employees"
-            value={report.businessRegularEmployees}
-            onChange={(event) => onChange({ businessRegularEmployees: event.target.value })}
-            sx={{ ...fieldSx, flex: 1 }}
-          />
-          <TextField
-            label="No. of contractual employees"
-            value={report.businessContractualEmployees}
-            onChange={(event) => onChange({ businessContractualEmployees: event.target.value })}
-            sx={{ ...fieldSx, flex: 1 }}
-          />
-        </Stack>
-      </Stack>
+      <Tabs
+        value={tab}
+        onChange={(_event, value) => setTab(value)}
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{ borderBottom: '1px solid #EEF0F5' }}
+      >
+        {COMMERCIAL_TABS.map((label) => (
+          <Tab key={label} value={label} label={label} />
+        ))}
+      </Tabs>
 
-      <Stack spacing={1.5}>
-        <SectionLabel>Location and facility</SectionLabel>
-        <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-          <Stack spacing={2}>
-            <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Premises</Typography>
-            <TextField
-              label="Construction description"
-              value={report.premisesConstructionDescription}
-              onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
-              sx={fieldSx}
-            />
-            <TextField
-              label="Area description"
-              value={report.premisesAreaDescription}
-              onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
-              sx={fieldSx}
-            />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
-              <RadioRow
-                label="Location owned?"
-                value={report.locationOwned}
-                options={YES_NO_OPTIONS}
-                onChange={(value) => onChange({ locationOwned: value })}
+      {tab === 'Field Investigation' && (
+        <Stack spacing={2.5}>
+          <Stack spacing={0.25}>
+            <SectionLabel>Business profile</SectionLabel>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+              From the business applied on the Call Report.
+            </Typography>
+          </Stack>
+          <Stack spacing={1.5}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                label="Owner"
+                value={report.businessOwner}
+                onChange={(event) => onChange({ businessOwner: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
               />
               <TextField
-                label="Own or rent (details)"
-                value={report.locationOwnRentDetails}
-                onChange={(event) => onChange({ locationOwnRentDetails: event.target.value })}
+                label="Territory"
+                value={report.businessTerritory}
+                onChange={(event) => onChange({ businessTerritory: event.target.value })}
                 sx={{ ...fieldSx, flex: 1 }}
               />
             </Stack>
-
-            <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Equipment</Typography>
-            <TextField
-              label="Equipment"
-              value={report.equipmentDescription}
-              onChange={(event) => onChange({ equipmentDescription: event.target.value })}
-              sx={fieldSx}
-            />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
-              <RadioRow
-                label="Equipment owned?"
-                value={report.equipmentOwned}
-                options={YES_NO_OPTIONS}
-                onChange={(value) => onChange({ equipmentOwned: value })}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                label="No. of regular employees"
+                value={report.businessRegularEmployees}
+                onChange={(event) => onChange({ businessRegularEmployees: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
               />
               <TextField
-                label="Equipment lease price"
-                value={report.equipmentLeasePrice}
-                onChange={(event) => onChange({ equipmentLeasePrice: event.target.value })}
+                label="No. of contractual employees"
+                value={report.businessContractualEmployees}
+                onChange={(event) => onChange({ businessContractualEmployees: event.target.value })}
                 sx={{ ...fieldSx, flex: 1 }}
               />
             </Stack>
           </Stack>
-        </Box>
-      </Stack>
 
-      <Box sx={{ p: 2, borderRadius: '13px', border: '1px solid #EEF0F5', bgcolor: 'common.white' }}>
-        <Stack spacing={0.25} sx={{ mb: 2 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Trade Checking</Typography>
+          <Stack spacing={1.5}>
+            <SectionLabel>Location and facility</SectionLabel>
+            <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+              <Stack spacing={2}>
+                <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Premises</Typography>
+                <TextField
+                  label="Construction description"
+                  value={report.premisesConstructionDescription}
+                  onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
+                  sx={fieldSx}
+                />
+                <TextField
+                  label="Area description"
+                  value={report.premisesAreaDescription}
+                  onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
+                  sx={fieldSx}
+                />
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
+                  <RadioRow
+                    label="Location owned?"
+                    value={report.locationOwned}
+                    options={YES_NO_OPTIONS}
+                    onChange={(value) => onChange({ locationOwned: value })}
+                  />
+                  <TextField
+                    label="Own or rent (details)"
+                    value={report.locationOwnRentDetails}
+                    onChange={(event) => onChange({ locationOwnRentDetails: event.target.value })}
+                    sx={{ ...fieldSx, flex: 1 }}
+                  />
+                </Stack>
+
+                <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Equipment</Typography>
+                <TextField
+                  label="Equipment"
+                  value={report.equipmentDescription}
+                  onChange={(event) => onChange({ equipmentDescription: event.target.value })}
+                  sx={fieldSx}
+                />
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
+                  <RadioRow
+                    label="Equipment owned?"
+                    value={report.equipmentOwned}
+                    options={YES_NO_OPTIONS}
+                    onChange={(value) => onChange({ equipmentOwned: value })}
+                  />
+                  <TextField
+                    label="Equipment lease price"
+                    value={report.equipmentLeasePrice}
+                    onChange={(event) => onChange({ equipmentLeasePrice: event.target.value })}
+                    sx={{ ...fieldSx, flex: 1 }}
+                  />
+                </Stack>
+              </Stack>
+            </Box>
+          </Stack>
+        </Stack>
+      )}
+
+      {tab === 'Trade Checking' && (
+        <Stack spacing={2.5}>
           <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
             Customers and suppliers verified during the visit.
           </Typography>
-        </Stack>
-        <Stack spacing={2.5}>
           <CommercialTradeCheckingSection
             title="Customers"
             entries={report.commercialCustomers}
@@ -637,16 +665,13 @@ export function CommercialReportSections({
             onChange={(commercialSuppliers) => onChange({ commercialSuppliers })}
           />
         </Stack>
-      </Box>
+      )}
 
-      <Box sx={{ p: 2, borderRadius: '13px', border: '1px solid #EEF0F5', bgcolor: 'common.white' }}>
-        <Stack spacing={0.25} sx={{ mb: 2 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Management and Ownership</Typography>
+      {tab === 'Management and Ownership' && (
+        <Stack spacing={2.5}>
           <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
             Who runs the business and who owns it.
           </Typography>
-        </Stack>
-        <Stack spacing={2.5}>
           <ManagementSection
             entries={report.management}
             onChange={(management) => onChange({ management })}
@@ -656,20 +681,21 @@ export function CommercialReportSections({
             onChange={(stockholders) => onChange({ stockholders })}
           />
         </Stack>
-      </Box>
+      )}
 
-      <Stack spacing={0.25}>
-        <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Comments</Typography>
-        <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 1 }}>
-          Overall remarks from the investigation.
-        </Typography>
-        <RichTextField
-          label="Comments"
-          value={report.commentsNotes}
-          onChange={(html) => onChange({ commentsNotes: html })}
-          placeholder="Any additional remarks…"
-        />
-      </Stack>
+      {tab === 'Comments' && (
+        <Stack spacing={0.25}>
+          <Typography sx={{ fontSize: 12.5, color: '#8891A6', mb: 1 }}>
+            Overall remarks from the investigation.
+          </Typography>
+          <RichTextField
+            label="Comments"
+            value={report.commentsNotes}
+            onChange={(html) => onChange({ commentsNotes: html })}
+            placeholder="Any additional remarks…"
+          />
+        </Stack>
+      )}
     </Stack>
   );
 }
