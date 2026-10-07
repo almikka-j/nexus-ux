@@ -236,11 +236,86 @@ function useCiActiveSection(
   return activeKey;
 }
 
+// FactChip / FactChipRow — this app's existing label-over-value
+// quick-read summary strip (see docs/225-admin-design-system.md §6 and
+// the live showcase on /admin/design-system). Not a shared component
+// yet — reimplemented locally per screen (application-details-card.tsx,
+// appraisal-report-preview.tsx, cash-flow-statement-card.tsx, etc.), same
+// convention followed here rather than inventing a new vertical
+// "LABEL : value" layout. Used for the 12 read-only Commercial info
+// fields below; the 6 fillable fields that follow stay in their own
+// label-above-input layout, since FactChip has no input variant.
+//
+// Laid out as a CSS grid (3 columns on sm+, 1 on xs) rather than a
+// flex-wrap row — flex-wrap has no way to know which cells start a new
+// visual line, so a per-cell divider either doubles up or is missing
+// depending on wrap position. Each cell paints its own white background
+// and a 1px `outline` divider (not `border`, so it doesn't consume grid
+// track space); the row container is white too, so a trailing row with
+// fewer cells than columns reads as plain white, never a visible gray
+// gap. `wide` spans every column instead of competing for one, for a
+// value long enough to otherwise wrap awkwardly or crowd its neighbours
+// (e.g. a full business address).
+function FactChip({ label, value, wide }: { label: string; value: React.ReactNode; wide?: boolean }) {
+  return (
+    <Box
+      sx={{
+        gridColumn: wide ? '1 / -1' : 'span 1',
+        minWidth: 0,
+        px: 1.75,
+        py: 1,
+        bgcolor: 'common.white',
+        // Only right + bottom edges draw a divider (inset box-shadow, so
+        // it doesn't consume grid track space like a border would) — the
+        // container's own top+left border supplies the other two edges
+        // of the overall strip. Every internal line is then drawn once,
+        // by exactly one cell, instead of two adjacent cells each
+        // outlining their shared edge and doubling it up.
+        boxShadow: 'inset -1px -1px 0 0 #EEF0F5',
+      }}
+    >
+      <Typography
+        sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#9AA2B4' }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: 13.5,
+          fontWeight: 700,
+          color: '#14172A',
+          mt: 0.25,
+          overflowWrap: 'break-word',
+          wordBreak: 'break-word',
+        }}
+      >
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
+function FactChipRow({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+        borderRadius: '12px',
+        border: '1px solid #EEF0F5',
+        bgcolor: 'common.white',
+        overflow: 'hidden',
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
 // Read-only "LABEL : value" row — label left, colon, value right, one
-// per line. Matches a reference tool's info-chip header exactly (a
-// single vertical list, not columns). Every field here is read from
-// sample/dummy data (no real backend, same convention as every other
-// "AI"/derived value in this app) — nothing here is user-editable.
+// per line. Used for Line of Business, the one read-only row interleaved
+// among the fillable fields below (FactChip isn't used here since this
+// section is a vertical label-above-input list, not a wrapping strip).
 function InfoChipRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Stack direction="row" spacing={1.5} sx={{ py: 0.4 }}>
@@ -314,54 +389,44 @@ function CommercialInfoChips({
   applicantEmail: string;
   onChange: (data: Partial<CiReport>) => void;
 }) {
-  return (
-    <Box sx={{ p: 2.5, mb: 2.5, borderRadius: '13px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-      <Stack spacing={0}>
-        <InfoChipRow label="COMPANY NAME">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.companyName}</Typography>
-        </InfoChipRow>
-        <InfoChipRow label="BUSINESS ADDRESS">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.businessAddress}</Typography>
-        </InfoChipRow>
-        <InfoChipRow label="CONTACT NO.">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.contactNo}</Typography>
-        </InfoChipRow>
-        <InfoChipRow label="EMAIL ADDRESS">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.emailAddress}</Typography>
-        </InfoChipRow>
-        <InfoChipRow label="WEBSITE">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.website}</Typography>
-        </InfoChipRow>
-        <InfoChipRow label="TIN No.">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.tinNo}</Typography>
-        </InfoChipRow>
-        <InfoChipRow label="LOAN TYPE">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
-            {loanType === 'business' ? 'Business Loan' : loanType === 'personal' ? 'Personal Loan' : 'Business Loan'}
-          </Typography>
-        </InfoChipRow>
-        <InfoChipRow label="AMOUNT APPLIED">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
-            {financialInfo?.desiredLoanAmount
-              ? `Php ${Number(financialInfo.desiredLoanAmount).toLocaleString()}.00`
-              : 'Php 7,000,000.00'}
-          </Typography>
-        </InfoChipRow>
-        <InfoChipRow label="LOAN PURPOSE">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
-            {financialInfo?.loanPurpose || COMMERCIAL_SAMPLE_INFO.loanPurpose}
-          </Typography>
-        </InfoChipRow>
-        <InfoChipRow label="ORGANIZATION TYPE">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.organizationType}</Typography>
-        </InfoChipRow>
-        <InfoChipRow label="REGISTRATION NUMBER">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.registrationNumber}</Typography>
-        </InfoChipRow>
-        <InfoChipRow label="REGISTRATION DATE">
-          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.registrationDate}</Typography>
-        </InfoChipRow>
+  const loanTypeLabel =
+    loanType === 'business' ? 'Business Loan' : loanType === 'personal' ? 'Personal Loan' : 'Business Loan';
+  const amountAppliedLabel = financialInfo?.desiredLoanAmount
+    ? `Php ${Number(financialInfo.desiredLoanAmount).toLocaleString()}.00`
+    : 'Php 7,000,000.00';
+  const loanPurposeLabel = financialInfo?.loanPurpose || COMMERCIAL_SAMPLE_INFO.loanPurpose;
 
+  return (
+    <Box sx={{ mb: 2.5 }}>
+      <FactChipRow>
+        <FactChip label="Company Name" value={COMMERCIAL_SAMPLE_INFO.companyName} />
+        <FactChip label="Business Address" value={COMMERCIAL_SAMPLE_INFO.businessAddress} wide />
+        <FactChip label="Contact No." value={COMMERCIAL_SAMPLE_INFO.contactNo} />
+        <FactChip label="Email Address" value={COMMERCIAL_SAMPLE_INFO.emailAddress} />
+        <FactChip label="Website" value={COMMERCIAL_SAMPLE_INFO.website || '—'} />
+        <FactChip label="TIN No." value={COMMERCIAL_SAMPLE_INFO.tinNo} />
+        <FactChip label="Loan Type" value={loanTypeLabel} />
+        <FactChip label="Amount Applied" value={amountAppliedLabel} />
+        <FactChip label="Loan Purpose" value={loanPurposeLabel} />
+        <FactChip label="Organization Type" value={COMMERCIAL_SAMPLE_INFO.organizationType} />
+        <FactChip label="Registration Number" value={COMMERCIAL_SAMPLE_INFO.registrationNumber} />
+        <FactChip label="Registration Date" value={COMMERCIAL_SAMPLE_INFO.registrationDate} />
+        <FactChip
+          label="Negative Records"
+          value={
+            <Link
+              component={RouterLink}
+              href={paths.admin.creditChecking(encodeURIComponent(applicantEmail))}
+              sx={{ fontSize: 13.5, fontWeight: 700, whiteSpace: 'nowrap' }}
+            >
+              See report
+            </Link>
+          }
+        />
+      </FactChipRow>
+
+      <Box sx={{ p: 2.5, mt: 2.5, borderRadius: '13px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+      <Stack spacing={0}>
         <InfoChipFieldRow label="AUTHORIZED CAPITAL STOCK" required>
           <TextField
             value={report.businessAuthorizedCapitalStock}
@@ -428,16 +493,8 @@ function CommercialInfoChips({
             sx={fieldSx}
           />
         </InfoChipFieldRow>
-        <InfoChipRow label="NEGATIVE RECORDS">
-          <Link
-            component={RouterLink}
-            href={paths.admin.creditChecking(encodeURIComponent(applicantEmail))}
-            sx={{ fontSize: 13.5, fontWeight: 700 }}
-          >
-            See initial credit checking report
-          </Link>
-        </InfoChipRow>
       </Stack>
+      </Box>
     </Box>
   );
 }

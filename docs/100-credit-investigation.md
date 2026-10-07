@@ -394,23 +394,50 @@ principle as switching the Commercial/Consumer type itself.
 
 **Info chips header.** Above the transcript upload row (so it's the very
 first thing under the CI Report title/type toggle, for Commercial only),
-a `CommercialInfoChips` block (`ci-report-card.tsx`) renders a single
-vertical "LABEL : value" list, matching a reference tool's own info-chip
-header exactly — label left, colon, value right, one row per line, not
-two columns. In order:
+a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
 
-- **12 read-only rows** (`InfoChipRow`) — Company Name, Business Address,
-  Contact No., Email Address, Website, TIN No., Loan Type, Amount
-  Applied, Loan Purpose, Organization Type, Registration Number,
-  Registration Date. None of these are user-editable; most have no
-  equivalent anywhere in this app's data model (no company-profile
-  backend exists), so they render fixed sample data
-  (`COMMERCIAL_SAMPLE_INFO`) — same "fabricated but consistent" AI/derived
-  value convention as the rest of this app — except Loan Type and Amount
-  Applied/Loan Purpose, which prefer the real `application.loanType`/
-  `financialInfo.desiredLoanAmount`/`financialInfo.loanPurpose` when
-  present, falling back to the sample value otherwise.
-- **6 fillable rows** (`InfoChipFieldRow`, red required asterisk where the
+- **12 read-only fields as a `FactChipRow`/`FactChip` grid** — this
+  app's existing label-over-value quick-read summary pattern (see
+  `docs/225-admin-design-system.md` §6 and its live showcase on
+  `/admin/design-system`), reused here with a local copy (not a shared
+  component yet anywhere in this app) instead of inventing a new layout.
+  Company Name, Business Address, Contact No., Email Address, Website,
+  TIN No., Loan Type, Amount Applied, Loan Purpose, Organization Type,
+  Registration Number, Registration Date, and a Negative Records link
+  ("See report"), in that order — 12 cells total, deliberately a multiple
+  of 3 (with Business Address as the one `wide` cell spanning the full
+  row on its own), so the grid always fills completely with no leftover
+  cells in a final partial row. Unlike every other screen's `FactChip`
+  copy (a flex-wrap row), this one is a **3-column CSS grid** (1 column
+  on mobile) — flex-wrap has no way to know which cell starts a new
+  visual line, so a per-cell divider either doubled up or went missing
+  depending on wrap position. Each cell paints its own white background
+  and draws only its **right + bottom** edge as a 1px inset `boxShadow`
+  divider — not all 4 sides (an earlier version used a 4-side `outline`
+  per cell, which doubled every internal line, since two adjacent cells
+  each drew their own copy of the shared edge), and not a `border`
+  (which would consume grid track space), and not a `gap`+
+  background-colour trick (which left a visible gray gap in any row that
+  didn't fully fill). The row container's own border supplies the top +
+  left edge of the whole strip; the bottom-right cell's shadow coincides
+  with — not duplicates — the container's own border on those two sides,
+  since it's the same line, same position. None of these
+  fields are user-editable; most have no equivalent anywhere in this
+  app's data model (no company-profile backend exists), so they render
+  fixed sample data (`COMMERCIAL_SAMPLE_INFO`) — same "fabricated but
+  consistent" AI/derived value convention as the rest of this app —
+  except Loan Type and Amount Applied/Loan Purpose, which prefer the real
+  `application.loanType`/`financialInfo.desiredLoanAmount`/
+  `financialInfo.loanPurpose` when present, falling back to the sample
+  value otherwise. Business Address passes `wide` (a `FactChip` prop
+  added here, not present in any other screen's copy) so it spans all 3
+  grid columns instead of competing for one — a full street address is
+  routinely long enough that a single grid cell reads as cramped. Every
+  `FactChip` value wraps long text (`overflowWrap`/`wordBreak`) rather
+  than clipping it, so an unusually long value in any non-`wide` cell
+  still degrades gracefully instead of breaking the layout.
+- **6 fillable rows below the strip** (`InfoChipFieldRow`, red required
+  asterisk where the
   reference shows one) — Authorized Capital Stock*, Line of Business
   (read-only row, not fillable — matches the reference, which shows it
   without an input box), Territory*, Regular Employees, Contractual
