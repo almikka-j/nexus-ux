@@ -417,19 +417,30 @@ a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
   the top + left edge of the whole strip.
 
   Because the divider belongs to the cell, not the row, a row left with
-  only 1 or 2 filled cells out of 3 columns leaves a stray vertical line
+  only 1 or 2 filled cells out of N columns leaves a stray vertical line
   floating in otherwise-empty space (no sibling cell there to explain
-  it). The fix is `wide` (`gridColumn: '1 / -1'`) on every chip whose
-  neighbours don't divide evenly into groups of 3 — not just the chips
-  with a long value. Four of the twelve are `wide` for that reason:
-  **Company Name** (alone before Business Address breaks to a new row),
-  **Business Address** (also genuinely long — a full street address),
-  **Registration Date** and **Negative Records** (the last two chips,
-  which would otherwise leave a lone pair in a 3-column row). The
-  remaining nine chips (Contact No. through Registration Number) are
-  exactly three complete rows of three — the call site is ordered so
-  every non-`wide` run is a multiple of 3, and changing the field list
-  must preserve that, or mark the new odd-one-out `wide` too.
+  it). `FactChipRow` takes a `cols` prop (default 3) and a `position`
+  prop (`'only' | 'first' | 'last'`, controlling which corners round and
+  whether the segment draws its own top border) so a field count that
+  doesn't divide evenly into the main grid can get its own segment with
+  a different column count instead of leaving a stray cell. This header
+  renders **two segments** that read as one continuous strip:
+  - **`position="first"`, 3 columns:** Company Name and Business Address
+    pass `wide` (`gridColumn: '1 / -1'`) — Company Name because it would
+    otherwise sit alone before Business Address breaks to a new row,
+    Business Address because it's also genuinely long (a full street
+    address) — followed by the remaining 9 chips (Contact No. through
+    Registration Number), exactly 3 complete rows of 3.
+  - **`position="last"`, 2 columns:** Registration Date and Negative
+    Records (the link, "See report") — exactly 2 chips, so they share
+    their own 2-column grid rather than being `wide` individually (which
+    would stack them as two separate full-width lines) or joining the
+    main 3-column grid (which would leave 1 empty, stray-divider cell).
+
+  Changing this field list must keep the running chip count divisible by
+  whichever segment it lands in, or add/adjust a segment boundary —
+  `wide`/`cols`/`position` all exist specifically to keep every segment's
+  grid exactly full.
 
   None of these fields are user-editable; most have no equivalent
   anywhere in this app's data model (no company-profile backend exists),

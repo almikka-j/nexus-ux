@@ -246,22 +246,28 @@ function useCiActiveSection(
 // fields below; the 6 fillable fields that follow stay in their own
 // label-above-input layout, since FactChip has no input variant.
 //
-// Laid out as a CSS grid (3 columns on sm+, 1 on xs) rather than a
+// Laid out as a CSS grid (`cols` columns on sm+, 1 on xs) rather than a
 // flex-wrap row — flex-wrap has no way to know which cells start a new
 // visual line, so a per-cell divider either doubles up or is missing
 // depending on wrap position. Each cell draws only its own right+bottom
 // edge (inset box-shadow, not border, so it doesn't consume grid track
 // space); two adjacent cells never both draw the same shared edge, so no
 // line is ever doubled. `wide` (gridColumn: '1 / -1') gives a chip the
-// entire row to itself instead of sharing a row with 1-2 others — used
-// for every chip whose neighbours don't divide evenly into groups of 3
-// (Company Name, Registration Date, Negative Records), not just long
-// values (Business Address) — an incomplete row (e.g. 1 or 2 filled
-// cells out of 3 grid columns) left a stray vertical divider floating in
-// empty space, since the divider belongs to the cell, not to the row.
-// The call site below is ordered so every non-`wide` run is exactly a
-// multiple of 3; changing the field list must preserve that, or mark the
-// new odd-one-out `wide` too.
+// entire row to itself instead of sharing a row with others that don't
+// divide evenly — used for Company Name and Business Address below
+// (long value, or alone before a wide neighbour breaks the row). Every
+// `FactChipRow`'s own chip count must either be a multiple of its `cols`
+// or use `wide` on the leftover chips — a row left with 1 or 2 filled
+// cells out of N columns leaves a stray divider floating in otherwise-
+// empty space, since the divider belongs to the cell, not the row.
+// Registration Date + Negative Records are exactly 2 chips, so they get
+// their own 2-column `FactChipRow` instead of being `wide` individually
+// (which would stack them as two separate full-width lines) or sharing
+// the main 3-column grid (which would leave 1 empty, stray-divider cell).
+// `position="first"`/`"last"` on the two segments makes them read as one
+// continuous strip instead of two stacked cards — only the very top and
+// very bottom corners round, and the second segment has no top border of
+// its own (flush against the first segment's bottom edge).
 function FactChip({ label, value, wide }: { label: string; value: React.ReactNode; wide?: boolean }) {
   return (
     <Box
@@ -301,14 +307,31 @@ function FactChip({ label, value, wide }: { label: string; value: React.ReactNod
   );
 }
 
-function FactChipRow({ children }: { children: React.ReactNode }) {
+// A multi-segment strip (segments with different column counts, e.g.
+// a 3-column main grid followed by a 2-column trailing pair that
+// doesn't divide evenly into 3) reads as one strip, not stacked cards:
+// pass `position="first"`/`"last"` on the two segments so only the very
+// top and very bottom corners round, and the shared edge between them
+// has no doubled border.
+function FactChipRow({
+  children,
+  cols = 3,
+  position = 'only',
+}: {
+  children: React.ReactNode;
+  cols?: number;
+  position?: 'only' | 'first' | 'last';
+}) {
+  const topRadius = position === 'last' ? 0 : 12;
+  const bottomRadius = position === 'first' ? 0 : 12;
   return (
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-        borderRadius: '12px',
+        gridTemplateColumns: { xs: '1fr', sm: `repeat(${cols}, 1fr)` },
+        borderRadius: `${topRadius}px ${topRadius}px ${bottomRadius}px ${bottomRadius}px`,
         border: '1px solid #EEF0F5',
+        borderTop: position === 'last' ? 'none' : '1px solid #EEF0F5',
         bgcolor: 'common.white',
         overflow: 'hidden',
       }}
@@ -404,7 +427,7 @@ function CommercialInfoChips({
 
   return (
     <Box sx={{ mb: 2.5 }}>
-      <FactChipRow>
+      <FactChipRow position="first">
         <FactChip label="Company Name" value={COMMERCIAL_SAMPLE_INFO.companyName} wide />
         <FactChip label="Business Address" value={COMMERCIAL_SAMPLE_INFO.businessAddress} wide />
         <FactChip label="Contact No." value={COMMERCIAL_SAMPLE_INFO.contactNo} />
@@ -416,10 +439,11 @@ function CommercialInfoChips({
         <FactChip label="Loan Purpose" value={loanPurposeLabel} />
         <FactChip label="Organization Type" value={COMMERCIAL_SAMPLE_INFO.organizationType} />
         <FactChip label="Registration Number" value={COMMERCIAL_SAMPLE_INFO.registrationNumber} />
-        <FactChip label="Registration Date" value={COMMERCIAL_SAMPLE_INFO.registrationDate} wide />
+      </FactChipRow>
+      <FactChipRow cols={2} position="last">
+        <FactChip label="Registration Date" value={COMMERCIAL_SAMPLE_INFO.registrationDate} />
         <FactChip
           label="Negative Records"
-          wide
           value={
             <Link
               component={RouterLink}
