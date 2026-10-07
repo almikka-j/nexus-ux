@@ -20,7 +20,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
-import type { FinancialInfo, PersonalInfo } from 'src/auth/registration-context';
+import type { FinancialInfo } from 'src/auth/registration-context';
 import type {
   CiReport,
   CiChildEntry,
@@ -236,147 +236,207 @@ function useCiActiveSection(
   return activeKey;
 }
 
-// Read-only "LABEL : value" rows, two per row on larger screens, shown
-// once at the top of the Commercial branch (above Business Profile) —
-// matches a reference tool's info-chip header exactly. Space-saving by
-// design: every field here is read from data collected earlier in the
-// pipeline (application sign-up, Call Report), never re-entered — the
-// officer only fills in the fields that follow, in Business Profile and
-// beyond. Fields with no equivalent anywhere else in the data model
-// (Company Name, Contact No., Email Address, Website) were added as new
-// CiReport fields (businessCompanyName/businessContactNumber/
-// businessEmailAddress/businessWebsite) and ARE editable here, inline,
-// since there's nowhere else they could come from.
+// Read-only "LABEL : value" row — label left, colon, value right, one
+// per line. Matches a reference tool's info-chip header exactly (a
+// single vertical list, not columns). Every field here is read from
+// sample/dummy data (no real backend, same convention as every other
+// "AI"/derived value in this app) — nothing here is user-editable.
 function InfoChipRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Stack direction="row" spacing={1.5} sx={{ py: 0.5 }}>
+    <Stack direction="row" spacing={1.5} sx={{ py: 0.4 }}>
       <Typography
-        sx={{ width: 170, flexShrink: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', color: '#8891A6' }}
+        sx={{ width: 190, flexShrink: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', color: '#14172A' }}
       >
         {label}
       </Typography>
-      <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>:</Typography>
+      <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>:</Typography>
       <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
     </Stack>
   );
 }
 
+// Same row shape, but for a fillable field below the read-only list —
+// label gets a red required asterisk when `required`, value column holds
+// an actual input instead of static text.
+function InfoChipFieldRow({
+  label,
+  required,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Stack direction="row" spacing={1.5} sx={{ py: 0.4 }} alignItems="flex-start">
+      <Typography
+        sx={{ width: 190, flexShrink: 0, pt: 1, fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', color: '#14172A' }}
+      >
+        {label}
+        {required && <Box component="span" sx={{ color: '#F04438' }}> *</Box>}
+      </Typography>
+      <Typography sx={{ fontSize: 13.5, color: '#5A6273', pt: 1 }}>:</Typography>
+      <Box sx={{ flex: 1, minWidth: 0 }}>{children}</Box>
+    </Stack>
+  );
+}
+
+// Deterministic sample data for the read-only info chips — this app has
+// no real company-profile backend, same "fabricated but consistent"
+// convention as every other AI/derived value (credit-investigation-
+// transcript.ts, bureau-reports-card.tsx). Not tied to the applicant's
+// own data, since nothing in the data model captures most of these
+// fields (Company Name, Contact No., Email, Website, TIN, Registration
+// Number/Date) at the business-application level.
+const COMMERCIAL_SAMPLE_INFO = {
+  companyName: 'GTWO LOGISTIC SERVICES',
+  businessAddress: '24 25 Santol St Town and Country Exec Vill Mayamot City of Antipolo Rizal',
+  contactNo: '09090013618',
+  emailAddress: 'gtwologistics@gmail.com',
+  website: '',
+  tinNo: '738016023000',
+  loanPurpose: 'For additional working capital',
+  organizationType: 'Cooperative',
+  registrationNumber: '5916457',
+  registrationDate: 'Mar 08, 2024',
+};
+
 function CommercialInfoChips({
   report,
   financialInfo,
-  personalInfo,
   loanType,
   applicantEmail,
   onChange,
 }: {
   report: CiReport;
   financialInfo: FinancialInfo | null;
-  personalInfo: PersonalInfo | null;
   loanType: 'personal' | 'business' | null;
   applicantEmail: string;
   onChange: (data: Partial<CiReport>) => void;
 }) {
-  const businessAddress = personalInfo
-    ? [personalInfo.address, personalInfo.barangay, personalInfo.city, personalInfo.province]
-        .filter(Boolean)
-        .join(', ')
-    : '';
-
   return (
     <Box sx={{ p: 2.5, mb: 2.5, borderRadius: '13px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 0, md: 4 }}>
-        <Stack sx={{ flex: 1, minWidth: 0 }}>
-          <InfoChipRow label="COMPANY NAME">
-            <TextField
-              value={report.businessCompanyName}
-              onChange={(event) => onChange({ businessCompanyName: event.target.value })}
-              placeholder="Company name"
-              fullWidth
-              size="small"
-              sx={fieldSx}
-            />
-          </InfoChipRow>
-          <InfoChipRow label="BUSINESS ADDRESS">
-            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{businessAddress || 'Not on file'}</Typography>
-          </InfoChipRow>
-          <InfoChipRow label="CONTACT NO.">
-            <TextField
-              value={report.businessContactNumber}
-              onChange={(event) => onChange({ businessContactNumber: event.target.value })}
-              placeholder="Contact number"
-              fullWidth
-              size="small"
-              sx={fieldSx}
-            />
-          </InfoChipRow>
-          <InfoChipRow label="EMAIL ADDRESS">
-            <TextField
-              value={report.businessEmailAddress}
-              onChange={(event) => onChange({ businessEmailAddress: event.target.value })}
-              placeholder="Email address"
-              fullWidth
-              size="small"
-              sx={fieldSx}
-            />
-          </InfoChipRow>
-          <InfoChipRow label="WEBSITE">
-            <TextField
-              value={report.businessWebsite}
-              onChange={(event) => onChange({ businessWebsite: event.target.value })}
-              placeholder="Website (optional)"
-              fullWidth
-              size="small"
-              sx={fieldSx}
-            />
-          </InfoChipRow>
-          <InfoChipRow label="TIN No.">
-            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{personalInfo?.tinNumber || 'Not on file'}</Typography>
-          </InfoChipRow>
-        </Stack>
+      <Stack spacing={0}>
+        <InfoChipRow label="COMPANY NAME">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.companyName}</Typography>
+        </InfoChipRow>
+        <InfoChipRow label="BUSINESS ADDRESS">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.businessAddress}</Typography>
+        </InfoChipRow>
+        <InfoChipRow label="CONTACT NO.">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.contactNo}</Typography>
+        </InfoChipRow>
+        <InfoChipRow label="EMAIL ADDRESS">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.emailAddress}</Typography>
+        </InfoChipRow>
+        <InfoChipRow label="WEBSITE">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.website}</Typography>
+        </InfoChipRow>
+        <InfoChipRow label="TIN No.">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.tinNo}</Typography>
+        </InfoChipRow>
+        <InfoChipRow label="LOAN TYPE">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
+            {loanType === 'business' ? 'Business Loan' : loanType === 'personal' ? 'Personal Loan' : 'Business Loan'}
+          </Typography>
+        </InfoChipRow>
+        <InfoChipRow label="AMOUNT APPLIED">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
+            {financialInfo?.desiredLoanAmount
+              ? `Php ${Number(financialInfo.desiredLoanAmount).toLocaleString()}.00`
+              : 'Php 7,000,000.00'}
+          </Typography>
+        </InfoChipRow>
+        <InfoChipRow label="LOAN PURPOSE">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
+            {financialInfo?.loanPurpose || COMMERCIAL_SAMPLE_INFO.loanPurpose}
+          </Typography>
+        </InfoChipRow>
+        <InfoChipRow label="ORGANIZATION TYPE">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.organizationType}</Typography>
+        </InfoChipRow>
+        <InfoChipRow label="REGISTRATION NUMBER">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.registrationNumber}</Typography>
+        </InfoChipRow>
+        <InfoChipRow label="REGISTRATION DATE">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>{COMMERCIAL_SAMPLE_INFO.registrationDate}</Typography>
+        </InfoChipRow>
 
-        <Stack sx={{ flex: 1, minWidth: 0 }}>
-          <InfoChipRow label="LOAN TYPE">
-            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>
-              {loanType === 'business' ? 'Business Loan' : loanType === 'personal' ? 'Personal Loan' : 'Not on file'}
-            </Typography>
-          </InfoChipRow>
-          <InfoChipRow label="AMOUNT APPLIED">
-            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>
-              {financialInfo?.desiredLoanAmount
-                ? `Php ${Number(financialInfo.desiredLoanAmount).toLocaleString()}.00`
-                : 'Not on file'}
-            </Typography>
-          </InfoChipRow>
-          <InfoChipRow label="LOAN PURPOSE">
-            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{financialInfo?.loanPurpose || 'Not on file'}</Typography>
-          </InfoChipRow>
-          <InfoChipRow label="ORGANIZATION TYPE">
-            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{financialInfo?.businessType || 'Not on file'}</Typography>
-          </InfoChipRow>
-          <InfoChipRow label="REGISTRATION NUMBER">
-            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>{report.secDtiRegNo || 'Not on file'}</Typography>
-          </InfoChipRow>
-          <InfoChipRow label="REGISTRATION DATE">
-            <Typography sx={{ fontSize: 13.5, color: '#14172A' }}>
-              {report.secDtiRegDate
-                ? new Date(report.secDtiRegDate).toLocaleDateString('en-PH', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: '2-digit',
-                  })
-                : 'Not on file'}
-            </Typography>
-          </InfoChipRow>
-          <InfoChipRow label="NEGATIVE RECORDS">
-            <Link
-              component={RouterLink}
-              href={paths.admin.creditChecking(encodeURIComponent(applicantEmail))}
-              sx={{ fontSize: 13.5, fontWeight: 700 }}
-            >
-              See initial credit checking report
-            </Link>
-          </InfoChipRow>
-        </Stack>
+        <InfoChipFieldRow label="AUTHORIZED CAPITAL STOCK" required>
+          <TextField
+            value={report.businessAuthorizedCapitalStock}
+            onChange={(event) => onChange({ businessAuthorizedCapitalStock: event.target.value })}
+            placeholder="Capital Stock"
+            fullWidth
+            size="small"
+            sx={fieldSx}
+          />
+        </InfoChipFieldRow>
+        <InfoChipRow label="LINE OF BUSINESS">
+          <Typography sx={{ fontSize: 13.5, color: '#5A6273' }}>
+            {report.businessLineOfBusiness || 'Transportation and Storage'}
+          </Typography>
+        </InfoChipRow>
+        <InfoChipFieldRow label="TERRITORY" required>
+          <TextField
+            value={report.businessTerritory}
+            onChange={(event) => onChange({ businessTerritory: event.target.value })}
+            placeholder="Territory"
+            fullWidth
+            size="small"
+            sx={fieldSx}
+          />
+        </InfoChipFieldRow>
+        <InfoChipFieldRow label="REGULAR EMPLOYEES">
+          <TextField
+            value={report.businessRegularEmployees}
+            onChange={(event) => onChange({ businessRegularEmployees: event.target.value })}
+            placeholder="0"
+            fullWidth
+            size="small"
+            sx={fieldSx}
+          />
+        </InfoChipFieldRow>
+        <InfoChipFieldRow label="CONTRACTUAL EMPLOYEES">
+          <TextField
+            value={report.businessContractualEmployees}
+            onChange={(event) => onChange({ businessContractualEmployees: event.target.value })}
+            placeholder="0"
+            fullWidth
+            size="small"
+            sx={fieldSx}
+          />
+        </InfoChipFieldRow>
+        <InfoChipFieldRow label="OWNER" required>
+          <TextField
+            value={report.businessOwner}
+            onChange={(event) => onChange({ businessOwner: event.target.value })}
+            placeholder="Owner"
+            fullWidth
+            size="small"
+            sx={fieldSx}
+          />
+        </InfoChipFieldRow>
+        <InfoChipFieldRow label="DATE INSPECTED" required>
+          <TextField
+            type="date"
+            InputLabelProps={{ shrink: true }}
+            value={report.visitDate}
+            onChange={(event) => onChange({ visitDate: event.target.value })}
+            fullWidth
+            size="small"
+            sx={fieldSx}
+          />
+        </InfoChipFieldRow>
+        <InfoChipRow label="NEGATIVE RECORDS">
+          <Link
+            component={RouterLink}
+            href={paths.admin.creditChecking(encodeURIComponent(applicantEmail))}
+            sx={{ fontSize: 13.5, fontWeight: 700 }}
+          >
+            See initial credit checking report
+          </Link>
+        </InfoChipRow>
       </Stack>
     </Box>
   );
@@ -591,6 +651,16 @@ export function CiReportCard() {
 
       {report.type !== '' && (
         <>
+          {report.type === 'commercial' && (
+            <CommercialInfoChips
+              report={report}
+              financialInfo={financialInfo}
+              loanType={application.loanType}
+              applicantEmail={signUpData.email}
+              onChange={setCiReport}
+            />
+          )}
+
           <Stack
             direction="row"
             alignItems="center"
@@ -633,17 +703,19 @@ export function CiReportCard() {
             </Box>
           )}
 
-          <Stack spacing={1.5} sx={{ mb: 2.5 }}>
-            <SectionLabel>Inspection</SectionLabel>
-            <TextField
-              label="Date Inspected"
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              value={report.visitDate}
-              onChange={(event) => setCiReport({ visitDate: event.target.value })}
-              sx={{ ...fieldSx, maxWidth: { sm: 260 } }}
-            />
-          </Stack>
+          {report.type === 'consumer' && (
+            <Stack spacing={1.5} sx={{ mb: 2.5 }}>
+              <SectionLabel>Inspection</SectionLabel>
+              <TextField
+                label="Date Inspected"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={report.visitDate}
+                onChange={(event) => setCiReport({ visitDate: event.target.value })}
+                sx={{ ...fieldSx, maxWidth: { sm: 260 } }}
+              />
+            </Stack>
+          )}
 
           {report.type === 'consumer' && (
             <>
@@ -675,23 +747,13 @@ export function CiReportCard() {
             </>
           )}
           {report.type === 'commercial' && (
-            <>
-              <CommercialInfoChips
-                report={report}
-                financialInfo={financialInfo}
-                personalInfo={personalInfo}
-                loanType={application.loanType}
-                applicantEmail={signUpData.email}
-                onChange={setCiReport}
-              />
-              <CommercialReportSections
-                report={report}
-                onChange={setCiReport}
-                sectionRefs={commercialSectionRefs}
-                expandedSections={commercialExpanded}
-                onToggleSection={handleToggleCommercialSection}
-              />
-            </>
+            <CommercialReportSections
+              report={report}
+              onChange={setCiReport}
+              sectionRefs={commercialSectionRefs}
+              expandedSections={commercialExpanded}
+              onToggleSection={handleToggleCommercialSection}
+            />
           )}
         </>
       )}

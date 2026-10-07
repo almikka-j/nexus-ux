@@ -392,43 +392,54 @@ data — every section's fields live on the
 same `CiReport` object regardless of which sections are expanded, same
 principle as switching the Commercial/Consumer type itself.
 
-**Info chips header.** Above Field Investigation, a `CommercialInfoChips`
-block (`ci-report-card.tsx`) renders a read-only "LABEL : value" list in
-two space-saving columns, matching a reference tool's own info-chip
-header: Company Name, Business Address, Contact No., Email Address,
-Website, TIN No. on the left; Loan Type, Amount Applied, Loan Purpose,
-Organization Type, Registration Number, Registration Date, and a
-"Negative Records" link on the right. Most values are read straight from
-data collected earlier in the pipeline — `personalInfo`/`financialInfo`
-(application sign-up) and `report.secDtiRegNo`/`secDtiRegDate` (this
-report's own Employment section) — never re-entered here. Four fields
-have no equivalent anywhere else in the data model (Company Name, Contact
-No., Email Address, Website) and were added as new, directly-editable
-`CiReport` fields (`businessCompanyName`/`businessContactNumber`/
-`businessEmailAddress`/`businessWebsite`) right inside this header, since
-there's nowhere else for them to come from. "Negative Records" is a link
-("See initial credit checking report") to
-`paths.admin.creditChecking(applicantEmail)` — the reference's own
-Negative Records field, scoped to a link rather than a field since the
-underlying negative-record data already lives on a different page.
-Fields shown here that would otherwise duplicate a field already further
-down the form (Territory, Owner, Date Inspected) are intentionally
-**not** repeated in this header — the reference tool shows them twice,
-but this app shows each only once, in the section where it's actually
-edited (Business Profile, Field Investigation's own Date Inspected).
+**Info chips header.** Above the transcript upload row (so it's the very
+first thing under the CI Report title/type toggle, for Commercial only),
+a `CommercialInfoChips` block (`ci-report-card.tsx`) renders a single
+vertical "LABEL : value" list, matching a reference tool's own info-chip
+header exactly — label left, colon, value right, one row per line, not
+two columns. In order:
+
+- **12 read-only rows** (`InfoChipRow`) — Company Name, Business Address,
+  Contact No., Email Address, Website, TIN No., Loan Type, Amount
+  Applied, Loan Purpose, Organization Type, Registration Number,
+  Registration Date. None of these are user-editable; most have no
+  equivalent anywhere in this app's data model (no company-profile
+  backend exists), so they render fixed sample data
+  (`COMMERCIAL_SAMPLE_INFO`) — same "fabricated but consistent" AI/derived
+  value convention as the rest of this app — except Loan Type and Amount
+  Applied/Loan Purpose, which prefer the real `application.loanType`/
+  `financialInfo.desiredLoanAmount`/`financialInfo.loanPurpose` when
+  present, falling back to the sample value otherwise.
+- **6 fillable rows** (`InfoChipFieldRow`, red required asterisk where the
+  reference shows one) — Authorized Capital Stock*, Line of Business
+  (read-only row, not fillable — matches the reference, which shows it
+  without an input box), Territory*, Regular Employees, Contractual
+  Employees, Owner*, Date Inspected* — all real, editable `CiReport`
+  fields (`businessAuthorizedCapitalStock`/`businessLineOfBusiness`/
+  `businessTerritory`/`businessRegularEmployees`/
+  `businessContractualEmployees`/`businessOwner`/`visitDate`). These are
+  the **only** place these fields are editable — removed from Commercial's
+  own Business Profile section (which used to duplicate Owner/Territory/
+  employee counts) and from the shared Inspection block (Date
+  Inspected is now Commercial-only here; Consumer still has its own
+  Inspection section with the same `visitDate` field, unchanged).
+- **Negative Records** — a link ("See initial credit checking report") to
+  `paths.admin.creditChecking(applicantEmail)`, not a field — the
+  underlying negative-record data already lives on a different page
+  (Initial Credit Checking), so this is scoped to navigation rather than
+  display.
 
 In order, each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`):
 
 - **Field Investigation section** — Business profile, subtitled "From the
-  business applied on the Call Report." Authorized Capital Stock, Line of
-  Business, Territory, No. of regular employees, No. of contractual
-  employees, Owner (all plain `CiReport` string fields —
-  `businessAuthorizedCapitalStock`/`businessLineOfBusiness`/
-  `businessTerritory`/`businessRegularEmployees`/
-  `businessContractualEmployees`/`businessOwner` — the first two newly
-  added to match the reference tool's own fillable fields), then
-  Location and facility (plain fields, no bordered gray sub-box — same
+  business applied on the Call Report.", now holding only **Line of
+  Business** (`businessLineOfBusiness`) — Authorized Capital Stock,
+  Territory, Regular/Contractual Employees, and Owner moved up into the
+  info chips header above (see "Info chips header" above) once those
+  became that header's own fillable rows, since this app shows each field
+  once, not twice. Then Location and facility (plain fields, no bordered
+  gray sub-box — same
   flat treatment as every grouped field in both report types now;
   Residence/Neighborhood and Employment's own bordered boxes were removed
   in the same pass, once each section already got its own `adminCardSx`
@@ -577,21 +588,38 @@ applicant" success screen is unaffected.
 
 ### 2026-10-07 (Commercial info-chips header)
 
-- **Added `CommercialInfoChips`**, a read-only "LABEL : value" header
-  above Field Investigation for Commercial only, matching a reference
-  tool's own info-chip layout: Company Name, Business Address, Contact
-  No., Email Address, Website, TIN No. / Loan Type, Amount Applied, Loan
-  Purpose, Organization Type, Registration Number, Registration Date, a
-  Negative Records link — two columns, space-saving by design.
-- Added 6 new `CiReport` fields: `businessCompanyName`,
-  `businessContactNumber`, `businessEmailAddress`, `businessWebsite`
-  (editable directly in the header, since nothing else in the data model
-  captures them) and `businessAuthorizedCapitalStock`/
-  `businessLineOfBusiness` (new fillable fields in Business Profile,
-  matching the reference tool's own fillable-field set).
-- Deliberately did **not** duplicate Territory/Owner/Date Inspected in the
-  new header — the reference tool shows them in both places, but this app
-  only shows each field once, in the section where it's actually edited.
+- **Added `CommercialInfoChips`**, matching a reference tool's own
+  info-chip layout exactly: a single vertical "LABEL : value" list,
+  rendered above the transcript upload row (the very top of the
+  Commercial branch), not two columns.
+- **12 read-only rows** with fixed sample data (Company Name, Business
+  Address, Contact No., Email Address, Website, TIN No., Loan Type,
+  Amount Applied, Loan Purpose, Organization Type, Registration Number,
+  Registration Date) — this app has no company-profile backend, so these
+  are fabricated-but-consistent sample values, same convention as every
+  other AI/derived value elsewhere; Loan Type/Amount Applied/Loan Purpose
+  prefer real application data when present.
+- **6 fillable rows** (Authorized Capital Stock*, Territory*, Regular
+  Employees, Contractual Employees, Owner*, Date Inspected* — asterisk
+  matching the reference's own required markers), plus one more read-only
+  row, Line of Business, interleaved among them exactly as the reference
+  shows it. These are real `CiReport` fields, and this header is now the
+  **only** place they're editable — removed the now-duplicate Owner/
+  Territory/employee-count fields from Commercial's own Business Profile
+  section, and made the shared Inspection block (Date Inspected)
+  Consumer-only, since Commercial has its own Date Inspected in this
+  header instead.
+- Added 6 new `CiReport` fields:
+  `businessAuthorizedCapitalStock`/`businessLineOfBusiness` (new) plus
+  reusing the already-existing `businessTerritory`/
+  `businessRegularEmployees`/`businessContractualEmployees`/
+  `businessOwner`/`visitDate`. (An earlier version of this header made
+  Company Name/Contact No./Email/Website directly editable with their
+  own new `CiReport` fields — corrected to match the reference's
+  read-only treatment once it became clear those 4 fields are meant to
+  show sample data too, not be officer-entered.)
+- A Negative Records link ("See initial credit checking report") to
+  `paths.admin.creditChecking(applicantEmail)` closes out the list.
 
 ### 2026-10-07
 

@@ -554,51 +554,15 @@ export function CommercialReportSections({
           onToggle={() => onToggleSection('fieldInvestigation')}
         >
           <Stack spacing={2.5}>
-            <Stack spacing={0.25}>
+            <Stack spacing={1.5}>
               <SectionLabel>Business profile</SectionLabel>
-              <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+              <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: -1 }}>
                 From the business applied on the Call Report.
               </Typography>
-            </Stack>
-            <Stack spacing={1.5}>
               <TextField
-                label="Authorized Capital Stock"
-                value={report.businessAuthorizedCapitalStock}
-                onChange={(event) => onChange({ businessAuthorizedCapitalStock: event.target.value })}
-                sx={fieldSx}
-              />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  label="Line of Business"
-                  value={report.businessLineOfBusiness}
-                  onChange={(event) => onChange({ businessLineOfBusiness: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Territory"
-                  value={report.businessTerritory}
-                  onChange={(event) => onChange({ businessTerritory: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  label="No. of regular employees"
-                  value={report.businessRegularEmployees}
-                  onChange={(event) => onChange({ businessRegularEmployees: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="No. of contractual employees"
-                  value={report.businessContractualEmployees}
-                  onChange={(event) => onChange({ businessContractualEmployees: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-              <TextField
-                label="Owner"
-                value={report.businessOwner}
-                onChange={(event) => onChange({ businessOwner: event.target.value })}
+                label="Line of Business"
+                value={report.businessLineOfBusiness}
+                onChange={(event) => onChange({ businessLineOfBusiness: event.target.value })}
                 sx={fieldSx}
               />
             </Stack>
