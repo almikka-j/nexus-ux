@@ -848,86 +848,81 @@ function ResidenceNeighborhoodSection({
   onChange: (data: Partial<CiReport>) => void;
 }) {
   return (
-    <Stack spacing={1.5}>
-      <SectionLabel>Residence/Neighborhood</SectionLabel>
-      <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+    <Stack spacing={2}>
+      <TextField
+        label="Permanent address"
+        value={report.residencePermanentAddress}
+        InputProps={{ readOnly: true }}
+        sx={fieldSx}
+      />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <RadioRow
+          label="Leased type"
+          value={report.residenceLeasedType}
+          options={LEASED_TYPE_OPTIONS}
+          onChange={(value) => onChange({ residenceLeasedType: value })}
+        />
+      </Stack>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField
+          label="Length of stay"
+          value={report.residenceLengthOfStay}
+          onChange={(event) => onChange({ residenceLengthOfStay: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+        <TextField
+          label="Landmark"
+          value={report.residenceLandmark}
+          onChange={(event) => onChange({ residenceLandmark: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+      </Stack>
+      <TextField
+        label="Remarks"
+        value={report.residenceRemarks}
+        onChange={(event) => onChange({ residenceRemarks: event.target.value })}
+        sx={fieldSx}
+      />
+
+      <Stack sx={{ pt: 1, mt: 1, borderTop: '1px solid #EEF0F5' }}>
+        <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', mb: 1.5 }}>
+          PRESENT ADDRESS (if different)
+        </Typography>
         <Stack spacing={2}>
           <TextField
-            label="Permanent address"
-            value={report.residencePermanentAddress}
-            InputProps={{ readOnly: true }}
+            label="Present address"
+            value={report.presentAddress}
+            onChange={(event) => onChange({ presentAddress: event.target.value })}
             sx={fieldSx}
           />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <RadioRow
-              label="Leased type"
-              value={report.residenceLeasedType}
-              options={LEASED_TYPE_OPTIONS}
-              onChange={(value) => onChange({ residenceLeasedType: value })}
-            />
-          </Stack>
+          <RadioRow
+            label="Leased type"
+            value={report.presentLeasedType}
+            options={LEASED_TYPE_OPTIONS}
+            onChange={(value) => onChange({ presentLeasedType: value })}
+          />
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <TextField
               label="Length of stay"
-              value={report.residenceLengthOfStay}
-              onChange={(event) => onChange({ residenceLengthOfStay: event.target.value })}
+              value={report.presentLengthOfStay}
+              onChange={(event) => onChange({ presentLengthOfStay: event.target.value })}
               sx={{ ...fieldSx, flex: 1 }}
             />
             <TextField
               label="Landmark"
-              value={report.residenceLandmark}
-              onChange={(event) => onChange({ residenceLandmark: event.target.value })}
+              value={report.presentLandmark}
+              onChange={(event) => onChange({ presentLandmark: event.target.value })}
               sx={{ ...fieldSx, flex: 1 }}
             />
           </Stack>
           <TextField
             label="Remarks"
-            value={report.residenceRemarks}
-            onChange={(event) => onChange({ residenceRemarks: event.target.value })}
+            value={report.presentRemarks}
+            onChange={(event) => onChange({ presentRemarks: event.target.value })}
             sx={fieldSx}
           />
-
-          <Stack sx={{ pt: 1, mt: 1, borderTop: '1px solid #EEF0F5' }}>
-            <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', mb: 1.5 }}>
-              PRESENT ADDRESS (if different)
-            </Typography>
-            <Stack spacing={2}>
-              <TextField
-                label="Present address"
-                value={report.presentAddress}
-                onChange={(event) => onChange({ presentAddress: event.target.value })}
-                sx={fieldSx}
-              />
-              <RadioRow
-                label="Leased type"
-                value={report.presentLeasedType}
-                options={LEASED_TYPE_OPTIONS}
-                onChange={(value) => onChange({ presentLeasedType: value })}
-              />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  label="Length of stay"
-                  value={report.presentLengthOfStay}
-                  onChange={(event) => onChange({ presentLengthOfStay: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Landmark"
-                  value={report.presentLandmark}
-                  onChange={(event) => onChange({ presentLandmark: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-              <TextField
-                label="Remarks"
-                value={report.presentRemarks}
-                onChange={(event) => onChange({ presentRemarks: event.target.value })}
-                sx={fieldSx}
-              />
-            </Stack>
-          </Stack>
         </Stack>
-      </Box>
+      </Stack>
     </Stack>
   );
 }
@@ -953,132 +948,127 @@ function EmploymentSection({
   isBusinessOwner: boolean;
 }) {
   return (
-    <Stack spacing={1.5}>
-      <SectionLabel>Employment</SectionLabel>
-      <Box sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-        <Stack spacing={2}>
-          <TextField
-            label="Employment Status"
-            value={report.employmentStatus}
-            InputProps={{ readOnly: true }}
-            sx={fieldSx}
-          />
-          <RadioRow
-            label="Employment Type"
-            value={report.employmentType}
-            options={EMPLOYMENT_TYPE_OPTIONS}
-            onChange={(value) => onChange({ employmentType: value })}
-          />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <TextField
-              label={isBusinessOwner ? 'Business Name' : 'Employer Name'}
-              value={report.employerName}
-              onChange={(event) => onChange({ employerName: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-            <TextField
-              label="Position"
-              value={report.position}
-              onChange={(event) => onChange({ position: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-          </Stack>
-          <TextField
-            label={isBusinessOwner ? 'Business Address' : 'Employer Address'}
-            value={report.employerAddress}
-            onChange={(event) => onChange({ employerAddress: event.target.value })}
-            sx={fieldSx}
-          />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <TextField
-              label="Tel. No."
-              value={report.employerTelNo}
-              onChange={(event) => onChange({ employerTelNo: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-            <TextField
-              label="Email Address"
-              value={report.employerEmail}
-              onChange={(event) => onChange({ employerEmail: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-          </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <TextField
-              label="Salary"
-              type="number"
-              value={report.salary}
-              onChange={(event) => onChange({ salary: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-            <TextField
-              label="Annual Income"
-              type="number"
-              value={report.annualIncome}
-              onChange={(event) => onChange({ annualIncome: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-            <TextField
-              label="Length of Service"
-              value={report.lengthOfService}
-              onChange={(event) => onChange({ lengthOfService: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-          </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <TextField
-              label="No. Reg. Employees"
-              type="number"
-              value={report.numberOfRegEmployees}
-              onChange={(event) => onChange({ numberOfRegEmployees: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-            <TextField
-              label="No. Contr. Employees"
-              type="number"
-              value={report.numberOfContrEmployees}
-              onChange={(event) => onChange({ numberOfContrEmployees: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-          </Stack>
-          <RadioRow
-            label="Unionized?"
-            value={report.isUnionized}
-            options={YES_NO_OPTIONS}
-            onChange={(value) => onChange({ isUnionized: value })}
-          />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <TextField
-              label="SEC/DTI Reg. No."
-              value={report.secDtiRegNo}
-              onChange={(event) => onChange({ secDtiRegNo: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-            <TextField
-              label="SEC/DTI Reg. Date"
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              value={report.secDtiRegDate}
-              onChange={(event) => onChange({ secDtiRegDate: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-            <TextField
-              label="SEC/DTI Exp. Date"
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              value={report.secDtiExpDate}
-              onChange={(event) => onChange({ secDtiExpDate: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-          </Stack>
-          <TextField
-            label="Remarks"
-            value={report.employmentRemarks}
-            onChange={(event) => onChange({ employmentRemarks: event.target.value })}
-            sx={fieldSx}
-          />
-        </Stack>
-      </Box>
+    <Stack spacing={2}>
+      <TextField
+        label="Employment Status"
+        value={report.employmentStatus}
+        InputProps={{ readOnly: true }}
+        sx={fieldSx}
+      />
+      <RadioRow
+        label="Employment Type"
+        value={report.employmentType}
+        options={EMPLOYMENT_TYPE_OPTIONS}
+        onChange={(value) => onChange({ employmentType: value })}
+      />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField
+          label={isBusinessOwner ? 'Business Name' : 'Employer Name'}
+          value={report.employerName}
+          onChange={(event) => onChange({ employerName: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+        <TextField
+          label="Position"
+          value={report.position}
+          onChange={(event) => onChange({ position: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+      </Stack>
+      <TextField
+        label={isBusinessOwner ? 'Business Address' : 'Employer Address'}
+        value={report.employerAddress}
+        onChange={(event) => onChange({ employerAddress: event.target.value })}
+        sx={fieldSx}
+      />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField
+          label="Tel. No."
+          value={report.employerTelNo}
+          onChange={(event) => onChange({ employerTelNo: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+        <TextField
+          label="Email Address"
+          value={report.employerEmail}
+          onChange={(event) => onChange({ employerEmail: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+      </Stack>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField
+          label="Salary"
+          type="number"
+          value={report.salary}
+          onChange={(event) => onChange({ salary: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+        <TextField
+          label="Annual Income"
+          type="number"
+          value={report.annualIncome}
+          onChange={(event) => onChange({ annualIncome: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+        <TextField
+          label="Length of Service"
+          value={report.lengthOfService}
+          onChange={(event) => onChange({ lengthOfService: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+      </Stack>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField
+          label="No. Reg. Employees"
+          type="number"
+          value={report.numberOfRegEmployees}
+          onChange={(event) => onChange({ numberOfRegEmployees: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+        <TextField
+          label="No. Contr. Employees"
+          type="number"
+          value={report.numberOfContrEmployees}
+          onChange={(event) => onChange({ numberOfContrEmployees: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+      </Stack>
+      <RadioRow
+        label="Unionized?"
+        value={report.isUnionized}
+        options={YES_NO_OPTIONS}
+        onChange={(value) => onChange({ isUnionized: value })}
+      />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField
+          label="SEC/DTI Reg. No."
+          value={report.secDtiRegNo}
+          onChange={(event) => onChange({ secDtiRegNo: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+        <TextField
+          label="SEC/DTI Reg. Date"
+          type="date"
+          InputLabelProps={{ shrink: true }}
+          value={report.secDtiRegDate}
+          onChange={(event) => onChange({ secDtiRegDate: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+        <TextField
+          label="SEC/DTI Exp. Date"
+          type="date"
+          InputLabelProps={{ shrink: true }}
+          value={report.secDtiExpDate}
+          onChange={(event) => onChange({ secDtiExpDate: event.target.value })}
+          sx={{ ...fieldSx, flex: 1 }}
+        />
+      </Stack>
+      <TextField
+        label="Remarks"
+        value={report.employmentRemarks}
+        onChange={(event) => onChange({ employmentRemarks: event.target.value })}
+        sx={fieldSx}
+      />
     </Stack>
   );
 }
