@@ -32,7 +32,6 @@ import { CollapsibleSection } from 'src/components/collapsible-section/collapsib
 
 import { buildTranscriptAutoFill } from '../credit-investigation-transcript';
 import { RadioRow } from '../call-report/call-report-types';
-import { useActiveSection } from '../requirement-checklist-section-nav';
 
 import {
   CommercialReportSections,
@@ -176,6 +175,54 @@ const CONSUMER_SECTION_NAV_ITEMS: { key: ConsumerSectionKey; label: string }[] =
   { key: 'investigationFindings', label: 'Investigation Findings / Observations' },
 ];
 
+// Tracks which registered section is closest to the top of the viewport
+// — same IntersectionObserver mechanics as
+// requirement-checklist-section-nav.tsx's own useActiveSection, but that
+// one's effect only re-runs when `keys.length` changes (a constant for a
+// given report type), which is fine there since its 3 cards are always
+// mounted from page load. Here, every section box mounts for the first
+// time only once the officer picks a Report Type (report.type goes from
+// '' to 'commercial'/'consumer'), so the observer must be re-attached
+// when that happens too — otherwise it permanently observes zero
+// elements, set up once while report.type is still '' and the section
+// boxes don't exist yet, and the nav never highlights anything no matter
+// what the officer clicks. Adding `remountKey` (the report type) as an
+// extra effect dependency is the one change needed to re-attach once the
+// real elements exist.
+function useCiActiveSection(
+  sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>,
+  keys: string[],
+  remountKey: string
+) {
+  const [activeKey, setActiveKey] = useState<string | null>(keys[0] ?? null);
+
+  useEffect(() => {
+    const entries = keys
+      .map((key) => [key, sectionRefs.current.get(key)] as const)
+      .filter((entry): entry is [string, HTMLDivElement] => !!entry[1]);
+    if (entries.length === 0) return undefined;
+
+    const observer = new IntersectionObserver(
+      (observedEntries) => {
+        const visible = observedEntries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          const key = entries.find(([, el]) => el === visible[0].target)?.[0];
+          if (key) setActiveKey(key);
+        }
+      },
+      { rootMargin: '-96px 0px -70% 0px', threshold: 0 }
+    );
+
+    entries.forEach(([, el]) => observer.observe(el));
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keys.length, remountKey]);
+
+  return activeKey;
+}
+
 export function CiReportCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { signUpData, application } = useRegistration();
@@ -193,9 +240,10 @@ export function CiReportCard() {
     comments: true,
   });
   const commercialSectionRefs = useRef(new Map<string, HTMLDivElement | null>());
-  const commercialActiveKey = useActiveSection(
+  const commercialActiveKey = useCiActiveSection(
     commercialSectionRefs,
-    COMMERCIAL_SECTION_NAV_ITEMS.map((item) => item.key)
+    COMMERCIAL_SECTION_NAV_ITEMS.map((item) => item.key),
+    report.type
   );
   const handleToggleCommercialSection = (key: CommercialSectionKey) =>
     setCommercialExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -217,9 +265,10 @@ export function CiReportCard() {
     investigationFindings: true,
   });
   const consumerSectionRefs = useRef(new Map<string, HTMLDivElement | null>());
-  const consumerActiveKey = useActiveSection(
+  const consumerActiveKey = useCiActiveSection(
     consumerSectionRefs,
-    CONSUMER_SECTION_NAV_ITEMS.map((item) => item.key)
+    CONSUMER_SECTION_NAV_ITEMS.map((item) => item.key),
+    report.type
   );
   const handleToggleConsumerSection = (key: ConsumerSectionKey) =>
     setConsumerExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
