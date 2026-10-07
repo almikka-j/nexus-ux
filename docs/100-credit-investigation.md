@@ -404,38 +404,43 @@ a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
   Company Name, Business Address, Contact No., Email Address, Website,
   TIN No., Loan Type, Amount Applied, Loan Purpose, Organization Type,
   Registration Number, Registration Date, and a Negative Records link
-  ("See report"), in that order — 12 cells total, deliberately a multiple
-  of 3 (with Business Address as the one `wide` cell spanning the full
-  row on its own), so the grid always fills completely with no leftover
-  cells in a final partial row. Unlike every other screen's `FactChip`
+  ("See report"), in that order. Unlike every other screen's `FactChip`
   copy (a flex-wrap row), this one is a **3-column CSS grid** (1 column
   on mobile) — flex-wrap has no way to know which cell starts a new
   visual line, so a per-cell divider either doubled up or went missing
-  depending on wrap position. Each cell paints its own white background
-  and draws only its **right + bottom** edge as a 1px inset `boxShadow`
-  divider — not all 4 sides (an earlier version used a 4-side `outline`
-  per cell, which doubled every internal line, since two adjacent cells
-  each drew their own copy of the shared edge), and not a `border`
-  (which would consume grid track space), and not a `gap`+
-  background-colour trick (which left a visible gray gap in any row that
-  didn't fully fill). The row container's own border supplies the top +
-  left edge of the whole strip; the bottom-right cell's shadow coincides
-  with — not duplicates — the container's own border on those two sides,
-  since it's the same line, same position. None of these
-  fields are user-editable; most have no equivalent anywhere in this
-  app's data model (no company-profile backend exists), so they render
-  fixed sample data (`COMMERCIAL_SAMPLE_INFO`) — same "fabricated but
-  consistent" AI/derived value convention as the rest of this app —
-  except Loan Type and Amount Applied/Loan Purpose, which prefer the real
-  `application.loanType`/`financialInfo.desiredLoanAmount`/
-  `financialInfo.loanPurpose` when present, falling back to the sample
-  value otherwise. Business Address passes `wide` (a `FactChip` prop
-  added here, not present in any other screen's copy) so it spans all 3
-  grid columns instead of competing for one — a full street address is
-  routinely long enough that a single grid cell reads as cramped. Every
-  `FactChip` value wraps long text (`overflowWrap`/`wordBreak`) rather
-  than clipping it, so an unusually long value in any non-`wide` cell
-  still degrades gracefully instead of breaking the layout.
+  depending on wrap position. Each cell draws only its own **right +
+  bottom** edge as a 1px inset `boxShadow` divider, not all 4 sides —
+  two adjacent cells never both draw the same shared edge, so no line is
+  ever doubled — and not a `border` (which would consume grid track
+  space) or a `gap`+background-colour trick (which left a visible gray
+  gap behind any unfilled cell). The row container's own border supplies
+  the top + left edge of the whole strip.
+
+  Because the divider belongs to the cell, not the row, a row left with
+  only 1 or 2 filled cells out of 3 columns leaves a stray vertical line
+  floating in otherwise-empty space (no sibling cell there to explain
+  it). The fix is `wide` (`gridColumn: '1 / -1'`) on every chip whose
+  neighbours don't divide evenly into groups of 3 — not just the chips
+  with a long value. Four of the twelve are `wide` for that reason:
+  **Company Name** (alone before Business Address breaks to a new row),
+  **Business Address** (also genuinely long — a full street address),
+  **Registration Date** and **Negative Records** (the last two chips,
+  which would otherwise leave a lone pair in a 3-column row). The
+  remaining nine chips (Contact No. through Registration Number) are
+  exactly three complete rows of three — the call site is ordered so
+  every non-`wide` run is a multiple of 3, and changing the field list
+  must preserve that, or mark the new odd-one-out `wide` too.
+
+  None of these fields are user-editable; most have no equivalent
+  anywhere in this app's data model (no company-profile backend exists),
+  so they render fixed sample data (`COMMERCIAL_SAMPLE_INFO`) — same
+  "fabricated but consistent" AI/derived value convention as the rest of
+  this app — except Loan Type and Amount Applied/Loan Purpose, which
+  prefer the real `application.loanType`/
+  `financialInfo.desiredLoanAmount`/`financialInfo.loanPurpose` when
+  present, falling back to the sample value otherwise. Every `FactChip`
+  value also wraps long text (`overflowWrap`/`wordBreak`) rather than
+  clipping it.
 - **6 fillable rows below the strip** (`InfoChipFieldRow`, red required
   asterisk where the
   reference shows one) — Authorized Capital Stock*, Line of Business

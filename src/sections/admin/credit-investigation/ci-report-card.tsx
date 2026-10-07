@@ -249,13 +249,19 @@ function useCiActiveSection(
 // Laid out as a CSS grid (3 columns on sm+, 1 on xs) rather than a
 // flex-wrap row — flex-wrap has no way to know which cells start a new
 // visual line, so a per-cell divider either doubles up or is missing
-// depending on wrap position. Each cell paints its own white background
-// and a 1px `outline` divider (not `border`, so it doesn't consume grid
-// track space); the row container is white too, so a trailing row with
-// fewer cells than columns reads as plain white, never a visible gray
-// gap. `wide` spans every column instead of competing for one, for a
-// value long enough to otherwise wrap awkwardly or crowd its neighbours
-// (e.g. a full business address).
+// depending on wrap position. Each cell draws only its own right+bottom
+// edge (inset box-shadow, not border, so it doesn't consume grid track
+// space); two adjacent cells never both draw the same shared edge, so no
+// line is ever doubled. `wide` (gridColumn: '1 / -1') gives a chip the
+// entire row to itself instead of sharing a row with 1-2 others — used
+// for every chip whose neighbours don't divide evenly into groups of 3
+// (Company Name, Registration Date, Negative Records), not just long
+// values (Business Address) — an incomplete row (e.g. 1 or 2 filled
+// cells out of 3 grid columns) left a stray vertical divider floating in
+// empty space, since the divider belongs to the cell, not to the row.
+// The call site below is ordered so every non-`wide` run is exactly a
+// multiple of 3; changing the field list must preserve that, or mark the
+// new odd-one-out `wide` too.
 function FactChip({ label, value, wide }: { label: string; value: React.ReactNode; wide?: boolean }) {
   return (
     <Box
@@ -399,7 +405,7 @@ function CommercialInfoChips({
   return (
     <Box sx={{ mb: 2.5 }}>
       <FactChipRow>
-        <FactChip label="Company Name" value={COMMERCIAL_SAMPLE_INFO.companyName} />
+        <FactChip label="Company Name" value={COMMERCIAL_SAMPLE_INFO.companyName} wide />
         <FactChip label="Business Address" value={COMMERCIAL_SAMPLE_INFO.businessAddress} wide />
         <FactChip label="Contact No." value={COMMERCIAL_SAMPLE_INFO.contactNo} />
         <FactChip label="Email Address" value={COMMERCIAL_SAMPLE_INFO.emailAddress} />
@@ -410,9 +416,10 @@ function CommercialInfoChips({
         <FactChip label="Loan Purpose" value={loanPurposeLabel} />
         <FactChip label="Organization Type" value={COMMERCIAL_SAMPLE_INFO.organizationType} />
         <FactChip label="Registration Number" value={COMMERCIAL_SAMPLE_INFO.registrationNumber} />
-        <FactChip label="Registration Date" value={COMMERCIAL_SAMPLE_INFO.registrationDate} />
+        <FactChip label="Registration Date" value={COMMERCIAL_SAMPLE_INFO.registrationDate} wide />
         <FactChip
           label="Negative Records"
+          wide
           value={
             <Link
               component={RouterLink}
