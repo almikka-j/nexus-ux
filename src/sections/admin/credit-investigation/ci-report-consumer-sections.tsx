@@ -25,7 +25,6 @@ import { fieldSx, SectionLabel, YES_NO_OPTIONS, requiredLabel, FactChip, FactChi
 import type {
   CiReport,
   CiChildEntry,
-  CiTradeEntry,
   CiComakerEntry,
   CiBankAccountEntry,
   CiIncomeSourceEntry,
@@ -45,7 +44,6 @@ export type ConsumerSectionKey =
   | 'family'
   | 'residenceNeighborhood'
   | 'employment'
-  | 'tradeChecking'
   | 'financialInformation'
   | 'loanPurpose'
   | 'bankVerification'
@@ -58,7 +56,6 @@ export const CONSUMER_SECTION_NAV_ITEMS: { key: ConsumerSectionKey; label: strin
   { key: 'family', label: 'Family' },
   { key: 'residenceNeighborhood', label: 'Residence/Neighborhood' },
   { key: 'employment', label: 'Employment' },
-  { key: 'tradeChecking', label: 'Trade Checking' },
   { key: 'financialInformation', label: 'Financial Information' },
   { key: 'loanPurpose', label: 'Loan Purpose' },
   { key: 'bankVerification', label: 'Bank Verification' },
@@ -468,19 +465,23 @@ function EmploymentSection({
   isBusinessOwner: boolean;
 }) {
   return (
-    <Stack spacing={1.5}>
-      <TextField
-        label="Employment Status"
-        value={report.employmentStatus}
-        InputProps={{ readOnly: true }}
-        sx={{ ...fieldSx, '& .MuiOutlinedInput-root': { ...fieldSx['& .MuiOutlinedInput-root'], bgcolor: 'common.white' } }}
-      />
-      <RadioRow
-        label="Employment Type"
-        value={report.employmentType}
-        options={EMPLOYMENT_TYPE_OPTIONS}
-        onChange={(value) => onChange({ employmentType: value })}
-      />
+    <Stack spacing={1.25}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField
+          label="Employment Status"
+          value={report.employmentStatus}
+          InputProps={{ readOnly: true }}
+          sx={{ ...fieldSx, flex: 1, '& .MuiOutlinedInput-root': { ...fieldSx['& .MuiOutlinedInput-root'], bgcolor: 'common.white' } }}
+        />
+        <Box sx={{ flex: 1 }}>
+          <RadioRow
+            label="Employment Type"
+            value={report.employmentType}
+            options={EMPLOYMENT_TYPE_OPTIONS}
+            onChange={(value) => onChange({ employmentType: value })}
+          />
+        </Box>
+      </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           label={isBusinessOwner ? 'Business Name' : 'Employer Name'}
@@ -495,13 +496,14 @@ function EmploymentSection({
           sx={{ ...fieldSx, flex: 1 }}
         />
       </Stack>
-      <TextField
-        label={isBusinessOwner ? 'Business Address' : 'Employer Address'}
-        value={report.employerAddress}
-        onChange={(event) => onChange({ employerAddress: event.target.value })}
-        sx={fieldSx}
-      />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField
+          fullWidth
+          label={isBusinessOwner ? 'Business Address' : 'Employer Address'}
+          value={report.employerAddress}
+          onChange={(event) => onChange({ employerAddress: event.target.value })}
+          sx={{ ...fieldSx, flex: 2 }}
+        />
         <TextField
           label="Tel. No."
           value={report.employerTelNo}
@@ -552,13 +554,15 @@ function EmploymentSection({
           onChange={(event) => onChange({ numberOfContrEmployees: event.target.value })}
           sx={{ ...fieldSx, flex: 1 }}
         />
+        <Box sx={{ flex: 1 }}>
+          <RadioRow
+            label="Unionized?"
+            value={report.isUnionized}
+            options={YES_NO_OPTIONS}
+            onChange={(value) => onChange({ isUnionized: value })}
+          />
+        </Box>
       </Stack>
-      <RadioRow
-        label="Unionized?"
-        value={report.isUnionized}
-        options={YES_NO_OPTIONS}
-        onChange={(value) => onChange({ isUnionized: value })}
-      />
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           label="SEC/DTI Reg. No."
@@ -584,102 +588,14 @@ function EmploymentSection({
         />
       </Stack>
       <TextField
+        fullWidth
+        multiline
+        minRows={1}
         label="Remarks"
         value={report.employmentRemarks}
         onChange={(event) => onChange({ employmentRemarks: event.target.value })}
         sx={fieldSx}
       />
-    </Stack>
-  );
-}
-
-function TradeCheckingSection({
-  title,
-  entries,
-  onChange,
-}: {
-  title: string;
-  entries: CiTradeEntry[];
-  onChange: (next: CiTradeEntry[]) => void;
-}) {
-  const update = (id: string, data: Partial<CiTradeEntry>) =>
-    onChange(entries.map((entry) => (entry.id === id ? { ...entry, ...data } : entry)));
-  const remove = (id: string) => onChange(entries.filter((entry) => entry.id !== id));
-  const add = () =>
-    onChange([
-      ...entries,
-      { id: crypto.randomUUID(), name: '', address: '', contactNumber: '', natureOfDealing: '', yearsOfDealing: '' },
-    ]);
-
-  return (
-    <Stack spacing={1.25}>
-      <SectionLabel>Trade Checking — {title}</SectionLabel>
-      <Stack spacing={1.25}>
-        {entries.map((entry, index) => (
-          <Box key={entry.id} sx={{ p: 1.5, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-              <Chip
-                label={`${title.slice(0, -1)} ${index + 1}`}
-                size="small"
-                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
-              />
-              <Button
-                onClick={() => remove(entry.id)}
-                size="small"
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                sx={{ color: '#F04438' }}
-              >
-                Remove
-              </Button>
-            </Stack>
-            <Stack spacing={1.25}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  label="Name"
-                  value={entry.name}
-                  onChange={(event) => update(entry.id, { name: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Contact Number"
-                  value={entry.contactNumber}
-                  onChange={(event) => update(entry.id, { contactNumber: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-              <TextField
-                label="Address"
-                value={entry.address}
-                onChange={(event) => update(entry.id, { address: event.target.value })}
-                sx={fieldSx}
-              />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  label="Nature of Dealing"
-                  value={entry.natureOfDealing}
-                  onChange={(event) => update(entry.id, { natureOfDealing: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Years of Dealing"
-                  value={entry.yearsOfDealing}
-                  onChange={(event) => update(entry.id, { yearsOfDealing: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-            </Stack>
-          </Box>
-        ))}
-        <Button
-          onClick={add}
-          variant="outlined"
-          size="small"
-          startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
-          sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
-        >
-          Add {title.slice(0, -1)}
-        </Button>
-      </Stack>
     </Stack>
   );
 }
@@ -724,53 +640,56 @@ function OtherIncomeSection({
               </Button>
             </Stack>
             <Stack spacing={1.25}>
-              <TextField
-                select
-                fullWidth
-                label={requiredLabel('Income Type')}
-                value={entry.incomeType}
-                onChange={(event) => update(entry.id, { incomeType: event.target.value })}
-                sx={fieldSx}
-              >
-                {INCOME_TYPE_OPTIONS.map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                fullWidth
-                label={requiredLabel('Company Name')}
-                value={entry.companyName}
-                onChange={(event) => update(entry.id, { companyName: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                label={requiredLabel('Owner')}
-                value={entry.owner}
-                onChange={(event) => update(entry.id, { owner: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                type="number"
-                label={requiredLabel('Percent Of Share')}
-                value={entry.percentOfShare}
-                onChange={(event) => update(entry.id, { percentOfShare: event.target.value })}
-                placeholder="0"
-                InputProps={{ inputProps: { min: 0, max: 100 } }}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                multiline
-                minRows={2}
-                label={requiredLabel('Remarks')}
-                value={entry.remarks}
-                onChange={(event) => update(entry.id, { remarks: event.target.value })}
-                sx={fieldSx}
-              />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField
+                  select
+                  fullWidth
+                  label={requiredLabel('Income Type')}
+                  value={entry.incomeType}
+                  onChange={(event) => update(entry.id, { incomeType: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                >
+                  {INCOME_TYPE_OPTIONS.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  fullWidth
+                  label={requiredLabel('Company Name')}
+                  value={entry.companyName}
+                  onChange={(event) => update(entry.id, { companyName: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+                <TextField
+                  fullWidth
+                  label={requiredLabel('Owner')}
+                  value={entry.owner}
+                  onChange={(event) => update(entry.id, { owner: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField
+                  type="number"
+                  label={requiredLabel('Percent Of Share')}
+                  value={entry.percentOfShare}
+                  onChange={(event) => update(entry.id, { percentOfShare: event.target.value })}
+                  placeholder="0"
+                  InputProps={{ inputProps: { min: 0, max: 100 } }}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={1}
+                  label={requiredLabel('Remarks')}
+                  value={entry.remarks}
+                  onChange={(event) => update(entry.id, { remarks: event.target.value })}
+                  sx={{ ...fieldSx, flex: 2 }}
+                />
+              </Stack>
             </Stack>
           </Box>
         ))}
@@ -823,36 +742,32 @@ function BankVerificationSection({
               Remove
             </Button>
           </Stack>
-          <Stack spacing={1.25}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <TextField
-                label="Bank Name"
-                value={entry.bankName}
-                onChange={(event) => update(entry.id, { bankName: event.target.value })}
-                sx={{ ...fieldSx, flex: 1 }}
-              />
-              <TextField
-                label="Account Type"
-                value={entry.accountType}
-                onChange={(event) => update(entry.id, { accountType: event.target.value })}
-                sx={{ ...fieldSx, flex: 1 }}
-              />
-            </Stack>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <TextField
-                label="Account Number"
-                value={entry.accountNumber}
-                onChange={(event) => update(entry.id, { accountNumber: event.target.value })}
-                sx={{ ...fieldSx, flex: 1 }}
-              />
-              <TextField
-                label="Average Monthly Balance"
-                type="number"
-                value={entry.averageMonthlyBalance}
-                onChange={(event) => update(entry.id, { averageMonthlyBalance: event.target.value })}
-                sx={{ ...fieldSx, flex: 1 }}
-              />
-            </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              label="Bank Name"
+              value={entry.bankName}
+              onChange={(event) => update(entry.id, { bankName: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="Account Type"
+              value={entry.accountType}
+              onChange={(event) => update(entry.id, { accountType: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="Account Number"
+              value={entry.accountNumber}
+              onChange={(event) => update(entry.id, { accountNumber: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
+            <TextField
+              label="Average Monthly Balance"
+              type="number"
+              value={entry.averageMonthlyBalance}
+              onChange={(event) => update(entry.id, { averageMonthlyBalance: event.target.value })}
+              sx={{ ...fieldSx, flex: 1 }}
+            />
           </Stack>
         </Box>
       ))}
@@ -1079,29 +994,6 @@ export function ConsumerReportSections({
         <EmploymentSection report={report} onChange={onChange} isBusinessOwner={isBusinessOwner} />
       </Box>
 
-      <Box
-        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('tradeChecking', el); }}
-        sx={adminCardSx}
-      >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Trade Checking</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Customers and suppliers verified during the visit.
-          </Typography>
-        </Stack>
-        <Stack spacing={1.75}>
-          <TradeCheckingSection
-            title="Customers"
-            entries={report.customers}
-            onChange={(customers) => onChange({ customers })}
-          />
-          <TradeCheckingSection
-            title="Suppliers"
-            entries={report.suppliers}
-            onChange={(suppliers) => onChange({ suppliers })}
-          />
-        </Stack>
-      </Box>
 
       <Box
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('financialInformation', el); }}

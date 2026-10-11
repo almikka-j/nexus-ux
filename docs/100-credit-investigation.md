@@ -252,10 +252,10 @@ an officer can switch back and forth without losing previously-entered
 data on either side.
 
 **Consumer** (rebuilt 2026-10-11, mirroring Commercial's own file/plain-card
-structure — see `ci-report-consumer-sections.tsx`) renders 11 always-visible
+structure — see `ci-report-consumer-sections.tsx`) renders 10 always-visible
 `adminCardSx` cards, no `CollapsibleSection` anywhere (Consumer dropped its
 own `CollapsibleSection` usage to match Commercial). A sticky left
-`CiSectionNav` lists these 11 sections and scroll-jumps on click (no
+`CiSectionNav` lists these 10 sections and scroll-jumps on click (no
 expand/collapse step, since nothing is ever collapsed). An **info chips
 header** (`ConsumerInfoHeader`, the same `FactChip`/`FactChipRow` grid
 Commercial's own `CommercialInfoChips` uses) renders once, above the
@@ -303,11 +303,6 @@ Observations" (see History). In order:
   registration, and Remarks. The Business/Employer Name and Address
   labels switch to "Business" terminology when
   `financialInfo.employmentStatus === 'Business Owner'`.
-- **Trade Checking** — subtitled "Customers and suppliers verified during
-  the visit." Two independent repeatable `CiTradeEntry` arrays, in order
-  **Customers** first then **Suppliers** — each with its own "Add
-  Customer"/"Add Supplier" trigger (Name, Address, Contact Number, Nature
-  of Dealing, Years of Dealing).
 - **Financial Information** — subtitled "Assets and other sources of
   income." Assets (`RichTextField`), then **Other Source of Income**
   (repeatable `CiIncomeSourceEntry` array, rewritten to match a reference
@@ -353,6 +348,14 @@ Observations" (see History). In order:
   identically (image files get a direct `<img>` preview via their
   filename extension, since the stored `fileUrl` is a `blob:` object URL
   with none of its own).
+
+**Trade Checking removed from the Consumer branch entirely** — no
+reference-tool equivalent. `report.customers`/`suppliers` (`CiTradeEntry[]`)
+and the now-dead `TradeCheckingSection` component were deleted from the UI
+layer; the `CiReport` fields themselves are untouched in the data model
+(existing reports keep any prior entries), simply no longer editable or
+visible from this page. Commercial's own Trade Checking card (Customer/
+Supplier, different `CiCommercialTradeEntry` shape) is unaffected.
 
 **Recommendation removed, Subject As Of relocated.** The old
 "Investigation Findings / Observations" section's Preliminary
@@ -757,6 +760,23 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-11 (Consumer form space-saving pass, Trade Checking removed)
+
+- **Removed the Trade Checking card** from the Consumer branch entirely
+  — no reference-tool equivalent. Deleted the dead `TradeCheckingSection`
+  component and `tradeChecking` from `ConsumerSectionKey`/
+  `CONSUMER_SECTION_NAV_ITEMS`. `report.customers`/`suppliers` are
+  untouched in the data model, just no longer rendered — Consumer now
+  renders 10 cards, not 11.
+- **Space-saving pass across the rest of the Consumer form**, matching
+  the same pass already done on Commercial: Employment packed
+  Employment Status/Employment Type onto one row and Employer
+  Address/Tel. No./Email Address onto one row, folded Unionized? into
+  the Reg./Contr. Employees row, cut Remarks to single-line (10 rows →
+  7); Other Source of Income packed Income Type/Company Name/Owner onto
+  one row and Percent Of Share/Remarks onto one row (5 rows → 2); Bank
+  Verification packed all 4 fields onto a single row (2 rows → 1).
 
 ### 2026-10-11 (Subject As Of restored to header, Residence/Neighborhood layout follow-up)
 
