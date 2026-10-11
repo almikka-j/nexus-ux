@@ -251,7 +251,7 @@ function AddressFields({
   const knownBarangays = barangaysFor(province, city);
 
   return (
-    <Stack spacing={1.5}>
+    <Stack spacing={1.25}>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           select
@@ -291,8 +291,6 @@ function AddressFields({
             sx={fieldSx}
           />
         )}
-      </Stack>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         {knownBarangays.length > 0 ? (
           <TextField
             select
@@ -317,6 +315,8 @@ function AddressFields({
             sx={fieldSx}
           />
         )}
+      </Stack>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           fullWidth
           label={requiredLabel('Street Address')}
@@ -324,8 +324,6 @@ function AddressFields({
           onChange={(event) => onChange({ streetAddress: event.target.value })}
           sx={fieldSx}
         />
-      </Stack>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           select
           fullWidth
@@ -352,7 +350,7 @@ function AddressFields({
         <TextField
           fullWidth
           multiline
-          minRows={2}
+          minRows={1}
           label="Landmark"
           value={landmark}
           onChange={(event) => onChange({ landmark: event.target.value })}
@@ -361,7 +359,7 @@ function AddressFields({
         <TextField
           fullWidth
           multiline
-          minRows={2}
+          minRows={1}
           label="Remarks"
           value={remarks}
           onChange={(event) => onChange({ remarks: event.target.value })}
@@ -380,9 +378,9 @@ function ResidenceNeighborhoodSection({
   onChange: (data: Partial<CiReport>) => void;
 }) {
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={1.75}>
       <Box>
-        <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
+        <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mb: 1 }}>
           Permanent Address
         </Typography>
         <AddressFields
@@ -410,8 +408,8 @@ function ResidenceNeighborhoodSection({
         />
       </Box>
 
-      <Box sx={{ pt: 2.5, borderTop: '1px solid #EEF0F5' }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+      <Box sx={{ pt: 1.75, borderTop: '1px solid #EEF0F5' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
           <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Present Address</Typography>
           <FormControlLabel
             control={

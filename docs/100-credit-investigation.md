@@ -279,10 +279,11 @@ Observations" (see History). In order:
 - **Residence/Neighborhood** — subtitled "The permanent address on file,
   and the present address if the applicant lives elsewhere." **Permanent
   Address** stacked above **Present Address** (not side-by-side columns),
-  each with its own structured `AddressFields`, fields paired two per row
-  (Province\*+City\*, Barangay\*+Street Address\*, Address Type\*+Length
-  of Stay, Landmark+Remarks) rather than one full-width field per row.
-  Province/City/Barangay are cascading dropdowns backed by
+  each with its own structured `AddressFields`, packed three fields per
+  row where it fits (Province\*/City\*/Barangay\*, then Street
+  Address\*/Address Type\*/Length of Stay), Landmark/Remarks as a final
+  two-up row of single-line multiline fields. Province/City/Barangay are
+  cascading dropdowns backed by
   `src/utils/ph-address.ts`'s `PROVINCES`/`PROVINCE_CITIES`/
   `barangaysFor()` — the same sample PH province→city→barangay data the
   onboarding Personal Info step's own zip lookup uses, extracted there
@@ -764,14 +765,16 @@ applicant" success screen is unaffected.
   `ConsumerReportSections`) — it had been dropped from the UI entirely in
   the Consumer rebuild below; still bound to the same `report.subjectAsOf`
   field, still written by the transcript auto-fill.
-- **Fixed Residence/Neighborhood's layout** in two follow-up passes: (1)
-  paired the fields inside each address block two per row (Province+City,
-  Barangay+Street Address, Address Type+Length of Stay, Landmark+Remarks)
-  instead of one full-width field per row; (2) reverted Permanent Address
-  and Present Address to stack vertically (one below the other, with a
+- **Fixed Residence/Neighborhood's layout** in three follow-up passes:
+  (1) paired the fields inside each address block two per row instead of
+  one full-width field per row; (2) reverted Permanent Address and
+  Present Address to stack vertically (one below the other, with a
   divider) rather than side-by-side columns — an intermediate version of
   this rebuild had tried the side-by-side layout, which was explicitly
-  rejected.
+  rejected; (3) repacked to three fields per row where it fits
+  (Province/City/Barangay, then Street Address/Address Type/Length of
+  Stay), Landmark/Remarks down to single-line `minRows={1}`, and tighter
+  spacing throughout — an explicit "make it more space-saving" pass.
 
 ### 2026-10-11 (Consumer CI Report rebuilt to match Commercial's plain-card pattern)
 
