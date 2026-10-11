@@ -251,18 +251,22 @@ object; whichever type isn't currently selected simply isn't rendered, so
 an officer can switch back and forth without losing previously-entered
 data on either side.
 
-**Consumer** was restructured (2026-10-07) from its earlier flat ~15-item
-list into 8 collapsible card-sections matching a reference "Field
-Investigation" tool exactly, each a `CollapsibleSection` inside its own
-`adminCardSx` box — same pattern as Commercial (see below) and as
-Requirement Checklist's own Credit Investigation/Appraisal/Financial
-Evaluation groups. A sticky left `CiSectionNav` (shared component, see
-Commercial's own description below) lists these 8 sections and
-scroll-jumps/expands on click, same mechanism as Commercial's nav. Shared
-header fields (transcript upload, AI Summary, Inspection/Date Inspected)
-still render once, above the Consumer/Commercial branch, same as always;
-the read-only Residence Address + Business/Work Address block remains
-Consumer-only, rendered just above these 8 sections. In order:
+**Consumer** (rebuilt 2026-10-11, mirroring Commercial's own file/plain-card
+structure — see `ci-report-consumer-sections.tsx`) renders 11 always-visible
+`adminCardSx` cards, no `CollapsibleSection` anywhere (Consumer dropped its
+own `CollapsibleSection` usage to match Commercial). A sticky left
+`CiSectionNav` lists these 11 sections and scroll-jumps on click (no
+expand/collapse step, since nothing is ever collapsed). An **info chips
+header** (`ConsumerInfoHeader`, the same `FactChip`/`FactChipRow` grid
+Commercial's own `CommercialInfoChips` uses) renders once, above the
+transcript upload row: Applicant Name (wide), Residence Address (wide,
+`residencePermanentAddress`), Tel. Number/Mobile Number/Email Address
+(fixed sample placeholders — this app has no real residence-contact-info
+backend), Business/Work Address (wide, `employerAddress` when the
+applicant is a Business Owner), then its own Tel. No./Email Address (the
+real, editable `employerTelNo`/`employerEmail` fields from the Employment
+section). Date Inspected (`report.visitDate`) renders just below the
+header, same as before. In order:
 
 - **Family** — subtitled "The applicant's spouse and children." Spouse
   (`RichTextField`, pre-filled once with a plain-text scaffold — name +
@@ -271,69 +275,97 @@ Consumer-only, rendered just above these 8 sections. In order:
   locked value) and Children (repeatable `CiChildEntry` array: Name, Age,
   Occupation/School).
 - **Residence/Neighborhood** — subtitled "The permanent address on file,
-  and the present address if the applicant lives elsewhere." Permanent
-  address (read-only, from `personalInfo`), Leased type, Length of stay,
-  Landmark, Remarks, followed by a **"PRESENT ADDRESS (if different)"**
-  sub-block mirroring the same five fields for when the applicant's
-  current residence differs from the address on file.
+  and the present address if the applicant lives elsewhere." Two columns,
+  **Permanent Address** and **Present Address**, each with its own
+  structured `AddressFields`: Province\*/City\*/Barangay\* (cascading
+  dropdowns backed by `src/utils/ph-address.ts`'s `PROVINCES`/
+  `PROVINCE_CITIES`/`barangaysFor()` — the same sample PH
+  province→city→barangay data the onboarding Personal Info step's own zip
+  lookup uses, extracted there into this shared module and extended with
+  Bulacan/Ilocos Norte entries; City/Barangay fall back to free text once
+  a province/city pair isn't in the sample table), Street Address\*,
+  Address Type\* (Own/Rent/Rent-free — replaces the old `residenceLeasedType`/
+  `presentLeasedType` radio fields), Length of Stay, Landmark, Remarks.
+  Present Address has its own **"Same as Permanent"** checkbox
+  (`presentSameAsPermanent`) that hides its own fields entirely when
+  checked — replaces the old free-text `presentAddress` field and its own
+  "PRESENT ADDRESS (if different)" sub-block.
 - **Employment** — subtitled "Employer or business, income, workforce and
-  registration details." Employment Status (pre-filled read-only from
-  `financialInfo.employmentStatus`), Employment Type, Employer/Business
-  Name, Position, Address, Tel./Email, Salary, Annual Income, Length of
-  Service, employee counts, Unionized, SEC/DTI registration, and Remarks.
-  The Business/Employer Name and Address labels switch to "Business"
-  terminology when `financialInfo.employmentStatus === 'Business Owner'`.
+  registration details." Unchanged: Employment Status (pre-filled
+  read-only from `financialInfo.employmentStatus`), Employment Type,
+  Employer/Business Name, Position, Address, Tel./Email, Salary, Annual
+  Income, Length of Service, employee counts, Unionized, SEC/DTI
+  registration, and Remarks. The Business/Employer Name and Address
+  labels switch to "Business" terminology when
+  `financialInfo.employmentStatus === 'Business Owner'`.
 - **Trade Checking** — subtitled "Customers and suppliers verified during
-  the visit." Two independent repeatable `CiTradeEntry` arrays, in
-  order **Customers** first then **Suppliers** (reordered to match the
-  reference, same Customers-before-Suppliers order as the Commercial
-  branch) — each with its own "Add Customer"/"Add Supplier" trigger
-  (Name, Address, Contact Number, Nature of Dealing, Years of Dealing).
-- **Financial Information** — subtitled "Assets, other sources of income
-  and bank accounts." Assets (`RichTextField`), Other Source of Income
-  (repeatable `CiIncomeSourceEntry` array: Source, Monthly Amount,
-  Remarks), Bank Verification (repeatable `CiBankAccountEntry` array:
-  Bank Name, Account Type, Account Number, Average Monthly Balance) — all
-  three previously separate top-level items, now one grouped section.
-- **Loan Purpose** — subtitled "Required. What the loan proceeds will be
-  used for." `RichTextField`, pre-filled once from
-  `financialInfo.loanPurpose` if present. Nothing on this page currently
-  blocks "Proceed" on CI Report field completeness — same permissive-gate
-  convention as the rest of this page's decision flow.
+  the visit." Two independent repeatable `CiTradeEntry` arrays, in order
+  **Customers** first then **Suppliers** — each with its own "Add
+  Customer"/"Add Supplier" trigger (Name, Address, Contact Number, Nature
+  of Dealing, Years of Dealing).
+- **Financial Information** — subtitled "Assets and other sources of
+  income." Assets (`RichTextField`), then **Other Source of Income**
+  (repeatable `CiIncomeSourceEntry` array, rewritten to match a reference
+  tool's own form: Income Type\* (select — Business Income/Rental
+  Income/Freelance-Commission/Pension/Other), Company Name\*, Owner\*,
+  Percent Of Share\* (0–100), Remarks\* — replaces the old
+  Source/Monthly Amount/Remarks shape entirely, no production data
+  existed to migrate). Bank Verification was moved out into its own card
+  below Loan Purpose (see below) — no longer grouped under Financial
+  Information.
+- **Loan Purpose** — subtitled "What the loan proceeds will be used for."
+  Card title itself carries the red required asterisk (`requiredLabel`).
+  `RichTextField`, pre-filled once from `financialInfo.loanPurpose` if
+  present. Nothing on this page currently blocks "Proceed" on CI Report
+  field completeness — same permissive-gate convention as the rest of
+  this page's decision flow.
+- **Bank Verification** — its own card, below Loan Purpose. Repeatable
+  `CiBankAccountEntry` array: Bank Name, Account Type, Account Number,
+  Average Monthly Balance.
 - **Comaker** — subtitled "The comakers backing this loan." Still
   **read-only**, sourced directly from `review.callReport.comakers` (no
-  local `CiReport` fields of its own); display unchanged for now (renders
-  each comaker as a compact row — name, relationship, address, contact —
-  or "No data found. Please add comaker information on Call Report." when
-  empty). The write side of this data lives on Call Report's own Comaker
-  card — see `docs/080-account-solicitation-call-report.md`'s "The 12
-  section cards" table, section 12. **Known gap:** the reference tool's
-  Comaker section shows substantially more fields (Prefix/Suffix, Civil
-  status, Birth date, Age, Birth place, Citizenship, Job title, Business
-  name, Office address, Length of service) and multiple comakers, none of
-  which `CiComakerEntry`/Call Report's single-comaker `comakerChange` form
+  local `CiReport` fields of its own); renders each comaker as a compact
+  row — name, relationship, address, contact — or "No data found. Please
+  add comaker information on Call Report." when empty. The write side of
+  this data lives on Call Report's own Comaker card — see
+  `docs/080-account-solicitation-call-report.md`'s "The 12 section cards"
+  table, section 12. **Known gap:** the reference tool's Comaker section
+  shows substantially more fields (Prefix/Suffix, Civil status, Birth
+  date, Age, Birth place, Citizenship, Job title, Business name, Office
+  address, Length of service) and multiple comakers, none of which
+  `CiComakerEntry`/Call Report's single-comaker `comakerChange` form
   currently capture — tracked as a separate follow-up task, not yet
   implemented.
-- **Investigation Findings / Observations** — subtitled "The officer's
-  assessment from the field visit, document review, and the preliminary
-  recommendation." Subject As Of, Health and Habits, and Comments
-  (`RichTextField`s, previously three separate top-level items), plus
-  Recommendation (preliminary recommendation select —
-  `'proceed-as-requested' | 'proceed-with-conditions' |
-  'needs-additional-verification'` — + notes, kept last within this
-  section). This is the only CI Report field `credit-investigation-risk.ts`
-  doesn't read at all — `report` isn't consulted by
-  `buildCreditInvestigationSummary` in the first place, which reads
-  solely from the Document Checklist.
+- **Health and Habits** — its own card (previously grouped under
+  "Investigation Findings / Observations"). `RichTextField`.
+- **Comments** — its own card (previously grouped under "Investigation
+  Findings / Observations"). `RichTextField`.
+- **Additional Documents** — its own card, at the very end. Repeatable
+  `consumerDocuments: CiConsumerDocumentEntry[]`, multi-file upload via an
+  always-open dropzone that appends on every drop (same pattern as the
+  Commercial branch's own Additional Documents card) — see "Document
+  preview" note under Commercial's own History entry, which applies here
+  identically (image files get a direct `<img>` preview via their
+  filename extension, since the stored `fileUrl` is a `blob:` object URL
+  with none of its own).
+
+**Recommendation and Subject As Of removed from this page's own UI.** The
+old "Investigation Findings / Observations" section's Preliminary
+Recommendation select/notes and Subject As Of field are no longer
+rendered anywhere in the Consumer branch — the reference tool this
+rebuild matches has no equivalent fields. `report.subjectAsOf`/
+`recommendation`/`recommendationNotes` are untouched in the data model
+(existing reports keep any prior value), simply no longer editable or
+visible from this page; `subjectAsOf` is still written by the transcript
+auto-fill (`buildTranscriptAutoFill().findingsNarrativeHtml`), just with
+nowhere left to display it.
 
 **Negative Record removed from view.** The reference tool has no Negative
 Record section at all, so it no longer renders in the Consumer branch (nor
 did it ever render in Commercial). Its `CiReport` fields
 (`negativeRecordSourceNote`/`negativeRecordFinding`/`negativeRecordRemarks`)
 are untouched in the data model — existing reports with this data keep it,
-simply no longer editable or visible from this page. The `NegativeRecordSection`
-component and its `NEGATIVE_FINDING_OPTIONS` constant were deleted from
-`ci-report-card.tsx` as genuinely dead code once nothing called them.
+simply no longer editable or visible from this page.
 
 ### Commercial CI Report sections
 
@@ -360,9 +392,9 @@ Facilities**, **Trade Checking**, **Bank Verification**, **Comments**,
 was removed as its own card — its only remaining field, Line of
 Business, is already covered read-only by the info chips header; see
 "Info chips header" below.)
-These were originally `CollapsibleSection`s, same as Consumer's own 8
-sections below, but were changed to plain non-collapsible cards for
-Commercial specifically — Consumer kept `CollapsibleSection`. The
+These were originally `CollapsibleSection`s; Consumer was later rebuilt
+to match this same plain-card convention (see above) — neither branch
+uses `CollapsibleSection` anymore. The
 `expandedSections`/`onToggleSection` props still exist on
 `CommercialReportSections` and `CiReportCard` still threads
 `commercialExpanded`/`handleToggleCommercialSection` through them, even
@@ -718,6 +750,59 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-11 (Consumer CI Report rebuilt to match Commercial's plain-card pattern)
+
+- **Moved all Consumer section bodies into their own file**,
+  `ci-report-consumer-sections.tsx`, mirroring Commercial's own
+  `ci-report-commercial-sections.tsx` — `ci-report-card.tsx` no longer
+  holds any Consumer section JSX directly, only the shared transcript
+  upload/AI Summary row, the type toggle, and per-type wiring.
+- **Dropped `CollapsibleSection` from Consumer** — all 11 sections are
+  now plain always-visible `adminCardSx` cards, same as Commercial.
+- **Added a FactChip info-chips header** (`ConsumerInfoHeader`, reusing
+  Commercial's own `FactChip`/`FactChipRow` grid) above the transcript
+  row: Applicant Name, Residence Address, Tel./Mobile/Email (sample
+  placeholders), Business/Work Address, Tel. No./Email (the real
+  `employerTelNo`/`employerEmail` fields). Replaces the old plain
+  2-box "Residence Address / Business-Work Address" header.
+- **Rebuilt Residence/Neighborhood's address fields as structured
+  Province/City/Barangay/Street Address/Address Type**, replacing the
+  single read-only `residencePermanentAddress` string and the old
+  `residenceLeasedType`/`presentLeasedType` radio fields. Backed by a new
+  shared `src/utils/ph-address.ts` module (`PROVINCES`, `ZIP_LOCATIONS`,
+  `PROVINCE_CITIES`, `barangaysFor()`) — the same sample PH
+  province/city/barangay data the onboarding Personal Info step's own
+  zip-code lookup already used, extracted there into this shared file
+  and extended with Bulacan (Obando, Malolos) and Ilocos Norte (Laoag
+  City, Batac) entries so the CI Report's own Province dropdown has
+  real options beyond the original 5 provinces. Present Address gets a
+  **"Same as Permanent"** checkbox (`presentSameAsPermanent`) instead of
+  the old always-shown "PRESENT ADDRESS (if different)" sub-block; the
+  old free-text `presentAddress` field was removed.
+- **Rewrote Other Source of Income's fields** to match a reference
+  tool's own form: Income Type (select), Company Name, Owner, Percent Of
+  Share (0–100), Remarks — replaces the old Source/Monthly
+  Amount/Remarks shape entirely (`CiIncomeSourceEntry`'s fields changed;
+  no production data existed to migrate, same reasoning as the
+  Commercial Stockholders rework).
+- **Split "Investigation Findings / Observations" into three separate
+  cards** — Health and Habits, Comments — each its own card now;
+  Subject As Of and the Preliminary Recommendation select/notes were
+  dropped from the UI entirely (no reference-tool equivalent) — the
+  underlying `subjectAsOf`/`recommendation`/`recommendationNotes` fields
+  are untouched in the data model, just no longer rendered.
+- **Moved Bank Verification out of Financial Information into its own
+  card**, below Loan Purpose.
+- **Added a new Additional Documents card** at the very end — multi-file
+  upload via an always-open dropzone (same pattern as Commercial's own
+  Additional Documents card), new `consumerDocuments:
+  CiConsumerDocumentEntry[]` field.
+- **Moved the transcript upload row + AI Summary to render once, shared,
+  above both type branches** — previously Commercial rendered its info
+  chips header before the transcript row; now the transcript row is
+  always the very first thing under the title/type toggle for both
+  report types.
 
 ### 2026-10-11 (Trade Checking fields matched to reference form)
 

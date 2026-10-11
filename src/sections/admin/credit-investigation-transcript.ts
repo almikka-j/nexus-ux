@@ -16,9 +16,9 @@
 // ----------------------------------------------------------------------
 
 export type CiTranscriptAutoFill = {
-  residenceLeasedType: 'owned' | 'leased' | 'rent-free';
+  residenceAddressType: 'own' | 'rent' | 'rent-free';
   residenceLengthOfStay: string;
-  presentAddressSameAsPermanent: boolean;
+  presentSameAsPermanent: boolean;
   employmentType: 'direct' | 'agency' | 'self-employed';
   lengthOfService: string;
   negativeRecordFinding: 'no-negative-findings-both-cmap-nfis' | 'negative-findings-found';
@@ -40,9 +40,9 @@ export function buildTranscriptAutoFill(seedParts: string[], applicantName: stri
 
   if (isPositive) {
     return {
-      residenceLeasedType: 'owned',
+      residenceAddressType: 'own',
       residenceLengthOfStay: 'Over 5 years',
-      presentAddressSameAsPermanent: true,
+      presentSameAsPermanent: true,
       employmentType: 'direct',
       lengthOfService: '5+ years',
       negativeRecordFinding: 'no-negative-findings-both-cmap-nfis',
@@ -52,9 +52,9 @@ export function buildTranscriptAutoFill(seedParts: string[], applicantName: stri
   }
 
   return {
-    residenceLeasedType: 'leased',
+    residenceAddressType: 'rent',
     residenceLengthOfStay: 'Less than 1 year',
-    presentAddressSameAsPermanent: false,
+    presentSameAsPermanent: false,
     employmentType: 'agency',
     lengthOfService: 'Less than 1 year',
     negativeRecordFinding: 'negative-findings-found',

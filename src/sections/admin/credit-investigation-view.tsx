@@ -268,7 +268,7 @@ export function CreditInvestigationView() {
     setCiReport({
       visitDate: new Date().toISOString().slice(0, 10),
       subjectAsOf: autoFill.findingsNarrativeHtml,
-      residenceLeasedType: autoFill.residenceLeasedType,
+      residenceAddressType: autoFill.residenceAddressType,
       residenceLengthOfStay: autoFill.residenceLengthOfStay,
       employmentType: autoFill.employmentType,
       employerName: 'Sample Employer Corp.',
@@ -297,7 +297,7 @@ export function CreditInvestigationView() {
     setCiReport({
       visitDate: '',
       subjectAsOf: '',
-      residenceLeasedType: '',
+      residenceAddressType: '',
       residenceLengthOfStay: '',
       employmentType: '',
       employerName: '',

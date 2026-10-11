@@ -22,6 +22,7 @@ import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
 import { fileToDataUrl } from 'src/utils/file-to-data-url';
+import { PROVINCES, ZIP_LOCATIONS } from 'src/utils/ph-address';
 
 import { authFieldSx, authFieldLabelSx, authPrimaryButtonSx } from '../auth-input-styles';
 
@@ -78,69 +79,8 @@ const ID_TYPES = ['PhilSys / National ID', 'Philippine Passport', "Driver's Lice
 // booklet page, so those two stay single-upload.
 const ID_TYPES_REQUIRING_BACK = new Set(["Driver's License", 'UMID', 'SSS ID', 'PhilHealth ID']);
 
-const PROVINCES = ['Metro Manila', 'Cebu', 'Davao del Sur', 'Laguna', 'Cavite'];
-
-// Sample PH zip code → province/city/barangay lookup. Not a real PSGC
-// (Philippine Standard Geographic Code) import — just enough real zip
-// codes/barangays across the 5 provinces above to demo the cascading
-// address fields honestly, matching this prototype's "sample data, no real
-// OCR/AI" pattern elsewhere in this file. A zip typed outside this table
-// falls back to manual entry (see `matchedZip` usage below) rather than
-// blocking the borrower from continuing.
-type ZipLocation = { province: string; city: string; barangays: string[] };
-
-const ZIP_LOCATIONS: Record<string, ZipLocation> = {
-  '1121': {
-    province: 'Metro Manila',
-    city: 'Quezon City',
-    barangays: ['Barangay Commonwealth', 'Barangay Batasan Hills', 'Barangay Holy Spirit', 'Barangay Payatas'],
-  },
-  '1000': {
-    province: 'Metro Manila',
-    city: 'Manila',
-    barangays: ['Barangay 1 (Ermita)', 'Barangay 402 (Malate)', 'Barangay 660 (Sampaloc)'],
-  },
-  '1200': {
-    province: 'Metro Manila',
-    city: 'Makati',
-    barangays: ['Barangay Bel-Air', 'Barangay Poblacion', 'Barangay San Lorenzo'],
-  },
-  '6000': {
-    province: 'Cebu',
-    city: 'Cebu City',
-    barangays: ['Barangay Lahug', 'Barangay Capitol Site', 'Barangay Guadalupe', 'Barangay Mabolo'],
-  },
-  '6014': {
-    province: 'Cebu',
-    city: 'Mandaue City',
-    barangays: ['Barangay Tipolo', 'Barangay Subangdaku', 'Barangay Centro'],
-  },
-  '8000': {
-    province: 'Davao del Sur',
-    city: 'Davao City',
-    barangays: ['Barangay Poblacion', 'Barangay Buhangin', 'Barangay Talomo', 'Barangay Matina'],
-  },
-  '4027': {
-    province: 'Laguna',
-    city: 'Calamba',
-    barangays: ['Barangay Real', 'Barangay Uno', 'Barangay Canlubang', 'Barangay Parian'],
-  },
-  '4026': {
-    province: 'Laguna',
-    city: 'Santa Rosa',
-    barangays: ['Barangay Balibago', 'Barangay Tagapo', 'Barangay Market Area'],
-  },
-  '4114': {
-    province: 'Cavite',
-    city: 'Dasmariñas',
-    barangays: ['Barangay Zone IV', 'Barangay San Agustin', 'Barangay Salawag'],
-  },
-  '4103': {
-    province: 'Cavite',
-    city: 'Bacoor',
-    barangays: ['Barangay Zapote', 'Barangay Molino', 'Barangay Talaba'],
-  },
-};
+// PROVINCES/ZIP_LOCATIONS live in src/utils/ph-address.ts, shared with
+// the admin CI Report's own Residence/Neighborhood address fields.
 
 const CIVIL_STATUSES = ['Single', 'Married', 'Widowed', 'Separated', 'Divorced'];
 

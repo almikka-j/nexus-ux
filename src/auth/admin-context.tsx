@@ -537,11 +537,31 @@ export type CiCommercialDocumentEntry = {
   uploadedAt: string;
 };
 
+// Matches a reference tool's own "Other Source of Income" form exactly:
+// an Income Type picker, the company it comes from, who owns it, and
+// what percent share the applicant holds in it — replaces the older
+// source/monthlyAmount/remarks shape entirely (no production data
+// existed to migrate, since this app's state is per-browser
+// localStorage, same reasoning as the Commercial Stockholders rework).
 export type CiIncomeSourceEntry = {
   id: string;
-  source: string;
-  monthlyAmount: string;
+  incomeType: string;
+  companyName: string;
+  owner: string;
+  percentOfShare: string;
   remarks: string;
+};
+
+// A single uploaded file in the Consumer "Additional Documents" card —
+// same minimal shape as the Commercial branch's own
+// CiCommercialDocumentEntry (open-ended, officer-labelled, no
+// status/review tracking).
+export type CiConsumerDocumentEntry = {
+  id: string;
+  label: string;
+  fileName: string;
+  fileUrl: string;
+  uploadedAt: string;
 };
 
 export type CiBankAccountEntry = {
@@ -911,14 +931,31 @@ export type CiReport = {
   // Children
   children: CiChildEntry[];
 
-  // Residence/Neighborhood
-  residencePermanentAddress: string; // read-only display, sourced from personalInfo
-  residenceLeasedType: 'owned' | 'leased' | 'rent-free' | '';
+  // Residence/Neighborhood — Permanent Address and Present Address, each
+  // with its own Province/City/Barangay/Street Address/Address Type
+  // (matching a reference tool's own two-column address form), plus
+  // Length of Stay/Landmark/Remarks. `residencePermanentAddress` stays as
+  // the one-time prefill source (a flattened string built from
+  // personalInfo in ci-report-card.tsx) but is no longer directly
+  // editable — Province/City/Barangay/Street Address replace it as the
+  // actual fields the officer fills in. `presentSameAsPermanent` gates
+  // the whole Present Address block: checked, Present mirrors Permanent
+  // and its own fields are hidden; unchecked, it's independently filled.
+  residencePermanentAddress: string; // retained for the one-time prefill only, see above
+  residenceProvince: string;
+  residenceCity: string;
+  residenceBarangay: string;
+  residenceStreetAddress: string;
+  residenceAddressType: 'own' | 'rent' | 'rent-free' | '';
   residenceLengthOfStay: string;
   residenceLandmark: string;
   residenceRemarks: string;
-  presentAddress: string;
-  presentLeasedType: 'owned' | 'leased' | 'rent-free' | '';
+  presentSameAsPermanent: boolean;
+  presentProvince: string;
+  presentCity: string;
+  presentBarangay: string;
+  presentStreetAddress: string;
+  presentAddressType: 'own' | 'rent' | 'rent-free' | '';
   presentLengthOfStay: string;
   presentLandmark: string;
   presentRemarks: string;
@@ -957,6 +994,11 @@ export type CiReport = {
 
   // Bank Verification
   bankAccounts: CiBankAccountEntry[];
+
+  // Additional Documents (Consumer only) — its own card, below Comments;
+  // an open-ended multi-file attachment list, same shape/pattern as the
+  // Commercial branch's own commercialDocuments.
+  consumerDocuments: CiConsumerDocumentEntry[];
 
   // Negative Record
   negativeRecordSourceNote: string;
@@ -1958,12 +2000,20 @@ function createInitialCiReport(): CiReport {
     spouseNotes: '',
     children: [],
     residencePermanentAddress: '',
-    residenceLeasedType: '',
+    residenceProvince: '',
+    residenceCity: '',
+    residenceBarangay: '',
+    residenceStreetAddress: '',
+    residenceAddressType: '',
     residenceLengthOfStay: '',
     residenceLandmark: '',
     residenceRemarks: '',
-    presentAddress: '',
-    presentLeasedType: '',
+    presentSameAsPermanent: false,
+    presentProvince: '',
+    presentCity: '',
+    presentBarangay: '',
+    presentStreetAddress: '',
+    presentAddressType: '',
     presentLengthOfStay: '',
     presentLandmark: '',
     presentRemarks: '',
@@ -1990,6 +2040,7 @@ function createInitialCiReport(): CiReport {
     otherIncomeSources: [],
     loanPurposeNotes: '',
     bankAccounts: [],
+    consumerDocuments: [],
     negativeRecordSourceNote:
       'Source of information: BAP Credit Bureau / CMAP report on accounts under watch lists, cancelled credit cards, adverse classified loan file, closed current account and court case file as of ',
     negativeRecordFinding: '',
