@@ -152,21 +152,21 @@ function CommercialTradeCheckingSection({
               </Button>
             </Stack>
             <Stack spacing={1.25}>
+              <TextField
+                label={requiredLabel('Company Name')}
+                value={entry.companyName}
+                onChange={(event) => update(entry.id, { companyName: event.target.value })}
+                sx={fieldSx}
+              />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
-                  label="Company name"
-                  value={entry.companyName}
-                  onChange={(event) => update(entry.id, { companyName: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Contact person"
+                  label={requiredLabel("Representative's Name")}
                   value={entry.contactPerson}
                   onChange={(event) => update(entry.id, { contactPerson: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
-                  label="Position"
+                  label={requiredLabel("Representative's Position")}
                   value={entry.position}
                   onChange={(event) => update(entry.id, { position: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
@@ -174,25 +174,13 @@ function CommercialTradeCheckingSection({
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
-                  label="Mobile number"
-                  value={entry.mobileNumber}
-                  onChange={(event) => update(entry.id, { mobileNumber: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Email address"
-                  value={entry.email}
-                  onChange={(event) => update(entry.id, { email: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Telephone no."
+                  label={requiredLabel("Company's Tel No.")}
                   value={entry.telephoneNo}
                   onChange={(event) => update(entry.id, { telephoneNo: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
-                  label="Local/ext."
+                  label="Local No"
                   value={entry.localExtension}
                   onChange={(event) => update(entry.id, { localExtension: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
@@ -200,28 +188,48 @@ function CommercialTradeCheckingSection({
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
-                  label="Transaction details"
-                  value={entry.transactionDetails}
-                  onChange={(event) => update(entry.id, { transactionDetails: event.target.value })}
+                  label="Representative's Mobile No."
+                  value={entry.mobileNumber}
+                  onChange={(event) => update(entry.id, { mobileNumber: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
-                  label="Payment terms"
-                  value={entry.paymentTerms}
-                  onChange={(event) => update(entry.id, { paymentTerms: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Years of contract"
-                  value={entry.yearsOfContract}
-                  onChange={(event) => update(entry.id, { yearsOfContract: event.target.value })}
+                  label="Email Address"
+                  value={entry.email}
+                  onChange={(event) => update(entry.id, { email: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
               </Stack>
               <TextField
-                label="Remarks"
+                label={requiredLabel('Transaction Details')}
+                value={entry.transactionDetails}
+                onChange={(event) => update(entry.id, { transactionDetails: event.target.value })}
+                multiline
+                minRows={3}
+                sx={fieldSx}
+              />
+              <TextField
+                label={requiredLabel('Payment Terms')}
+                value={entry.paymentTerms}
+                onChange={(event) => update(entry.id, { paymentTerms: event.target.value })}
+                multiline
+                minRows={3}
+                sx={fieldSx}
+              />
+              <TextField
+                label={requiredLabel('Years of Business Contract')}
+                value={entry.yearsOfContract}
+                onChange={(event) => update(entry.id, { yearsOfContract: event.target.value })}
+                multiline
+                minRows={3}
+                sx={fieldSx}
+              />
+              <TextField
+                label={requiredLabel('Remarks')}
                 value={entry.remarks}
                 onChange={(event) => update(entry.id, { remarks: event.target.value })}
+                multiline
+                minRows={3}
                 sx={fieldSx}
               />
             </Stack>

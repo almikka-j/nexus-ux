@@ -568,12 +568,22 @@ and Ownership first**, then **Location / Facilities**, Trade Checking,
   (`commercialCustomers`/`commercialSuppliers:
   CiCommercialTradeEntry[]`) — a **new, separate entry type** from the
   Consumer branch's own `CiTradeEntry`, since the Commercial shape is
-  company-level (Company name, Contact person, Position, Mobile number,
-  Email, Telephone no., Local/extension, Transaction details, Payment
-  terms, Years of contract, Remarks) rather than Consumer's individual
-  name/address/dealing shape. Add buttons read "Add customer"/"Add
-  supplier" (lowercase, matching the reference tool). Same
-  add/remove-per-entry UX as every other repeatable section in this card.
+  company-level rather than Consumer's individual name/address/dealing
+  shape. Per-entry fields and layout now match a reference tool's own
+  form exactly: Company Name\* (full width), Representative's Name\*/
+  Representative's Position\* side by side, Company's Tel No.\*/Local No
+  (not required) side by side, Representative's Mobile No./Email Address
+  (neither required) side by side, then Transaction Details\*, Payment
+  Terms\*, Years of Business Contract\*, and Remarks\* each as its own
+  multiline textarea. (Maps to the same underlying
+  `CiCommercialTradeEntry` fields as before —
+  `companyName`/`contactPerson`/`position`/`telephoneNo`/
+  `localExtension`/`mobileNumber`/`email`/`transactionDetails`/
+  `paymentTerms`/`yearsOfContract`/`remarks` — only labels, required
+  markers, and layout changed, not the data shape.) Add buttons read
+  "Add customer"/"Add supplier" (lowercase, matching the reference
+  tool). Same add/remove-per-entry UX as every other repeatable section
+  in this card.
 - **Bank Verification section** — its own card, below Trade Checking, no
   subtitle, repeatable array `commercialBankAccounts:
   CiCommercialBankAccountEntry[]` — a separate, fuller shape from the
@@ -708,6 +718,18 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-11 (Trade Checking fields matched to reference form)
+
+- **Rewrote the Customer/Supplier entry form** in Trade Checking to match
+  a reference tool's own layout and labels exactly: Company Name\* (full
+  width), Representative's Name\*/Representative's Position\* side by
+  side, Company's Tel No.\*/Local No (not required) side by side,
+  Representative's Mobile No./Email Address (neither required) side by
+  side, then Transaction Details\*, Payment Terms\*, Years of Business
+  Contract\*, Remarks\* each as its own multiline textarea. No data-shape
+  change — same `CiCommercialTradeEntry` fields, only labels/required
+  markers/layout updated.
 
 ### 2026-10-11 (Field Investigation removed, Commercial form compacted, document preview fix)
 
