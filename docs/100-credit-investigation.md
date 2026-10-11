@@ -352,10 +352,14 @@ only inside the `report.type === 'consumer'` branch, directly above
 The reference tool itself is a separate multi-page app (its own left
 sidebar, one page per section, a "Download Report" button) — this app
 keeps the single-card, long-scrolling CI Report convention instead, so
-`CommercialReportSections` reproduces the reference's four groupings as
-four plain `adminCardSx` boxes (title + subtitle header, no chevron, no
-collapse/expand) — **Field Investigation**, **Trade Checking**,
-**Management and Ownership**, **Comments**, all always fully visible.
+`CommercialReportSections` reproduces the reference's groupings as plain
+`adminCardSx` boxes (title + subtitle header, no chevron, no
+collapse/expand) — **Management and Ownership**, **Location /
+Facilities**, **Trade Checking**, **Bank Verification**, **Comments**,
+**Additional Documents**, all always fully visible. (Field Investigation
+was removed as its own card — its only remaining field, Line of
+Business, is already covered read-only by the info chips header; see
+"Info chips header" below.)
 These were originally `CollapsibleSection`s, same as Consumer's own 8
 sections below, but were changed to plain non-collapsible cards for
 Commercial specifically — Consumer kept `CollapsibleSection`. The
@@ -485,9 +489,8 @@ a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
 
 In order, each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`) — **Management
-and Ownership first**, then **Location / Facilities**, then Field
-Investigation (just Business profile now), Trade Checking, **Bank
-Verification**, Comments, **Additional Documents**:
+and Ownership first**, then **Location / Facilities**, Trade Checking,
+**Bank Verification**, Comments, **Additional Documents**:
 
 - **Management and Ownership section** — subtitled "Who runs the business
   and who owns it.", with a "⋮" menu (`BusinessTypeMenu`) in its own
@@ -553,13 +556,12 @@ Verification**, Comments, **Additional Documents**:
   free-text amount fields and the separate `equipmentDescription`
   field — the reference tool has no rent/lease amount field and only
   one shared Description box, not two.
-- **Field Investigation section** — Business profile only now, subtitled
-  "From the business applied on the Call Report." — just **Line of
-  Business** (`businessLineOfBusiness`); Authorized Capital Stock,
-  Territory, Regular/Contractual Employees, and Owner already moved up
-  into the info chips header (see "Info chips header" above), and
-  Location and facility moved out into its own Location / Facilities
-  card above.
+- **Field Investigation as its own card was removed.** Line of Business
+  (`businessLineOfBusiness`) — its only remaining field — is shown
+  read-only in the info chips header (see "Info chips header" above);
+  Authorized Capital Stock, Territory, Regular/Contractual Employees, and
+  Owner already moved there too, and Location and facility live in their
+  own Location / Facilities card above.
 - **Trade Checking section** — subtitled "Customers and suppliers verified
   during the visit.", holding two independent repeatable arrays in order
   — **Customers** first, then **Suppliers**
@@ -706,6 +708,31 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-11 (Field Investigation removed, Commercial form compacted, document preview fix)
+
+- **Removed the Field Investigation card** from the Commercial branch —
+  its only remaining field, Line of Business, was already shown
+  read-only in the info chips header, making the card redundant. Dropped
+  `fieldInvestigation` from `CommercialSectionKey`,
+  `COMMERCIAL_SECTION_NAV_ITEMS`, and `CiReportCard`'s
+  `commercialExpanded` state.
+- **Compacted spacing across the whole Commercial form** — tighter card
+  padding/gaps (`p: 2` → `1.5`, `spacing={1.5}`/`{2.5}` → `{1.25}`/
+  `{1.75}` throughout), and grouped several previously one-field-per-row
+  fields into 2–3 column rows: Management's Name/Current Title/
+  Nationality, Educational Attainment/Other Business Affiliations,
+  Residence Address/Spouse-Partner; Stockholders' Stockholder Type/Name;
+  Trade Checking's Mobile/Email/Telephone/Local-ext.; Bank Verification's
+  Bank Name/Branch and Experience/Contact Person/Contact No.; Location /
+  Facilities' two description fields and two checkbox pairs side by side.
+- **Fixed Additional Documents not previewing image uploads** —
+  `FileThumbnail` infers file type from an extension on the file's own
+  URL, but `commercialDocuments` stores a `blob:` object URL with no
+  extension, so it always fell back to a generic file icon. Now checks
+  `entry.fileName`'s own extension (`isImageFile()`) and renders a direct
+  `<img>` preview for image files, `FileThumbnail` (by filename, so
+  format detection still works) for everything else.
 
 ### 2026-10-11 (Bank Verification + Additional Documents cards)
 

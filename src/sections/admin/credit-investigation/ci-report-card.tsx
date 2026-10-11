@@ -532,7 +532,6 @@ export function CiReportCard() {
   const isMarried = personalInfo?.civilStatus === 'Married';
 
   const [commercialExpanded, setCommercialExpanded] = useState<Record<CommercialSectionKey, boolean>>({
-    fieldInvestigation: true,
     locationFacilities: true,
     tradeChecking: true,
     managementAndOwnership: true,
