@@ -24,6 +24,7 @@ import type { FinancialInfo } from 'src/auth/registration-context';
 import type { CiReport } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
+import { RichTextField } from 'src/components/rich-text-field';
 import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 
 import { buildTranscriptAutoFill } from '../credit-investigation-transcript';
@@ -787,6 +788,12 @@ export function CiReportCard() {
                   value={report.visitDate}
                   onChange={(event) => setCiReport({ visitDate: event.target.value })}
                   sx={{ ...fieldSx, maxWidth: { sm: 260 } }}
+                />
+                <RichTextField
+                  label="Subject As Of"
+                  value={report.subjectAsOf}
+                  onChange={(html) => setCiReport({ subjectAsOf: html })}
+                  placeholder="Summary of the investigation as of the visit date…"
                 />
               </Stack>
 

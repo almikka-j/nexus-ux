@@ -252,114 +252,122 @@ function AddressFields({
 
   return (
     <Stack spacing={1.5}>
-      <TextField
-        select
-        fullWidth
-        label={requiredLabel('Province')}
-        value={province}
-        onChange={(event) => onChange({ province: event.target.value, city: '', barangay: '' })}
-        sx={fieldSx}
-      >
-        {PROVINCES.map((option) => (
-          <MenuItem key={option} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </TextField>
-      {knownCities.length > 0 ? (
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           select
           fullWidth
-          label={requiredLabel('City')}
-          value={city}
-          onChange={(event) => onChange({ city: event.target.value, barangay: '' })}
+          label={requiredLabel('Province')}
+          value={province}
+          onChange={(event) => onChange({ province: event.target.value, city: '', barangay: '' })}
           sx={fieldSx}
         >
-          {knownCities.map((option) => (
+          {PROVINCES.map((option) => (
             <MenuItem key={option} value={option}>
               {option}
             </MenuItem>
           ))}
         </TextField>
-      ) : (
+        {knownCities.length > 0 ? (
+          <TextField
+            select
+            fullWidth
+            label={requiredLabel('City')}
+            value={city}
+            onChange={(event) => onChange({ city: event.target.value, barangay: '' })}
+            sx={fieldSx}
+          >
+            {knownCities.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : (
+          <TextField
+            fullWidth
+            label={requiredLabel('City')}
+            value={city}
+            onChange={(event) => onChange({ city: event.target.value, barangay: '' })}
+            sx={fieldSx}
+          />
+        )}
+      </Stack>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        {knownBarangays.length > 0 ? (
+          <TextField
+            select
+            fullWidth
+            label={requiredLabel('Barangay')}
+            value={barangay}
+            onChange={(event) => onChange({ barangay: event.target.value })}
+            sx={fieldSx}
+          >
+            {knownBarangays.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : (
+          <TextField
+            fullWidth
+            label={requiredLabel('Barangay')}
+            value={barangay}
+            onChange={(event) => onChange({ barangay: event.target.value })}
+            sx={fieldSx}
+          />
+        )}
         <TextField
           fullWidth
-          label={requiredLabel('City')}
-          value={city}
-          onChange={(event) => onChange({ city: event.target.value, barangay: '' })}
+          label={requiredLabel('Street Address')}
+          value={streetAddress}
+          onChange={(event) => onChange({ streetAddress: event.target.value })}
           sx={fieldSx}
         />
-      )}
-      {knownBarangays.length > 0 ? (
+      </Stack>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           select
           fullWidth
-          label={requiredLabel('Barangay')}
-          value={barangay}
-          onChange={(event) => onChange({ barangay: event.target.value })}
+          label={requiredLabel('Address Type')}
+          value={addressType}
+          onChange={(event) => onChange({ addressType: event.target.value as 'own' | 'rent' | 'rent-free' })}
           sx={fieldSx}
         >
-          {knownBarangays.map((option) => (
-            <MenuItem key={option} value={option}>
-              {option}
+          {ADDRESS_TYPE_OPTIONS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
             </MenuItem>
           ))}
         </TextField>
-      ) : (
         <TextField
           fullWidth
-          label={requiredLabel('Barangay')}
-          value={barangay}
-          onChange={(event) => onChange({ barangay: event.target.value })}
+          label="Length of Stay"
+          value={lengthOfStay}
+          onChange={(event) => onChange({ lengthOfStay: event.target.value })}
           sx={fieldSx}
         />
-      )}
-      <TextField
-        fullWidth
-        label={requiredLabel('Street Address')}
-        value={streetAddress}
-        onChange={(event) => onChange({ streetAddress: event.target.value })}
-        sx={fieldSx}
-      />
-      <TextField
-        select
-        fullWidth
-        label={requiredLabel('Address Type')}
-        value={addressType}
-        onChange={(event) => onChange({ addressType: event.target.value as 'own' | 'rent' | 'rent-free' })}
-        sx={fieldSx}
-      >
-        {ADDRESS_TYPE_OPTIONS.map((option) => (
-          <MenuItem key={option.value} value={option.value}>
-            {option.label}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        fullWidth
-        label="Length of Stay"
-        value={lengthOfStay}
-        onChange={(event) => onChange({ lengthOfStay: event.target.value })}
-        sx={fieldSx}
-      />
-      <TextField
-        fullWidth
-        multiline
-        minRows={2}
-        label="Landmark"
-        value={landmark}
-        onChange={(event) => onChange({ landmark: event.target.value })}
-        sx={fieldSx}
-      />
-      <TextField
-        fullWidth
-        multiline
-        minRows={2}
-        label="Remarks"
-        value={remarks}
-        onChange={(event) => onChange({ remarks: event.target.value })}
-        sx={fieldSx}
-      />
+      </Stack>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField
+          fullWidth
+          multiline
+          minRows={2}
+          label="Landmark"
+          value={landmark}
+          onChange={(event) => onChange({ landmark: event.target.value })}
+          sx={fieldSx}
+        />
+        <TextField
+          fullWidth
+          multiline
+          minRows={2}
+          label="Remarks"
+          value={remarks}
+          onChange={(event) => onChange({ remarks: event.target.value })}
+          sx={fieldSx}
+        />
+      </Stack>
     </Stack>
   );
 }
@@ -372,8 +380,8 @@ function ResidenceNeighborhoodSection({
   onChange: (data: Partial<CiReport>) => void;
 }) {
   return (
-    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5}>
-      <Box sx={{ flex: 1 }}>
+    <Stack spacing={2.5}>
+      <Box>
         <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mb: 1.5 }}>
           Permanent Address
         </Typography>
@@ -402,7 +410,7 @@ function ResidenceNeighborhoodSection({
         />
       </Box>
 
-      <Box sx={{ flex: 1 }}>
+      <Box sx={{ pt: 2.5, borderTop: '1px solid #EEF0F5' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
           <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Present Address</Typography>
           <FormControlLabel

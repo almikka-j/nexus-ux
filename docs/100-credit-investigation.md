@@ -265,8 +265,10 @@ transcript upload row: Applicant Name (wide), Residence Address (wide,
 backend), Business/Work Address (wide, `employerAddress` when the
 applicant is a Business Owner), then its own Tel. No./Email Address (the
 real, editable `employerTelNo`/`employerEmail` fields from the Employment
-section). Date Inspected (`report.visitDate`) renders just below the
-header, same as before. In order:
+section). Date Inspected (`report.visitDate`) and Subject As Of
+(`report.subjectAsOf`, `RichTextField`) render just below the header, same
+as before Subject As Of moved out of "Investigation Findings /
+Observations" (see History). In order:
 
 - **Family** — subtitled "The applicant's spouse and children." Spouse
   (`RichTextField`, pre-filled once with a plain-text scaffold — name +
@@ -275,18 +277,20 @@ header, same as before. In order:
   locked value) and Children (repeatable `CiChildEntry` array: Name, Age,
   Occupation/School).
 - **Residence/Neighborhood** — subtitled "The permanent address on file,
-  and the present address if the applicant lives elsewhere." Two columns,
-  **Permanent Address** and **Present Address**, each with its own
-  structured `AddressFields`: Province\*/City\*/Barangay\* (cascading
-  dropdowns backed by `src/utils/ph-address.ts`'s `PROVINCES`/
-  `PROVINCE_CITIES`/`barangaysFor()` — the same sample PH
-  province→city→barangay data the onboarding Personal Info step's own zip
-  lookup uses, extracted there into this shared module and extended with
-  Bulacan/Ilocos Norte entries; City/Barangay fall back to free text once
-  a province/city pair isn't in the sample table), Street Address\*,
-  Address Type\* (Own/Rent/Rent-free — replaces the old `residenceLeasedType`/
-  `presentLeasedType` radio fields), Length of Stay, Landmark, Remarks.
-  Present Address has its own **"Same as Permanent"** checkbox
+  and the present address if the applicant lives elsewhere." **Permanent
+  Address** stacked above **Present Address** (not side-by-side columns),
+  each with its own structured `AddressFields`, fields paired two per row
+  (Province\*+City\*, Barangay\*+Street Address\*, Address Type\*+Length
+  of Stay, Landmark+Remarks) rather than one full-width field per row.
+  Province/City/Barangay are cascading dropdowns backed by
+  `src/utils/ph-address.ts`'s `PROVINCES`/`PROVINCE_CITIES`/
+  `barangaysFor()` — the same sample PH province→city→barangay data the
+  onboarding Personal Info step's own zip lookup uses, extracted there
+  into this shared module and extended with Bulacan/Ilocos Norte entries;
+  City/Barangay fall back to free text once a province/city pair isn't in
+  the sample table. Address Type is Own/Rent/Rent-free (replaces the old
+  `residenceLeasedType`/`presentLeasedType` radio fields). Present
+  Address has its own **"Same as Permanent"** checkbox
   (`presentSameAsPermanent`) that hides its own fields entirely when
   checked — replaces the old free-text `presentAddress` field and its own
   "PRESENT ADDRESS (if different)" sub-block.
@@ -349,16 +353,18 @@ header, same as before. In order:
   filename extension, since the stored `fileUrl` is a `blob:` object URL
   with none of its own).
 
-**Recommendation and Subject As Of removed from this page's own UI.** The
-old "Investigation Findings / Observations" section's Preliminary
-Recommendation select/notes and Subject As Of field are no longer
-rendered anywhere in the Consumer branch — the reference tool this
-rebuild matches has no equivalent fields. `report.subjectAsOf`/
-`recommendation`/`recommendationNotes` are untouched in the data model
-(existing reports keep any prior value), simply no longer editable or
-visible from this page; `subjectAsOf` is still written by the transcript
-auto-fill (`buildTranscriptAutoFill().findingsNarrativeHtml`), just with
-nowhere left to display it.
+**Recommendation removed, Subject As Of relocated.** The old
+"Investigation Findings / Observations" section's Preliminary
+Recommendation select/notes are no longer rendered anywhere in the
+Consumer branch — the reference tool this rebuild matches has no
+equivalent field. `report.recommendation`/`recommendationNotes` are
+untouched in the data model (existing reports keep any prior value),
+simply no longer editable or visible from this page. **Subject As Of**
+moved out of that section entirely and now renders directly in
+`CiReportCard` itself, right below Date Inspected, above
+`ConsumerReportSections` — still a `RichTextField` bound to
+`report.subjectAsOf`, still written by the transcript auto-fill
+(`buildTranscriptAutoFill().findingsNarrativeHtml`).
 
 **Negative Record removed from view.** The reference tool has no Negative
 Record section at all, so it no longer renders in the Consumer branch (nor
@@ -751,6 +757,22 @@ applicant" success screen is unaffected.
 
 ## History
 
+### 2026-10-11 (Subject As Of restored to header, Residence/Neighborhood layout follow-up)
+
+- **Re-added Subject As Of** as a `RichTextField` comment box, rendered in
+  `CiReportCard` directly below Date Inspected (above
+  `ConsumerReportSections`) — it had been dropped from the UI entirely in
+  the Consumer rebuild below; still bound to the same `report.subjectAsOf`
+  field, still written by the transcript auto-fill.
+- **Fixed Residence/Neighborhood's layout** in two follow-up passes: (1)
+  paired the fields inside each address block two per row (Province+City,
+  Barangay+Street Address, Address Type+Length of Stay, Landmark+Remarks)
+  instead of one full-width field per row; (2) reverted Permanent Address
+  and Present Address to stack vertically (one below the other, with a
+  divider) rather than side-by-side columns — an intermediate version of
+  this rebuild had tried the side-by-side layout, which was explicitly
+  rejected.
+
 ### 2026-10-11 (Consumer CI Report rebuilt to match Commercial's plain-card pattern)
 
 - **Moved all Consumer section bodies into their own file**,
@@ -786,12 +808,13 @@ applicant" success screen is unaffected.
   Amount/Remarks shape entirely (`CiIncomeSourceEntry`'s fields changed;
   no production data existed to migrate, same reasoning as the
   Commercial Stockholders rework).
-- **Split "Investigation Findings / Observations" into three separate
+- **Split "Investigation Findings / Observations" into separate
   cards** — Health and Habits, Comments — each its own card now;
-  Subject As Of and the Preliminary Recommendation select/notes were
-  dropped from the UI entirely (no reference-tool equivalent) — the
-  underlying `subjectAsOf`/`recommendation`/`recommendationNotes` fields
-  are untouched in the data model, just no longer rendered.
+  the Preliminary Recommendation select/notes were dropped from the UI
+  entirely (no reference-tool equivalent) — the underlying
+  `recommendation`/`recommendationNotes` fields are untouched in the data
+  model, just no longer rendered. Subject As Of was relocated, not
+  dropped — see the follow-up History entry below.
 - **Moved Bank Verification out of Financial Information into its own
   card**, below Loan Purpose.
 - **Added a new Additional Documents card** at the very end — multi-file
