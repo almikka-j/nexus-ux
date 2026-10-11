@@ -469,20 +469,39 @@ export type CiManagementEntry = {
   mobileNumber: string;
 };
 
+// A stockholder/sub-stockholder's own type — "Individual" or
+// "Corporation" — drives the Name/Company Name label swap, and (for a
+// top-level stockholder only) whether nested sub-stockholders show at
+// all. Replaces the older isCorporation 'yes'/'no' boolean with the
+// explicit type the business-type-conditional spec asks for.
+export type CiStockholderType = 'individual' | 'corporation' | '';
+
 export type CiSubStockholderEntry = {
   id: string;
   name: string;
+  stockholderType: CiStockholderType;
   amountSubscribed: string;
   amountPaidUp: string;
+  percentageShare: string;
 };
 
 export type CiStockholderEntry = {
   id: string;
-  stockholderName: string;
+  stockholderType: CiStockholderType;
+  name: string;
   amountSubscribed: string;
   amountPaidUp: string;
-  isCorporation: 'yes' | 'no' | '';
+  percentageShare: string;
   subStockholders: CiSubStockholderEntry[];
+};
+
+// Board of Trustees entry — shown instead of Stockholders when the
+// business is a Cooperative.
+export type CiTrusteeEntry = {
+  id: string;
+  fullName: string;
+  position: string;
+  birthdate: string;
 };
 
 export type CiIncomeSourceEntry = {
@@ -929,14 +948,17 @@ export type CiReport = {
   businessRegularEmployees: string;
   businessContractualEmployees: string;
 
-  // Location and facility (Commercial only)
+  // Location / Facilities (Commercial only) — its own card, below
+  // Management and Ownership. locationOwned/equipmentOwned are each a
+  // two-way checkbox pair (Owned/Rented, Owned/Leased), not free text —
+  // the "how much" detail that used to live in
+  // locationOwnRentDetails/equipmentLeasePrice is covered by the shared
+  // facilitiesDescription rich-text field instead.
   premisesConstructionDescription: string;
   premisesAreaDescription: string;
-  locationOwned: 'yes' | 'no' | '';
-  locationOwnRentDetails: string;
-  equipmentDescription: string;
-  equipmentOwned: 'yes' | 'no' | '';
-  equipmentLeasePrice: string;
+  locationOwned: 'owned' | 'rented' | '';
+  equipmentOwned: 'owned' | 'leased' | '';
+  facilitiesDescription: string;
 
   // Trade Checking (Commercial only) — parallel to the existing
   // suppliers/customers: CiTradeEntry[] used by the Consumer branch.
@@ -945,6 +967,13 @@ export type CiReport = {
 
   // Management and Ownership (Commercial only)
   management: CiManagementEntry[];
+  // Overrides financialInfo.businessType for the purpose of deciding
+  // whether Board of Trustees (Cooperative) or Stockholders
+  // (Corporation/Partnership) renders — '' means "use the application's
+  // own businessType, unoverridden". Picked via the card header's "⋮"
+  // menu.
+  businessTypeOverride: 'cooperative' | 'corporation' | 'partnership' | '';
+  trustees: CiTrusteeEntry[];
   stockholders: CiStockholderEntry[];
 
   // Transcript
@@ -1937,13 +1966,13 @@ function createInitialCiReport(): CiReport {
     premisesConstructionDescription: '',
     premisesAreaDescription: '',
     locationOwned: '',
-    locationOwnRentDetails: '',
-    equipmentDescription: '',
     equipmentOwned: '',
-    equipmentLeasePrice: '',
+    facilitiesDescription: '',
     commercialSuppliers: [],
     commercialCustomers: [],
     management: [],
+    businessTypeOverride: '',
+    trustees: [],
     stockholders: [],
     transcriptFileName: null,
     transcriptUploadedAt: null,

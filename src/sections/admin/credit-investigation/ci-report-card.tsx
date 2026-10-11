@@ -533,6 +533,7 @@ export function CiReportCard() {
 
   const [commercialExpanded, setCommercialExpanded] = useState<Record<CommercialSectionKey, boolean>>({
     fieldInvestigation: true,
+    locationFacilities: true,
     tradeChecking: true,
     managementAndOwnership: true,
     comments: true,
@@ -850,6 +851,7 @@ export function CiReportCard() {
               sectionRefs={commercialSectionRefs}
               expandedSections={commercialExpanded}
               onToggleSection={handleToggleCommercialSection}
+              applicationBusinessType={financialInfo?.businessType}
             />
           )}
         </>

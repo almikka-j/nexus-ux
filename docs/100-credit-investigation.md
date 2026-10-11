@@ -485,11 +485,20 @@ a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
 
 In order, each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`) — **Management
-and Ownership first**, ahead of Field Investigation (moved up from its
-earlier position after Trade Checking):
+and Ownership first**, then **Location / Facilities**, then Field
+Investigation (just Business profile now), Trade Checking, Comments:
 
-- **Management and Ownership section** — subtitled "Who runs the business and
-  who owns it.", holding two repeatable sub-sections:
+- **Management and Ownership section** — subtitled "Who runs the business
+  and who owns it.", with a "⋮" menu (`BusinessTypeMenu`) in its own
+  header, next to the title/subtitle — picks which of Board of Trustees
+  or Stockholders renders below, overriding
+  `financialInfo.businessType` (`resolveCommercialBusinessType()`: the
+  card's own `report.businessTypeOverride` wins if set, otherwise falls
+  back to the application's own business type — `'Cooperative'` →
+  Trustees, `'Corporation'`/`'Partnership'` → Stockholders, anything else
+  — including `'Sole Proprietorship'`, a single owner already covered by
+  Business Profile's own Owner field — shows neither, with a prompt to
+  pick one via the ⋮ menu). Holds:
   - **Management** (`management: CiManagementEntry[]`) — one `TextField`
     per line (not grouped into a 2-3-column grid), matching a reference
     tool's own form exactly, in order: Name\*, then Current Title\* next
@@ -501,42 +510,55 @@ earlier position after Trade Checking):
     fields use.) Maps to `CiManagementEntry`'s existing fields —
     `fullName`/`jobTitle`/`nationality`/`education`/`otherBusiness`/
     `homeAddress`/`birthdate`/`birthPlace`/`spousePartner`/
-    `mobileNumber`/`tin` — no data-model change, only the field
-    order/grouping/required-marker and the "Current Title"/"Residence
-    Address"/"Tax Identification Number" labels (previously "Job
-    title"/"Home address"/"TIN") changed. "Add management" trigger.
-  - **Major stockholders** (`stockholders: CiStockholderEntry[]`) —
-    Stockholder name, Amount subscribed, Amount paid-up, then an "Is the
-    stockholder a corporation?" Yes/No `RadioRow`
-    (`isCorporation: 'yes' | 'no' | ''`). When `'yes'`, a nested
-    **Sub-stockholders** list (`subStockholders: CiSubStockholderEntry[]`,
-    Sub-stockholder name/Amount subscribed/Amount paid-up per entry)
-    renders directly below that one stockholder, with its own "Add
-    sub-stockholder" trigger scoped to that stockholder only. This is the
-    one genuinely nested array in this app's `CiReport` — mutations locate
-    the parent stockholder by id before touching its own
-    `subStockholders` array, so a sibling stockholder's own
-    sub-stockholders are never affected. Toggling "Is the stockholder a
-    corporation?" from Yes back to No only hides the Sub-stockholders
-    block (the data is not cleared), so toggling back to Yes restores
-    whatever was already entered. "Add stockholder" trigger.
-- **Field Investigation section** — Business profile, subtitled "From the
-  business applied on the Call Report.", now holding only **Line of
-  Business** (`businessLineOfBusiness`) — Authorized Capital Stock,
-  Territory, Regular/Contractual Employees, and Owner moved up into the
-  info chips header above (see "Info chips header" above) once those
-  became that header's own fillable rows, since this app shows each field
-  once, not twice. Then Location and facility (plain fields, no bordered
-  gray sub-box — same
-  flat treatment as every grouped field in both report types now;
-  Residence/Neighborhood and Employment's own bordered boxes were removed
-  in the same pass, once each section already got its own `adminCardSx`
-  card from the restructure, making the inner gray box redundant)
-  holding: Premises (Construction description, Area description), a
-  "Location owned?" Yes/No `RadioRow` next to "Own or rent (details)"
-  (`locationOwned`/`locationOwnRentDetails`), then Equipment (a
-  description field), and an "Equipment owned?" Yes/No `RadioRow` next to
-  "Equipment lease price" (`equipmentOwned`/`equipmentLeasePrice`).
+    `mobileNumber`/`tin`. "Add management" trigger.
+  - **Board of Trustees** (`trustees: CiTrusteeEntry[]`, Cooperative
+    only) — Full Name\*, Position\*, Birthdate\*. "Add Trustee" trigger.
+  - **Stockholders** (`stockholders: CiStockholderEntry[]`, Corporation
+    or Partnership only) — Stockholder Type\* (Individual/Corporation,
+    `RadioRow`, `stockholderType: CiStockholderType`), then a Name/Company
+    Name\* field whose label swaps based on that type
+    (`stockholderNameLabel()`), Amount Subscribed\*/Amount Paid\*
+    (`CurrencyField` — `NumericFormat` + a ₱ adornment, same convention
+    as the Design System page's own "Currency field" showcase) and
+    Percentage Share\* (`PercentageField` — `NumericFormat` clamped to
+    0–100 via `isAllowed`). When Stockholder Type is Corporation, a
+    nested **Sub-stockholders** list
+    (`subStockholders: CiSubStockholderEntry[]`, identical field set:
+    Stockholder Type, Name/Company Name, Amount Subscribed, Amount Paid,
+    Percentage Share) renders directly below that one stockholder, with
+    its own "Add Sub-stockholder" trigger scoped to that stockholder
+    only — same "mutations locate the parent stockholder by id" pattern
+    as before (a sibling stockholder's own sub-stockholders are never
+    affected), and toggling Stockholder Type away from Corporation only
+    hides the Sub-stockholders block without clearing it. "Add
+    Stockholder" trigger. (Replaces the earlier
+    `isCorporation: 'yes' | 'no'` boolean and the "Major stockholders"
+    section title/shape entirely — no production data existed to
+    migrate, since this app's state is per-browser `localStorage`.)
+- **Location / Facilities section** — its own card (previously a
+  sub-section inside Field Investigation), no subtitle, matching a
+  reference tool's own card exactly: Type of Construction /
+  Description\* (`premisesConstructionDescription`, now `multiline`),
+  Area Description\* (`premisesAreaDescription`, now `multiline`),
+  "Location Owned or rented? If rented, how much?" as an Owned/Rented
+  **checkbox pair** (`CheckboxPairRow`, `locationOwned: 'owned' |
+  'rented' | ''` — visually two checkboxes but still mutually exclusive
+  under the hood, same single-value-union shape every other either/or
+  field in this app uses), "Equipment owned or leased" as an
+  Owned/Leased checkbox pair (`equipmentOwned: 'owned' | 'leased' |
+  ''`), then a single shared **Description\*** `RichTextField`
+  (`facilitiesDescription`) covering both location and equipment detail.
+  Replaces the earlier `locationOwnRentDetails`/`equipmentLeasePrice`
+  free-text amount fields and the separate `equipmentDescription`
+  field — the reference tool has no rent/lease amount field and only
+  one shared Description box, not two.
+- **Field Investigation section** — Business profile only now, subtitled
+  "From the business applied on the Call Report." — just **Line of
+  Business** (`businessLineOfBusiness`); Authorized Capital Stock,
+  Territory, Regular/Contractual Employees, and Owner already moved up
+  into the info chips header (see "Info chips header" above), and
+  Location and facility moved out into its own Location / Facilities
+  card above.
 - **Trade Checking section** — subtitled "Customers and suppliers verified
   during the visit.", holding two independent repeatable arrays in order
   — **Customers** first, then **Suppliers**
@@ -659,6 +681,37 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-11 (Business-type-conditional Trustees/Stockholders, Location / Facilities card)
+
+- **Replaced the fixed "Major stockholders" section with a
+  business-type-conditional card**: Board of Trustees (Cooperative) or
+  Stockholders (Corporation/Partnership), picked by
+  `resolveCommercialBusinessType()` — the card's own `businessTypeOverride`
+  (set via a new "⋮" `BusinessTypeMenu` in the Management and Ownership
+  header) if present, else `financialInfo.businessType` from the
+  application. Sole Proprietorship / unset shows neither, with a prompt.
+- Added `CiTrusteeEntry` (Full Name, Position, Birthdate) and a new
+  `trustees: CiTrusteeEntry[]` field.
+- Reworked `CiStockholderEntry`/`CiSubStockholderEntry`: replaced
+  `isCorporation: 'yes' | 'no'` with `stockholderType: 'individual' |
+  'corporation' | ''`; renamed `stockholderName` to `name` (label swaps
+  to "Company Name" when the type is Corporation); added
+  `percentageShare` to both; `CiSubStockholderEntry` also gained its own
+  `stockholderType` (previously sub-stockholders had no type at all).
+  Amount Subscribed/Paid are now `CurrencyField` (₱-prefixed
+  `NumericFormat`), Percentage Share a `PercentageField` (0–100 clamped
+  `NumericFormat`).
+- **Added a new Location / Facilities card**, its own section (between
+  Management and Ownership and Field Investigation), moved out of Field
+  Investigation entirely. Construction/Area Description are now
+  `multiline`; "Location owned?"/"Equipment owned?" `RadioRow`s became
+  `CheckboxPairRow`s (Owned/Rented, Owned/Leased); dropped
+  `locationOwnRentDetails`/`equipmentLeasePrice`/`equipmentDescription`
+  in favor of one new shared `facilitiesDescription` `RichTextField`.
+- No real `CiReport` data existed to migrate for any of the above — this
+  app's state is per-browser `localStorage`, same reasoning every prior
+  Commercial CI Report change has relied on.
 
 ### 2026-10-11 (Management field layout + section order)
 

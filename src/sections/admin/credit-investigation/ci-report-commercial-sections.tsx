@@ -1,21 +1,32 @@
 'use client';
 
+import { useState } from 'react';
+import { NumericFormat } from 'react-number-format';
+
 import Box from '@mui/material/Box';
+import Menu from '@mui/material/Menu';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import InputAdornment from '@mui/material/InputAdornment';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { RichTextField } from 'src/components/rich-text-field';
+import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx, iconButtonBorderedSx } from 'src/components/admin-ui';
 
 import { RadioRow } from '../call-report/call-report-types';
 import { fieldSx, SectionLabel, YES_NO_OPTIONS, requiredLabel } from './ci-report-card';
 
 import type {
   CiReport,
+  CiTrusteeEntry,
+  CiStockholderType,
   CiCommercialTradeEntry,
   CiManagementEntry,
   CiStockholderEntry,
@@ -32,6 +43,57 @@ import type {
 // convention — no dedicated context setters exist for any CiReport
 // array, Commercial included.
 // ----------------------------------------------------------------------
+
+// A two-way "which one" choice rendered as a pair of checkboxes (per the
+// reference tool), not a RadioRow — visually a checkbox, but still
+// mutually exclusive under the hood: checking one always unchecks the
+// other, so the stored value is still a single `trueValue | falseValue | ''`
+// union, same shape as every other either/or field in this app.
+function CheckboxPairRow<TrueValue extends string, FalseValue extends string>({
+  label,
+  value,
+  trueValue,
+  falseValue,
+  trueLabel,
+  falseLabel,
+  onChange,
+}: {
+  label: string;
+  value: TrueValue | FalseValue | '';
+  trueValue: TrueValue;
+  falseValue: FalseValue;
+  trueLabel: string;
+  falseLabel: string;
+  onChange: (value: TrueValue | FalseValue) => void;
+}) {
+  return (
+    <Stack spacing={0.75}>
+      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>{label}</Typography>
+      <Stack direction="row" spacing={2}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              size="small"
+              checked={value === trueValue}
+              onChange={() => onChange(trueValue)}
+            />
+          }
+          label={<Typography sx={{ fontSize: 13.5 }}>{trueLabel}</Typography>}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              size="small"
+              checked={value === falseValue}
+              onChange={() => onChange(falseValue)}
+            />
+          }
+          label={<Typography sx={{ fontSize: 13.5 }}>{falseLabel}</Typography>}
+        />
+      </Stack>
+    </Stack>
+  );
+}
 
 function createCommercialTradeEntry(): CiCommercialTradeEntry {
   return {
@@ -323,19 +385,177 @@ function ManagementSection({
   );
 }
 
+// Shared currency/percentage input look for Trustees/Stockholders money
+// fields — NumericFormat + a ₱ adornment, same convention as the Design
+// System page's own "Currency field" showcase.
+function CurrencyField({
+  label,
+  value,
+  onChange,
+}: {
+  label: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <NumericFormat
+      label={label}
+      customInput={TextField}
+      value={value}
+      onValueChange={({ value: nextValue }) => onChange(nextValue)}
+      thousandSeparator=","
+      decimalScale={2}
+      allowNegative={false}
+      valueIsNumericString
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <Typography sx={{ fontSize: 14, fontWeight: 700, color: TONE_COLORS.info.solid }}>₱</Typography>
+          </InputAdornment>
+        ),
+      }}
+      sx={{ ...fieldSx, flex: 1 }}
+    />
+  );
+}
+
+function PercentageField({
+  label,
+  value,
+  onChange,
+}: {
+  label: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <NumericFormat
+      label={label}
+      customInput={TextField}
+      value={value}
+      onValueChange={({ value: nextValue }) => onChange(nextValue)}
+      decimalScale={2}
+      allowNegative={false}
+      isAllowed={({ floatValue }) => floatValue === undefined || (floatValue >= 0 && floatValue <= 100)}
+      valueIsNumericString
+      InputProps={{
+        endAdornment: <InputAdornment position="end">%</InputAdornment>,
+      }}
+      sx={{ ...fieldSx, flex: 1 }}
+    />
+  );
+}
+
+const STOCKHOLDER_TYPE_OPTIONS: { value: 'individual' | 'corporation'; label: string }[] = [
+  { value: 'individual', label: 'Individual' },
+  { value: 'corporation', label: 'Corporation' },
+];
+
+function createTrusteeEntry(): CiTrusteeEntry {
+  return { id: crypto.randomUUID(), fullName: '', position: '', birthdate: '' };
+}
+
+function TrusteesSection({
+  entries,
+  onChange,
+}: {
+  entries: CiTrusteeEntry[];
+  onChange: (next: CiTrusteeEntry[]) => void;
+}) {
+  const update = (id: string, data: Partial<CiTrusteeEntry>) =>
+    onChange(entries.map((entry) => (entry.id === id ? { ...entry, ...data } : entry)));
+  const remove = (id: string) => onChange(entries.filter((entry) => entry.id !== id));
+  const add = () => onChange([...entries, createTrusteeEntry()]);
+
+  return (
+    <Stack spacing={1.5}>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Board of Trustees</Typography>
+      <Stack spacing={1.5}>
+        {entries.map((entry, index) => (
+          <Box key={entry.id} sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
+              <Chip
+                label={`Trustee ${index + 1}`}
+                size="small"
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+              />
+              <Button
+                onClick={() => remove(entry.id)}
+                size="small"
+                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
+                sx={{ color: '#F04438' }}
+              >
+                Remove
+              </Button>
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                label={requiredLabel('Full Name')}
+                value={entry.fullName}
+                onChange={(event) => update(entry.id, { fullName: event.target.value })}
+                sx={{ ...fieldSx, flex: 2 }}
+              />
+              <TextField
+                label={requiredLabel('Position')}
+                value={entry.position}
+                onChange={(event) => update(entry.id, { position: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                label={requiredLabel('Birthdate')}
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={entry.birthdate}
+                onChange={(event) => update(entry.id, { birthdate: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+            </Stack>
+          </Box>
+        ))}
+        <Button
+          onClick={add}
+          variant="outlined"
+          size="small"
+          startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+          sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+        >
+          Add Trustee
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
+
 function createStockholderEntry(): CiStockholderEntry {
   return {
     id: crypto.randomUUID(),
-    stockholderName: '',
+    stockholderType: '',
+    name: '',
     amountSubscribed: '',
     amountPaidUp: '',
-    isCorporation: '',
+    percentageShare: '',
     subStockholders: [],
   };
 }
 
 function createSubStockholderEntry(): CiSubStockholderEntry {
-  return { id: crypto.randomUUID(), name: '', amountSubscribed: '', amountPaidUp: '' };
+  return {
+    id: crypto.randomUUID(),
+    name: '',
+    stockholderType: '',
+    amountSubscribed: '',
+    amountPaidUp: '',
+    percentageShare: '',
+  };
+}
+
+// Label swaps between "Name" and "Company Name" depending on the
+// stockholder's own type — before a type is picked, falls back to the
+// generic "Name / Company Name" the spec names it as.
+function stockholderNameLabel(stockholderType: CiStockholderType, required = true): string {
+  const base =
+    stockholderType === 'corporation' ? 'Company Name' : stockholderType === 'individual' ? 'Name' : 'Name / Company Name';
+  return required ? `${base} *` : base;
 }
 
 function StockholdersSection({
@@ -389,7 +609,7 @@ function StockholdersSection({
 
   return (
     <Stack spacing={1.5}>
-      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Major stockholders</Typography>
+      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Stockholders</Typography>
       <Stack spacing={1.5}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 2, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
@@ -409,36 +629,37 @@ function StockholdersSection({
               </Button>
             </Stack>
             <Stack spacing={1.5}>
-              <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Stockholder</Typography>
+              <RadioRow
+                label="Stockholder Type *"
+                value={entry.stockholderType}
+                options={STOCKHOLDER_TYPE_OPTIONS}
+                onChange={(value) => update(entry.id, { stockholderType: value })}
+              />
+              <TextField
+                label={stockholderNameLabel(entry.stockholderType)}
+                value={entry.name}
+                onChange={(event) => update(entry.id, { name: event.target.value })}
+                sx={fieldSx}
+              />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  label="Stockholder name"
-                  value={entry.stockholderName}
-                  onChange={(event) => update(entry.id, { stockholderName: event.target.value })}
-                  sx={{ ...fieldSx, flex: 2 }}
-                />
-                <TextField
-                  label="Amount subscribed"
+                <CurrencyField
+                  label={requiredLabel('Amount Subscribed')}
                   value={entry.amountSubscribed}
-                  onChange={(event) => update(entry.id, { amountSubscribed: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
+                  onChange={(value) => update(entry.id, { amountSubscribed: value })}
                 />
-                <TextField
-                  label="Amount paid-up"
+                <CurrencyField
+                  label={requiredLabel('Amount Paid')}
                   value={entry.amountPaidUp}
-                  onChange={(event) => update(entry.id, { amountPaidUp: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
+                  onChange={(value) => update(entry.id, { amountPaidUp: value })}
+                />
+                <PercentageField
+                  label={requiredLabel('Percentage Share')}
+                  value={entry.percentageShare}
+                  onChange={(value) => update(entry.id, { percentageShare: value })}
                 />
               </Stack>
 
-              <RadioRow
-                label="Is the stockholder a corporation?"
-                value={entry.isCorporation}
-                options={YES_NO_OPTIONS}
-                onChange={(value) => update(entry.id, { isCorporation: value })}
-              />
-
-              {entry.isCorporation === 'yes' && (
+              {entry.stockholderType === 'corporation' && (
                 <Box sx={{ ml: { sm: 2 }, p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5', bgcolor: 'common.white' }}>
                   <Stack spacing={1.25}>
                     <SectionLabel>Sub-stockholders</SectionLabel>
@@ -459,25 +680,36 @@ function StockholdersSection({
                             Remove
                           </Button>
                         </Stack>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                        <Stack spacing={1.5}>
+                          <RadioRow
+                            label="Stockholder Type *"
+                            value={sub.stockholderType}
+                            options={STOCKHOLDER_TYPE_OPTIONS}
+                            onChange={(value) => updateSub(entry.id, sub.id, { stockholderType: value })}
+                          />
                           <TextField
-                            label="Sub-stockholder name"
+                            label={stockholderNameLabel(sub.stockholderType)}
                             value={sub.name}
                             onChange={(event) => updateSub(entry.id, sub.id, { name: event.target.value })}
-                            sx={{ ...fieldSx, flex: 2 }}
+                            sx={fieldSx}
                           />
-                          <TextField
-                            label="Amount subscribed"
-                            value={sub.amountSubscribed}
-                            onChange={(event) => updateSub(entry.id, sub.id, { amountSubscribed: event.target.value })}
-                            sx={{ ...fieldSx, flex: 1 }}
-                          />
-                          <TextField
-                            label="Amount paid-up"
-                            value={sub.amountPaidUp}
-                            onChange={(event) => updateSub(entry.id, sub.id, { amountPaidUp: event.target.value })}
-                            sx={{ ...fieldSx, flex: 1 }}
-                          />
+                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                            <CurrencyField
+                              label={requiredLabel('Amount Subscribed')}
+                              value={sub.amountSubscribed}
+                              onChange={(value) => updateSub(entry.id, sub.id, { amountSubscribed: value })}
+                            />
+                            <CurrencyField
+                              label={requiredLabel('Amount Paid')}
+                              value={sub.amountPaidUp}
+                              onChange={(value) => updateSub(entry.id, sub.id, { amountPaidUp: value })}
+                            />
+                            <PercentageField
+                              label={requiredLabel('Percentage Share')}
+                              value={sub.percentageShare}
+                              onChange={(value) => updateSub(entry.id, sub.id, { percentageShare: value })}
+                            />
+                          </Stack>
                         </Stack>
                       </Box>
                     ))}
@@ -488,7 +720,7 @@ function StockholdersSection({
                       startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
                       sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
                     >
-                      Add sub-stockholder
+                      Add Sub-stockholder
                     </Button>
                   </Stack>
                 </Box>
@@ -503,21 +735,105 @@ function StockholdersSection({
           startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
           sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
         >
-          Add stockholder
+          Add Stockholder
         </Button>
       </Stack>
     </Stack>
   );
 }
 
+// Resolves the effective business type for the Trustees/Stockholders
+// gate: the card's own "⋮" override (report.businessTypeOverride) wins
+// if set, otherwise falls back to the application's own
+// financialInfo.businessType (as entered at sign-up — 'Corporation' |
+// 'Cooperative' | 'Sole Proprietorship' | 'Partnership' | undefined).
+// Sole Proprietorship (and anything unrecognised/unset) has neither a
+// Board of Trustees nor Stockholders — it's a single owner, which
+// Business Profile's own "Owner" field (in the info chips header)
+// already covers.
+export type CommercialBusinessType = 'cooperative' | 'corporation' | 'partnership' | '';
+
+export function resolveCommercialBusinessType(
+  businessTypeOverride: CommercialBusinessType,
+  applicationBusinessType: string | undefined
+): CommercialBusinessType {
+  if (businessTypeOverride) return businessTypeOverride;
+  switch (applicationBusinessType) {
+    case 'Cooperative':
+      return 'cooperative';
+    case 'Corporation':
+      return 'corporation';
+    case 'Partnership':
+      return 'partnership';
+    default:
+      return '';
+  }
+}
+
+const BUSINESS_TYPE_MENU_OPTIONS: { value: 'cooperative' | 'corporation' | 'partnership'; label: string }[] = [
+  { value: 'cooperative', label: 'Cooperative' },
+  { value: 'corporation', label: 'Corporation' },
+  { value: 'partnership', label: 'Partnership' },
+];
+
+// The "⋮" menu on the Management and Ownership card header — lets the
+// officer override which of Board of Trustees / Stockholders renders,
+// regardless of what financialInfo.businessType says. Defaults to
+// whatever resolveCommercialBusinessType() already resolved to, so
+// opening the menu never looks like it reset anything.
+function BusinessTypeMenu({
+  value,
+  onChange,
+}: {
+  value: CommercialBusinessType;
+  onChange: (value: 'cooperative' | 'corporation' | 'partnership') => void;
+}) {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+
+  return (
+    <>
+      <IconButton
+        onClick={(event) => setAnchorEl(event.currentTarget)}
+        aria-label="Business type options"
+        size="small"
+        sx={iconButtonBorderedSx}
+      >
+        <Iconify icon="eva:more-vertical-fill" width={18} />
+      </IconButton>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        slotProps={{ paper: { sx: { mt: 0.5, minWidth: 200, borderRadius: '10px' } } }}
+      >
+        {BUSINESS_TYPE_MENU_OPTIONS.map((option) => (
+          <MenuItem
+            key={option.value}
+            selected={value === option.value}
+            onClick={() => {
+              setAnchorEl(null);
+              onChange(option.value);
+            }}
+            sx={{ fontSize: 13.5 }}
+          >
+            {option.label}
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
+  );
+}
+
 export type CommercialSectionKey =
   | 'fieldInvestigation'
+  | 'locationFacilities'
   | 'tradeChecking'
   | 'managementAndOwnership'
   | 'comments';
 
 export const COMMERCIAL_SECTION_NAV_ITEMS: { key: CommercialSectionKey; label: string }[] = [
   { key: 'managementAndOwnership', label: 'Management and Ownership' },
+  { key: 'locationFacilities', label: 'Location / Facilities' },
   { key: 'fieldInvestigation', label: 'Field Investigation' },
   { key: 'tradeChecking', label: 'Trade Checking' },
   { key: 'comments', label: 'Comments' },
@@ -529,33 +845,110 @@ export function CommercialReportSections({
   sectionRefs,
   expandedSections,
   onToggleSection,
+  applicationBusinessType,
 }: {
   report: CiReport;
   onChange: (data: Partial<CiReport>) => void;
   sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>;
   expandedSections: Record<CommercialSectionKey, boolean>;
   onToggleSection: (key: CommercialSectionKey) => void;
+  applicationBusinessType: string | undefined;
 }) {
+  const effectiveBusinessType = resolveCommercialBusinessType(
+    report.businessTypeOverride,
+    applicationBusinessType
+  );
+
   return (
     <Stack spacing={2.5}>
       <Box
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('managementAndOwnership', el); }}
         sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Management and Ownership</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Who runs the business and who owns it.
-          </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5} sx={{ mb: 2.5 }}>
+          <Stack spacing={0.25}>
+            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Management and Ownership</Typography>
+            <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+              Who runs the business and who owns it.
+            </Typography>
+          </Stack>
+          <BusinessTypeMenu
+            value={effectiveBusinessType}
+            onChange={(businessTypeOverride) => onChange({ businessTypeOverride })}
+          />
         </Stack>
         <Stack spacing={2.5}>
           <ManagementSection
             entries={report.management}
             onChange={(management) => onChange({ management })}
           />
-          <StockholdersSection
-            entries={report.stockholders}
-            onChange={(stockholders) => onChange({ stockholders })}
+          {effectiveBusinessType === 'cooperative' && (
+            <TrusteesSection
+              entries={report.trustees}
+              onChange={(trustees) => onChange({ trustees })}
+            />
+          )}
+          {(effectiveBusinessType === 'corporation' || effectiveBusinessType === 'partnership') && (
+            <StockholdersSection
+              entries={report.stockholders}
+              onChange={(stockholders) => onChange({ stockholders })}
+            />
+          )}
+          {effectiveBusinessType === '' && (
+            <Typography sx={{ fontSize: 13, color: '#8891A6', fontStyle: 'italic' }}>
+              Select a business type (via the ⋮ menu above) to show Board of Trustees or Stockholders.
+            </Typography>
+          )}
+        </Stack>
+      </Box>
+
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('locationFacilities', el); }}
+        sx={adminCardSx}
+      >
+        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Location / Facilities</Typography>
+        </Stack>
+        <Stack spacing={2}>
+          <TextField
+            label={requiredLabel('Type of Construction / Description')}
+            value={report.premisesConstructionDescription}
+            onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
+            multiline
+            minRows={3}
+            sx={fieldSx}
+          />
+          <TextField
+            label={requiredLabel('Area Description')}
+            value={report.premisesAreaDescription}
+            onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
+            multiline
+            minRows={3}
+            sx={fieldSx}
+          />
+          <CheckboxPairRow
+            label="Location Owned or rented? If rented, how much?"
+            value={report.locationOwned}
+            trueLabel="Owned"
+            falseLabel="Rented"
+            trueValue="owned"
+            falseValue="rented"
+            onChange={(value) => onChange({ locationOwned: value })}
+          />
+          <CheckboxPairRow
+            label="Equipment owned or leased"
+            value={report.equipmentOwned}
+            trueLabel="Owned"
+            falseLabel="Leased"
+            trueValue="owned"
+            falseValue="leased"
+            onChange={(value) => onChange({ equipmentOwned: value })}
+          />
+          <RichTextField
+            label="Description *"
+            value={report.facilitiesDescription}
+            onChange={(html) => onChange({ facilitiesDescription: html })}
+            placeholder="Details about the location and equipment…"
           />
         </Stack>
       </Box>
@@ -567,74 +960,17 @@ export function CommercialReportSections({
         <Stack spacing={0.25} sx={{ mb: 2.5 }}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Field Investigation</Typography>
         </Stack>
-        <Stack spacing={2.5}>
-          <Stack spacing={1.5}>
-            <SectionLabel>Business profile</SectionLabel>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: -1 }}>
-              From the business applied on the Call Report.
-            </Typography>
-            <TextField
-              label="Line of Business"
-              value={report.businessLineOfBusiness}
-              onChange={(event) => onChange({ businessLineOfBusiness: event.target.value })}
-              sx={fieldSx}
-            />
-          </Stack>
-
-          <Stack spacing={1.5}>
-            <SectionLabel>Location and facility</SectionLabel>
-            <Stack spacing={2}>
-              <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Premises</Typography>
-              <TextField
-                label="Construction description"
-                value={report.premisesConstructionDescription}
-                onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                label="Area description"
-                value={report.premisesAreaDescription}
-                onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
-                sx={fieldSx}
-              />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
-                <RadioRow
-                  label="Location owned?"
-                  value={report.locationOwned}
-                  options={YES_NO_OPTIONS}
-                  onChange={(value) => onChange({ locationOwned: value })}
-                />
-                <TextField
-                  label="Own or rent (details)"
-                  value={report.locationOwnRentDetails}
-                  onChange={(event) => onChange({ locationOwnRentDetails: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-
-              <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Equipment</Typography>
-              <TextField
-                label="Equipment"
-                value={report.equipmentDescription}
-                onChange={(event) => onChange({ equipmentDescription: event.target.value })}
-                sx={fieldSx}
-              />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-end' }}>
-                <RadioRow
-                  label="Equipment owned?"
-                  value={report.equipmentOwned}
-                  options={YES_NO_OPTIONS}
-                  onChange={(value) => onChange({ equipmentOwned: value })}
-                />
-                <TextField
-                  label="Equipment lease price"
-                  value={report.equipmentLeasePrice}
-                  onChange={(event) => onChange({ equipmentLeasePrice: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-            </Stack>
-          </Stack>
+        <Stack spacing={1.5}>
+          <SectionLabel>Business profile</SectionLabel>
+          <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: -1 }}>
+            From the business applied on the Call Report.
+          </Typography>
+          <TextField
+            label="Line of Business"
+            value={report.businessLineOfBusiness}
+            onChange={(event) => onChange({ businessLineOfBusiness: event.target.value })}
+            sx={fieldSx}
+          />
         </Stack>
       </Box>
 
