@@ -12,7 +12,7 @@ import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { RichTextField } from 'src/components/rich-text-field';
 
 import { RadioRow } from '../call-report/call-report-types';
-import { fieldSx, SectionLabel, YES_NO_OPTIONS } from './ci-report-card';
+import { fieldSx, SectionLabel, YES_NO_OPTIONS, requiredLabel } from './ci-report-card';
 
 import type {
   CiReport,
@@ -232,16 +232,47 @@ function ManagementSection({
               </Button>
             </Stack>
             <Stack spacing={1.5}>
-              <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Personal</Typography>
+              <TextField
+                label={requiredLabel('Name')}
+                value={entry.fullName}
+                onChange={(event) => update(entry.id, { fullName: event.target.value })}
+                sx={fieldSx}
+              />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
-                  label="Full name"
-                  value={entry.fullName}
-                  onChange={(event) => update(entry.id, { fullName: event.target.value })}
-                  sx={{ ...fieldSx, flex: 2 }}
+                  label={requiredLabel('Current Title')}
+                  value={entry.jobTitle}
+                  onChange={(event) => update(entry.id, { jobTitle: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
-                  label="Birthdate"
+                  label={requiredLabel('Nationality')}
+                  value={entry.nationality}
+                  onChange={(event) => update(entry.id, { nationality: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+              </Stack>
+              <TextField
+                label={requiredLabel('Educational Attainment')}
+                value={entry.education}
+                onChange={(event) => update(entry.id, { education: event.target.value })}
+                sx={fieldSx}
+              />
+              <TextField
+                label="Other Business Affiliations"
+                value={entry.otherBusiness}
+                onChange={(event) => update(entry.id, { otherBusiness: event.target.value })}
+                sx={fieldSx}
+              />
+              <TextField
+                label={requiredLabel('Residence Address')}
+                value={entry.homeAddress}
+                onChange={(event) => update(entry.id, { homeAddress: event.target.value })}
+                sx={fieldSx}
+              />
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField
+                  label={requiredLabel('Birthday')}
                   type="date"
                   InputLabelProps={{ shrink: true }}
                   value={entry.birthdate}
@@ -249,65 +280,29 @@ function ManagementSection({
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
-                  label="Birth place"
+                  label={requiredLabel('Place of Birth')}
                   value={entry.birthPlace}
                   onChange={(event) => update(entry.id, { birthPlace: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
               </Stack>
+              <TextField
+                label="Spouse / Partner"
+                value={entry.spousePartner}
+                onChange={(event) => update(entry.id, { spousePartner: event.target.value })}
+                sx={fieldSx}
+              />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
-                  label="Nationality"
-                  value={entry.nationality}
-                  onChange={(event) => update(entry.id, { nationality: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Spouse/partner"
-                  value={entry.spousePartner}
-                  onChange={(event) => update(entry.id, { spousePartner: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Home address"
-                  value={entry.homeAddress}
-                  onChange={(event) => update(entry.id, { homeAddress: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-              <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Position and Business</Typography>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  label="Job title"
-                  value={entry.jobTitle}
-                  onChange={(event) => update(entry.id, { jobTitle: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Education"
-                  value={entry.education}
-                  onChange={(event) => update(entry.id, { education: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Other business"
-                  value={entry.otherBusiness}
-                  onChange={(event) => update(entry.id, { otherBusiness: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-              <Typography variant="overline" sx={{ fontSize: 11, color: '#A0A7B5' }}>Identification and Contact</Typography>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  label="TIN"
-                  value={entry.tin}
-                  onChange={(event) => update(entry.id, { tin: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Mobile number"
+                  label={requiredLabel('Mobile Number')}
                   value={entry.mobileNumber}
                   onChange={(event) => update(entry.id, { mobileNumber: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+                <TextField
+                  label={requiredLabel('Tax Identification Number')}
+                  value={entry.tin}
+                  onChange={(event) => update(entry.id, { tin: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
               </Stack>
@@ -522,9 +517,9 @@ export type CommercialSectionKey =
   | 'comments';
 
 export const COMMERCIAL_SECTION_NAV_ITEMS: { key: CommercialSectionKey; label: string }[] = [
+  { key: 'managementAndOwnership', label: 'Management and Ownership' },
   { key: 'fieldInvestigation', label: 'Field Investigation' },
   { key: 'tradeChecking', label: 'Trade Checking' },
-  { key: 'managementAndOwnership', label: 'Management and Ownership' },
   { key: 'comments', label: 'Comments' },
 ];
 
@@ -543,6 +538,28 @@ export function CommercialReportSections({
 }) {
   return (
     <Stack spacing={2.5}>
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('managementAndOwnership', el); }}
+        sx={adminCardSx}
+      >
+        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Management and Ownership</Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+            Who runs the business and who owns it.
+          </Typography>
+        </Stack>
+        <Stack spacing={2.5}>
+          <ManagementSection
+            entries={report.management}
+            onChange={(management) => onChange({ management })}
+          />
+          <StockholdersSection
+            entries={report.stockholders}
+            onChange={(stockholders) => onChange({ stockholders })}
+          />
+        </Stack>
+      </Box>
+
       <Box
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('fieldInvestigation', el); }}
         sx={adminCardSx}
@@ -641,28 +658,6 @@ export function CommercialReportSections({
             title="Suppliers"
             entries={report.commercialSuppliers}
             onChange={(commercialSuppliers) => onChange({ commercialSuppliers })}
-          />
-        </Stack>
-      </Box>
-
-      <Box
-        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('managementAndOwnership', el); }}
-        sx={adminCardSx}
-      >
-        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Management and Ownership</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Who runs the business and who owns it.
-          </Typography>
-        </Stack>
-        <Stack spacing={2.5}>
-          <ManagementSection
-            entries={report.management}
-            onChange={(management) => onChange({ management })}
-          />
-          <StockholdersSection
-            entries={report.stockholders}
-            onChange={(stockholders) => onChange({ stockholders })}
           />
         </Stack>
       </Box>

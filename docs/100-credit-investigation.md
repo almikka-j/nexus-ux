@@ -484,8 +484,42 @@ a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
   `visitDate` field, unchanged).
 
 In order, each implemented in `CommercialReportSections`
-(`credit-investigation/ci-report-commercial-sections.tsx`):
+(`credit-investigation/ci-report-commercial-sections.tsx`) — **Management
+and Ownership first**, ahead of Field Investigation (moved up from its
+earlier position after Trade Checking):
 
+- **Management and Ownership section** — subtitled "Who runs the business and
+  who owns it.", holding two repeatable sub-sections:
+  - **Management** (`management: CiManagementEntry[]`) — one `TextField`
+    per line (not grouped into a 2-3-column grid), matching a reference
+    tool's own form exactly, in order: Name\*, then Current Title\* next
+    to Nationality\*, then Educational Attainment\*, Other Business
+    Affiliations (not required), Residence Address\*, then Birthday\*
+    next to Place of Birth\*, then Spouse / Partner (not required), then
+    Mobile Number\* next to Tax Identification Number\*. (`\*` via
+    `requiredLabel()`, same helper the info chips header's fillable
+    fields use.) Maps to `CiManagementEntry`'s existing fields —
+    `fullName`/`jobTitle`/`nationality`/`education`/`otherBusiness`/
+    `homeAddress`/`birthdate`/`birthPlace`/`spousePartner`/
+    `mobileNumber`/`tin` — no data-model change, only the field
+    order/grouping/required-marker and the "Current Title"/"Residence
+    Address"/"Tax Identification Number" labels (previously "Job
+    title"/"Home address"/"TIN") changed. "Add management" trigger.
+  - **Major stockholders** (`stockholders: CiStockholderEntry[]`) —
+    Stockholder name, Amount subscribed, Amount paid-up, then an "Is the
+    stockholder a corporation?" Yes/No `RadioRow`
+    (`isCorporation: 'yes' | 'no' | ''`). When `'yes'`, a nested
+    **Sub-stockholders** list (`subStockholders: CiSubStockholderEntry[]`,
+    Sub-stockholder name/Amount subscribed/Amount paid-up per entry)
+    renders directly below that one stockholder, with its own "Add
+    sub-stockholder" trigger scoped to that stockholder only. This is the
+    one genuinely nested array in this app's `CiReport` — mutations locate
+    the parent stockholder by id before touching its own
+    `subStockholders` array, so a sibling stockholder's own
+    sub-stockholders are never affected. Toggling "Is the stockholder a
+    corporation?" from Yes back to No only hides the Sub-stockholders
+    block (the data is not cleared), so toggling back to Yes restores
+    whatever was already entered. "Add stockholder" trigger.
 - **Field Investigation section** — Business profile, subtitled "From the
   business applied on the Call Report.", now holding only **Line of
   Business** (`businessLineOfBusiness`) — Authorized Capital Stock,
@@ -515,27 +549,6 @@ In order, each implemented in `CommercialReportSections`
   name/address/dealing shape. Add buttons read "Add customer"/"Add
   supplier" (lowercase, matching the reference tool). Same
   add/remove-per-entry UX as every other repeatable section in this card.
-- **Management and Ownership section** — subtitled "Who runs the business and
-  who owns it.", holding two repeatable sub-sections:
-  - **Management** (`management: CiManagementEntry[]`) — Full name,
-    Birthdate, Birth place, Nationality, Spouse/partner, Home address,
-    Job title, Education, Other business, TIN, Mobile number per entry.
-    "Add management" trigger.
-  - **Major stockholders** (`stockholders: CiStockholderEntry[]`) —
-    Stockholder name, Amount subscribed, Amount paid-up, then an "Is the
-    stockholder a corporation?" Yes/No `RadioRow`
-    (`isCorporation: 'yes' | 'no' | ''`). When `'yes'`, a nested
-    **Sub-stockholders** list (`subStockholders: CiSubStockholderEntry[]`,
-    Sub-stockholder name/Amount subscribed/Amount paid-up per entry)
-    renders directly below that one stockholder, with its own "Add
-    sub-stockholder" trigger scoped to that stockholder only. This is the
-    one genuinely nested array in this app's `CiReport` — mutations locate
-    the parent stockholder by id before touching its own
-    `subStockholders` array, so a sibling stockholder's own
-    sub-stockholders are never affected. Toggling "Is the stockholder a
-    corporation?" from Yes back to No only hides the Sub-stockholders
-    block (the data is not cleared), so toggling back to Yes restores
-    whatever was already entered. "Add stockholder" trigger.
 - **Comments section** — subtitled "Overall remarks from the investigation.",
   `commentsNotes`, the same shared `RichTextField` field the Consumer
   branch's own Comments section uses (so text typed here survives
@@ -646,6 +659,25 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-11 (Management field layout + section order)
+
+- **Management and Ownership moved above Field Investigation** — now the
+  first Commercial section (was third, after Trade Checking). Updated
+  `COMMERCIAL_SECTION_NAV_ITEMS` to match, so the sticky left nav lists
+  it first too.
+- **Rewrote the Management entry form** to match a reference tool
+  exactly: one field per line (Name\*, Current Title\*/Nationality\*,
+  Educational Attainment\*, Other Business Affiliations, Residence
+  Address\*, Birthday\*/Place of Birth\*, Spouse / Partner, Mobile
+  Number\*/Tax Identification Number\*) in place of the previous
+  3-column "Personal"/"Position and Business"/"Identification and
+  Contact" grouped layout. No `CiManagementEntry` field was added or
+  removed — only the order, grouping, labels (Current Title, Residence
+  Address, Tax Identification Number replace the previous Job title,
+  Home address, TIN wording), and required-asterisk markers changed.
+  Exported `requiredLabel()` from `ci-report-card.tsx` so this file could
+  reuse it instead of re-implementing the same red-asterisk helper.
 
 ### 2026-10-07 (Commercial sections made non-collapsible)
 

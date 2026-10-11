@@ -366,7 +366,7 @@ function FactChipRow({
 // asterisk (see docs/225-admin-design-system.md §4 — a manual red `*`
 // span, not MUI's own `required` prop, which renders an unstyled default
 // asterisk inconsistent with the rest of this app).
-function requiredLabel(label: string): React.ReactNode {
+export function requiredLabel(label: string): React.ReactNode {
   return (
     <>
       {label}
