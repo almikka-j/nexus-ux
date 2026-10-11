@@ -486,7 +486,8 @@ a `CommercialInfoChips` block (`ci-report-card.tsx`) renders two parts:
 In order, each implemented in `CommercialReportSections`
 (`credit-investigation/ci-report-commercial-sections.tsx`) — **Management
 and Ownership first**, then **Location / Facilities**, then Field
-Investigation (just Business profile now), Trade Checking, Comments:
+Investigation (just Business profile now), Trade Checking, **Bank
+Verification**, Comments, **Additional Documents**:
 
 - **Management and Ownership section** — subtitled "Who runs the business
   and who owns it.", with a "⋮" menu (`BusinessTypeMenu`) in its own
@@ -571,10 +572,34 @@ Investigation (just Business profile now), Trade Checking, Comments:
   name/address/dealing shape. Add buttons read "Add customer"/"Add
   supplier" (lowercase, matching the reference tool). Same
   add/remove-per-entry UX as every other repeatable section in this card.
+- **Bank Verification section** — its own card, below Trade Checking, no
+  subtitle, repeatable array `commercialBankAccounts:
+  CiCommercialBankAccountEntry[]` — a separate, fuller shape from the
+  Consumer branch's own `CiBankAccountEntry` (adds Branch, Date Verified,
+  Experience, and a bank contact), same reasoning as
+  `CiCommercialTradeEntry` being its own type instead of reusing
+  `CiTradeEntry`. Fields per entry, matching a reference tool's own form:
+  Bank Name\*, Branch\*, then Account No.\*/Account Type\* side by side,
+  then Ave. Daily Balance (not required, `CurrencyField`)/Date Verified\*
+  (date input) side by side, Experience\*, then Contact Person\*/Contact
+  No.\* side by side. "Add Bank" trigger.
 - **Comments section** — subtitled "Overall remarks from the investigation.",
   `commentsNotes`, the same shared `RichTextField` field the Consumer
   branch's own Comments section uses (so text typed here survives
   switching to Consumer and back).
+- **Additional Documents section** — its own card, below Comments, no
+  subtitle beyond "Attach any other supporting documents for this
+  investigation.". Repeatable array `commercialDocuments:
+  CiCommercialDocumentEntry[]`, an open-ended, officer-labelled
+  attachment list distinct from the fixed Document Checklist elsewhere in
+  this app — no status/review tracking, just "what is this file" + the
+  file itself. Multi-file upload via an always-open dropzone
+  (`react-dropzone`, `multiple: true`, same `MultiPhotoDropzone` pattern
+  as the Appraisal Report's own Collateral Photo upload) that appends new
+  entries on every drop rather than replacing; each uploaded file shows a
+  `FileThumbnail` preview, an optional label `TextField`, and a remove
+  button. Same "store filename + object URL only, no real
+  upload/parsing" convention as every other file field in this app.
 
 No Recommendation section inside the Commercial branch — the page's own
 Decision Gate ("Proceed application?", outside `CiReportCard`) already
@@ -681,6 +706,23 @@ applicant" success screen is unaffected.
   simulated action for the same officer, not a distinct workflow role.
 
 ## History
+
+### 2026-10-11 (Bank Verification + Additional Documents cards)
+
+- **Added a new Bank Verification card** to the Commercial branch, between
+  Trade Checking and Comments — repeatable `commercialBankAccounts:
+  CiCommercialBankAccountEntry[]` (Bank Name, Branch, Account No., Account
+  Type, Ave. Daily Balance (not required), Date Verified, Experience,
+  Contact Person, Contact No.), matching a reference tool's own form.
+- **Added a new Additional Documents card**, below Comments (end of the
+  Commercial sections) — repeatable `commercialDocuments:
+  CiCommercialDocumentEntry[]`, multi-file upload via an always-open
+  dropzone that appends on every drop (same pattern as the Appraisal
+  Report's Collateral Photo upload), with a `FileThumbnail` preview and
+  optional label per file.
+- Added `bankVerification`/`additionalDocuments` to `CommercialSectionKey`
+  and `COMMERCIAL_SECTION_NAV_ITEMS`, and to `CiReportCard`'s
+  `commercialExpanded` state.
 
 ### 2026-10-11 (Business-type-conditional Trustees/Stockholders, Location / Facilities card)
 

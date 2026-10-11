@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { NumericFormat } from 'react-number-format';
 
 import Box from '@mui/material/Box';
@@ -17,6 +18,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { Iconify } from 'src/components/iconify';
+import { FileThumbnail } from 'src/components/file-thumbnail';
 import { RichTextField } from 'src/components/rich-text-field';
 import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx, iconButtonBorderedSx } from 'src/components/admin-ui';
 
@@ -31,6 +33,8 @@ import type {
   CiManagementEntry,
   CiStockholderEntry,
   CiSubStockholderEntry,
+  CiCommercialBankAccountEntry,
+  CiCommercialDocumentEntry,
 } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
@@ -824,19 +828,245 @@ function BusinessTypeMenu({
   );
 }
 
+function createCommercialBankAccountEntry(): CiCommercialBankAccountEntry {
+  return {
+    id: Math.random().toString(36).slice(2),
+    bankName: '',
+    branch: '',
+    accountNumber: '',
+    accountType: '',
+    averageDailyBalance: '',
+    dateVerified: '',
+    experience: '',
+    contactPerson: '',
+    contactNumber: '',
+  };
+}
+
+function CommercialBankVerificationSection({
+  entries,
+  onChange,
+}: {
+  entries: CiCommercialBankAccountEntry[];
+  onChange: (entries: CiCommercialBankAccountEntry[]) => void;
+}) {
+  const update = (id: string, patch: Partial<CiCommercialBankAccountEntry>) => {
+    onChange(entries.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)));
+  };
+
+  const remove = (id: string) => {
+    onChange(entries.filter((entry) => entry.id !== id));
+  };
+
+  const add = () => {
+    onChange([...entries, createCommercialBankAccountEntry()]);
+  };
+
+  return (
+    <Stack spacing={2.5}>
+      {entries.map((entry, index) => (
+        <Stack key={entry.id} spacing={1.5} sx={index > 0 ? { pt: 2.5, borderTop: '1px solid #EEF0F5' } : undefined}>
+          {entries.length > 1 && (
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <SectionLabel>Bank {index + 1}</SectionLabel>
+              <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove bank">
+                <Iconify icon="mingcute:close-line" width={16} />
+              </IconButton>
+            </Stack>
+          )}
+          <TextField
+            fullWidth
+            label={requiredLabel('Bank Name')}
+            value={entry.bankName}
+            onChange={(event) => update(entry.id, { bankName: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            label={requiredLabel('Branch')}
+            value={entry.branch}
+            onChange={(event) => update(entry.id, { branch: event.target.value })}
+            sx={fieldSx}
+          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              fullWidth
+              label={requiredLabel('Account No.')}
+              value={entry.accountNumber}
+              onChange={(event) => update(entry.id, { accountNumber: event.target.value })}
+              sx={fieldSx}
+            />
+            <TextField
+              fullWidth
+              label={requiredLabel('Account Type')}
+              value={entry.accountType}
+              onChange={(event) => update(entry.id, { accountType: event.target.value })}
+              sx={fieldSx}
+            />
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <CurrencyField
+              label="Ave. Daily Balance"
+              value={entry.averageDailyBalance}
+              onChange={(averageDailyBalance) => update(entry.id, { averageDailyBalance })}
+            />
+            <TextField
+              fullWidth
+              type="date"
+              label={requiredLabel('Date Verified')}
+              value={entry.dateVerified}
+              onChange={(event) => update(entry.id, { dateVerified: event.target.value })}
+              InputLabelProps={{ shrink: true }}
+              sx={fieldSx}
+            />
+          </Stack>
+          <TextField
+            fullWidth
+            label={requiredLabel('Experience')}
+            value={entry.experience}
+            onChange={(event) => update(entry.id, { experience: event.target.value })}
+            sx={fieldSx}
+          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              fullWidth
+              label={requiredLabel('Contact Person')}
+              value={entry.contactPerson}
+              onChange={(event) => update(entry.id, { contactPerson: event.target.value })}
+              sx={fieldSx}
+            />
+            <TextField
+              fullWidth
+              label={requiredLabel('Contact No.')}
+              value={entry.contactNumber}
+              onChange={(event) => update(entry.id, { contactNumber: event.target.value })}
+              sx={fieldSx}
+            />
+          </Stack>
+        </Stack>
+      ))}
+      <Button
+        onClick={add}
+        startIcon={<Iconify icon="eva:plus-fill" width={18} />}
+        variant="outlined"
+        sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+      >
+        Add Bank
+      </Button>
+    </Stack>
+  );
+}
+
+function createCommercialDocumentEntry(file: File): CiCommercialDocumentEntry {
+  return {
+    id: Math.random().toString(36).slice(2),
+    label: '',
+    fileName: file.name,
+    fileUrl: URL.createObjectURL(file),
+    uploadedAt: new Date().toISOString(),
+  };
+}
+
+function AdditionalDocumentsSection({
+  entries,
+  onChange,
+}: {
+  entries: CiCommercialDocumentEntry[];
+  onChange: (entries: CiCommercialDocumentEntry[]) => void;
+}) {
+  const { getRootProps, getInputProps } = useDropzone({
+    multiple: true,
+    onDrop: (acceptedFiles) => {
+      if (acceptedFiles.length === 0) return;
+      const newEntries = acceptedFiles.map((file) => createCommercialDocumentEntry(file));
+      onChange([...entries, ...newEntries]);
+    },
+  });
+
+  const updateLabel = (id: string, label: string) => {
+    onChange(entries.map((entry) => (entry.id === id ? { ...entry, label } : entry)));
+  };
+
+  const remove = (id: string) => {
+    onChange(entries.filter((entry) => entry.id !== id));
+  };
+
+  return (
+    <Stack spacing={1.75}>
+      <Box
+        {...getRootProps()}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.25,
+          minHeight: 44,
+          px: 1.5,
+          borderRadius: '10px',
+          cursor: 'pointer',
+          border: '1.5px dashed',
+          borderColor: '#B0B8CC',
+          bgcolor: 'common.white',
+          '&:hover': { borderColor: '#1C2A6E', bgcolor: '#F5F7FF' },
+        }}
+      >
+        <input {...getInputProps()} />
+        <Iconify icon="solar:upload-minimalistic-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
+        <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1C2A6E' }}>
+          Choose files — Additional Documents
+        </Typography>
+      </Box>
+      {entries.length > 0 && (
+        <Stack spacing={1.25}>
+          {entries.map((entry) => (
+            <Stack
+              key={entry.id}
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ p: 1.25, borderRadius: '10px', border: '1px solid #EEF0F5' }}
+            >
+              <FileThumbnail file={entry.fileUrl} sx={{ width: 36, height: 36, flexShrink: 0 }} />
+              <Stack spacing={0.25} sx={{ minWidth: 0, flexShrink: 0, width: { xs: 120, sm: 160 } }}>
+                <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#14172A' }} noWrap>
+                  {entry.fileName}
+                </Typography>
+              </Stack>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Document label (optional)"
+                value={entry.label}
+                onChange={(event) => updateLabel(entry.id, event.target.value)}
+                sx={fieldSx}
+              />
+              <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove document">
+                <Iconify icon="mingcute:close-line" width={16} />
+              </IconButton>
+            </Stack>
+          ))}
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
 export type CommercialSectionKey =
   | 'fieldInvestigation'
   | 'locationFacilities'
   | 'tradeChecking'
   | 'managementAndOwnership'
-  | 'comments';
+  | 'bankVerification'
+  | 'comments'
+  | 'additionalDocuments';
 
 export const COMMERCIAL_SECTION_NAV_ITEMS: { key: CommercialSectionKey; label: string }[] = [
   { key: 'managementAndOwnership', label: 'Management and Ownership' },
   { key: 'locationFacilities', label: 'Location / Facilities' },
   { key: 'fieldInvestigation', label: 'Field Investigation' },
   { key: 'tradeChecking', label: 'Trade Checking' },
+  { key: 'bankVerification', label: 'Bank Verification' },
   { key: 'comments', label: 'Comments' },
+  { key: 'additionalDocuments', label: 'Additional Documents' },
 ];
 
 export function CommercialReportSections({
@@ -999,6 +1229,19 @@ export function CommercialReportSections({
       </Box>
 
       <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('bankVerification', el); }}
+        sx={adminCardSx}
+      >
+        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Bank Verification</Typography>
+        </Stack>
+        <CommercialBankVerificationSection
+          entries={report.commercialBankAccounts}
+          onChange={(commercialBankAccounts) => onChange({ commercialBankAccounts })}
+        />
+      </Box>
+
+      <Box
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('comments', el); }}
         sx={adminCardSx}
       >
@@ -1013,6 +1256,22 @@ export function CommercialReportSections({
           value={report.commentsNotes}
           onChange={(html) => onChange({ commentsNotes: html })}
           placeholder="Any additional remarks…"
+        />
+      </Box>
+
+      <Box
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('additionalDocuments', el); }}
+        sx={adminCardSx}
+      >
+        <Stack spacing={0.25} sx={{ mb: 2.5 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Additional Documents</Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
+            Attach any other supporting documents for this investigation.
+          </Typography>
+        </Stack>
+        <AdditionalDocumentsSection
+          entries={report.commercialDocuments}
+          onChange={(commercialDocuments) => onChange({ commercialDocuments })}
         />
       </Box>
     </Stack>

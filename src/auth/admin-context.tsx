@@ -504,6 +504,39 @@ export type CiTrusteeEntry = {
   birthdate: string;
 };
 
+// Commercial Bank Verification entry — a separate, fuller shape from the
+// Consumer branch's own CiBankAccountEntry (adds Branch, Date Verified,
+// Experience, and a bank contact), same reasoning as
+// CiCommercialTradeEntry being its own type instead of reusing
+// CiTradeEntry.
+export type CiCommercialBankAccountEntry = {
+  id: string;
+  bankName: string;
+  branch: string;
+  accountNumber: string;
+  accountType: string;
+  averageDailyBalance: string;
+  dateVerified: string;
+  experience: string;
+  contactPerson: string;
+  contactNumber: string;
+};
+
+// A single uploaded file in the Commercial "Additional Documents" card —
+// an open-ended, officer-labelled attachment list, distinct from the
+// fixed Document Checklist elsewhere in this app (CreditInvestigationDoc)
+// — no status/review tracking, just "what is this file" + the file
+// itself, same minimal shape as AppraisalReport's own CollateralPhoto
+// entries (fileName/fileUrl/uploadedAt), plus a label since these aren't
+// all photos.
+export type CiCommercialDocumentEntry = {
+  id: string;
+  label: string;
+  fileName: string;
+  fileUrl: string;
+  uploadedAt: string;
+};
+
 export type CiIncomeSourceEntry = {
   id: string;
   source: string;
@@ -975,6 +1008,14 @@ export type CiReport = {
   businessTypeOverride: 'cooperative' | 'corporation' | 'partnership' | '';
   trustees: CiTrusteeEntry[];
   stockholders: CiStockholderEntry[];
+
+  // Bank Verification (Commercial only) — its own card, below Trade
+  // Checking.
+  commercialBankAccounts: CiCommercialBankAccountEntry[];
+
+  // Additional Documents (Commercial only) — its own card, below
+  // Comments; an open-ended multi-file attachment list.
+  commercialDocuments: CiCommercialDocumentEntry[];
 
   // Transcript
   transcriptFileName: string | null;
@@ -1974,6 +2015,8 @@ function createInitialCiReport(): CiReport {
     businessTypeOverride: '',
     trustees: [],
     stockholders: [],
+    commercialBankAccounts: [],
+    commercialDocuments: [],
     transcriptFileName: null,
     transcriptUploadedAt: null,
   };

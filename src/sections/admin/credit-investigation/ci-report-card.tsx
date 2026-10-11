@@ -536,7 +536,9 @@ export function CiReportCard() {
     locationFacilities: true,
     tradeChecking: true,
     managementAndOwnership: true,
+    bankVerification: true,
     comments: true,
+    additionalDocuments: true,
   });
   const commercialSectionRefs = useRef(new Map<string, HTMLDivElement | null>());
   const commercialActiveKey = useCiActiveSection(
