@@ -1588,7 +1588,17 @@ view (`AppraisalReportView`)" above.
   `CiSectionNav`/`useCiActiveSection` pattern — 14 entries, one per
   existing top-level section, scroll-jump on click, active-section
   highlight on scroll. External appraiser path is unaffected (no nav,
-  single dropzone).
+  single dropzone). **Fixed the active-section highlight never
+  updating on scroll**: the IntersectionObserver effect originally
+  depended only on `[keys.length]` (a constant 14), so it attached
+  exactly once; `bundle` (and every section below it) is still
+  `undefined` on this component's very first render, before
+  localStorage hydration finishes, so that one attach ran against an
+  empty ref map and never retried once the sections actually mounted a
+  moment later. Added `bundle?.appraiserType` as a `remountKey` — the
+  same fix CI Report's own `useCiActiveSection` already applies via its
+  `report.type` dependency — so the observer re-attaches once the
+  sections genuinely exist.
 - **2026-10-16** — Matched the in-house form's field set to a reference
   Appraisal Report tool, section by section: added File Type/Title No.
   per land title, a per-title Lot Plotting bearings/distance table

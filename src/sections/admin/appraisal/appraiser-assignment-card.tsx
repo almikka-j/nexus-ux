@@ -191,10 +191,17 @@ function AppraisalSectionNav({
 
 // Tracks which registered section is closest to the top of the viewport
 // — same IntersectionObserver mechanics as CiReportCard's own
-// useCiActiveSection.
+// useCiActiveSection. `remountKey` re-attaches the observer once the
+// section elements actually exist: `bundle` (and so every section
+// below) can still be `undefined` on this component's very first
+// render, before localStorage finishes hydrating — the effect would
+// otherwise run once against an empty ref map and never retry once the
+// sections genuinely mount a moment later, permanently leaving the nav
+// unable to highlight anything on scroll.
 function useAppraisalActiveSection(
   sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>,
-  keys: string[]
+  keys: string[],
+  remountKey: string
 ) {
   const [activeKey, setActiveKey] = useState<string | null>(keys[0] ?? null);
 
@@ -220,7 +227,7 @@ function useAppraisalActiveSection(
     entries.forEach(([, el]) => observer.observe(el));
     return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keys.length]);
+  }, [keys.length, remountKey]);
 
   return activeKey;
 }
@@ -925,7 +932,8 @@ export function AppraiserAssignmentCard({
   const sectionRefs = useRef(new Map<string, HTMLDivElement | null>());
   const activeSectionKey = useAppraisalActiveSection(
     sectionRefs,
-    APPRAISAL_SECTION_NAV_ITEMS.map((item) => item.key)
+    APPRAISAL_SECTION_NAV_ITEMS.map((item) => item.key),
+    bundle?.appraiserType ?? ''
   );
   const handleJumpToSection = (key: AppraisalSectionKey) => {
     requestAnimationFrame(() => {
