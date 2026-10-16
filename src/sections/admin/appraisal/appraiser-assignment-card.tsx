@@ -4,16 +4,24 @@ import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogContent from '@mui/material/DialogContent';
 
-import { useAdmin } from 'src/auth/admin-context';
+import {
+  useAdmin,
+  createLotPlotLine,
+  createAppraisalImprovementEntry,
+  createAppraisalParticularEntry,
+  createAppraisalConditionEntry,
+} from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
@@ -22,7 +30,7 @@ import { CollapsibleSection } from 'src/components/collapsible-section';
 
 import { AppraisalReportPreview } from './appraisal-report-preview';
 
-import type { CollateralPhoto, AppraisalReportLandTitle } from 'src/auth/admin-context';
+import type { CollateralPhoto, AppraisalReportLandTitle, LotPlotLine } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // In-house vs external appraiser report. In-house fills out the full
@@ -364,9 +372,35 @@ function LandTitleFields({
     });
   };
 
+  const addLotPlotLine = () => onChange({ lotPlotLines: [...title.lotPlotLines, createLotPlotLine()] });
+  const updateLotPlotLine = (lineId: string, data: Partial<LotPlotLine>) =>
+    onChange({
+      lotPlotLines: title.lotPlotLines.map((line) => (line.id === lineId ? { ...line, ...data } : line)),
+    });
+  const removeLotPlotLine = (lineId: string) =>
+    onChange({ lotPlotLines: title.lotPlotLines.filter((line) => line.id !== lineId) });
+
   const fields = (
       <Stack spacing={1.5}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="File Type"
+            value={title.fileType}
+            disabled={!editable}
+            onChange={(event) => onChange({ fileType: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Title No."
+            value={title.titleNo}
+            disabled={!editable}
+            onChange={(event) => onChange({ titleNo: event.target.value })}
+            sx={fieldSx}
+          />
           <TextField
             fullWidth
             size="small"
@@ -385,6 +419,8 @@ function LandTitleFields({
             onChange={(event) => onChange({ bookPageNo: event.target.value })}
             sx={fieldSx}
           />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           <TextField
             fullWidth
             size="small"
@@ -502,6 +538,94 @@ function LandTitleFields({
                 Enter coordinates, then generate a plot diagram for this title.
               </Typography>
             </Box>
+          </Stack>
+          <Stack spacing={1} sx={{ mb: 1.75 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              Lot Plotting
+            </Typography>
+            {title.lotPlotLines.map((line, index) => (
+              <Stack
+                key={line.id}
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ p: 1, borderRadius: '8px', bgcolor: 'common.white', border: '1px solid #E3E7F0' }}
+              >
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', width: 20, flexShrink: 0 }}>
+                  {index + 1}
+                </Typography>
+                <TextField
+                  size="small"
+                  placeholder="P1-2"
+                  value={line.label}
+                  disabled={!editable}
+                  onChange={(event) => updateLotPlotLine(line.id, { label: event.target.value })}
+                  sx={{ width: 72, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
+                />
+                <TextField
+                  select
+                  size="small"
+                  value={line.northSouth}
+                  disabled={!editable}
+                  onChange={(event) => updateLotPlotLine(line.id, { northSouth: event.target.value as 'N' | 'S' })}
+                  sx={{ width: 64, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
+                >
+                  <MenuItem value="N">N</MenuItem>
+                  <MenuItem value="S">S</MenuItem>
+                </TextField>
+                <TextField
+                  size="small"
+                  placeholder="Deg."
+                  value={line.degrees}
+                  disabled={!editable}
+                  onChange={(event) => updateLotPlotLine(line.id, { degrees: event.target.value })}
+                  sx={{ width: 72, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
+                />
+                <TextField
+                  select
+                  size="small"
+                  value={line.eastWest}
+                  disabled={!editable}
+                  onChange={(event) => updateLotPlotLine(line.id, { eastWest: event.target.value as 'E' | 'W' })}
+                  sx={{ width: 64, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
+                >
+                  <MenuItem value="E">E</MenuItem>
+                  <MenuItem value="W">W</MenuItem>
+                </TextField>
+                <TextField
+                  size="small"
+                  placeholder="Min."
+                  value={line.minutes}
+                  disabled={!editable}
+                  onChange={(event) => updateLotPlotLine(line.id, { minutes: event.target.value })}
+                  sx={{ width: 72, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
+                />
+                <TextField
+                  size="small"
+                  placeholder="Dist. (m)"
+                  value={line.distanceM}
+                  disabled={!editable}
+                  onChange={(event) => updateLotPlotLine(line.id, { distanceM: event.target.value })}
+                  sx={{ width: 90, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
+                />
+                {editable && (
+                  <IconButton size="small" onClick={() => removeLotPlotLine(line.id)} sx={{ flexShrink: 0 }}>
+                    <Iconify icon="mingcute:close-line" width={16} />
+                  </IconButton>
+                )}
+              </Stack>
+            ))}
+            {editable && (
+              <Button
+                onClick={addLotPlotLine}
+                size="small"
+                variant="outlined"
+                startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+                sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+              >
+                Add line
+              </Button>
+            )}
           </Stack>
           <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'flex-start' }} spacing={{ xs: 1, sm: 1.25 }}>
             <TextField
@@ -985,10 +1109,10 @@ export function AppraiserAssignmentCard({
               <TextField
                 fullWidth
                 size="small"
-                label="Telephone"
-                value={report.utilityTelephone}
+                label="Gas / Others"
+                value={report.utilityGasOthers}
                 disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { utilityTelephone: event.target.value })}
+                onChange={(event) => setAppraisalBundleReport(bundleId, { utilityGasOthers: event.target.value })}
                 sx={fieldSx}
               />
             </Stack>
@@ -997,45 +1121,116 @@ export function AppraiserAssignmentCard({
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
           <Stack spacing={1.5}>
-            <SectionLabel>Improvement — general construction features</SectionLabel>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Year Constructed"
-                value={report.buildingYearConstructed}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { buildingYearConstructed: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="Condition (good/fair/poor)"
-                value={report.buildingCondition}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { buildingCondition: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="Construction (exp/s-exp/med/cheap)"
-                value={report.buildingConstruction}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { buildingConstruction: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="Est. Floor Area (sq.m.)"
-                value={report.buildingEstFloorArea}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { buildingEstFloorArea: event.target.value })}
-                sx={fieldSx}
-              />
+            <SectionLabel>Improvement</SectionLabel>
+            <Stack spacing={1.25}>
+              {report.improvements.map((improvement, index) => (
+                <Box key={improvement.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Chip
+                      label={`Improvement ${index + 1}`}
+                      size="small"
+                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                    />
+                    {editable && (
+                      <Button
+                        onClick={() =>
+                          setAppraisalBundleReport(bundleId, {
+                            improvements: report.improvements.filter((entry) => entry.id !== improvement.id),
+                          })
+                        }
+                        size="small"
+                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
+                        sx={{ color: '#F04438' }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </Stack>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Year Constructed"
+                      value={improvement.yearConstructed}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          improvements: report.improvements.map((entry) =>
+                            entry.id === improvement.id ? { ...entry, yearConstructed: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Construction"
+                      value={improvement.construction}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          improvements: report.improvements.map((entry) =>
+                            entry.id === improvement.id ? { ...entry, construction: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Condition"
+                      value={improvement.condition}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          improvements: report.improvements.map((entry) =>
+                            entry.id === improvement.id ? { ...entry, condition: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Est. Floor Area"
+                      value={improvement.estFloorArea}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          improvements: report.improvements.map((entry) =>
+                            entry.id === improvement.id ? { ...entry, estFloorArea: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                  </Stack>
+                </Box>
+              ))}
             </Stack>
+            {editable && (
+              <Button
+                onClick={() =>
+                  setAppraisalBundleReport(bundleId, {
+                    improvements: [...report.improvements, createAppraisalImprovementEntry()],
+                  })
+                }
+                variant="outlined"
+                startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
+                sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+              >
+                Add Improvement
+              </Button>
+            )}
+          </Stack>
+
+          <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+          <Stack spacing={1.5}>
+            <SectionLabel>General construction features</SectionLabel>
             <TextField
               fullWidth
               multiline
@@ -1046,65 +1241,136 @@ export function AppraiserAssignmentCard({
               onChange={(event) => setAppraisalBundleReport(bundleId, { generalConstructionFeatures: event.target.value })}
               sx={fieldSx}
             />
+          </Stack>
+
+          <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+          <Stack spacing={1.5}>
             <SectionLabel>Particular description</SectionLabel>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Floor Level"
-                value={report.floorLevel}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { floorLevel: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="External Walls"
-                value={report.externalWalls}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { externalWalls: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="Interior Walls & Partitions"
-                value={report.interiorWallsPartitions}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { interiorWallsPartitions: event.target.value })}
-                sx={fieldSx}
-              />
+            <Stack spacing={1.25}>
+              {report.particularDescriptions.map((particular, index) => (
+                <Box key={particular.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Chip
+                      label={`Entry ${index + 1}`}
+                      size="small"
+                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                    />
+                    {editable && (
+                      <Button
+                        onClick={() =>
+                          setAppraisalBundleReport(bundleId, {
+                            particularDescriptions: report.particularDescriptions.filter(
+                              (entry) => entry.id !== particular.id
+                            ),
+                          })
+                        }
+                        size="small"
+                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
+                        sx={{ color: '#F04438' }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </Stack>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Floor Level"
+                      value={particular.floorLevel}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          particularDescriptions: report.particularDescriptions.map((entry) =>
+                            entry.id === particular.id ? { ...entry, floorLevel: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Interior Walls & Partitions"
+                      value={particular.interiorWallsPartitions}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          particularDescriptions: report.particularDescriptions.map((entry) =>
+                            entry.id === particular.id
+                              ? { ...entry, interiorWallsPartitions: event.target.value }
+                              : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Flooring"
+                      value={particular.flooring}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          particularDescriptions: report.particularDescriptions.map((entry) =>
+                            entry.id === particular.id ? { ...entry, flooring: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                  </Stack>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 1.5 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Doors & Windows"
+                      value={particular.doorsWindows}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          particularDescriptions: report.particularDescriptions.map((entry) =>
+                            entry.id === particular.id ? { ...entry, doorsWindows: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Ceiling & Roofing"
+                      value={particular.ceilingRoofing}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          particularDescriptions: report.particularDescriptions.map((entry) =>
+                            entry.id === particular.id ? { ...entry, ceilingRoofing: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                  </Stack>
+                </Box>
+              ))}
             </Stack>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Flooring"
-                value={report.flooring}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { flooring: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="Doors & Windows"
-                value={report.doorsWindows}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { doorsWindows: event.target.value })}
-                sx={fieldSx}
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="Ceiling & Roofing"
-                value={report.ceilingRoofing}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { ceilingRoofing: event.target.value })}
-                sx={fieldSx}
-              />
-            </Stack>
+            {editable && (
+              <Button
+                onClick={() =>
+                  setAppraisalBundleReport(bundleId, {
+                    particularDescriptions: [...report.particularDescriptions, createAppraisalParticularEntry()],
+                  })
+                }
+                variant="outlined"
+                startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
+                sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+              >
+                Add Particular
+              </Button>
+            )}
           </Stack>
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
@@ -1162,6 +1428,17 @@ export function AppraiserAssignmentCard({
                     <TextField
                       fullWidth
                       size="small"
+                      label="Zonal Value"
+                      value={comparable.zonalValue}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        updateAppraisalBundleComparable(bundleId, comparable.id, { zonalValue: event.target.value })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
                       label="Value"
                       value={comparable.value}
                       disabled={!editable}
@@ -1193,14 +1470,35 @@ export function AppraiserAssignmentCard({
                 Add Comparable
               </Button>
             )}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Fair Market Value Per Square Meter"
+                placeholder="Php 1,000 per square meter"
+                value={report.fairMarketValuePerSqm}
+                disabled={!editable}
+                onChange={(event) => setAppraisalBundleReport(bundleId, { fairMarketValuePerSqm: event.target.value })}
+                sx={fieldSx}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Fair Market Value Total (PHP)"
+                value={report.fairMarketValueTotal}
+                disabled={!editable}
+                onChange={(event) => setAppraisalBundleReport(bundleId, { fairMarketValueTotal: event.target.value })}
+                sx={fieldSx}
+              />
+            </Stack>
             <TextField
               fullWidth
-              size="small"
-              label="Fair Market Value as per square meter"
-              placeholder="Php 1,000 per square meter"
-              value={report.fairMarketValuePerSqm}
+              multiline
+              minRows={2}
+              label="Valuation remarks"
+              value={report.valuationRemarks}
               disabled={!editable}
-              onChange={(event) => setAppraisalBundleReport(bundleId, { fairMarketValuePerSqm: event.target.value })}
+              onChange={(event) => setAppraisalBundleReport(bundleId, { valuationRemarks: event.target.value })}
               sx={fieldSx}
             />
           </Stack>
@@ -1218,18 +1516,161 @@ export function AppraiserAssignmentCard({
               onChange={(event) => setAppraisalBundleReport(bundleId, { remarksAdditionalInfo: event.target.value })}
               sx={fieldSx}
             />
+            <SectionLabel>Conditions for acceptance of collateral</SectionLabel>
+            <Stack spacing={1.25}>
+              {report.conditionsForAcceptance.map((condition, index) => (
+                <Box key={condition.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Chip
+                      label={`Item ${index + 1}`}
+                      size="small"
+                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                    />
+                    {editable && (
+                      <Button
+                        onClick={() =>
+                          setAppraisalBundleReport(bundleId, {
+                            conditionsForAcceptance: report.conditionsForAcceptance.filter(
+                              (entry) => entry.id !== condition.id
+                            ),
+                          })
+                        }
+                        size="small"
+                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
+                        sx={{ color: '#F04438' }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </Stack>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Item of Property"
+                      value={condition.itemOfProperty}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          conditionsForAcceptance: report.conditionsForAcceptance.map((entry) =>
+                            entry.id === condition.id ? { ...entry, itemOfProperty: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={{ ...fieldSx, flex: 2 }}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Ref"
+                      value={condition.ref}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          conditionsForAcceptance: report.conditionsForAcceptance.map((entry) =>
+                            entry.id === condition.id ? { ...entry, ref: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Marketable"
+                      value={condition.marketable}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          conditionsForAcceptance: report.conditionsForAcceptance.map((entry) =>
+                            entry.id === condition.id ? { ...entry, marketable: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                  </Stack>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 1.5 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Construction (%)"
+                      value={condition.constructionStatusPercent}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          conditionsForAcceptance: report.conditionsForAcceptance.map((entry) =>
+                            entry.id === condition.id
+                              ? { ...entry, constructionStatusPercent: event.target.value }
+                              : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Depreciated Value"
+                      value={condition.depreciatedValue}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          conditionsForAcceptance: report.conditionsForAcceptance.map((entry) =>
+                            entry.id === condition.id ? { ...entry, depreciatedValue: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Appraised Value"
+                      value={condition.appraisedValue}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        setAppraisalBundleReport(bundleId, {
+                          conditionsForAcceptance: report.conditionsForAcceptance.map((entry) =>
+                            entry.id === condition.id ? { ...entry, appraisedValue: event.target.value } : entry
+                          ),
+                        })
+                      }
+                      sx={fieldSx}
+                    />
+                  </Stack>
+                </Box>
+              ))}
+            </Stack>
+            {editable && (
+              <Button
+                onClick={() =>
+                  setAppraisalBundleReport(bundleId, {
+                    conditionsForAcceptance: [
+                      ...report.conditionsForAcceptance,
+                      createAppraisalConditionEntry(),
+                    ],
+                  })
+                }
+                variant="outlined"
+                startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
+                sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+              >
+                Add Item
+              </Button>
+            )}
           </Stack>
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
           <Stack spacing={1.5}>
-            <SectionLabel>Valuation</SectionLabel>
+            <SectionLabel>Appraisal summary</SectionLabel>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <TextField
                 fullWidth
                 required
                 size="small"
-                label="Appraised Value"
+                label="Appraised Value (PHP)"
                 placeholder="0.00"
                 value={report.appraisedValue}
                 disabled={!editable}
@@ -1239,7 +1680,7 @@ export function AppraiserAssignmentCard({
               <TextField
                 fullWidth
                 size="small"
-                label="Rounded Figures"
+                label="Rounded Figures (PHP)"
                 value={report.roundedFigures}
                 disabled={!editable}
                 onChange={(event) => setAppraisalBundleReport(bundleId, { roundedFigures: event.target.value })}
@@ -1265,6 +1706,27 @@ export function AppraiserAssignmentCard({
               onChange={(event) => setAppraisalBundleReport(bundleId, { amountInWords: event.target.value })}
               sx={fieldSx}
             />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Leasable Percent (%)"
+                placeholder="70"
+                value={report.leasablePercent}
+                disabled={!editable}
+                onChange={(event) => setAppraisalBundleReport(bundleId, { leasablePercent: event.target.value })}
+                sx={fieldSx}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Leasable Amount (PHP)"
+                value={report.leasableAmount}
+                disabled={!editable}
+                onChange={(event) => setAppraisalBundleReport(bundleId, { leasableAmount: event.target.value })}
+                sx={fieldSx}
+              />
+            </Stack>
           </Stack>
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
@@ -1354,6 +1816,17 @@ export function AppraiserAssignmentCard({
               label="Choose a file — Tax Map"
               accept={{ 'image/*': [] }}
               imageView
+            />
+          </Stack>
+
+          <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Fee attachment</SectionLabel>
+            <MultiPhotoDropzone
+              photos={report.feeAttachments}
+              onChange={(feeAttachments) => setAppraisalBundleReport(bundleId, { feeAttachments })}
+              disabled={!editable}
             />
           </Stack>
 

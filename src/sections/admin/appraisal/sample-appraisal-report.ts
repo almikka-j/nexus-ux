@@ -123,6 +123,8 @@ export function buildSampleAppraisalReport(
     locationOfProperty: `${bundleTctNumbers.join(', ')}, Quezon City, Metro Manila`,
     landTitles: bundle.report.landTitles.map((title) => ({
       ...title,
+      fileType: 'TCT',
+      titleNo: 'TCT-2026-00001',
       surveyNo: 'Psu-123456',
       bookPageNo: 'Book 45 / Page 12',
       titleRegistrationDate: now.slice(0, 10),
@@ -141,6 +143,12 @@ export function buildSampleAppraisalReport(
       lotPlotFileName: 'Lot-Plot-Sample.svg',
       lotPlotFileUrl: SAMPLE_LOT_PLOT,
       lotPlotGeneratedAt: now,
+      lotPlotLines: [
+        { id: crypto.randomUUID(), label: 'P1-2', northSouth: 'N' as const, degrees: '16', eastWest: 'W' as const, minutes: '30', distanceM: '9' },
+        { id: crypto.randomUUID(), label: 'P2-3', northSouth: 'N' as const, degrees: '73', eastWest: 'E' as const, minutes: '30', distanceM: '20' },
+        { id: crypto.randomUUID(), label: 'P3-4', northSouth: 'S' as const, degrees: '16', eastWest: 'E' as const, minutes: '30', distanceM: '9' },
+        { id: crypto.randomUUID(), label: 'P4-1', northSouth: 'S' as const, degrees: '73', eastWest: 'W' as const, minutes: '30', distanceM: '20' },
+      ],
       collateralPhotos: [1, 2, 3, 4].map((index) => ({
         fileName: `Collateral-Photo-Sample-${index}.svg`,
         fileUrl: SAMPLE_COLLATERAL_PHOTO,
@@ -162,20 +170,29 @@ export function buildSampleAppraisalReport(
     utilityPublicConveyance: 'Available',
     utilityElectricity: 'Meralco',
     utilityWater: 'Maynilad',
-    utilityTelephone: 'PLDT',
+    utilityGasOthers: 'PLDT',
 
-    buildingYearConstructed: '2020',
-    buildingCondition: 'Good',
-    buildingConstruction: 'Med',
-    buildingEstFloorArea: '1.00',
+    improvements: [
+      {
+        id: crypto.randomUUID(),
+        yearConstructed: '2020',
+        construction: 'Med',
+        condition: 'Good',
+        estFloorArea: '1.00',
+      },
+    ],
 
     generalConstructionFeatures: 'Single-detached, two-storey residential building',
-    floorLevel: 'Ground + 2nd floor',
-    externalWalls: 'CHB, painted',
-    interiorWallsPartitions: 'Plain cement finish',
-    flooring: 'Ceramic tiles',
-    doorsWindows: 'Wood panel doors, aluminum sliding windows',
-    ceilingRoofing: 'Long-span roofing, gypsum ceiling',
+    particularDescriptions: [
+      {
+        id: crypto.randomUUID(),
+        floorLevel: 'Ground + 2nd floor',
+        interiorWallsPartitions: 'Plain cement finish',
+        flooring: 'Ceramic tiles',
+        doorsWindows: 'Wood panel doors, aluminum sliding windows',
+        ceilingRoofing: 'Long-span roofing, gypsum ceiling',
+      },
+    ],
 
     basisOfValuationComparables: [
       {
@@ -184,6 +201,7 @@ export function buildSampleAppraisalReport(
         location: 'Same barangay',
         areaSize: '250',
         priceType: 'Zonal Valuation',
+        zonalValue: '15,000',
         value: '15,000',
       },
       {
@@ -192,15 +210,32 @@ export function buildSampleAppraisalReport(
         location: 'Same barangay',
         areaSize: '250',
         priceType: 'Selling Price',
+        zonalValue: '15,000',
         value: '18,000',
       },
     ],
     fairMarketValuePerSqm: '15,000',
+    fairMarketValueTotal: '3,750,000',
+    valuationRemarks: 'Based on BIR zonal valuation and comparable sales within the vicinity.',
+
+    conditionsForAcceptance: [
+      {
+        id: crypto.randomUUID(),
+        itemOfProperty: 'Residential lot and improvement',
+        ref: bundleTctNumbers[0] ?? '',
+        marketable: 'Yes',
+        constructionStatusPercent: '100',
+        depreciatedValue: '2,500,000',
+        appraisedValue: '2,500,000',
+      },
+    ],
 
     appraisedValue: '2500000',
     roundedFigures: '2,500,000',
     amountInWords: 'Two Million Five Hundred Thousand Pesos Only',
     loanableAmount: '2,000,000',
+    leasablePercent: '70',
+    leasableAmount: '1,750,000',
 
     preparedBy: bundle.appraiserName ?? 'Appraiser',
     preparedAt: null,
@@ -217,6 +252,9 @@ export function buildSampleAppraisalReport(
     taxMapFileName: 'Tax-Map-Sample.svg',
     taxMapFileUrl: SAMPLE_COLLATERAL_PHOTO,
     taxMapUploadedAt: now,
+    feeAttachments: [
+      { fileName: 'Fee-Attachment-Sample.svg', fileUrl: SAMPLE_COLLATERAL_PHOTO, uploadedAt: now },
+    ],
 
     uploadedAt: submit ? now : null,
   };

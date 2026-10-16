@@ -761,13 +761,15 @@ Value, Remarks, Recommendation) to the full structure of the printed
 - **Land** — `registeredOwner`, `locationOfProperty`, `encumbrancesRemarks`,
   plus `landTitles: AppraisalReportLandTitle[]` — one entry per pledged
   property (`AppraisalTctGroup`) the bundle covers (`{ tctGroupId,
-  surveyNo, bookPageNo, titleRegistrationDate, titleRegistrationPlace,
-  areaSize, lotNo, zonalValue, fmvRcn, constructionStatusPercent,
-  depreciatedValue, appraisedValueP, latitude, longitude, lotPlotFileName,
-  lotPlotFileUrl, lotPlotGeneratedAt, boundaries, technicalSpecification,
+  fileType, titleNo, surveyNo, bookPageNo, titleRegistrationDate,
+  titleRegistrationPlace, areaSize, lotNo, zonalValue, fmvRcn,
+  constructionStatusPercent, depreciatedValue, appraisedValueP, latitude,
+  longitude, lotPlotFileName, lotPlotFileUrl, lotPlotGeneratedAt,
+  lotPlotLines: LotPlotLine[], boundaries, technicalSpecification,
   collateralPhotos: CollateralPhoto[] }`), since the PDF's
   LAND/BOUNDARIES/TECHNICAL SPECIFICATION tables — and its final "Item of
-  Property" valuation table — all repeat once per TCT/OCT. `fmvRcn`,
+  Property" valuation table — all repeat once per TCT/OCT. `fileType`/
+  `titleNo` are plain text fields alongside Survey No./Book No. `fmvRcn`,
   `constructionStatusPercent`, `depreciatedValue`, and `appraisedValueP`
   moved here from the flat `AppraisalReport` (see "Valuation table"
   below) so a bundle covering several TCTs shows one valuation row per
@@ -784,30 +786,45 @@ Value, Remarks, Recommendation) to the full structure of the printed
   earlier version had exactly one photo per title, as three flat
   `photo*` fields directly on `AppraisalReportLandTitle`; converted to
   this array per explicit direction to support multiple uploads.)
+  `lotPlotLines` is a bearings/distance table (`{ id, label, northSouth:
+  'N'|'S'|'', degrees, eastWest: 'E'|'W'|'', minutes, distanceM }`), a
+  freely-typed "+ Add line" repeatable list shown alongside the generated
+  plot image/lat-long inputs — purely descriptive input (same
+  no-real-geocoding convention as latitude/longitude), not used to
+  actually compute the generated plot image.
 - **Technical specification** (report-wide, not per-title) —
   `streetFrontage`, `streetWidth`, `surfacing`, `averageDepth`,
   `approxShape`, `topography`, `neighborhood`, `presentUse`,
   `highestAndBestUse`.
 - **Source or kind of utilities** — `utilityPublicConveyance`,
-  `utilityElectricity`, `utilityWater`, `utilityTelephone`.
-- **Improvement / General Construction Features / Particular Description**
-  — `buildingYearConstructed`, `buildingCondition`, `buildingConstruction`,
-  `buildingEstFloorArea` (the printed PDF's own "Building 1" summary
-  table — one record for the whole report, not an array, per explicit
-  direction: a report covering several TCTs/lots still describes just the
-  one improvement/building actually on site), then
-  `generalConstructionFeatures`, `floorLevel`, `externalWalls`,
-  `interiorWallsPartitions`, `flooring`, `doorsWindows`, `ceilingRoofing`.
+  `utilityElectricity`, `utilityWater`, `utilityGasOthers` (renamed from
+  `utilityTelephone` to match a reference tool's own "Gas / Others"
+  field).
+- **Improvement** — `improvements: AppraisalImprovementEntry[]` (`{ id,
+  yearConstructed, construction, condition, estFloorArea }`) — now
+  repeatable (an "Add Improvement" card, same pattern as Basis of
+  Valuation's own comparables), replacing the earlier flat
+  `buildingYearConstructed`/`buildingCondition`/`buildingConstruction`/
+  `buildingEstFloorArea` single record. A report covering several
+  structures on site (main house, garage, etc.) can now list each one
+  separately, matching a reference tool's own repeatable "Improvement 1,
+  Improvement 2…" cards.
+- **General Construction Features** — `generalConstructionFeatures`
+  (rich narrative field), its own card, unchanged.
+- **Particular Description** — `particularDescriptions:
+  AppraisalParticularEntry[]` (`{ id, floorLevel,
+  interiorWallsPartitions, flooring, doorsWindows, ceilingRoofing }`) —
+  now repeatable ("Add Particular"), replacing the earlier flat
+  `floorLevel`/`externalWalls`/`interiorWallsPartitions`/`flooring`/
+  `doorsWindows`/`ceilingRoofing` single record (`externalWalls` was
+  dropped — no equivalent field in the reference form this now matches).
 - **Basis of Valuation (Land)** — `basisOfValuationComparables:
   BasisOfValuationComparable[]` (`{ id, source, location, areaSize,
-  priceType, value }`), plus `fairMarketValuePerSqm`. Replaces the old
-  single `basisSource`/`basisLocation`/`basisAreaSize`/`basisPriceType`/
-  `basisSellingPrice` fields, which could only hold one comparable — the
-  printed PDF actually lists several (BIR zonal valuation, plus each
-  cited appraiser's own selling/bid price), each with its own
-  Source/Location/Area Size/Price Type/Value. UI is an "Add Comparable"
-  card (matching Requirement Checklist's own "Add Collateral" pattern,
-  per explicit direction) — an input row + button that appends a new
+  priceType, zonalValue, value }` — `zonalValue` is new, alongside the
+  existing fields), plus `fairMarketValuePerSqm`, `fairMarketValueTotal`
+  (new), and `valuationRemarks` (new, a narrative field). UI is an "Add
+  Comparable" card (matching Requirement Checklist's own "Add
+  Collateral" pattern) — an input row + button that appends a new
   `createBasisOfValuationComparable()` entry (a fresh `crypto.randomUUID()`
   id, blank strings), with a per-entry delete (×) button. Three dedicated
   setters: `addAppraisalBundleComparable(bundleId)`,
@@ -815,15 +832,30 @@ Value, Remarks, Recommendation) to the full structure of the printed
   `removeAppraisalBundleComparable(bundleId, comparableId)` — a plain
   `setAppraisalBundleReport` merge can't reach inside the array, same
   reason `setAppraisalBundleLandTitle` exists for `landTitles`.
-- **Remarks / Additional Information** — `remarksAdditionalInfo`.
-- **Valuation table** — the per-TCT row (`fmvRcn`,
-  `constructionStatusPercent`, `depreciatedValue`, `appraisedValueP`) now
-  lives on `AppraisalReportLandTitle` instead (see "Land" above), one row
-  per pledged property, matching the PDF's per-TCT "Item of Property"
-  table. `AppraisalReport` itself keeps only the bundle-wide totals:
-  `appraisedValue` (required to submit — the only required field, same
-  gate the old 2-field version had), `roundedFigures`, `amountInWords`,
-  `loanableAmount`.
+  `improvements`/`particularDescriptions`/`conditionsForAcceptance`/
+  `landTitles[].lotPlotLines` (see below), added later, deliberately did
+  NOT get their own dedicated setters — the in-house form's own
+  add/update/remove handlers compute the next array inline and call the
+  existing generic `setAppraisalBundleReport(bundleId, { field:
+  nextArray })` merge instead, since that setter already exists and a
+  dedicated setter per array would just be more surface area for the
+  same result.
+- **Remarks / Additional Information** — `remarksAdditionalInfo`, plus a
+  new **Conditions for acceptance of collateral** repeatable array,
+  `conditionsForAcceptance: AppraisalConditionEntry[]` (`{ id,
+  itemOfProperty, ref, marketable, constructionStatusPercent,
+  depreciatedValue, appraisedValue }`) — an "Add Item" card in the same
+  section, matching a reference tool's own table.
+- **Valuation table → Appraisal summary** — the per-TCT row (`fmvRcn`,
+  `constructionStatusPercent`, `depreciatedValue`, `appraisedValueP`) still
+  lives on `AppraisalReportLandTitle` (see "Land" above), one row per
+  pledged property, matching the PDF's per-TCT "Item of Property" table.
+  `AppraisalReport` itself keeps the bundle-wide totals, now under an
+  "Appraisal summary" heading matching the reference form: `appraisedValue`
+  (required to submit — the only required field), `roundedFigures`,
+  `amountInWords`, `loanableAmount`, plus two new fields,
+  `leasablePercent`/`leasableAmount` (Leasable Percent %/Leasable Amount
+  PHP) — a distinct concept from Loanable Amount, both kept side by side.
 - **Signature chain** — a **sequential sign-off chain**, not just four
   name fields: `preparedBy`/`preparedAt`, `reviewedBy`/`reviewedAt`,
   `endorsedBy`/`endorsedAt`, `notedBy`/`notedAt` (each `*At` an ISO
@@ -852,6 +884,13 @@ Value, Remarks, Recommendation) to the full structure of the printed
   title's own (per-TCT, multiple) Collateral Photos and Lot Plot image.
   Maps to the printed PDF's own "File Attachment" section (which also
   lists per-lot photos — those are what Collateral Photos covers).
+  `feeAttachments: CollateralPhoto[]` (new) is a separate, generic
+  multi-photo gallery — "Fee Attachment" in a reference form — reusing
+  the same `MultiPhotoDropzone` component Collateral Photos uses
+  (append-on-drop, thumbnail grid with per-photo remove), bound to
+  `setAppraisalBundleReport(bundleId, { feeAttachments })` directly
+  rather than a dedicated setter, same reasoning as the other new arrays
+  above.
 - **External file fields** — `fileName`, `fileUrl`, `uploadedAt`, unchanged.
 
 `createAppraisalReportBundle` (the `admin-context.tsx` factory, not the
@@ -1524,6 +1563,23 @@ Pass/Fail terminal decision. The gating that does happen here:
 Concise milestones — the detailed pass-by-pass narrative is in "Read-only
 view (`AppraisalReportView`)" above.
 
+- **2026-10-16** — Matched the in-house form's field set to a reference
+  Appraisal Report tool, section by section: added File Type/Title No.
+  per land title, a per-title Lot Plotting bearings/distance table
+  (`lotPlotLines`), renamed Utilities' Telephone to Gas/Others
+  (`utilityGasOthers`), converted Improvement and Particular Description
+  from flat single records into repeatable arrays
+  (`improvements`/`particularDescriptions`), added Zonal Value to each
+  Basis of Valuation comparable plus Fair Market Value Total and
+  Valuation Remarks, added a new repeatable "Conditions for acceptance of
+  collateral" table (`conditionsForAcceptance`), added Leasable
+  Percent/Amount to the renamed "Appraisal summary" block, and added a
+  generic multi-photo "Fee Attachment" gallery (`feeAttachments`, reusing
+  `MultiPhotoDropzone`). Updated `appraisal-report-preview.tsx` and
+  `appraisal-report-view.tsx` (both read-only renderers) and
+  `sample-appraisal-report.ts` to match. The new array fields use the
+  existing generic `setAppraisalBundleReport` merge rather than dedicated
+  context setters — see "`AppraisalReport` data model" above.
 - **2026-09-28** — Added "Simulate: Reset Report"
   (`resetAppraisalBundleReport`), a dev/testing action on the per-bundle
   detail page that restores this bundle's `report` back to a genuinely

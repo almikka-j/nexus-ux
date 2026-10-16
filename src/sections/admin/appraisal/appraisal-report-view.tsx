@@ -349,6 +349,8 @@ function LandTitleSummary({
 
       <Stack spacing={1.75} sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 2.5, rowGap: 1.75 }}>
+          <Field label="File Type" value={title.fileType} />
+          <Field label="Title No." value={title.titleNo} />
           <Field label="Area Size (sq.m.)" value={title.areaSize} />
           <Field label="Zonal Value" value={title.zonalValue} />
           <Field label="Lot No." value={title.lotNo} />
@@ -671,33 +673,60 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
                 <Field label="Public Conveyance Line" value={report.utilityPublicConveyance} />
                 <Field label="Electricity" value={report.utilityElectricity} />
                 <Field label="Water" value={report.utilityWater} />
-                <Field label="Telephone" value={report.utilityTelephone} />
+                <Field label="Gas / Others" value={report.utilityGasOthers} />
               </FieldGrid>
             </CollapsibleSection>
           </Box>
 
           <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
             <CollapsibleSection
-              title="Improvement — General Construction Features"
+              title="Improvement"
               expanded={!!expanded.construction}
               onToggle={() => toggle('construction')}
             >
-              <Stack spacing={1.75}>
-                <FieldGrid>
-                  <Field label="Year Constructed" value={report.buildingYearConstructed} />
-                  <Field label="Condition" value={report.buildingCondition} />
-                  <Field label="Construction" value={report.buildingConstruction} />
-                  <Field label="Est. Floor Area (sq.m.)" value={report.buildingEstFloorArea} />
-                </FieldGrid>
-                <Field label="General Construction Features" value={report.generalConstructionFeatures} span={4} />
-                <FieldGrid>
-                  <Field label="Floor Level" value={report.floorLevel} />
-                  <Field label="External Walls" value={report.externalWalls} />
-                  <Field label="Interior Walls & Partitions" value={report.interiorWallsPartitions} />
-                  <Field label="Flooring" value={report.flooring} />
-                  <Field label="Doors & Windows" value={report.doorsWindows} />
-                  <Field label="Ceiling & Roofing" value={report.ceilingRoofing} />
-                </FieldGrid>
+              <Stack spacing={1.5}>
+                {report.improvements.map((improvement) => (
+                  <Box key={improvement.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
+                    <FieldGrid>
+                      <Field label="Year Constructed" value={improvement.yearConstructed} />
+                      <Field label="Construction" value={improvement.construction} />
+                      <Field label="Condition" value={improvement.condition} />
+                      <Field label="Est. Floor Area (sq.m.)" value={improvement.estFloorArea} />
+                    </FieldGrid>
+                  </Box>
+                ))}
+              </Stack>
+            </CollapsibleSection>
+          </Box>
+
+          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+            <CollapsibleSection
+              title="General Construction Features"
+              expanded={!!expanded.construction}
+              onToggle={() => toggle('construction')}
+            >
+              <Field label="General Construction Features" value={report.generalConstructionFeatures} span={4} />
+            </CollapsibleSection>
+          </Box>
+
+          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+            <CollapsibleSection
+              title="Particular Description"
+              expanded={!!expanded.construction}
+              onToggle={() => toggle('construction')}
+            >
+              <Stack spacing={1.5}>
+                {report.particularDescriptions.map((particular) => (
+                  <Box key={particular.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
+                    <FieldGrid>
+                      <Field label="Floor Level" value={particular.floorLevel} />
+                      <Field label="Interior Walls & Partitions" value={particular.interiorWallsPartitions} />
+                      <Field label="Flooring" value={particular.flooring} />
+                      <Field label="Doors & Windows" value={particular.doorsWindows} />
+                      <Field label="Ceiling & Roofing" value={particular.ceilingRoofing} />
+                    </FieldGrid>
+                  </Box>
+                ))}
               </Stack>
             </CollapsibleSection>
           </Box>
@@ -716,11 +745,16 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
                       <Field label="Location" value={comparable.location} />
                       <Field label="Area Size" value={comparable.areaSize} />
                       <Field label="Price Type" value={comparable.priceType} />
+                      <Field label="Zonal Value" value={comparable.zonalValue} />
                       <Field label="Value" value={comparable.value} />
                     </FieldGrid>
                   </Box>
                 ))}
-                <Field label="Fair Market Value as per square meter" value={report.fairMarketValuePerSqm} span={2} />
+                <Field label="Fair Market Value Per Square Meter" value={report.fairMarketValuePerSqm} span={2} />
+                <Field label="Fair Market Value Total (PHP)" value={report.fairMarketValueTotal} span={2} />
+                {report.valuationRemarks && (
+                  <Field label="Valuation Remarks" value={report.valuationRemarks} span={4} />
+                )}
               </Stack>
             </CollapsibleSection>
           </Box>
@@ -734,13 +768,52 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
             </Stack>
           )}
 
+          {report.conditionsForAcceptance.length > 0 && (
+            <Stack spacing={1.5}>
+              <SectionLabel>Conditions for acceptance of collateral</SectionLabel>
+              <Stack spacing={1.5}>
+                {report.conditionsForAcceptance.map((condition) => (
+                  <Box key={condition.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
+                    <FieldGrid>
+                      <Field label="Item of Property" value={condition.itemOfProperty} />
+                      <Field label="Ref" value={condition.ref} />
+                      <Field label="Marketable" value={condition.marketable} />
+                      <Field label="Construction (%)" value={condition.constructionStatusPercent} />
+                      <Field label="Depreciated Value" value={condition.depreciatedValue} />
+                      <Field label="Appraised Value" value={condition.appraisedValue} />
+                    </FieldGrid>
+                  </Box>
+                ))}
+              </Stack>
+            </Stack>
+          )}
+
           <Stack spacing={1.5}>
-            <SectionLabel>Valuation</SectionLabel>
+            <SectionLabel>Appraisal summary</SectionLabel>
             <FieldGrid>
               <Field label="Loanable Amount" value={report.loanableAmount} span={2} />
               <Field label="Rounded Figures" value={report.roundedFigures} span={2} />
+              <Field label="Leasable Percent (%)" value={report.leasablePercent} span={2} />
+              <Field label="Leasable Amount (PHP)" value={report.leasableAmount} span={2} />
             </FieldGrid>
           </Stack>
+
+          {report.feeAttachments.length > 0 && (
+            <Stack spacing={1.5}>
+              <SectionLabel>Fee attachment</SectionLabel>
+              <Stack direction="row" flexWrap="wrap" gap={1.5}>
+                {report.feeAttachments.map((photo, index) => (
+                  <Box
+                    key={`${photo.fileUrl}-${index}`}
+                    component="img"
+                    src={photo.fileUrl}
+                    alt={photo.fileName}
+                    sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
+                  />
+                ))}
+              </Stack>
+            </Stack>
+          )}
 
           <Stack spacing={1.5}>
             <SectionLabel>Prepared / Reviewed / Endorsed / Noted By</SectionLabel>

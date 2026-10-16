@@ -190,6 +190,8 @@ function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitl
   return (
     <SectionCard label={`TCT No. ${tctNumber}`}>
       <Stack spacing={1.5}>
+        <FieldRow label="File Type" value={title.fileType} />
+        <FieldRow label="Title No." value={title.titleNo} />
         <FieldRow label="Area Size (sq.m.)" value={title.areaSize} />
         <FieldRow label="Zonal Value" value={title.zonalValue} />
         <FieldRow label="Lot No." value={title.lotNo} />
@@ -342,21 +344,36 @@ export function AppraisalReportPreview({
         <FieldRow label="Public Conveyance Line" value={report.utilityPublicConveyance} />
         <FieldRow label="Electricity" value={report.utilityElectricity} />
         <FieldRow label="Water" value={report.utilityWater} />
-        <FieldRow label="Telephone" value={report.utilityTelephone} />
+        <FieldRow label="Gas / Others" value={report.utilityGasOthers} />
       </SectionCard>
 
-      <SectionCard label="Improvement — General Construction Features">
-        <FieldRow label="Year Constructed" value={report.buildingYearConstructed} />
-        <FieldRow label="Condition" value={report.buildingCondition} />
-        <FieldRow label="Construction" value={report.buildingConstruction} />
-        <FieldRow label="Est. Floor Area (sq.m.)" value={report.buildingEstFloorArea} />
-        <NarrativeBlock label="General Construction Features" value={report.generalConstructionFeatures} />
-        <FieldRow label="Floor Level" value={report.floorLevel} />
-        <FieldRow label="External Walls" value={report.externalWalls} />
-        <FieldRow label="Interior Walls & Partitions" value={report.interiorWallsPartitions} />
-        <FieldRow label="Flooring" value={report.flooring} />
-        <FieldRow label="Doors & Windows" value={report.doorsWindows} />
-        <FieldRow label="Ceiling & Roofing" value={report.ceilingRoofing} />
+      <SectionCard label="Improvement">
+        {report.improvements.map((improvement) => (
+          <Box key={improvement.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
+            <Stack spacing={1}>
+              <FieldRow label="Year Constructed" value={improvement.yearConstructed} />
+              <FieldRow label="Construction" value={improvement.construction} />
+              <FieldRow label="Condition" value={improvement.condition} />
+              <FieldRow label="Est. Floor Area (sq.m.)" value={improvement.estFloorArea} />
+            </Stack>
+          </Box>
+        ))}
+      </SectionCard>
+
+      <NarrativeBlock label="General Construction Features" value={report.generalConstructionFeatures} />
+
+      <SectionCard label="Particular Description">
+        {report.particularDescriptions.map((particular) => (
+          <Box key={particular.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
+            <Stack spacing={1}>
+              <FieldRow label="Floor Level" value={particular.floorLevel} />
+              <FieldRow label="Interior Walls & Partitions" value={particular.interiorWallsPartitions} />
+              <FieldRow label="Flooring" value={particular.flooring} />
+              <FieldRow label="Doors & Windows" value={particular.doorsWindows} />
+              <FieldRow label="Ceiling & Roofing" value={particular.ceilingRoofing} />
+            </Stack>
+          </Box>
+        ))}
       </SectionCard>
 
       <SectionCard label="Basis of Valuation (Land)">
@@ -367,20 +384,40 @@ export function AppraisalReportPreview({
               <FieldRow label="Location" value={comparable.location} />
               <FieldRow label="Area Size" value={comparable.areaSize} />
               <FieldRow label="Price Type" value={comparable.priceType} />
+              <FieldRow label="Zonal Value" value={comparable.zonalValue} />
               <FieldRow label="Value" value={comparable.value} />
             </Stack>
           </Box>
         ))}
-        <FieldRow label="Fair Market Value as per square meter" value={report.fairMarketValuePerSqm} />
+        <FieldRow label="Fair Market Value Per Square Meter" value={report.fairMarketValuePerSqm} />
+        <FieldRow label="Fair Market Value Total (PHP)" value={report.fairMarketValueTotal} />
+        <NarrativeBlock label="Valuation Remarks" value={report.valuationRemarks} />
       </SectionCard>
 
       <NarrativeBlock label="Remarks / Additional Information" value={report.remarksAdditionalInfo} />
 
-      <SectionCard label="Valuation">
+      <SectionCard label="Conditions for Acceptance of Collateral">
+        {report.conditionsForAcceptance.map((condition) => (
+          <Box key={condition.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
+            <Stack spacing={1}>
+              <FieldRow label="Item of Property" value={condition.itemOfProperty} />
+              <FieldRow label="Ref" value={condition.ref} />
+              <FieldRow label="Marketable" value={condition.marketable} />
+              <FieldRow label="Construction (%)" value={condition.constructionStatusPercent} />
+              <FieldRow label="Depreciated Value" value={condition.depreciatedValue} />
+              <FieldRow label="Appraised Value" value={condition.appraisedValue} />
+            </Stack>
+          </Box>
+        ))}
+      </SectionCard>
+
+      <SectionCard label="Appraisal Summary">
         <FieldRow label="Appraised Value" value={report.appraisedValue} />
         <FieldRow label="Rounded Figures" value={report.roundedFigures} />
         <FieldRow label="Amount in Words" value={report.amountInWords} />
         <FieldRow label="Loanable Amount" value={report.loanableAmount} />
+        <FieldRow label="Leasable Percent (%)" value={report.leasablePercent} />
+        <FieldRow label="Leasable Amount (PHP)" value={report.leasableAmount} />
       </SectionCard>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2.5 }}>
@@ -409,6 +446,22 @@ export function AppraisalReportPreview({
             {report.taxMapFileUrl && (
               <FieldRow label="Tax Map" value={report.taxMapFileName ?? 'Tax Map'} />
             )}
+          </Stack>
+        </SectionCard>
+      )}
+
+      {report.feeAttachments.length > 0 && (
+        <SectionCard label="Fee Attachment">
+          <Stack direction="row" flexWrap="wrap" gap={1.5}>
+            {report.feeAttachments.map((photo, index) => (
+              <Box
+                key={`${photo.fileUrl}-${index}`}
+                component="img"
+                src={photo.fileUrl}
+                alt={photo.fileName}
+                sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
+              />
+            ))}
           </Stack>
         </SectionCard>
       )}

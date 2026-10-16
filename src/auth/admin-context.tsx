@@ -1092,12 +1092,34 @@ export type CollateralPhoto = {
   uploadedAt: string;
 };
 
+// One row of a title's Lot Plotting bearings table (the "#, N/S, Degrees,
+// E/W, Minutes, Distance(m)" table shown alongside the generated plot
+// image) — e.g. "P1-2, N, 16, W, 30, 9". Purely descriptive input the
+// officer/appraiser types in; "Calculate" re-derives the generated plot
+// image from whatever rows exist, same no-real-geocoding convention as
+// the existing latitude/longitude fields below.
+export type LotPlotLine = {
+  id: string;
+  label: string;
+  northSouth: 'N' | 'S' | '';
+  degrees: string;
+  eastWest: 'E' | 'W' | '';
+  minutes: string;
+  distanceM: string;
+};
+
+export function createLotPlotLine(): LotPlotLine {
+  return { id: crypto.randomUUID(), label: '', northSouth: '', degrees: '', eastWest: '', minutes: '', distanceM: '' };
+}
+
 // Per-title (TCT/OCT) land details inside an in-house Appraisal Report,
 // one entry per AppraisalTctGroup covered by the bundle — mirrors the
 // "LAND" / "BOUNDARIES" / "TECHNICAL SPECIFICATION" tables in the printed
 // Appraisal Report (REM) PDF, which repeat once per title.
 export type AppraisalReportLandTitle = {
   tctGroupId: string;
+  fileType: string;
+  titleNo: string;
   surveyNo: string;
   bookPageNo: string;
   titleRegistrationDate: string;
@@ -1126,6 +1148,9 @@ export type AppraisalReportLandTitle = {
   lotPlotFileName: string | null;
   lotPlotFileUrl: string | null;
   lotPlotGeneratedAt: string | null;
+  // The bearings/distance table rows behind the generated plot image —
+  // see LotPlotLine above.
+  lotPlotLines: LotPlotLine[];
   // Collateral photos of this title — multiple uploads supported, each
   // one appended on drop rather than replacing the previous photo.
   collateralPhotos: CollateralPhoto[];
@@ -1134,6 +1159,8 @@ export type AppraisalReportLandTitle = {
 function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLandTitle {
   return {
     tctGroupId,
+    fileType: '',
+    titleNo: '',
     surveyNo: '',
     bookPageNo: '',
     titleRegistrationDate: '',
@@ -1152,6 +1179,7 @@ function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLand
     lotPlotFileName: null,
     lotPlotFileUrl: null,
     lotPlotGeneratedAt: null,
+    lotPlotLines: [],
     collateralPhotos: [],
   };
 }
@@ -1166,6 +1194,7 @@ export type BasisOfValuationComparable = {
   location: string;
   areaSize: string;
   priceType: string;
+  zonalValue: string;
   value: string;
 };
 
@@ -1176,7 +1205,69 @@ function createBasisOfValuationComparable(): BasisOfValuationComparable {
     location: '',
     areaSize: '',
     priceType: '',
+    zonalValue: '',
     value: '',
+  };
+}
+
+// One "Improvement" building entry — the PDF's "Building 1" table,
+// now repeatable so a report covering several structures on site
+// (main house + garage, etc.) can list each one separately.
+export type AppraisalImprovementEntry = {
+  id: string;
+  yearConstructed: string;
+  construction: string;
+  condition: string;
+  estFloorArea: string;
+};
+
+export function createAppraisalImprovementEntry(): AppraisalImprovementEntry {
+  return { id: crypto.randomUUID(), yearConstructed: '', construction: '', condition: '', estFloorArea: '' };
+}
+
+// One "Particular Description" entry — repeatable so a report can
+// describe more than one unit/floor's finishes separately.
+export type AppraisalParticularEntry = {
+  id: string;
+  floorLevel: string;
+  interiorWallsPartitions: string;
+  flooring: string;
+  doorsWindows: string;
+  ceilingRoofing: string;
+};
+
+export function createAppraisalParticularEntry(): AppraisalParticularEntry {
+  return {
+    id: crypto.randomUUID(),
+    floorLevel: '',
+    interiorWallsPartitions: '',
+    flooring: '',
+    doorsWindows: '',
+    ceilingRoofing: '',
+  };
+}
+
+// One "Conditions for acceptance of collateral" line item, in the
+// Remarks / Additional Information section's own table.
+export type AppraisalConditionEntry = {
+  id: string;
+  itemOfProperty: string;
+  ref: string;
+  marketable: string;
+  constructionStatusPercent: string;
+  depreciatedValue: string;
+  appraisedValue: string;
+};
+
+export function createAppraisalConditionEntry(): AppraisalConditionEntry {
+  return {
+    id: crypto.randomUUID(),
+    itemOfProperty: '',
+    ref: '',
+    marketable: '',
+    constructionStatusPercent: '',
+    depreciatedValue: '',
+    appraisedValue: '',
   };
 }
 
@@ -1221,36 +1312,38 @@ export type AppraisalReport = {
   utilityPublicConveyance: string;
   utilityElectricity: string;
   utilityWater: string;
-  utilityTelephone: string;
+  utilityGasOthers: string;
 
-  // The PDF's "Improvement" building summary table ("Building 1") — one
-  // record for the whole report, not an array; a report covering several
-  // TCTs/lots still describes just the one improvement/building on site.
-  buildingYearConstructed: string;
-  buildingCondition: string;
-  buildingConstruction: string;
-  buildingEstFloorArea: string;
+  // The PDF's "Improvement" building table — now repeatable (was a single
+  // flat record, "Building 1"); a report can describe several structures
+  // on site (main house, garage, etc.) separately.
+  improvements: AppraisalImprovementEntry[];
 
   generalConstructionFeatures: string;
-  floorLevel: string;
-  externalWalls: string;
-  interiorWallsPartitions: string;
-  flooring: string;
-  doorsWindows: string;
-  ceilingRoofing: string;
+  // Repeatable — was a single flat record; see AppraisalParticularEntry.
+  particularDescriptions: AppraisalParticularEntry[];
 
   // Multiple comparable-sale sources — see BasisOfValuationComparable
   // above. Replaces the old single basisSource/basisLocation/basisAreaSize/
   // basisPriceType/basisSellingPrice fields.
   basisOfValuationComparables: BasisOfValuationComparable[];
   fairMarketValuePerSqm: string;
+  fairMarketValueTotal: string;
+  valuationRemarks: string;
 
   remarksAdditionalInfo: string;
+  // "Conditions for acceptance of collateral" line items, in the Remarks
+  // / Additional Information section.
+  conditionsForAcceptance: AppraisalConditionEntry[];
 
   appraisedValue: string;
   roundedFigures: string;
   amountInWords: string;
   loanableAmount: string;
+  // "Appraisal summary" — Leasable Percent/Amount, alongside the
+  // Appraised Value/Rounded Figures/Amount in Words fields above.
+  leasablePercent: string;
+  leasableAmount: string;
 
   // Sequential sign-off chain — Prepared, then Reviewed, then Endorsed,
   // then Noted, each gated on the previous step already being stamped
@@ -1286,6 +1379,10 @@ export type AppraisalReport = {
   taxMapFileName: string | null;
   taxMapFileUrl: string | null;
   taxMapUploadedAt: string | null;
+  // Generic "Fee Attachment" gallery — any number of supporting photos
+  // for the report as a whole, distinct from Subdivision Plan/Tax Map
+  // (each exactly one file) and each title's own Collateral Photos.
+  feeAttachments: CollateralPhoto[];
 
   fileName: string | null;
   fileUrl: string | null;
@@ -2610,30 +2707,27 @@ function createBlankAppraisalReport(tctGroupIds: string[]): AppraisalReport {
     utilityPublicConveyance: '',
     utilityElectricity: '',
     utilityWater: '',
-    utilityTelephone: '',
+    utilityGasOthers: '',
 
-    buildingYearConstructed: '',
-    buildingCondition: '',
-    buildingConstruction: '',
-    buildingEstFloorArea: '',
+    improvements: [],
 
     generalConstructionFeatures: '',
-    floorLevel: '',
-    externalWalls: '',
-    interiorWallsPartitions: '',
-    flooring: '',
-    doorsWindows: '',
-    ceilingRoofing: '',
+    particularDescriptions: [],
 
     basisOfValuationComparables: [],
     fairMarketValuePerSqm: '',
+    fairMarketValueTotal: '',
+    valuationRemarks: '',
 
     remarksAdditionalInfo: '',
+    conditionsForAcceptance: [],
 
     appraisedValue: '',
     roundedFigures: '',
     amountInWords: '',
     loanableAmount: '',
+    leasablePercent: '',
+    leasableAmount: '',
 
     preparedBy: '',
     preparedAt: null,
@@ -2654,6 +2748,7 @@ function createBlankAppraisalReport(tctGroupIds: string[]): AppraisalReport {
     taxMapFileName: null,
     taxMapFileUrl: null,
     taxMapUploadedAt: null,
+    feeAttachments: [],
 
     fileName: null,
     fileUrl: null,
@@ -3253,25 +3348,22 @@ function readStoredState(): AdminState {
                 utilityPublicConveyance: '',
                 utilityElectricity: '',
                 utilityWater: '',
-                utilityTelephone: '',
-                buildingYearConstructed: '',
-                buildingCondition: '',
-                buildingConstruction: '',
-                buildingEstFloorArea: '',
+                utilityGasOthers: '',
+                improvements: [],
                 generalConstructionFeatures: '',
-                floorLevel: '',
-                externalWalls: '',
-                interiorWallsPartitions: '',
-                flooring: '',
-                doorsWindows: '',
-                ceilingRoofing: '',
+                particularDescriptions: [],
                 basisOfValuationComparables: [],
                 fairMarketValuePerSqm: '',
+                fairMarketValueTotal: '',
+                valuationRemarks: '',
                 remarksAdditionalInfo: '',
+                conditionsForAcceptance: [],
                 appraisedValue: '',
                 roundedFigures: '',
                 amountInWords: '',
                 loanableAmount: '',
+                leasablePercent: '',
+                leasableAmount: '',
                 preparedBy: '',
                 preparedAt: null,
                 reviewedBy: '',
@@ -3289,6 +3381,7 @@ function readStoredState(): AdminState {
                 taxMapFileName: null,
                 taxMapFileUrl: null,
                 taxMapUploadedAt: null,
+                feeAttachments: [],
                 fileName: null,
                 fileUrl: null,
                 uploadedAt: null,
