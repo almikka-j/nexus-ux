@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 import Box from '@mui/material/Box';
@@ -11,6 +11,7 @@ import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import ButtonBase from '@mui/material/ButtonBase';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogContent from '@mui/material/DialogContent';
@@ -72,6 +73,156 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       {children}
     </Typography>
   );
+}
+
+// ----------------------------------------------------------------------
+// Sticky left section nav — same sticky-sidebar / scroll-jump /
+// IntersectionObserver-active-highlight pattern as the Credit
+// Investigation report's own CiSectionNav/useCiActiveSection
+// (ci-report-card.tsx), reimplemented locally here rather than shared,
+// since the two forms' section-key types/section lists are unrelated.
+// ----------------------------------------------------------------------
+
+type AppraisalSectionKey =
+  | 'reportDetails'
+  | 'land'
+  | 'technicalSpecification'
+  | 'utilities'
+  | 'improvement'
+  | 'generalConstructionFeatures'
+  | 'particularDescription'
+  | 'basisOfValuation'
+  | 'remarks'
+  | 'appraisalSummary'
+  | 'signatories'
+  | 'recommendation'
+  | 'fileAttachment'
+  | 'feeAttachment';
+
+const APPRAISAL_SECTION_NAV_ITEMS: { key: AppraisalSectionKey; label: string }[] = [
+  { key: 'reportDetails', label: 'Report Information' },
+  { key: 'land', label: 'Land' },
+  { key: 'technicalSpecification', label: 'Physical Characteristics' },
+  { key: 'utilities', label: 'Utilities' },
+  { key: 'improvement', label: 'Improvement' },
+  { key: 'generalConstructionFeatures', label: 'Construction Features' },
+  { key: 'particularDescription', label: 'Particular Description' },
+  { key: 'basisOfValuation', label: 'Basis of Valuation' },
+  { key: 'remarks', label: 'Remarks' },
+  { key: 'appraisalSummary', label: 'Appraisal Summary' },
+  { key: 'signatories', label: 'Signatories' },
+  { key: 'recommendation', label: 'Recommendation' },
+  { key: 'fileAttachment', label: 'File Attachment' },
+  { key: 'feeAttachment', label: 'Fee Attachment' },
+];
+
+function AppraisalSectionNav({
+  activeKey,
+  onJump,
+}: {
+  activeKey: string | null;
+  onJump: (key: AppraisalSectionKey) => void;
+}) {
+  return (
+    <Box
+      sx={{
+        borderRadius: '14px',
+        bgcolor: 'common.white',
+        border: '1px solid #EBEDF3',
+        boxShadow: '0 1px 2px rgba(20,23,42,0.04)',
+        overflow: 'hidden',
+      }}
+    >
+      <Box sx={{ px: 2, pt: 1.75, pb: 1 }}>
+        <Typography
+          sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8891A6' }}
+        >
+          Sections
+        </Typography>
+      </Box>
+      <Stack sx={{ px: 1, pb: 1 }} spacing={0.25}>
+        {APPRAISAL_SECTION_NAV_ITEMS.map((item) => {
+          const isActive = activeKey === item.key;
+          return (
+            <ButtonBase
+              key={item.key}
+              onClick={() => onJump(item.key)}
+              sx={{
+                position: 'relative',
+                justifyContent: 'flex-start',
+                textAlign: 'left',
+                pl: 1.75,
+                pr: 1.25,
+                py: 0.85,
+                borderRadius: '9px',
+                bgcolor: isActive ? '#F5F7FF' : 'transparent',
+                transition: 'background-color 0.15s ease',
+                '&:hover': { bgcolor: isActive ? '#F5F7FF' : '#FAFBFD' },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  left: 0,
+                  top: 6,
+                  bottom: 6,
+                  width: 3,
+                  borderRadius: 999,
+                  bgcolor: isActive ? '#1C2A6E' : 'transparent',
+                  transition: 'background-color 0.15s ease',
+                },
+              }}
+            >
+              <Typography
+                noWrap
+                sx={{
+                  fontSize: 13,
+                  fontWeight: isActive ? 700 : 600,
+                  color: isActive ? '#1C2A6E' : '#14172A',
+                }}
+              >
+                {item.label}
+              </Typography>
+            </ButtonBase>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
+}
+
+// Tracks which registered section is closest to the top of the viewport
+// — same IntersectionObserver mechanics as CiReportCard's own
+// useCiActiveSection.
+function useAppraisalActiveSection(
+  sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>,
+  keys: string[]
+) {
+  const [activeKey, setActiveKey] = useState<string | null>(keys[0] ?? null);
+
+  useEffect(() => {
+    const entries = keys
+      .map((key) => [key, sectionRefs.current.get(key)] as const)
+      .filter((entry): entry is [string, HTMLDivElement] => !!entry[1]);
+    if (entries.length === 0) return undefined;
+
+    const observer = new IntersectionObserver(
+      (observedEntries) => {
+        const visible = observedEntries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          const key = entries.find(([, el]) => el === visible[0].target)?.[0];
+          if (key) setActiveKey(key);
+        }
+      },
+      { rootMargin: '-96px 0px -70% 0px', threshold: 0 }
+    );
+
+    entries.forEach(([, el]) => observer.observe(el));
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keys.length]);
+
+  return activeKey;
 }
 
 // One step of the sequential Prepared -> Reviewed -> Endorsed -> Noted
@@ -771,6 +922,16 @@ export function AppraiserAssignmentCard({
       else next.add(groupId);
       return next;
     });
+  const sectionRefs = useRef(new Map<string, HTMLDivElement | null>());
+  const activeSectionKey = useAppraisalActiveSection(
+    sectionRefs,
+    APPRAISAL_SECTION_NAV_ITEMS.map((item) => item.key)
+  );
+  const handleJumpToSection = (key: AppraisalSectionKey) => {
+    requestAnimationFrame(() => {
+      sectionRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
   if (!bundle) return null;
   const { appraiserType, report } = bundle;
   const locked = headApprovalStatus !== 'pending' || !!report.uploadedAt;
@@ -853,7 +1014,21 @@ export function AppraiserAssignmentCard({
   const taxMapFile = report.taxMapFileUrl;
 
   return (
-    <Box sx={adminCardSx}>
+    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
+      {appraiserType === 'inhouse' && (
+        <Box
+          sx={{
+            width: { xs: 1, md: 220 },
+            flexShrink: 0,
+            position: { md: 'sticky' },
+            top: { md: 92 },
+            order: { xs: -1, md: 0 },
+          }}
+        >
+          <AppraisalSectionNav activeKey={activeSectionKey} onJump={handleJumpToSection} />
+        </Box>
+      )}
+      <Box sx={{ ...adminCardSx, flex: 1, minWidth: 0, width: 1 }}>
       <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
         Appraisal Report
       </Typography>
@@ -863,7 +1038,10 @@ export function AppraiserAssignmentCard({
 
       {appraiserType === 'inhouse' && (
         <Stack spacing={2.5}>
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('reportDetails', el); }}
+          >
             <SectionLabel>Report details</SectionLabel>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <TextField
@@ -931,7 +1109,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('land', el); }}
+          >
             <SectionLabel>Land</SectionLabel>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <TextField
@@ -985,7 +1166,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('technicalSpecification', el); }}
+          >
             <SectionLabel>Technical specification</SectionLabel>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <TextField
@@ -1076,7 +1260,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('utilities', el); }}
+          >
             <SectionLabel>Source or kind of utilities</SectionLabel>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <TextField
@@ -1120,7 +1307,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('improvement', el); }}
+          >
             <SectionLabel>Improvement</SectionLabel>
             <Stack spacing={1.25}>
               {report.improvements.map((improvement, index) => (
@@ -1229,7 +1419,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('generalConstructionFeatures', el); }}
+          >
             <SectionLabel>General construction features</SectionLabel>
             <TextField
               fullWidth
@@ -1245,7 +1438,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('particularDescription', el); }}
+          >
             <SectionLabel>Particular description</SectionLabel>
             <Stack spacing={1.25}>
               {report.particularDescriptions.map((particular, index) => (
@@ -1375,7 +1571,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('basisOfValuation', el); }}
+          >
             <SectionLabel>Basis of valuation (land)</SectionLabel>
             <Stack spacing={1.25}>
               {report.basisOfValuationComparables.map((comparable) => (
@@ -1505,7 +1704,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('remarks', el); }}
+          >
             <SectionLabel>Remarks / additional information</SectionLabel>
             <TextField
               fullWidth
@@ -1663,7 +1865,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('appraisalSummary', el); }}
+          >
             <SectionLabel>Appraisal summary</SectionLabel>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <TextField
@@ -1731,7 +1936,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('signatories', el); }}
+          >
             <SectionLabel>Prepared / reviewed / endorsed / noted by</SectionLabel>
             <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
               Each step unlocks once the one before it is stamped — Prepared, then Reviewed, then
@@ -1782,7 +1990,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('recommendation', el); }}
+          >
             <SectionLabel>Recommendation</SectionLabel>
             <TextField
               fullWidth
@@ -1797,7 +2008,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('fileAttachment', el); }}
+          >
             <SectionLabel>File attachment</SectionLabel>
             <ReportFileDropzone
               value={subdivisionPlanFile}
@@ -1821,7 +2035,10 @@ export function AppraiserAssignmentCard({
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Stack spacing={1.5}>
+          <Stack
+            spacing={1.5}
+            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('feeAttachment', el); }}
+          >
             <SectionLabel>Fee attachment</SectionLabel>
             <MultiPhotoDropzone
               photos={report.feeAttachments}
@@ -1918,7 +2135,8 @@ export function AppraiserAssignmentCard({
           </DialogContent>
         </Dialog>
       )}
-    </Box>
+      </Box>
+    </Stack>
   );
 }
 

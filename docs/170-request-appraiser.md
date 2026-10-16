@@ -929,6 +929,25 @@ just isn't surfaced here at all anymore.)
   here. Directly below that note, still inside the form itself, sits the
   **"Preview Appraisal Report"** button — see "Preview" below. The form
   has no submit button any more — see "Submit (separate card)" below.
+
+  A **sticky left section nav** (`AppraisalSectionNav`,
+  in-house only — the external path is a single dropzone with nothing to
+  jump between) sits as a sibling column beside the form card, same
+  sticky-sidebar / scroll-jump / IntersectionObserver-active-highlight
+  pattern as the Credit Investigation report's own
+  `CiSectionNav`/`useCiActiveSection` (`ci-report-card.tsx`) —
+  reimplemented locally here (`useAppraisalActiveSection`,
+  `APPRAISAL_SECTION_NAV_ITEMS`) rather than shared, since the two
+  forms' section-key types and section lists are unrelated. 14 entries,
+  one per top-level `SectionLabel` block already in the form (Report
+  Information, Land, Physical Characteristics, Utilities, Improvement,
+  Construction Features, Particular Description, Basis of Valuation,
+  Remarks, Appraisal Summary, Signatories, Recommendation, File
+  Attachment, Fee Attachment) — each section's own `Stack` carries a ref
+  callback (`sectionRefs.current.set(key, el)`) the nav scrolls to on
+  click. "Encumbrances" has no nav entry of its own — `encumbrancesRemarks`
+  is still just a field inside the Land section, not a separate card;
+  splitting it out is a further restructure, not part of this pass.
 - **External** — unchanged: a single dashed file dropzone for the external
   appraiser's finished report (image or PDF). Picking a file sets
   `fileName`/`fileUrl`/`uploadedAt` directly (no separate submit step). No
@@ -1563,6 +1582,13 @@ Pass/Fail terminal decision. The gating that does happen here:
 Concise milestones — the detailed pass-by-pass narrative is in "Read-only
 view (`AppraisalReportView`)" above.
 
+- **2026-10-16** — Added a sticky left section nav
+  (`AppraisalSectionNav`/`useAppraisalActiveSection`) to the in-house
+  form, matching the Credit Investigation report's own
+  `CiSectionNav`/`useCiActiveSection` pattern — 14 entries, one per
+  existing top-level section, scroll-jump on click, active-section
+  highlight on scroll. External appraiser path is unaffected (no nav,
+  single dropzone).
 - **2026-10-16** — Matched the in-house form's field set to a reference
   Appraisal Report tool, section by section: added File Type/Title No.
   per land title, a per-title Lot Plotting bearings/distance table
