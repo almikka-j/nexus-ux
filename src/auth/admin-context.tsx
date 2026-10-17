@@ -1093,11 +1093,11 @@ export type CollateralPhoto = {
 };
 
 // One row of a title's Lot Plotting bearings table (the "#, N/S, Degrees,
-// E/W, Minutes, Distance(m)" table shown alongside the generated plot
+// E/W, Minutes, Distance(m)" table shown alongside the uploaded plot
 // image) — e.g. "P1-2, N, 16, W, 30, 9". Purely descriptive input the
-// officer/appraiser types in; "Calculate" re-derives the generated plot
-// image from whatever rows exist, same no-real-geocoding convention as
-// the existing latitude/longitude fields below.
+// officer/appraiser types in; this app does no real geocoding/surveying,
+// so it has no effect on the uploaded Lot Plot Image — see
+// docs/170-request-appraiser.md's "Fabricated Claims" section.
 export type LotPlotLine = {
   id: string;
   label: string;
@@ -1129,28 +1129,14 @@ export type AppraisalReportLandTitle = {
   zonalValue: string;
   boundaries: string;
   technicalSpecification: string;
-  // This title's own row in the PDF's "Item of Property" valuation table —
-  // moved here from the flat AppraisalReport so a bundle covering several
-  // TCTs shows one valuation row per title (matching the printed report)
-  // instead of one shared row for the whole bundle.
-  fmvRcn: string;
-  constructionStatusPercent: string;
-  depreciatedValue: string;
-  appraisedValueP: string;
-  // Lot plotting — manually typed coordinates (no geocoding/address lookup
-  // integration exists yet) plus a "Generate Lot Plot" button that produces
-  // a simulated plot-diagram image, same fileName/fileUrl/generatedAt
-  // triplet shape as the Collateral Photo fields below. No real AI/mapping
-  // service is called — see docs/170-request-appraiser.md's "Fabricated
-  // Claims" section.
-  latitude: string;
-  longitude: string;
-  lotPlotFileName: string | null;
-  lotPlotFileUrl: string | null;
-  lotPlotGeneratedAt: string | null;
-  // The bearings/distance table rows behind the generated plot image —
-  // see LotPlotLine above.
+  // The bearings/distance table rows shown alongside the Lot Plot Image
+  // upload below — see LotPlotLine above.
   lotPlotLines: LotPlotLine[];
+  // Lot Plot Image — a plain photo upload (scanned title document,
+  // plotted lot diagram, etc.), same MultiPhotoDropzone pattern as
+  // Collateral Photos below. No geocoding/plotting service generates
+  // this — the officer/appraiser uploads the image(s) directly.
+  lotPlotPhotos: CollateralPhoto[];
   // Collateral photos of this title — multiple uploads supported, each
   // one appended on drop rather than replacing the previous photo.
   collateralPhotos: CollateralPhoto[];
@@ -1170,16 +1156,8 @@ function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLand
     zonalValue: '',
     boundaries: '',
     technicalSpecification: '',
-    fmvRcn: '',
-    constructionStatusPercent: '',
-    depreciatedValue: '',
-    appraisedValueP: '',
-    latitude: '',
-    longitude: '',
-    lotPlotFileName: null,
-    lotPlotFileUrl: null,
-    lotPlotGeneratedAt: null,
     lotPlotLines: [],
+    lotPlotPhotos: [],
     collateralPhotos: [],
   };
 }
@@ -1307,7 +1285,6 @@ export type AppraisalReport = {
   topography: string;
   neighborhood: string;
   presentUse: string;
-  highestAndBestUse: string;
 
   utilityPublicConveyance: string;
   utilityElectricity: string;
@@ -1339,49 +1316,14 @@ export type AppraisalReport = {
   appraisedValue: string;
   roundedFigures: string;
   amountInWords: string;
-  loanableAmount: string;
   // "Appraisal summary" — Leasable Percent/Amount, alongside the
   // Appraised Value/Rounded Figures/Amount in Words fields above.
   leasablePercent: string;
   leasableAmount: string;
 
-  // Sequential sign-off chain — Prepared, then Reviewed, then Endorsed,
-  // then Noted, each gated on the previous step already being stamped
-  // (see setAppraisalBundleSignatoryStamp in AdminContext). Each step
-  // carries both the name and the ISO timestamp it was stamped, since
-  // stamping is a distinct "Simulate: Approve as {Role}" action, not
-  // implied by typing the name. This chain is independent of Submit
-  // Appraisal Report / Head Approval — it never gates either.
-  preparedBy: string;
-  preparedAt: string | null;
-  reviewedBy: string;
-  reviewedAt: string | null;
-  endorsedBy: string;
-  endorsedAt: string | null;
-  notedBy: string;
-  notedAt: string | null;
-
-  // Legacy free-text fields, kept for the officer-facing summary and the
-  // Recommendation input the source process diagram calls for — distinct
-  // from the structured PDF fields above.
-  propertyDetails: string;
-  remarks: string;
-  recommendation: string;
-
-  // Bundle-wide supporting documents from the PDF's own "File Attachment"
-  // section — distinct from each title's own Collateral Photos (per-TCT,
-  // multiple) and Lot Plot image: exactly one Subdivision Plan and one Tax
-  // Map for the whole report, same fileName/fileUrl/uploadedAt triplet
-  // every other single-file upload in this app uses.
-  subdivisionPlanFileName: string | null;
-  subdivisionPlanFileUrl: string | null;
-  subdivisionPlanUploadedAt: string | null;
-  taxMapFileName: string | null;
-  taxMapFileUrl: string | null;
-  taxMapUploadedAt: string | null;
   // Generic "Fee Attachment" gallery — any number of supporting photos
-  // for the report as a whole, distinct from Subdivision Plan/Tax Map
-  // (each exactly one file) and each title's own Collateral Photos.
+  // for the report as a whole, distinct from each title's own
+  // Collateral Photos/Lot Plot Image.
   feeAttachments: CollateralPhoto[];
 
   fileName: string | null;
@@ -1970,17 +1912,6 @@ type AdminContextValue = AdminState & {
     data: Partial<Omit<BasisOfValuationComparable, 'id'>>
   ) => void;
   removeAppraisalBundleComparable: (bundleId: string, comparableId: string) => void;
-  // Sequential Prepared -> Reviewed -> Endorsed -> Noted sign-off chain —
-  // stamps the given role's name + ISO timestamp, gated on the previous
-  // role already being stamped (Prepared has no prior step). Independent
-  // of Submit Appraisal Report / Head Approval; simulates "another
-  // person" approving, same convention this app's other
-  // "Simulate: Another Officer Approves ___" actions use.
-  stampAppraisalBundleSignatory: (
-    bundleId: string,
-    role: 'prepared' | 'reviewed' | 'endorsed' | 'noted',
-    name: string
-  ) => void;
   deleteAppraisalReportBundle: (bundleId: string) => void;
   clearAllAppraisalBundleReports: () => void;
   // Per-bundle fee-approval actions — each bundle (appraiser assignment)
@@ -2702,7 +2633,6 @@ function createBlankAppraisalReport(tctGroupIds: string[]): AppraisalReport {
     topography: '',
     neighborhood: '',
     presentUse: '',
-    highestAndBestUse: '',
 
     utilityPublicConveyance: '',
     utilityElectricity: '',
@@ -2725,29 +2655,9 @@ function createBlankAppraisalReport(tctGroupIds: string[]): AppraisalReport {
     appraisedValue: '',
     roundedFigures: '',
     amountInWords: '',
-    loanableAmount: '',
     leasablePercent: '',
     leasableAmount: '',
 
-    preparedBy: '',
-    preparedAt: null,
-    reviewedBy: '',
-    reviewedAt: null,
-    endorsedBy: '',
-    endorsedAt: null,
-    notedBy: '',
-    notedAt: null,
-
-    propertyDetails: '',
-    remarks: '',
-    recommendation: '',
-
-    subdivisionPlanFileName: null,
-    subdivisionPlanFileUrl: null,
-    subdivisionPlanUploadedAt: null,
-    taxMapFileName: null,
-    taxMapFileUrl: null,
-    taxMapUploadedAt: null,
     feeAttachments: [],
 
     fileName: null,
@@ -4458,38 +4368,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                       },
                     }
               ),
-            },
-          },
-        })),
-      stampAppraisalBundleSignatory: (bundleId, role, name) =>
-        setState((prev) => ({
-          ...prev,
-          review: {
-            ...prev.review,
-            appraisal: {
-              ...prev.review.appraisal,
-              reportBundles: prev.review.appraisal.reportBundles.map((bundle) => {
-                if (bundle.id !== bundleId) return bundle;
-                const { report } = bundle;
-                // Sequential gate — each step requires the previous one to
-                // already be stamped; Prepared has no prior step.
-                const gateMet =
-                  role === 'prepared' ||
-                  (role === 'reviewed' && !!report.preparedAt) ||
-                  (role === 'endorsed' && !!report.reviewedAt) ||
-                  (role === 'noted' && !!report.endorsedAt);
-                if (!gateMet) return bundle;
-                const now = new Date().toISOString();
-                const stampFields: Partial<AppraisalReport> =
-                  role === 'prepared'
-                    ? { preparedBy: name, preparedAt: now }
-                    : role === 'reviewed'
-                      ? { reviewedBy: name, reviewedAt: now }
-                      : role === 'endorsed'
-                        ? { endorsedBy: name, endorsedAt: now }
-                        : { notedBy: name, notedAt: now };
-                return { ...bundle, report: { ...report, ...stampFields } };
-              }),
             },
           },
         })),

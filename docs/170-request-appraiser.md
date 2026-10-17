@@ -762,40 +762,36 @@ Value, Remarks, Recommendation) to the full structure of the printed
   plus `landTitles: AppraisalReportLandTitle[]` — one entry per pledged
   property (`AppraisalTctGroup`) the bundle covers (`{ tctGroupId,
   fileType, titleNo, surveyNo, bookPageNo, titleRegistrationDate,
-  titleRegistrationPlace, areaSize, lotNo, zonalValue, fmvRcn,
-  constructionStatusPercent, depreciatedValue, appraisedValueP, latitude,
-  longitude, lotPlotFileName, lotPlotFileUrl, lotPlotGeneratedAt,
-  lotPlotLines: LotPlotLine[], boundaries, technicalSpecification,
-  collateralPhotos: CollateralPhoto[] }`), since the PDF's
-  LAND/BOUNDARIES/TECHNICAL SPECIFICATION tables — and its final "Item of
-  Property" valuation table — all repeat once per TCT/OCT. `fileType`/
-  `titleNo` are plain text fields alongside Survey No./Book No. `fmvRcn`,
-  `constructionStatusPercent`, `depreciatedValue`, and `appraisedValueP`
-  moved here from the flat `AppraisalReport` (see "Valuation table"
-  below) so a bundle covering several TCTs shows one valuation row per
-  title, matching the printed report, instead of one shared row for the
-  whole bundle; the old `itemOfProperty` field was dropped entirely as
-  redundant with the title's own "TCT No. …" card header. `boundaries` is
-  a single free-text field (matching the PDF, which has no
-  North/South/East/West breakdown), not structured per-direction fields.
-  `collateralPhotos` holds every Collateral Photo uploaded for this
-  title — each entry a `CollateralPhoto` (`{ fileName, fileUrl,
-  uploadedAt }`, same triplet shape every other single-file upload in
-  this app uses, just as an array element since a title supports multiple
-  photos) — see "In-house form" below for the multi-upload UI. (An
-  earlier version had exactly one photo per title, as three flat
-  `photo*` fields directly on `AppraisalReportLandTitle`; converted to
-  this array per explicit direction to support multiple uploads.)
+  titleRegistrationPlace, areaSize, lotNo, zonalValue, boundaries,
+  technicalSpecification, lotPlotLines: LotPlotLine[], lotPlotPhotos:
+  CollateralPhoto[], collateralPhotos: CollateralPhoto[] }`), since the
+  PDF's LAND/BOUNDARIES/TECHNICAL SPECIFICATION tables repeat once per
+  TCT/OCT. `fileType`/`titleNo` are plain text fields alongside Survey
+  No./Book No. `boundaries` is a single free-text field (matching the
+  PDF, which has no North/South/East/West breakdown), not structured
+  per-direction fields. `collateralPhotos` holds every Collateral Photo
+  uploaded for this title — each entry a `CollateralPhoto` (`{ fileName,
+  fileUrl, uploadedAt }`, same triplet shape every other single-file
+  upload in this app uses, just as an array element since a title
+  supports multiple photos) — see "In-house form" below for the
+  multi-upload UI.
   `lotPlotLines` is a bearings/distance table (`{ id, label, northSouth:
   'N'|'S'|'', degrees, eastWest: 'E'|'W'|'', minutes, distanceM }`), a
-  freely-typed "+ Add line" repeatable list shown alongside the generated
-  plot image/lat-long inputs — purely descriptive input (same
-  no-real-geocoding convention as latitude/longitude), not used to
-  actually compute the generated plot image.
+  freely-typed "+ Add line" repeatable list shown alongside the Lot Plot
+  Image upload. `lotPlotPhotos` is a plain photo upload (`MultiPhotoDropzone`,
+  same component Collateral Photos uses) for the Lot Plot Image itself —
+  a reference tool's own screenshot shows this as an uploaded
+  scanned-title-document/plotted-diagram image, not something this app
+  generates; a per-title `fmvRcn`/`constructionStatusPercent`/
+  `depreciatedValue`/`appraisedValueP` valuation row, and separate
+  `latitude`/`longitude` inputs + a "Generate Lot Plot" button that
+  produced a simulated plot-diagram image, were both **removed
+  entirely** (no reference-tool equivalent) in favor of this plain
+  upload.
 - **Technical specification** (report-wide, not per-title) —
   `streetFrontage`, `streetWidth`, `surfacing`, `averageDepth`,
-  `approxShape`, `topography`, `neighborhood`, `presentUse`,
-  `highestAndBestUse`.
+  `approxShape`, `topography`, `neighborhood`, `presentUse`.
+  `highestAndBestUse` was removed (no reference-tool equivalent).
 - **Source or kind of utilities** — `utilityPublicConveyance`,
   `utilityElectricity`, `utilityWater`, `utilityGasOthers` (renamed from
   `utilityTelephone` to match a reference tool's own "Gas / Others"
@@ -833,64 +829,41 @@ Value, Remarks, Recommendation) to the full structure of the printed
   `setAppraisalBundleReport` merge can't reach inside the array, same
   reason `setAppraisalBundleLandTitle` exists for `landTitles`.
   `improvements`/`particularDescriptions`/`conditionsForAcceptance`/
-  `landTitles[].lotPlotLines` (see below), added later, deliberately did
-  NOT get their own dedicated setters — the in-house form's own
-  add/update/remove handlers compute the next array inline and call the
-  existing generic `setAppraisalBundleReport(bundleId, { field:
-  nextArray })` merge instead, since that setter already exists and a
-  dedicated setter per array would just be more surface area for the
-  same result.
+  `landTitles[].lotPlotLines`/`landTitles[].lotPlotPhotos`/
+  `feeAttachments` (see below), added later, deliberately did NOT get
+  their own dedicated setters — the in-house form's own add/update/remove
+  handlers compute the next array inline and call the existing generic
+  `setAppraisalBundleReport(bundleId, { field: nextArray })` merge
+  instead, since that setter already exists and a dedicated setter per
+  array would just be more surface area for the same result.
 - **Remarks / Additional Information** — `remarksAdditionalInfo`, plus a
   new **Conditions for acceptance of collateral** repeatable array,
   `conditionsForAcceptance: AppraisalConditionEntry[]` (`{ id,
   itemOfProperty, ref, marketable, constructionStatusPercent,
   depreciatedValue, appraisedValue }`) — an "Add Item" card in the same
   section, matching a reference tool's own table.
-- **Valuation table → Appraisal summary** — the per-TCT row (`fmvRcn`,
-  `constructionStatusPercent`, `depreciatedValue`, `appraisedValueP`) still
-  lives on `AppraisalReportLandTitle` (see "Land" above), one row per
-  pledged property, matching the PDF's per-TCT "Item of Property" table.
-  `AppraisalReport` itself keeps the bundle-wide totals, now under an
-  "Appraisal summary" heading matching the reference form: `appraisedValue`
-  (required to submit — the only required field), `roundedFigures`,
-  `amountInWords`, `loanableAmount`, plus two new fields,
+- **Appraisal summary** — `appraisedValue` (required to submit — the only
+  required field), `roundedFigures`, `amountInWords`, plus
   `leasablePercent`/`leasableAmount` (Leasable Percent %/Leasable Amount
-  PHP) — a distinct concept from Loanable Amount, both kept side by side.
-- **Signature chain** — a **sequential sign-off chain**, not just four
-  name fields: `preparedBy`/`preparedAt`, `reviewedBy`/`reviewedAt`,
-  `endorsedBy`/`endorsedAt`, `notedBy`/`notedAt` (each `*At` an ISO
-  timestamp or `null`). Each step is gated on the previous one already
-  being stamped — Reviewed requires `preparedAt` set, Endorsed requires
-  `reviewedAt`, Noted requires `endorsedAt`; Prepared has no prior step.
-  Typing a name does **not** stamp it — stamping is `stampAppraisalBundleSignatory
-  (bundleId, role, name)`, a distinct action simulating another person's
-  approval (same "Simulate: Another Officer Approves ___" convention this
-  app's other approval flows use), called from each step's own
-  "Simulate: Approve" button in the form (`SignatoryField`, gated on
-  `gateMet && name.trim()`). Editing a name after it's stamped does not
-  clear the stamp — the button has to be clicked again to re-stamp. This
-  chain is entirely independent of Submit Appraisal Report and Head
-  Approval — it never gates either, and neither gates it; it exists only
-  to track who did each step of the report's own sign-off, per explicit
-  direction.
-- **Legacy fields kept as-is** — `propertyDetails` and `remarks` (no longer
-  shown as prominently, but still present) and `recommendation` (the
-  source process diagram's own field, distinct from the PDF).
-- **File Attachment** — `subdivisionPlanFileName`/`subdivisionPlanFileUrl`/
-  `subdivisionPlanUploadedAt` and `taxMapFileName`/`taxMapFileUrl`/
-  `taxMapUploadedAt`, both the standard single-file triplet shape (like
-  the external report file below), one Subdivision Plan and one Tax Map
-  for the whole report — bundle-wide, not per-TCT, distinct from each
-  title's own (per-TCT, multiple) Collateral Photos and Lot Plot image.
-  Maps to the printed PDF's own "File Attachment" section (which also
-  lists per-lot photos — those are what Collateral Photos covers).
-  `feeAttachments: CollateralPhoto[]` (new) is a separate, generic
-  multi-photo gallery — "Fee Attachment" in a reference form — reusing
-  the same `MultiPhotoDropzone` component Collateral Photos uses
-  (append-on-drop, thumbnail grid with per-photo remove), bound to
-  `setAppraisalBundleReport(bundleId, { feeAttachments })` directly
-  rather than a dedicated setter, same reasoning as the other new arrays
-  above.
+  PHP). `loanableAmount` was removed (no reference-tool equivalent —
+  Leasable Percent/Amount is a distinct concept, not a rename of it).
+- **Fee Attachment** — `feeAttachments: CollateralPhoto[]`, a generic
+  multi-photo gallery reusing the same `MultiPhotoDropzone` component
+  Collateral Photos uses (append-on-drop, thumbnail grid with per-photo
+  remove).
+- **Removed entirely** (no reference-tool equivalent): the sequential
+  Prepared/Reviewed/Endorsed/Noted By sign-off chain
+  (`preparedBy`/`preparedAt`/`reviewedBy`/`reviewedAt`/`endorsedBy`/
+  `endorsedAt`/`notedBy`/`notedAt`, the `stampAppraisalBundleSignatory`
+  context method, and the form's own `SignatoryField`/
+  `AppraisalReportView`'s `SignatureBlock`/`AppraisalReportPreview`'s
+  `SignatureField`); the legacy `propertyDetails`/`remarks`/
+  `recommendation` free-text fields; and the bundle-wide File Attachment
+  section (`subdivisionPlanFileName`/`subdivisionPlanFileUrl`/
+  `subdivisionPlanUploadedAt`/`taxMapFileName`/`taxMapFileUrl`/
+  `taxMapUploadedAt`, plus `AppraisalReportView`'s `FileAttachmentLink`)
+  — superseded by the per-title Lot Plot Image upload and the generic
+  Fee Attachment gallery above.
 - **External file fields** — `fileName`, `fileUrl`, `uploadedAt`, unchanged.
 
 `createAppraisalReportBundle` (the `admin-context.tsx` factory, not the
@@ -938,16 +911,19 @@ just isn't surfaced here at all anymore.)
   `CiSectionNav`/`useCiActiveSection` (`ci-report-card.tsx`) —
   reimplemented locally here (`useAppraisalActiveSection`,
   `APPRAISAL_SECTION_NAV_ITEMS`) rather than shared, since the two
-  forms' section-key types and section lists are unrelated. 14 entries,
-  one per top-level `SectionLabel` block already in the form (Report
+  forms' section-key types and section lists are unrelated. 10 entries,
+  one per top-level `SectionLabel` block in the form (Report
   Information, Land, Physical Characteristics, Utilities, Improvement,
   Construction Features, Particular Description, Basis of Valuation,
-  Remarks, Appraisal Summary, Signatories, Recommendation, File
-  Attachment, Fee Attachment) — each section's own `Stack` carries a ref
-  callback (`sectionRefs.current.set(key, el)`) the nav scrolls to on
-  click. "Encumbrances" has no nav entry of its own — `encumbrancesRemarks`
-  is still just a field inside the Land section, not a separate card;
-  splitting it out is a further restructure, not part of this pass.
+  Remarks, Appraisal Summary, Fee Attachment) — each section's own
+  `Stack` carries a ref callback (`sectionRefs.current.set(key, el)`)
+  the nav scrolls to on click. (Signatories, Recommendation, and the
+  separate bundle-wide File Attachment section were removed from the
+  form entirely — see "`AppraisalReport` data model" above — so they
+  dropped out of the nav too.) "Encumbrances" has no nav entry of its
+  own — `encumbrancesRemarks` is still just a field inside the Land
+  section, not a separate card; splitting it out is a further
+  restructure, not part of this pass.
 - **External** — unchanged: a single dashed file dropzone for the external
   appraiser's finished report (image or PDF). Picking a file sets
   `fileName`/`fileUrl`/`uploadedAt` directly (no separate submit step). No
@@ -1582,6 +1558,26 @@ Pass/Fail terminal decision. The gating that does happen here:
 Concise milestones — the detailed pass-by-pass narrative is in "Read-only
 view (`AppraisalReportView`)" above.
 
+- **2026-10-17** — Removed every field/section with no counterpart in the
+  reference Appraisal Report screenshot this form now matches: per-title
+  FMV/RCN, Construction Status %, Depreciated Value, Appraised Value (P);
+  the Latitude/Longitude inputs and "Generate Lot Plot" button (replaced
+  with a plain `lotPlotPhotos` multi-photo upload for the Lot Plot Image,
+  same `MultiPhotoDropzone` pattern as Collateral Photos); `highestAndBestUse`;
+  the whole Prepared/Reviewed/Endorsed/Noted By sequential sign-off chain
+  (`preparedBy`/`preparedAt`/.../`stampAppraisalBundleSignatory`, and the
+  matching UI in all three places it rendered — the form's own
+  `SignatoryField`, `AppraisalReportView`'s `SignatureBlock`,
+  `AppraisalReportPreview`'s `SignatureField`); the legacy
+  `propertyDetails`/`remarks`/`recommendation` free-text fields; the
+  bundle-wide File Attachment section (Subdivision Plan/Tax Map —
+  superseded by the per-title Lot Plot Image upload and the generic Fee
+  Attachment gallery); and `loanableAmount` (a distinct, no-longer-shown
+  concept from the kept Leasable Percent/Amount fields). Updated the
+  section nav to drop the Signatories/Recommendation/File Attachment
+  entries (10 sections now, not 14) and both read-only renderers
+  (`appraisal-report-preview.tsx`, `appraisal-report-view.tsx`) and
+  `sample-appraisal-report.ts` to match.
 - **2026-10-16** — Added a sticky left section nav
   (`AppraisalSectionNav`/`useAppraisalActiveSection`) to the in-house
   form, matching the Credit Investigation report's own

@@ -137,55 +137,6 @@ function FactChipRow({ children }: { children: React.ReactNode }) {
   );
 }
 
-// One signature entry — same icon-chip shape call-report-result-modal.tsx's
-// own SignatureField uses (which itself matches EndorsementDeclarationCard's
-// SignatureField), replacing the earlier bordered-box SignatureBlock.
-function SignatureField({ label, name, stampedAt }: { label: string; name: string; stampedAt?: string | null }) {
-  return (
-    <Stack direction="row" spacing={1.25} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
-      <Box
-        sx={{
-          width: 34,
-          height: 34,
-          borderRadius: '9px',
-          bgcolor: 'common.white',
-          border: '1px solid #C7EDDA',
-          display: 'grid',
-          placeItems: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <Iconify icon="solar:user-bold-duotone" width={17} sx={{ color: '#0C8A4F' }} />
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography
-          sx={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            color: '#0C8A4F',
-            opacity: 0.75,
-          }}
-        >
-          {label}
-        </Typography>
-        <Typography
-          sx={{ fontSize: 14.5, fontWeight: 700, color: '#14172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-          title={name}
-        >
-          {name || '—'}
-        </Typography>
-        {stampedAt && (
-          <Typography sx={{ fontSize: 10.5, color: '#0C8A4F', mt: 0.25 }}>
-            {new Date(stampedAt).toLocaleString()}
-          </Typography>
-        )}
-      </Box>
-    </Stack>
-  );
-}
-
 function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitle; tctNumber: string }) {
   return (
     <SectionCard label={`TCT No. ${tctNumber}`}>
@@ -199,10 +150,6 @@ function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitl
         <FieldRow label="Book No. / Page No." value={title.bookPageNo} />
         <FieldRow label="Title Registration Date" value={title.titleRegistrationDate} />
         <FieldRow label="Title Registration Place" value={title.titleRegistrationPlace} />
-        <FieldRow label="FMV / RCN (PHP)" value={title.fmvRcn} />
-        <FieldRow label="Construction Status %" value={title.constructionStatusPercent} />
-        <FieldRow label="Depreciated Value" value={title.depreciatedValue} />
-        <FieldRow label="Appraised Value (P)" value={title.appraisedValueP} />
 
         {title.boundaries && (
           <Box>
@@ -221,17 +168,18 @@ function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitl
           </Box>
         )}
 
-        {(title.latitude || title.longitude || title.lotPlotFileUrl) && (
+        {title.lotPlotPhotos.length > 0 && (
           <Box sx={{ p: 1.25, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#F9FAFC' }}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
               <Iconify icon="solar:map-point-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
               <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A6273' }}>
-                Lot Plotting
+                Lot Plot Image
               </Typography>
             </Stack>
-            <Stack direction="row" alignItems="center" spacing={2}>
-              {title.lotPlotFileUrl && (
+            <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25}>
+              {title.lotPlotPhotos.map((photo, index) => (
                 <Box
+                  key={`${photo.fileUrl}-${index}`}
                   sx={{
                     width: 56,
                     height: 56,
@@ -244,16 +192,12 @@ function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitl
                 >
                   <Box
                     component="img"
-                    src={title.lotPlotFileUrl}
-                    alt={`Lot plot — TCT No. ${tctNumber}`}
+                    src={photo.fileUrl}
+                    alt={`Lot plot image ${index + 1} — TCT No. ${tctNumber}`}
                     sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
                   />
                 </Box>
-              )}
-              <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
-                <FieldRow label="Latitude" value={title.latitude} />
-                <FieldRow label="Longitude" value={title.longitude} />
-              </Stack>
+              ))}
             </Stack>
           </Box>
         )}
@@ -329,7 +273,6 @@ export function AppraisalReportPreview({
       })}
 
       <SectionCard label="Technical Specification">
-        <FieldRow label="Highest and Best Use" value={report.highestAndBestUse} />
         <FieldRow label="Present Use" value={report.presentUse} />
         <FieldRow label="Street Frontage (metres)" value={report.streetFrontage} />
         <FieldRow label="Street Width (metres)" value={report.streetWidth} />
@@ -415,40 +358,9 @@ export function AppraisalReportPreview({
         <FieldRow label="Appraised Value" value={report.appraisedValue} />
         <FieldRow label="Rounded Figures" value={report.roundedFigures} />
         <FieldRow label="Amount in Words" value={report.amountInWords} />
-        <FieldRow label="Loanable Amount" value={report.loanableAmount} />
         <FieldRow label="Leasable Percent (%)" value={report.leasablePercent} />
         <FieldRow label="Leasable Amount (PHP)" value={report.leasableAmount} />
       </SectionCard>
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2.5 }}>
-        <SectionCard>
-          <SignatureField label="Prepared by" name={report.preparedBy} stampedAt={report.preparedAt} />
-        </SectionCard>
-        <SectionCard>
-          <SignatureField label="Reviewed by" name={report.reviewedBy} stampedAt={report.reviewedAt} />
-        </SectionCard>
-        <SectionCard>
-          <SignatureField label="Endorsed by" name={report.endorsedBy} stampedAt={report.endorsedAt} />
-        </SectionCard>
-        <SectionCard>
-          <SignatureField label="Noted by" name={report.notedBy} stampedAt={report.notedAt} />
-        </SectionCard>
-      </Box>
-
-      <NarrativeBlock label="Recommendation" value={report.recommendation} />
-
-      {(report.subdivisionPlanFileUrl || report.taxMapFileUrl) && (
-        <SectionCard label="File Attachment">
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            {report.subdivisionPlanFileUrl && (
-              <FieldRow label="Subdivision Plan" value={report.subdivisionPlanFileName ?? 'Subdivision Plan'} />
-            )}
-            {report.taxMapFileUrl && (
-              <FieldRow label="Tax Map" value={report.taxMapFileName ?? 'Tax Map'} />
-            )}
-          </Stack>
-        </SectionCard>
-      )}
 
       {report.feeAttachments.length > 0 && (
         <SectionCard label="Fee Attachment">

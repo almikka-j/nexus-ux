@@ -94,9 +94,6 @@ type AppraisalSectionKey =
   | 'basisOfValuation'
   | 'remarks'
   | 'appraisalSummary'
-  | 'signatories'
-  | 'recommendation'
-  | 'fileAttachment'
   | 'feeAttachment';
 
 const APPRAISAL_SECTION_NAV_ITEMS: { key: AppraisalSectionKey; label: string }[] = [
@@ -110,9 +107,6 @@ const APPRAISAL_SECTION_NAV_ITEMS: { key: AppraisalSectionKey; label: string }[]
   { key: 'basisOfValuation', label: 'Basis of Valuation' },
   { key: 'remarks', label: 'Remarks' },
   { key: 'appraisalSummary', label: 'Appraisal Summary' },
-  { key: 'signatories', label: 'Signatories' },
-  { key: 'recommendation', label: 'Recommendation' },
-  { key: 'fileAttachment', label: 'File Attachment' },
   { key: 'feeAttachment', label: 'Fee Attachment' },
 ];
 
@@ -230,87 +224,6 @@ function useAppraisalActiveSection(
   }, [keys.length, remountKey]);
 
   return activeKey;
-}
-
-// One step of the sequential Prepared -> Reviewed -> Endorsed -> Noted
-// sign-off chain — a name field plus a "Simulate: Approve as {Role}"
-// stamp button, disabled until the prior step in the chain has already
-// been stamped (gateMet). Stamping is a distinct action from typing the
-// name (this is an approval workflow, not just an attribution field), so
-// editing the name after stamping does not clear the existing stamp —
-// the button has to be clicked again to re-stamp.
-function SignatoryField({
-  label,
-  name,
-  stampedAt,
-  editable,
-  gateMet,
-  fieldSx,
-  onNameChange,
-  onStamp,
-}: {
-  label: string;
-  name: string;
-  stampedAt: string | null;
-  editable: boolean;
-  gateMet: boolean;
-  fieldSx: object;
-  onNameChange: (value: string) => void;
-  onStamp: () => void;
-}) {
-  return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
-      <TextField
-        fullWidth
-        size="small"
-        label={label}
-        value={name}
-        disabled={!editable}
-        onChange={(event) => onNameChange(event.target.value)}
-        sx={fieldSx}
-      />
-      {editable && (
-        <Button
-          onClick={onStamp}
-          variant="outlined"
-          disabled={!gateMet || !name.trim()}
-          sx={{ ...outlinedNavyButtonSx, flexShrink: 0, whiteSpace: 'nowrap' }}
-        >
-          Simulate: Approve
-        </Button>
-      )}
-      {stampedAt && (
-        <Typography sx={{ fontSize: 11.5, color: '#0C8A4F', flexShrink: 0, whiteSpace: 'nowrap' }}>
-          Stamped {new Date(stampedAt).toLocaleString()}
-        </Typography>
-      )}
-    </Stack>
-  );
-}
-
-// Simulated "AI-generated" lot plot diagram — a canned inline SVG data URI
-// stamped with the title's own latitude/longitude, same technique
-// sample-appraisal-report.ts's SAMPLE_COLLATERAL_PHOTO uses. No real
-// mapping/AI service is called; the trailing `#.jpg` fragment is the same
-// workaround that lets FileThumbnail's naive extension sniff (`url.split
-// ('.').pop()`) treat a data:image/svg+xml URI as an image instead of
-// falling back to a generic file icon.
-function buildLotPlotImage(latitude: string, longitude: string): string {
-  const coordsLabel = `${latitude}, ${longitude}`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320">
-      <rect width="480" height="320" fill="#EEF1FE"/>
-      <rect x="20" y="20" width="440" height="280" fill="none" stroke="#1C2A6E" stroke-width="2" stroke-dasharray="6 4"/>
-      <polygon points="90,250 90,90 300,60 390,180 260,260" fill="#C9D3F5" stroke="#1C2A6E" stroke-width="2"/>
-      <circle cx="90" cy="90" r="4" fill="#1C2A6E"/>
-      <circle cx="300" cy="60" r="4" fill="#1C2A6E"/>
-      <circle cx="390" cy="180" r="4" fill="#1C2A6E"/>
-      <circle cx="260" cy="260" r="4" fill="#1C2A6E"/>
-      <circle cx="90" cy="250" r="4" fill="#1C2A6E"/>
-      <text x="240" y="160" font-family="sans-serif" font-size="13" font-weight="700" fill="#1C2A6E" text-anchor="middle">LOT PLOT</text>
-      <text x="240" y="300" font-family="sans-serif" font-size="12" fill="#5A6273" text-anchor="middle">${coordsLabel}</text>
-    </svg>`
-  )}#.jpg`;
 }
 
 function ReportFileDropzone({
@@ -522,14 +435,6 @@ function LandTitleFields({
     },
   };
 
-  const handleGenerateLotPlot = () => {
-    onChange({
-      lotPlotFileName: `Lot-Plot-${tctNumber}.svg`,
-      lotPlotFileUrl: buildLotPlotImage(title.latitude ?? '', title.longitude ?? ''),
-      lotPlotGeneratedAt: new Date().toISOString(),
-    });
-  };
-
   const addLotPlotLine = () => onChange({ lotPlotLines: [...title.lotPlotLines, createLotPlotLine()] });
   const updateLotPlotLine = (lineId: string, data: Partial<LotPlotLine>) =>
     onChange({
@@ -629,44 +534,6 @@ function LandTitleFields({
             sx={fieldSx}
           />
         </Stack>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-          <TextField
-            fullWidth
-            size="small"
-            label="FMV / RCN (PHP)"
-            value={title.fmvRcn}
-            disabled={!editable}
-            onChange={(event) => onChange({ fmvRcn: event.target.value })}
-            sx={fieldSx}
-          />
-          <TextField
-            fullWidth
-            size="small"
-            label="Construction Status %"
-            value={title.constructionStatusPercent}
-            disabled={!editable}
-            onChange={(event) => onChange({ constructionStatusPercent: event.target.value })}
-            sx={fieldSx}
-          />
-          <TextField
-            fullWidth
-            size="small"
-            label="Depreciated Value"
-            value={title.depreciatedValue}
-            disabled={!editable}
-            onChange={(event) => onChange({ depreciatedValue: event.target.value })}
-            sx={fieldSx}
-          />
-          <TextField
-            fullWidth
-            size="small"
-            label="Appraised Value (P)"
-            value={title.appraisedValueP}
-            disabled={!editable}
-            onChange={(event) => onChange({ appraisedValueP: event.target.value })}
-            sx={fieldSx}
-          />
-        </Stack>
         <Box
           sx={{
             p: 2,
@@ -692,9 +559,6 @@ function LandTitleFields({
             </Box>
             <Box>
               <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Lot Plotting</Typography>
-              <Typography sx={{ fontSize: 12.5, color: '#8891A6', mt: 0.25 }}>
-                Enter coordinates, then generate a plot diagram for this title.
-              </Typography>
             </Box>
           </Stack>
           <Stack spacing={1} sx={{ mb: 1.75 }}>
@@ -785,60 +649,14 @@ function LandTitleFields({
               </Button>
             )}
           </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'flex-start' }} spacing={{ xs: 1, sm: 1.25 }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Latitude"
-              placeholder="14.2569"
-              value={title.latitude ?? ''}
-              disabled={!editable}
-              onChange={(event) => onChange({ latitude: event.target.value })}
-              sx={{ '& .MuiOutlinedInput-root': { minHeight: 42, borderRadius: '10px', bgcolor: 'common.white', fontSize: 14 } }}
-            />
-            <TextField
-              fullWidth
-              size="small"
-              label="Longitude"
-              placeholder="121.0583"
-              value={title.longitude ?? ''}
-              disabled={!editable}
-              onChange={(event) => onChange({ longitude: event.target.value })}
-              sx={{ '& .MuiOutlinedInput-root': { minHeight: 42, borderRadius: '10px', bgcolor: 'common.white', fontSize: 14 } }}
-            />
-            <Button
-              onClick={handleGenerateLotPlot}
-              variant="contained"
-              disabled={!editable || !(title.latitude ?? '').trim() || !(title.longitude ?? '').trim()}
-              startIcon={<Iconify icon="solar:map-point-bold-duotone" width={18} />}
-              sx={{
-                minHeight: 42,
-                minWidth: { sm: 148 },
-                borderRadius: '10px',
-                px: 2.25,
-                flexShrink: 0,
-                bgcolor: '#1C2A6E',
-                boxShadow: 'none',
-                fontWeight: 700,
-                '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
-              }}
-            >
-              {title.lotPlotFileUrl ? 'Regenerate' : 'Generate Lot Plot'}
-            </Button>
-          </Stack>
-          {title.lotPlotFileUrl && (
-            <Box sx={{ mt: 1.75 }}>
-              <Box
-                component="img"
-                src={title.lotPlotFileUrl}
-                alt={`Lot plot — TCT No. ${tctNumber}`}
-                sx={{ width: { xs: '100%', sm: 200 }, aspectRatio: '3 / 2', objectFit: 'contain', bgcolor: '#EEF1FE', borderRadius: '10px', border: '1px solid #DDE3F5', display: 'block' }}
-              />
-              <Typography sx={{ fontSize: 10.5, color: '#8891A6', mt: 0.75 }}>
-                Simulated preview
-              </Typography>
-            </Box>
-          )}
+          <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', letterSpacing: '0.04em', textTransform: 'uppercase', mb: 1 }}>
+            Lot Plot Image
+          </Typography>
+          <MultiPhotoDropzone
+            photos={title.lotPlotPhotos}
+            onChange={(photos) => onChange({ lotPlotPhotos: photos })}
+            disabled={!editable}
+          />
         </Box>
         <TextField
           fullWidth
@@ -903,7 +721,6 @@ export function AppraiserAssignmentCard({
     addAppraisalBundleComparable,
     updateAppraisalBundleComparable,
     removeAppraisalBundleComparable,
-    stampAppraisalBundleSignatory,
   } = useAdmin();
   const { headApprovalStatus } = review.appraisal;
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
@@ -982,34 +799,6 @@ export function AppraiserAssignmentCard({
     });
   };
 
-  const handleSubdivisionPlanFile = (file: File | null) => {
-    if (!file) {
-      setAppraisalBundleReport(bundleId, {
-        subdivisionPlanFileName: null,
-        subdivisionPlanFileUrl: null,
-        subdivisionPlanUploadedAt: null,
-      });
-      return;
-    }
-    setAppraisalBundleReport(bundleId, {
-      subdivisionPlanFileName: file.name,
-      subdivisionPlanFileUrl: URL.createObjectURL(file),
-      subdivisionPlanUploadedAt: new Date().toISOString(),
-    });
-  };
-
-  const handleTaxMapFile = (file: File | null) => {
-    if (!file) {
-      setAppraisalBundleReport(bundleId, { taxMapFileName: null, taxMapFileUrl: null, taxMapUploadedAt: null });
-      return;
-    }
-    setAppraisalBundleReport(bundleId, {
-      taxMapFileName: file.name,
-      taxMapFileUrl: URL.createObjectURL(file),
-      taxMapUploadedAt: new Date().toISOString(),
-    });
-  };
-
   const submitInhouseReport = () => {
     if (!report.appraisedValue.trim()) return;
     setAppraisalBundleReport(bundleId, { uploadedAt: new Date().toISOString() });
@@ -1018,8 +807,6 @@ export function AppraiserAssignmentCard({
   const externalFile = report.fileName
     ? new File([], report.fileName)
     : null;
-  const subdivisionPlanFile = report.subdivisionPlanFileUrl;
-  const taxMapFile = report.taxMapFileUrl;
 
   return (
     <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
@@ -1255,15 +1042,6 @@ export function AppraiserAssignmentCard({
                 sx={fieldSx}
               />
             </Stack>
-            <TextField
-              fullWidth
-              size="small"
-              label="Highest and Best Use"
-              value={report.highestAndBestUse}
-              disabled={!editable}
-              onChange={(event) => setAppraisalBundleReport(bundleId, { highestAndBestUse: event.target.value })}
-              sx={fieldSx}
-            />
           </Stack>
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
@@ -1899,16 +1677,6 @@ export function AppraiserAssignmentCard({
                 onChange={(event) => setAppraisalBundleReport(bundleId, { roundedFigures: event.target.value })}
                 sx={fieldSx}
               />
-              <TextField
-                fullWidth
-                size="small"
-                label="Loanable Amount"
-                placeholder="70%"
-                value={report.loanableAmount}
-                disabled={!editable}
-                onChange={(event) => setAppraisalBundleReport(bundleId, { loanableAmount: event.target.value })}
-                sx={fieldSx}
-              />
             </Stack>
             <TextField
               fullWidth
@@ -1940,105 +1708,6 @@ export function AppraiserAssignmentCard({
                 sx={fieldSx}
               />
             </Stack>
-          </Stack>
-
-          <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-          <Stack
-            spacing={1.5}
-            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('signatories', el); }}
-          >
-            <SectionLabel>Prepared / reviewed / endorsed / noted by</SectionLabel>
-            <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
-              Each step unlocks once the one before it is stamped — Prepared, then Reviewed, then
-              Endorsed, then Noted. Stamping simulates another person approving; it does not gate
-              Submit Appraisal Report or Head Approval.
-            </Typography>
-            <SignatoryField
-              label="Prepared by"
-              name={report.preparedBy}
-              stampedAt={report.preparedAt}
-              editable={editable}
-              gateMet
-              fieldSx={fieldSx}
-              onNameChange={(value) => setAppraisalBundleReport(bundleId, { preparedBy: value })}
-              onStamp={() => stampAppraisalBundleSignatory(bundleId, 'prepared', report.preparedBy)}
-            />
-            <SignatoryField
-              label="Reviewed by"
-              name={report.reviewedBy}
-              stampedAt={report.reviewedAt}
-              editable={editable}
-              gateMet={!!report.preparedAt}
-              fieldSx={fieldSx}
-              onNameChange={(value) => setAppraisalBundleReport(bundleId, { reviewedBy: value })}
-              onStamp={() => stampAppraisalBundleSignatory(bundleId, 'reviewed', report.reviewedBy)}
-            />
-            <SignatoryField
-              label="Endorsed by"
-              name={report.endorsedBy}
-              stampedAt={report.endorsedAt}
-              editable={editable}
-              gateMet={!!report.reviewedAt}
-              fieldSx={fieldSx}
-              onNameChange={(value) => setAppraisalBundleReport(bundleId, { endorsedBy: value })}
-              onStamp={() => stampAppraisalBundleSignatory(bundleId, 'endorsed', report.endorsedBy)}
-            />
-            <SignatoryField
-              label="Noted by"
-              name={report.notedBy}
-              stampedAt={report.notedAt}
-              editable={editable}
-              gateMet={!!report.endorsedAt}
-              fieldSx={fieldSx}
-              onNameChange={(value) => setAppraisalBundleReport(bundleId, { notedBy: value })}
-              onStamp={() => stampAppraisalBundleSignatory(bundleId, 'noted', report.notedBy)}
-            />
-          </Stack>
-
-          <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-          <Stack
-            spacing={1.5}
-            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('recommendation', el); }}
-          >
-            <SectionLabel>Recommendation</SectionLabel>
-            <TextField
-              fullWidth
-              multiline
-              minRows={2}
-              value={report.recommendation}
-              disabled={!editable}
-              onChange={(event) => setAppraisalBundleReport(bundleId, { recommendation: event.target.value })}
-              sx={fieldSx}
-            />
-          </Stack>
-
-          <Divider sx={{ borderColor: '#EEF0F5' }} />
-
-          <Stack
-            spacing={1.5}
-            ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('fileAttachment', el); }}
-          >
-            <SectionLabel>File attachment</SectionLabel>
-            <ReportFileDropzone
-              value={subdivisionPlanFile}
-              fileName={report.subdivisionPlanFileName}
-              onChange={handleSubdivisionPlanFile}
-              disabled={!editable}
-              label="Choose a file — Subdivision Plan"
-              accept={{ 'image/*': [] }}
-              imageView
-            />
-            <ReportFileDropzone
-              value={taxMapFile}
-              fileName={report.taxMapFileName}
-              onChange={handleTaxMapFile}
-              disabled={!editable}
-              label="Choose a file — Tax Map"
-              accept={{ 'image/*': [] }}
-              imageView
-            />
           </Stack>
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />

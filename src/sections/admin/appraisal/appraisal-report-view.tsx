@@ -89,76 +89,6 @@ function Field({ label, value, span = 1 }: { label: string; value: string; span?
   );
 }
 
-// One signature entry — eyebrow label + bold name, in its own bordered
-// box. Same pattern credit-checking-result-modal.tsx's own "Prepared by"
-// block uses (Box/p:2/borderRadius:12px/border:1px solid #EEF0F5, an
-// eyebrow SectionLabel, then the name in bold dark text), applied here to
-// all four Prepared/Reviewed/Endorsed/Noted By entries instead of the
-// hairline-underline Field style every other value on this card uses.
-// `stampedAt` shows the sequential sign-off chain's own timestamp
-// underneath the name, when that step has actually been stamped.
-function SignatureBlock({ label, name, stampedAt }: { label: string; name: string; stampedAt?: string | null }) {
-  if (!name) return null;
-  return (
-    <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
-      <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8891A6' }}>
-        {label}
-      </Typography>
-      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mt: 1 }}>{name}</Typography>
-      {stampedAt && (
-        <Typography sx={{ fontSize: 11, color: '#0C8A4F', mt: 0.5 }}>
-          {new Date(stampedAt).toLocaleString()}
-        </Typography>
-      )}
-    </Box>
-  );
-}
-
-// A bundle-wide supporting document link (Subdivision Plan, Tax Map) —
-// distinct from each title's own Collateral Photos gallery and Lot Plot
-// image, since these two are per-report, not per-TCT. Read-only "View"
-// link, same convention the external-appraiser report file uses.
-function FileAttachmentLink({ label, fileName, fileUrl }: { label: string; fileName: string | null; fileUrl: string }) {
-  return (
-    <Stack
-      direction="row"
-      alignItems="center"
-      spacing={1.25}
-      sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', flex: 1, minWidth: 0 }}
-    >
-      <Iconify icon="solar:file-check-bold-duotone" width={20} sx={{ color: '#1C2A6E', flexShrink: 0 }} />
-      <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>{label}</Typography>
-        <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#344054' }} noWrap>
-          {fileName ?? label}
-        </Typography>
-      </Box>
-      <Box
-        component="a"
-        href={fileUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        sx={{
-          ...outlinedNavyButtonSx,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 0.5,
-          px: 1.25,
-          py: 0.5,
-          borderRadius: '8px',
-          border: '1px solid',
-          fontSize: 12.5,
-          fontWeight: 700,
-          textDecoration: 'none',
-          flexShrink: 0,
-        }}
-      >
-        View
-      </Box>
-    </Stack>
-  );
-}
-
 // Responsive field grid — 2 columns on mobile, 4 on desktop, matching a
 // typical printed form's row-of-boxes layout. `Field` itself returns null
 // for an empty value, so an all-empty row collapses to nothing.
@@ -358,10 +288,6 @@ function LandTitleSummary({
           <Field label="Book No. / Page No." value={title.bookPageNo} />
           <Field label="Title Registration Date" value={title.titleRegistrationDate} />
           <Field label="Title Registration Place" value={title.titleRegistrationPlace} span={2} />
-          <Field label="FMV / RCN (PHP)" value={title.fmvRcn} />
-          <Field label="Construction Status %" value={title.constructionStatusPercent} />
-          <Field label="Depreciated Value" value={title.depreciatedValue} />
-          <Field label="Appraised Value (P)" value={title.appraisedValueP} />
         </Box>
 
         {(title.boundaries || title.technicalSpecification) && (
@@ -385,32 +311,25 @@ function LandTitleSummary({
           </Stack>
         )}
 
-        {(title.latitude || title.longitude || title.lotPlotFileUrl) && (
+        {title.lotPlotPhotos.length > 0 && (
           <Box sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #E3E7F5', bgcolor: '#F7F8FE' }}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.25 }}>
               <Iconify icon="solar:map-point-bold-duotone" width={16} sx={{ color: '#1C2A6E' }} />
               <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#1C2A6E' }}>
-                Lot Plotting
+                Lot Plot Image
               </Typography>
             </Stack>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 2.5, rowGap: 1.75, flex: 1, minWidth: 0 }}>
-                <Field label="Latitude" value={title.latitude} />
-                <Field label="Longitude" value={title.longitude} />
-              </Box>
-              {title.lotPlotFileUrl && (
-                <Box sx={{ width: { xs: '100%', sm: 200 }, flexShrink: 0 }}>
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" rowGap={1.5}>
+              {title.lotPlotPhotos.map((photo, index) => (
+                <Box key={`${photo.fileUrl}-${index}`} sx={{ width: { xs: '100%', sm: 200 }, flexShrink: 0 }}>
                   <Box
                     component="img"
-                    src={title.lotPlotFileUrl}
-                    alt={`Lot plot — TCT No. ${tctNumber}`}
+                    src={photo.fileUrl}
+                    alt={`Lot plot image ${index + 1} — TCT No. ${tctNumber}`}
                     sx={{ width: '100%', aspectRatio: '3 / 2', objectFit: 'contain', bgcolor: '#EEF1FE', borderRadius: '10px', border: '1px solid #DDE3F5', display: 'block' }}
                   />
-                  <Typography sx={{ fontSize: 10.5, color: '#8891A6', mt: 0.75, textAlign: 'center' }}>
-                    Simulated preview
-                  </Typography>
                 </Box>
-              )}
+              ))}
             </Stack>
           </Box>
         )}
@@ -579,9 +498,7 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
 
         <FieldGrid>
           <Field label="Registered Owner" value={report.registeredOwner} span={2} />
-          <Field label="Loanable Amount" value={report.loanableAmount} span={2} />
           <Field label="Location of Property" value={report.locationOfProperty} span={2} />
-          <Field label="Highest and Best Use" value={report.highestAndBestUse} />
           <Field label="Properties Covered" value={String(propertyCount)} />
         </FieldGrid>
 
@@ -650,7 +567,6 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
               onToggle={() => toggle('technical')}
             >
               <FieldGrid>
-                <Field label="Highest and Best Use" value={report.highestAndBestUse} span={2} />
                 <Field label="Present Use" value={report.presentUse} span={2} />
                 <Field label="Street Frontage (metres)" value={report.streetFrontage} />
                 <Field label="Street Width (metres)" value={report.streetWidth} />
@@ -791,7 +707,6 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
           <Stack spacing={1.5}>
             <SectionLabel>Appraisal summary</SectionLabel>
             <FieldGrid>
-              <Field label="Loanable Amount" value={report.loanableAmount} span={2} />
               <Field label="Rounded Figures" value={report.roundedFigures} span={2} />
               <Field label="Leasable Percent (%)" value={report.leasablePercent} span={2} />
               <Field label="Leasable Amount (PHP)" value={report.leasableAmount} span={2} />
@@ -811,39 +726,6 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
                     sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
                   />
                 ))}
-              </Stack>
-            </Stack>
-          )}
-
-          <Stack spacing={1.5}>
-            <SectionLabel>Prepared / Reviewed / Endorsed / Noted By</SectionLabel>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1.5 }}>
-              <SignatureBlock label="Prepared by" name={report.preparedBy} stampedAt={report.preparedAt} />
-              <SignatureBlock label="Reviewed by" name={report.reviewedBy} stampedAt={report.reviewedAt} />
-              <SignatureBlock label="Endorsed by" name={report.endorsedBy} stampedAt={report.endorsedAt} />
-              <SignatureBlock label="Noted by" name={report.notedBy} stampedAt={report.notedAt} />
-            </Box>
-          </Stack>
-
-          {report.recommendation && (
-            <Stack spacing={1.5}>
-              <SectionLabel>Recommendation</SectionLabel>
-              <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
-                {report.recommendation}
-              </Typography>
-            </Stack>
-          )}
-
-          {(report.subdivisionPlanFileUrl || report.taxMapFileUrl) && (
-            <Stack spacing={1.5}>
-              <SectionLabel>File Attachment</SectionLabel>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                {report.subdivisionPlanFileUrl && (
-                  <FileAttachmentLink label="Subdivision Plan" fileName={report.subdivisionPlanFileName} fileUrl={report.subdivisionPlanFileUrl} />
-                )}
-                {report.taxMapFileUrl && (
-                  <FileAttachmentLink label="Tax Map" fileName={report.taxMapFileName} fileUrl={report.taxMapFileUrl} />
-                )}
               </Stack>
             </Stack>
           )}
