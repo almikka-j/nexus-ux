@@ -4,15 +4,12 @@ import { useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
 import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
 
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
@@ -254,8 +251,8 @@ export function ApplicationDetailsCard({
   const { signUpData, application } = useRegistration();
   const { review } = useAdmin();
   // On long workflow pages, the application is presented as a compact
-  // summary and the complete submission is opened on demand in a dialog.
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  // summary and the complete submission expands inline on demand.
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [callReportOpen, setCallReportOpen] = useState(false);
   const [creditCheckingOpen, setCreditCheckingOpen] = useState(false);
@@ -469,7 +466,7 @@ export function ApplicationDetailsCard({
             <Button
               variant="outlined"
               startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-              onClick={() => setDetailsOpen(true)}
+              onClick={() => setDetailsExpanded((prev) => !prev)}
               sx={{
                 color: '#1C2A6E',
                 borderColor: '#C7CEEA',
@@ -480,7 +477,7 @@ export function ApplicationDetailsCard({
                 '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
               }}
             >
-              View full application
+              {detailsExpanded ? 'Hide full application' : 'View full application'}
             </Button>
             {hasCreditCheckingAction && (
               <Button
@@ -570,21 +567,16 @@ export function ApplicationDetailsCard({
           </Menu>
         </Box>
 
-        <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} fullWidth maxWidth="md" scroll="paper">
-          <DialogTitle sx={{ p: 3, pb: 2 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-              <Box>
-                <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>Full application</Typography>
-                <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>{fullName} · {applicationNumber}</Typography>
-              </Box>
-              <IconButton onClick={() => setDetailsOpen(false)} aria-label="Close full application">
-                <Iconify icon="mingcute:close-line" width={22} />
-              </IconButton>
+        {detailsExpanded && (
+          <>
+            <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
+            <Stack spacing={0.25} sx={{ mb: 2 }}>
+              <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A' }}>Full application</Typography>
+              <Typography sx={{ fontSize: 13, color: '#8891A6' }}>{fullName} · {applicationNumber}</Typography>
             </Stack>
-          </DialogTitle>
-          <Divider />
-          <DialogContent sx={{ p: 3 }}>{detailsContent}</DialogContent>
-        </Dialog>
+            {detailsContent}
+          </>
+        )}
 
         <OfficerNotesDialog
           open={notesOpen}
