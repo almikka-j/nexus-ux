@@ -14,7 +14,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { Field, FieldGrid, SectionLabel, adminCardSx, TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { CollapsibleSection } from 'src/components/collapsible-section';
 
 import type { CollateralPhoto, AppraisalReportLandTitle } from 'src/auth/admin-context';
@@ -45,67 +45,6 @@ import type { CollateralPhoto, AppraisalReportLandTitle } from 'src/auth/admin-c
 // the restructure that stayed inside the existing pattern language
 // instead of importing one.
 // ----------------------------------------------------------------------
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <Box>
-      <Typography
-        sx={{
-          fontSize: 11.5,
-          fontWeight: 700,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          color: '#8891A6',
-        }}
-      >
-        {children}
-      </Typography>
-      <Divider sx={{ mt: 0.75, borderColor: '#EEF0F5' }} />
-    </Box>
-  );
-}
-
-// A single "form line" — label in small-caps above, value sitting directly
-// on a hairline rule below, the way a filled-in printed form reads.
-function Field({ label, value, span = 1 }: { label: string; value: string; span?: number }) {
-  if (!value) return null;
-  return (
-    <Box sx={{ minWidth: 0, gridColumn: `span ${span}` }}>
-      <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>{label}</Typography>
-      <Typography
-        sx={{
-          mt: 0.25,
-          pb: 0.6,
-          fontSize: 13.5,
-          fontWeight: 600,
-          color: '#14172A',
-          wordBreak: 'break-word',
-          borderBottom: '1px solid #EEF0F5',
-        }}
-      >
-        {value}
-      </Typography>
-    </Box>
-  );
-}
-
-// Responsive field grid — 2 columns on mobile, 4 on desktop, matching a
-// typical printed form's row-of-boxes layout. `Field` itself returns null
-// for an empty value, so an all-empty row collapses to nothing.
-function FieldGrid({ children }: { children: React.ReactNode }) {
-  return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
-        columnGap: 2.5,
-        rowGap: 1.75,
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
 
 // The hero — the one number this whole document exists to produce, first
 // thing in the At a Glance summary.
