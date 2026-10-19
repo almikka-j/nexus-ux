@@ -17,6 +17,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { adminCardSx } from 'src/components/admin-ui';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
@@ -24,7 +25,7 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
 import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
-import { CallReportResultModal } from './call-report/call-report-result-modal';
+import { CallReportResultContent } from './call-report/call-report-result-modal';
 import { InteractionRecordCard } from './call-report/interaction-record-card';
 import { ApplicationValidationCard } from './call-report/application-validation-card';
 import { AmlKycCard } from './call-report/aml-kyc-card';
@@ -44,7 +45,7 @@ export function CallReportView() {
   const { signUpData, application } = useRegistration();
   const { review, setCallReport } = useAdmin();
   const [creditCheckingResultModalOpen, setCreditCheckingResultModalOpen] = useState(false);
-  const [callReportResultModalOpen, setCallReportResultModalOpen] = useState(false);
+  const [callReportResultExpanded, setCallReportResultExpanded] = useState(false);
   const [disapproveDialogOpen, setDisapproveDialogOpen] = useState(false);
   const [reasonCategory, setReasonCategory] = useState('');
   const [reasonRemarks, setReasonRemarks] = useState('');
@@ -233,7 +234,12 @@ export function CallReportView() {
         <CustomerUnderstandingCard />
         <ProposedLoanPackageCard />
         <RiskDispositionCard />
-        <SystemValidationCard onViewResult={() => setCallReportResultModalOpen(true)} />
+        <SystemValidationCard onViewResult={() => setCallReportResultExpanded((prev) => !prev)} />
+        {callReportResultExpanded && (
+          <Box sx={adminCardSx}>
+            <CallReportResultContent hideHeader />
+          </Box>
+        )}
         <EndorsementDeclarationCard />
 
         <Box sx={cardSx}>
@@ -308,7 +314,6 @@ export function CallReportView() {
         open={creditCheckingResultModalOpen}
         onClose={() => setCreditCheckingResultModalOpen(false)}
       />
-      <CallReportResultModal open={callReportResultModalOpen} onClose={() => setCallReportResultModalOpen(false)} />
 
       <ConfirmDialog
         open={disapproveDialogOpen}
