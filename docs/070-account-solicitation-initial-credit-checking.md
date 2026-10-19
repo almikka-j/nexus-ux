@@ -338,9 +338,14 @@ risk scale it displays is `SCREENING_RISK_STYLES`
 
 **"AI review, summary & recommendation"** is a single merged card containing:
 
-1. **"View Initial Credit Checking Result"** button — opens
-   `CreditCheckingResultModal`, always visible regardless of bureau-upload
-   status. The modal itself already degrades gracefully without bureau
+1. **"View Initial Credit Checking Result"** button — as of 2026-10-19,
+   toggles an inline `CreditCheckingResultContent hideHeader` section on
+   this same page instead of opening `CreditCheckingResultModal` as a
+   popup (the `<Dialog>`-wrapped `CreditCheckingResultModal` is still
+   used by every cross-page reference into this result — e.g. Call
+   Report's and `ApplicationDetailsCard`'s own "View credit checking
+   result" actions). Always visible regardless of bureau-upload status.
+   The content itself already degrades gracefully without bureau
    reports: `isCleared` requires `allBureauReportsUploaded`, so the green
    "Cleared" banner is hidden until the review is complete.
    Its **Bureau Reports Result** section shows one block per bureau (CIBI,
@@ -473,6 +478,18 @@ implying bureau API latency).
   instead; the card file is retained for its behavior notes only.
 
 ## History
+
+### 2026-10-19
+
+- **"View Initial Credit Checking Result" now shows inline on this page**,
+  instead of opening a popup. `credit-checking-result-modal.tsx` was
+  split into `CreditCheckingResultContent` (the body, no dialog chrome)
+  and `CreditCheckingResultModal` (the `<Dialog>` wrapper) — this page
+  now toggles `CreditCheckingResultContent hideHeader` directly, while
+  Call Report's and `ApplicationDetailsCard`'s own cross-page references
+  into this result keep using the `<Dialog>`-wrapped version. See
+  `docs/080-account-solicitation-call-report.md`'s own History entry for
+  the full detail (both files were converted together).
 
 ### 2026-09
 

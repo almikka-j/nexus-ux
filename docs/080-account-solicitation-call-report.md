@@ -46,16 +46,23 @@ Credit Investigation / Financial Evaluation.
    `info`/blue for `callReport`). Its separate applicant card is hidden
    (`hideApplicationCard`).
 2. `ApplicationDetailsCard` (`collapsible`) — application context plus **View
-   full application**, **Initial Credit Checking Result**
-   (`CreditCheckingResultModal`), and **View all officer notes**
+   full application** (2026-10-19: expands `detailsContent` inline, no
+   longer a `<Dialog>` — see "Read-only mirrors elsewhere"), **Initial
+   Credit Checking Result** (`CreditCheckingResultModal`, still a
+   cross-page `<Dialog>` — see below), and **View all officer notes**
    (`officerNotesProcess="Call Report"`).
 3. The 8 section cards, in fixed order (see below).
-4. **View Call Report Result** button, opening `CallReportResultModal`
-   (the `<Dialog>` wrapper around `CallReportResultContent` — see
+4. **View Result** button on the System Validation card (2026-10-19:
+   toggles an inline `CallReportResultContent hideHeader` section directly
+   below it, no longer opening `CallReportResultModal` as a popup — see
    "Read-only mirrors elsewhere").
 5. **Proceed application?** decision card.
-6. `CreditCheckingResultModal` and `CallReportResultModal`, both mounted
-   outside the card stack.
+6. `CreditCheckingResultModal` is still mounted outside the card stack —
+   this page's own "Initial Credit Checking Result" view is a cross-page
+   reference into a different flow's result, so it stays a `<Dialog>`,
+   unlike this page's own Call Report result (item 4) and Application
+   Details' own content (item 2), both of which are this page's own
+   content and so render inline instead.
 
 **Fill with Sample Data / Remove Sample Data** is registered as a page action
 via `useRegisterPageActions` (shared admin settings/page-actions popover, not
@@ -232,12 +239,17 @@ calls `setCallReport({ decisionReason })` then routes to
 - `call-report/call-report-result-modal.tsx` — a read-only, section-by-section
   mirror of the 8 cards above, split into two exports:
   `CallReportResultContent` (the body, no dialog chrome) and
-  `CallReportResultModal` (the `<Dialog>` wrapper around it). The modal is
-  opened from the Call Report page's own **View Call Report Result** button
-  and from `ApplicationDetailsCard`'s **View Call Report** action on other
-  review steps (e.g. Requirement Checklist); the **Call Report Approval**
-  detail page renders `CallReportResultContent` **inline** instead. Must be
-  updated whenever a `CallReport` field is added, removed, or renamed. Its own Endorsement Declaration section
+  `CallReportResultModal` (the `<Dialog>` wrapper around it). As of
+  2026-10-19, the Call Report page itself renders `CallReportResultContent`
+  **inline** too (toggled by the System Validation card's own **View
+  Result** button, `hideHeader` passed since the page already has its own
+  header) — same as the **Call Report Approval** detail page already did.
+  The `<Dialog>`-wrapped `CallReportResultModal` is still used from
+  `ApplicationDetailsCard`'s **View Call Report** action on OTHER review
+  steps (e.g. Requirement Checklist) — a cross-page reference into this
+  flow's result stays a modal; only the Call Report page's own view of its
+  own result converted to inline. Must be updated whenever a `CallReport`
+  field is added, removed, or renamed. Its own Endorsement Declaration section
   mirrors `endorsement-declaration-card.tsx`'s conditional **Approved By** /
   **Approval Date / Time** second signature row once `callReportApprovalStatus
   === 'approved'` — so approving a Call Report on the Call Report - Report
@@ -252,9 +264,15 @@ calls `setCallReport({ decisionReason })` then routes to
   the row blank. This fallback is local to the modal — it does not write
   anything back to `callReport`, and `endorsement-declaration-card.tsx`
   itself still only ever shows the real `callReportApprovedBy`.
-- `call-report/credit-checking-result-modal.tsx` (`CreditCheckingResultModal`)
-  — shows the Initial Credit Checking decision/notes, not `CallReport` data;
-  unaffected by Call Report field changes.
+- `call-report/credit-checking-result-modal.tsx` — shows the Initial
+  Credit Checking decision/notes, not `CallReport` data; unaffected by
+  Call Report field changes. As of 2026-10-19, split the same way as
+  `call-report-result-modal.tsx`: `CreditCheckingResultContent` (body,
+  rendered inline on the Initial Credit Checking page itself) +
+  `CreditCheckingResultModal` (the `<Dialog>` wrapper, still used from
+  every cross-page reference — this Call Report page's own
+  `CreditCheckingResultModal` mount, `ApplicationDetailsCard`'s own
+  action).
 
 ## Sample data action
 
@@ -354,6 +372,30 @@ its own.
 - Legacy `officer-notes-card.tsx` remains in the tree unmounted.
 
 ## History
+
+### 2026-10-19
+
+- **Call Report and Credit Checking results now show inline on their own
+  pages, instead of in a popup.** `call-report-view.tsx`'s System
+  Validation card's "View Result" button toggles
+  `CallReportResultContent hideHeader` directly on the page (same pattern
+  the Call Report Approval detail page already used), instead of opening
+  `CallReportResultModal`. `credit-checking-result-modal.tsx` was split
+  the same way `call-report-result-modal.tsx` already was —
+  `CreditCheckingResultContent` (body) + `CreditCheckingResultModal` (the
+  `<Dialog>` wrapper) — so `initial-credit-checking-view.tsx` can render
+  its own result inline too. Cross-page references into either result
+  (`ApplicationDetailsCard`'s own "View call report"/"View credit
+  checking result" actions, this page's own mount of
+  `CreditCheckingResultModal` for Initial Credit Checking's result) are
+  unchanged and still use the `<Dialog>`-wrapped versions — only each
+  page's own view of its own result converted to inline. Both files'
+  `SectionLabel` is now the shared `src/components/admin-ui` version
+  (adds a divider underneath, matching `appraisal-report-view.tsx`'s own
+  header style) instead of each file's own near-identical copy.
+  `ApplicationDetailsCard`'s "View full application" button also
+  converted from a `<Dialog>` to an inline toggle (button label swaps to
+  "Hide full application" when expanded).
 
 ### 2026-09
 

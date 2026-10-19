@@ -24,6 +24,7 @@ import type {
 } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
+import { SectionLabel } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { AiRecommendationSummary } from 'src/components/admin-ui/ai-recommendation-summary';
@@ -51,23 +52,12 @@ import {
 // can't be keyed off `decision === 'approved'` — it's keyed off the same
 // risk level (`buildInitialCreditCheckingResult`) shown in the Initial
 // Credit Checking AI review card, so the two screens never disagree.
+//
+// SectionLabel is the shared src/components/admin-ui version (2026-10-19)
+// — same uppercase label, plus a divider underneath matching
+// appraisal-report-view.tsx's own header style, so every inline "view what
+// was submitted" screen in the app reads as one design system.
 // ----------------------------------------------------------------------
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <Typography
-      sx={{
-        fontSize: 11.5,
-        fontWeight: 700,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: '#8891A6',
-      }}
-    >
-      {children}
-    </Typography>
-  );
-}
 
 function FieldRow({ label, value }: { label: string; value: string }) {
   return (

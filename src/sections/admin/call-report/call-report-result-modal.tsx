@@ -13,6 +13,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
+import { SectionLabel } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import {
@@ -44,24 +45,12 @@ import {
 // Matches CreditCheckingResultModal's design system exactly (SectionLabel,
 // FieldRow, header layout, "Prepared by" footer) rather than the grid-based
 // ResultField/FieldGrid this modal used before, so the two result modals
-// read as the same product instead of two different designs.
+// read as the same product instead of two different designs. SectionLabel
+// itself is now the shared src/components/admin-ui version (2026-10-19) —
+// same uppercase label, plus a divider underneath matching
+// appraisal-report-view.tsx's own header style, so every inline "view what
+// was submitted" screen in the app reads as one design system.
 // ----------------------------------------------------------------------
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <Typography
-      sx={{
-        fontSize: 11.5,
-        fontWeight: 700,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: '#8891A6',
-      }}
-    >
-      {children}
-    </Typography>
-  );
-}
 
 function FieldRow({ label, value }: { label: string; value: string | null }) {
   return (

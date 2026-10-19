@@ -504,6 +504,33 @@ MUI default breakpoints, **not overridden**: `xs 0` / `sm 600` / `md 900`
   convention — **pending component extraction.** Visual showcase:
   `design-system-view.tsx`'s "FactChip" section.
 
+### Field / FieldGrid / SectionLabel (shared component)
+
+- A printed-form look for read-only "view what was submitted" screens:
+  an uppercase `SectionLabel` with a divider underneath, then fields
+  sitting on their own hairline rule in a responsive `FieldGrid` (2
+  columns on mobile, 4 on desktop).
+- **`SectionLabel`:** uppercase label, `fontSize: 11.5 / 700`,
+  `letterSpacing: 0.06em`, `#8891A6`, `Divider` (`#EEF0F5`) directly
+  underneath.
+- **`Field`:** label `fontSize: 11.5`, `#8891A6`, above; value
+  `fontSize: 13.5 / 600`, `#14172A`, sitting on a
+  `borderBottom: 1px solid #EEF0F5` hairline rule. Returns `null` when
+  `value` is falsy, so an all-empty row collapses to nothing. Optional
+  `span` for a multi-column field.
+- **`FieldGrid`:** `display: grid`, `gridTemplateColumns: repeat(2,
+  1fr)` on `xs`, `repeat(4, 1fr)` on `sm`+, `columnGap: 2.5`,
+  `rowGap: 1.75`.
+- **Status:** a genuine shared component (unlike the recipes above) —
+  `src/components/admin-ui/report-field.tsx`, exported from the
+  `admin-ui` barrel. Extracted 2026-10-19 from `appraisal-report-view.tsx`
+  (the original implementation, still its main consumer); also used by
+  `call-report/call-report-result-modal.tsx`'s and
+  `call-report/credit-checking-result-modal.tsx`'s own `SectionLabel`
+  (their own `FieldRow` — a wider, single-column label/value row, better
+  suited to their denser sections — was deliberately kept, not replaced;
+  see those files' own code comments for the reasoning).
+
 ### Empty state (pattern, not a component)
 
 - A centered box: `1px dashed #E1E4ED`, `borderRadius: 10`–`11px`, muted
@@ -803,6 +830,15 @@ any of these change:
 
 ## 16. Change History
 
+- **2026-10-19** — added the **Field / FieldGrid / SectionLabel** shared
+  component (§6): extracted from `appraisal-report-view.tsx` into
+  `src/components/admin-ui/report-field.tsx`, so `call-report-result-modal.tsx`
+  and `credit-checking-result-modal.tsx` can share the same `SectionLabel`
+  (their own denser `FieldRow` pattern was deliberately kept, not
+  replaced). Part of converting Call Report's, Initial Credit Checking's,
+  and Application Details' own "view result" popups into inline page
+  content — see `docs/080-account-solicitation-call-report.md`'s own
+  History entry for the full detail.
 - **2026-10-07** — added the **FactChip / FactChipRow** recipe (§6, §12,
   §13): label-over-value summary-strip cells, already reimplemented
   locally across 9+ screens (Application Details Card, Appraisal Report
