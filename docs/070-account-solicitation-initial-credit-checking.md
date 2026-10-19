@@ -341,10 +341,10 @@ risk scale it displays is `SCREENING_RISK_STYLES`
 1. **"View Initial Credit Checking Result"** button — as of 2026-10-19,
    toggles an inline `CreditCheckingResultContent hideHeader` section on
    this same page instead of opening `CreditCheckingResultModal` as a
-   popup (the `<Dialog>`-wrapped `CreditCheckingResultModal` is still
-   used by every cross-page reference into this result — e.g. Call
-   Report's and `ApplicationDetailsCard`'s own "View credit checking
-   result" actions). Always visible regardless of bureau-upload status.
+   popup. As of 2026-10-20, `ApplicationDetailsCard`'s own "Initial
+   credit checking result" action converted to inline too, so the
+   `<Dialog>`-wrapped `CreditCheckingResultModal` is no longer used
+   anywhere in this app. Always visible regardless of bureau-upload status.
    The content itself already degrades gracefully without bureau
    reports: `isCleared` requires `allBureauReportsUploaded`, so the green
    "Cleared" banner is hidden until the review is complete.
@@ -479,15 +479,20 @@ implying bureau API latency).
 
 ## History
 
+### 2026-10-20
+
+- **`ApplicationDetailsCard`'s own "Initial credit checking result"
+  action also converted to inline** (it was the last remaining caller
+  of the `<Dialog>`-wrapped `CreditCheckingResultModal`) — see
+  `docs/080-account-solicitation-call-report.md`'s own History entry.
+
 ### 2026-10-19
 
 - **"View Initial Credit Checking Result" now shows inline on this page**,
   instead of opening a popup. `credit-checking-result-modal.tsx` was
   split into `CreditCheckingResultContent` (the body, no dialog chrome)
   and `CreditCheckingResultModal` (the `<Dialog>` wrapper) — this page
-  now toggles `CreditCheckingResultContent hideHeader` directly, while
-  Call Report's and `ApplicationDetailsCard`'s own cross-page references
-  into this result keep using the `<Dialog>`-wrapped version. See
+  now toggles `CreditCheckingResultContent hideHeader` directly. See
   `docs/080-account-solicitation-call-report.md`'s own History entry for
   the full detail (both files were converted together).
 

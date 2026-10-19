@@ -20,8 +20,8 @@ import { StatusBadge, adminCardSx, outlinedNavyButtonSx } from 'src/components/a
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { OfficerNotesDialog } from './officer-notes-history';
-import { CallReportResultModal } from './call-report/call-report-result-modal';
-import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
+import { CallReportResultContent } from './call-report/call-report-result-modal';
+import { CreditCheckingResultContent } from './call-report/credit-checking-result-modal';
 
 // ----------------------------------------------------------------------
 
@@ -237,13 +237,11 @@ function DetailSection({
 
 export function ApplicationDetailsCard({
   collapsible = false,
-  onViewCreditCheckingResult,
   showCreditCheckingResultAction = false,
   showCallReportAction = false,
   officerNotesProcess,
 }: {
   collapsible?: boolean;
-  onViewCreditCheckingResult?: () => void;
   showCreditCheckingResultAction?: boolean;
   showCallReportAction?: boolean;
   officerNotesProcess?: string;
@@ -251,11 +249,13 @@ export function ApplicationDetailsCard({
   const { signUpData, application } = useRegistration();
   const { review } = useAdmin();
   // On long workflow pages, the application is presented as a compact
-  // summary and the complete submission expands inline on demand.
+  // summary and the complete submission, call report result, and credit
+  // checking result each expand inline on demand — none of these ever
+  // open a separate page/tab or a Dialog from this card.
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
-  const [callReportOpen, setCallReportOpen] = useState(false);
-  const [creditCheckingOpen, setCreditCheckingOpen] = useState(false);
+  const [callReportExpanded, setCallReportExpanded] = useState(false);
+  const [creditCheckingExpanded, setCreditCheckingExpanded] = useState(false);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
 
   if (!signUpData) return null;
@@ -281,14 +281,11 @@ export function ApplicationDetailsCard({
     ? `₱${Number(financialInfo.desiredLoanAmount).toLocaleString()}`
     : '—';
   const applicationNumber = getLoanNumber(signUpData.email);
-  const hasCreditCheckingAction = Boolean(
-    onViewCreditCheckingResult || showCreditCheckingResultAction
-  );
+  const hasCreditCheckingAction = showCreditCheckingResultAction;
   const overflowOnly = showCreditCheckingResultAction && showCallReportAction;
   const handleViewCreditChecking = () => {
     setActionsAnchor(null);
-    if (onViewCreditCheckingResult) onViewCreditCheckingResult();
-    else setCreditCheckingOpen(true);
+    setCreditCheckingExpanded((prev) => !prev);
   };
 
   const detailsContent = (
@@ -486,17 +483,17 @@ export function ApplicationDetailsCard({
                 onClick={handleViewCreditChecking}
                 sx={{ display: { xs: 'none', sm: overflowOnly ? 'inline-flex' : 'none', md: 'inline-flex' }, color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: { sm: 1.5, md: 2 }, whiteSpace: 'nowrap', fontSize: 13, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
               >
-                Initial credit checking result
+                {creditCheckingExpanded ? 'Hide credit checking result' : 'Initial credit checking result'}
               </Button>
             )}
             {showCallReportAction && (
               <Button
                 variant="outlined"
                 startIcon={<Iconify icon="solar:phone-calling-rounded-bold-duotone" width={18} />}
-                onClick={() => setCallReportOpen(true)}
+                onClick={() => setCallReportExpanded((prev) => !prev)}
                 sx={{ display: { xs: 'none', md: overflowOnly ? 'none' : 'inline-flex', lg: 'inline-flex' }, color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: { md: 1.5, lg: 2 }, whiteSpace: 'nowrap', fontSize: 13, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
               >
-                View call report
+                {callReportExpanded ? 'Hide call report' : 'View call report'}
               </Button>
             )}
             <Button
@@ -550,11 +547,11 @@ export function ApplicationDetailsCard({
             )}
             {showCallReportAction && (
               <MenuItem
-                onClick={() => { setActionsAnchor(null); setCallReportOpen(true); }}
+                onClick={() => { setActionsAnchor(null); setCallReportExpanded((prev) => !prev); }}
                 sx={{ gap: 1.25, display: { xs: 'flex', md: overflowOnly ? 'flex' : 'none', lg: 'none' } }}
               >
                 <Iconify icon="solar:phone-calling-rounded-bold-duotone" width={18} sx={{ color: '#1C2A6E' }} />
-                View call report
+                {callReportExpanded ? 'Hide call report' : 'View call report'}
               </MenuItem>
             )}
             <MenuItem
@@ -576,6 +573,20 @@ export function ApplicationDetailsCard({
               {detailsContent}
             </>
           )}
+
+          {callReportExpanded && (
+            <>
+              <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
+              <CallReportResultContent />
+            </>
+          )}
+
+          {creditCheckingExpanded && (
+            <>
+              <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
+              <CreditCheckingResultContent />
+            </>
+          )}
         </Box>
 
         <OfficerNotesDialog
@@ -584,16 +595,6 @@ export function ApplicationDetailsCard({
           notes={creditCheckingNotes}
           process={officerNotesProcess}
         />
-        <CallReportResultModal
-          open={callReportOpen}
-          onClose={() => setCallReportOpen(false)}
-        />
-        {showCreditCheckingResultAction && (
-          <CreditCheckingResultModal
-            open={creditCheckingOpen}
-            onClose={() => setCreditCheckingOpen(false)}
-          />
-        )}
       </>
     );
   }

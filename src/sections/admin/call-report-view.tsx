@@ -24,7 +24,6 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { ApplicationReviewHeader } from './application-review-header';
 import { ApplicationDetailsCard } from './application-details-card';
-import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
 import { CallReportResultContent } from './call-report/call-report-result-modal';
 import { InteractionRecordCard } from './call-report/interaction-record-card';
 import { ApplicationValidationCard } from './call-report/application-validation-card';
@@ -44,7 +43,6 @@ export function CallReportView() {
   const router = useRouter();
   const { signUpData, application } = useRegistration();
   const { review, setCallReport } = useAdmin();
-  const [creditCheckingResultModalOpen, setCreditCheckingResultModalOpen] = useState(false);
   const [callReportResultExpanded, setCallReportResultExpanded] = useState(false);
   const [disapproveDialogOpen, setDisapproveDialogOpen] = useState(false);
   const [reasonCategory, setReasonCategory] = useState('');
@@ -224,7 +222,7 @@ export function CallReportView() {
       <Stack spacing={2.5}>
         <ApplicationDetailsCard
           collapsible
-          onViewCreditCheckingResult={() => setCreditCheckingResultModalOpen(true)}
+          showCreditCheckingResultAction
           officerNotesProcess="Call Report"
         />
 
@@ -309,11 +307,6 @@ export function CallReportView() {
           )}
         </Box>
       </Stack>
-
-      <CreditCheckingResultModal
-        open={creditCheckingResultModalOpen}
-        onClose={() => setCreditCheckingResultModalOpen(false)}
-      />
 
       <ConfirmDialog
         open={disapproveDialogOpen}
