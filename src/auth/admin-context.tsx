@@ -1134,12 +1134,9 @@ export type AppraisalReportLandTitle = {
   lotPlotLines: LotPlotLine[];
   // Lot Plot Image — a plain photo upload (scanned title document,
   // plotted lot diagram, etc.), same MultiPhotoDropzone pattern as
-  // Collateral Photos below. No geocoding/plotting service generates
+  // CollateralPhoto's own shape. No geocoding/plotting service generates
   // this — the officer/appraiser uploads the image(s) directly.
   lotPlotPhotos: CollateralPhoto[];
-  // Collateral photos of this title — multiple uploads supported, each
-  // one appended on drop rather than replacing the previous photo.
-  collateralPhotos: CollateralPhoto[];
 };
 
 function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLandTitle {
@@ -1158,7 +1155,6 @@ function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLand
     technicalSpecification: '',
     lotPlotLines: [],
     lotPlotPhotos: [],
-    collateralPhotos: [],
   };
 }
 

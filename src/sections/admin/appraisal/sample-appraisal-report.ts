@@ -141,11 +141,6 @@ export function buildSampleAppraisalReport(
         { id: crypto.randomUUID(), label: 'P4-1', northSouth: 'S' as const, degrees: '73', eastWest: 'W' as const, minutes: '30', distanceM: '20' },
       ],
       lotPlotPhotos: [{ fileName: 'Lot-Plot-Sample.svg', fileUrl: SAMPLE_LOT_PLOT, uploadedAt: now }],
-      collateralPhotos: [1, 2, 3, 4].map((index) => ({
-        fileName: `Collateral-Photo-Sample-${index}.svg`,
-        fileUrl: SAMPLE_COLLATERAL_PHOTO,
-        uploadedAt: now,
-      })),
     })),
     encumbrancesRemarks: 'None noted at time of inspection.',
 

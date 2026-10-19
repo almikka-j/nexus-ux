@@ -136,11 +136,10 @@ function AppraisedValueHero({ appraisedValue, amountInWords }: { appraisedValue:
 }
 
 // A row of small photo chips, one per pledged property, in the At a
-// Glance summary — the fastest way to see every property's own
-// collateral photo without opening the full report. Purely a preview:
-// clicking opens the full photo, same as the full report's own photo
-// blocks. A title with multiple photos shows its first one here — the
-// full gallery lives on LandTitlePhotoGallery inside the full report.
+// Glance summary — the fastest way to see every property's own Lot
+// Plot Image without opening the full report. Purely a preview:
+// clicking opens the full photo. A title with multiple Lot Plot photos
+// shows its first one here.
 function PhotoChipRow({ titles }: { titles: { tctNumber: string; photoFileUrl: string | null }[] }) {
   const withPhotos = titles.filter((title) => title.photoFileUrl);
   if (withPhotos.length === 0) return null;
@@ -174,7 +173,7 @@ function PhotoChipRow({ titles }: { titles: { tctNumber: string; photoFileUrl: s
             <Box
               component="img"
               src={title.photoFileUrl!}
-              alt={`Collateral photo — TCT No. ${title.tctNumber}`}
+              alt={`Lot plot image — TCT No. ${title.tctNumber}`}
               sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
             />
             <Box
@@ -195,59 +194,6 @@ function PhotoChipRow({ titles }: { titles: { tctNumber: string; photoFileUrl: s
           <Typography sx={{ fontSize: 10.5, color: '#8891A6', mt: 0.4, textAlign: 'center' }} noWrap>
             {title.tctNumber}
           </Typography>
-        </Box>
-      ))}
-    </Stack>
-  );
-}
-
-// Every Collateral Photo uploaded for a title, as a wrapping grid of
-// square thumbnails — replaces the old single hero photo now that a
-// title can have more than one. Each thumbnail opens its own full photo
-// in a new tab, same "click to view full size" convention the old single
-// photo used.
-function LandTitlePhotoGallery({ photos, tctNumber }: { photos: CollateralPhoto[]; tctNumber: string }) {
-  if (photos.length === 0) return null;
-  return (
-    <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25} sx={{ width: { xs: '100%', sm: 200 }, flexShrink: 0 }}>
-      {photos.map((photo, index) => (
-        <Box
-          key={`${photo.fileUrl}-${index}`}
-          component="a"
-          href={photo.fileUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          sx={{
-            display: 'block',
-            width: 92,
-            aspectRatio: '4 / 3',
-            borderRadius: '10px',
-            overflow: 'hidden',
-            border: '1px solid #EBEDF3',
-            position: 'relative',
-            '&:hover .exhibit-zoom': { opacity: 1 },
-          }}
-        >
-          <Box
-            component="img"
-            src={photo.fileUrl}
-            alt={`Collateral photo ${index + 1} — TCT No. ${tctNumber}`}
-            sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }}
-          />
-          <Box
-            className="exhibit-zoom"
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              display: 'grid',
-              placeItems: 'center',
-              bgcolor: 'rgba(20,23,42,0.4)',
-              opacity: 0,
-              transition: 'opacity 0.15s ease',
-            }}
-          >
-            <Iconify icon="solar:magnifer-bold" width={16} sx={{ color: 'common.white' }} />
-          </Box>
         </Box>
       ))}
     </Stack>
@@ -275,8 +221,6 @@ function LandTitleSummary({
 }) {
   const detail = (
     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: showToggle ? 2 : 0 }}>
-      {!showToggle && <LandTitlePhotoGallery photos={title.collateralPhotos} tctNumber={tctNumber} />}
-
       <Stack spacing={1.75} sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 2.5, rowGap: 1.75 }}>
           <Field label="File Type" value={title.fileType} />
@@ -363,11 +307,6 @@ function LandTitleSummary({
           width={18}
           sx={{ color: '#8891A6', flexShrink: 0, transition: 'transform 0.15s ease', transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}
         />
-        {title.collateralPhotos[0] && (
-          <Box sx={{ width: 40, height: 40, flexShrink: 0, borderRadius: '8px', overflow: 'hidden', border: '1px solid #EBEDF3' }}>
-            <Box component="img" src={title.collateralPhotos[0].fileUrl} alt="" sx={{ width: 1, height: 1, objectFit: 'cover', display: 'block' }} />
-          </Box>
-        )}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }} noWrap>
             TCT No. {tctNumber}
@@ -382,11 +321,6 @@ function LandTitleSummary({
       </Stack>
       <Collapse in={expanded}>
         <Box sx={{ px: 2, pb: 2 }}>
-          {title.collateralPhotos.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <LandTitlePhotoGallery photos={title.collateralPhotos} tctNumber={tctNumber} />
-            </Box>
-          )}
           {detail}
         </Box>
       </Collapse>
@@ -505,7 +439,7 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
         <PhotoChipRow
           titles={titleGroups.map((group) => ({
             tctNumber: group.tctNumber,
-            photoFileUrl: report.landTitles.find((entry) => entry.tctGroupId === group.id)?.collateralPhotos[0]?.fileUrl ?? null,
+            photoFileUrl: report.landTitles.find((entry) => entry.tctGroupId === group.id)?.lotPlotPhotos[0]?.fileUrl ?? null,
           }))}
         />
       </Stack>

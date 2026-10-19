@@ -310,10 +310,12 @@ function MultiPhotoDropzone({
   photos,
   onChange,
   disabled,
+  label = 'Collateral Photo',
 }: {
   photos: CollateralPhoto[];
   onChange: (photos: CollateralPhoto[]) => void;
   disabled?: boolean;
+  label?: string;
 }) {
   const { getRootProps, getInputProps } = useDropzone({
     multiple: true,
@@ -356,7 +358,7 @@ function MultiPhotoDropzone({
           <input {...getInputProps()} />
           <Iconify icon="solar:upload-minimalistic-bold-duotone" width={20} sx={{ color: '#1C2A6E' }} />
           <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#1C2A6E' }}>
-            Choose photos — Collateral Photo
+            Choose photos — {label}
           </Typography>
         </Box>
       )}
@@ -656,6 +658,7 @@ function LandTitleFields({
             photos={title.lotPlotPhotos}
             onChange={(photos) => onChange({ lotPlotPhotos: photos })}
             disabled={!editable}
+            label="Lot Plot Image"
           />
         </Box>
         <TextField
@@ -678,11 +681,6 @@ function LandTitleFields({
           disabled={!editable}
           onChange={(event) => onChange({ technicalSpecification: event.target.value })}
           sx={fieldSx}
-        />
-        <MultiPhotoDropzone
-          photos={title.collateralPhotos}
-          onChange={(photos) => onChange({ collateralPhotos: photos })}
-          disabled={!editable}
         />
       </Stack>
   );
@@ -1721,6 +1719,7 @@ export function AppraiserAssignmentCard({
               photos={report.feeAttachments}
               onChange={(feeAttachments) => setAppraisalBundleReport(bundleId, { feeAttachments })}
               disabled={!editable}
+              label="Fee Attachment"
             />
           </Stack>
 

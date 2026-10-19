@@ -764,30 +764,32 @@ Value, Remarks, Recommendation) to the full structure of the printed
   fileType, titleNo, surveyNo, bookPageNo, titleRegistrationDate,
   titleRegistrationPlace, areaSize, lotNo, zonalValue, boundaries,
   technicalSpecification, lotPlotLines: LotPlotLine[], lotPlotPhotos:
-  CollateralPhoto[], collateralPhotos: CollateralPhoto[] }`), since the
-  PDF's LAND/BOUNDARIES/TECHNICAL SPECIFICATION tables repeat once per
-  TCT/OCT. `fileType`/`titleNo` are plain text fields alongside Survey
-  No./Book No. `boundaries` is a single free-text field (matching the
-  PDF, which has no North/South/East/West breakdown), not structured
-  per-direction fields. `collateralPhotos` holds every Collateral Photo
-  uploaded for this title — each entry a `CollateralPhoto` (`{ fileName,
-  fileUrl, uploadedAt }`, same triplet shape every other single-file
-  upload in this app uses, just as an array element since a title
-  supports multiple photos) — see "In-house form" below for the
-  multi-upload UI.
+  CollateralPhoto[] }`), since the PDF's LAND/BOUNDARIES/TECHNICAL
+  SPECIFICATION tables repeat once per TCT/OCT. `fileType`/`titleNo` are
+  plain text fields alongside Survey No./Book No. `boundaries` is a
+  single free-text field (matching the PDF, which has no
+  North/South/East/West breakdown), not structured per-direction fields.
   `lotPlotLines` is a bearings/distance table (`{ id, label, northSouth:
   'N'|'S'|'', degrees, eastWest: 'E'|'W'|'', minutes, distanceM }`), a
   freely-typed "+ Add line" repeatable list shown alongside the Lot Plot
-  Image upload. `lotPlotPhotos` is a plain photo upload (`MultiPhotoDropzone`,
-  same component Collateral Photos uses) for the Lot Plot Image itself —
-  a reference tool's own screenshot shows this as an uploaded
-  scanned-title-document/plotted-diagram image, not something this app
-  generates; a per-title `fmvRcn`/`constructionStatusPercent`/
-  `depreciatedValue`/`appraisedValueP` valuation row, and separate
-  `latitude`/`longitude` inputs + a "Generate Lot Plot" button that
-  produced a simulated plot-diagram image, were both **removed
-  entirely** (no reference-tool equivalent) in favor of this plain
-  upload.
+  Image upload. `lotPlotPhotos` is a plain multi-photo upload
+  (`MultiPhotoDropzone`) for the Lot Plot Image — a reference tool's own
+  screenshot shows this as an uploaded scanned-title-document/
+  plotted-diagram image, not something this app generates. **Removed
+  entirely** (no reference-tool equivalent): the per-title `collateralPhotos:
+  CollateralPhoto[]` field and its whole UI (the form's own second
+  `MultiPhotoDropzone`, `AppraisalReportView`'s `LandTitlePhotoGallery` and
+  the collapsed-row thumbnail/"At a Glance" `PhotoChipRow` photo source,
+  and `AppraisalReportPreview`'s own Collateral Photos grid) — the
+  reference tool has no separate "Collateral Photos" concept distinct
+  from the Lot Plot Image upload above, so the two were consolidated into
+  one; `PhotoChipRow`'s "At a Glance" photo chips now source from
+  `lotPlotPhotos[0]` instead. Also removed: a per-title
+  `fmvRcn`/`constructionStatusPercent`/`depreciatedValue`/`appraisedValueP`
+  valuation row, and separate `latitude`/`longitude` inputs + a "Generate
+  Lot Plot" button that produced a simulated plot-diagram image (both no
+  reference-tool equivalent, superseded by the plain Lot Plot Image
+  upload above).
 - **Technical specification** (report-wide, not per-title) —
   `streetFrontage`, `streetWidth`, `surfacing`, `averageDepth`,
   `approxShape`, `topography`, `neighborhood`, `presentUse`.
@@ -848,9 +850,10 @@ Value, Remarks, Recommendation) to the full structure of the printed
   PHP). `loanableAmount` was removed (no reference-tool equivalent —
   Leasable Percent/Amount is a distinct concept, not a rename of it).
 - **Fee Attachment** — `feeAttachments: CollateralPhoto[]`, a generic
-  multi-photo gallery reusing the same `MultiPhotoDropzone` component
-  Collateral Photos uses (append-on-drop, thumbnail grid with per-photo
-  remove).
+  multi-photo gallery reusing the same `MultiPhotoDropzone` component as
+  the Lot Plot Image upload (append-on-drop, thumbnail grid with
+  per-photo remove; `MultiPhotoDropzone` now takes a `label` prop so its
+  dropzone text reads correctly for whichever field it's bound to).
 - **Removed entirely** (no reference-tool equivalent): the sequential
   Prepared/Reviewed/Endorsed/Noted By sign-off chain
   (`preparedBy`/`preparedAt`/`reviewedBy`/`reviewedAt`/`endorsedBy`/
@@ -1558,6 +1561,20 @@ Pass/Fail terminal decision. The gating that does happen here:
 Concise milestones — the detailed pass-by-pass narrative is in "Read-only
 view (`AppraisalReportView`)" above.
 
+- **2026-10-19** — Removed each title's `collateralPhotos:
+  CollateralPhoto[]` field and every bit of its UI (the form's own
+  second `MultiPhotoDropzone` below Technical Specification,
+  `AppraisalReportView`'s `LandTitlePhotoGallery` function, its
+  collapsed-row thumbnail preview, and `AppraisalReportPreview`'s own
+  "Collateral Photos" photo grid) — the reference tool has no separate
+  Collateral Photos concept distinct from the Lot Plot Image upload, so
+  the two were consolidated into one (`lotPlotPhotos`). The "At a
+  Glance" `PhotoChipRow` now sources its preview photo from
+  `lotPlotPhotos[0]` instead of `collateralPhotos[0]`. `MultiPhotoDropzone`
+  gained a `label` prop (default `'Collateral Photo'`, now overridden to
+  `'Lot Plot Image'`/`'Fee Attachment'` at its two remaining call sites)
+  so its dropzone text no longer says "Collateral Photo" everywhere it's
+  reused.
 - **2026-10-17** — Removed every field/section with no counterpart in the
   reference Appraisal Report screenshot this form now matches: per-title
   FMV/RCN, Construction Status %, Depreciated Value, Appraised Value (P);

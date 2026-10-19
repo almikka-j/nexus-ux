@@ -202,34 +202,6 @@ function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitl
           </Box>
         )}
 
-        {title.collateralPhotos.length > 0 && (
-          <Box>
-            <Typography sx={{ fontSize: 11.5, color: '#8891A6', mb: 0.75 }}>Collateral Photos</Typography>
-            <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25}>
-              {title.collateralPhotos.map((photo, index) => (
-                <Box
-                  key={`${photo.fileUrl}-${index}`}
-                  sx={{
-                    width: 92,
-                    height: 92,
-                    borderRadius: '10px',
-                    border: '1px solid #EBEDF3',
-                    bgcolor: '#F5F6FA',
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src={photo.fileUrl}
-                    alt={`Collateral photo ${index + 1} — TCT No. ${tctNumber}`}
-                    sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-                  />
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-        )}
       </Stack>
     </SectionCard>
   );
