@@ -147,11 +147,6 @@ function BureauResultSection({
   );
 }
 
-type CreditCheckingResultModalProps = {
-  open: boolean;
-  onClose: () => void;
-};
-
 const NEGATIVE_SECTION_TITLES: Record<
   'cancelledCreditCards' | 'adverseClassifiedLoans' | 'closedCurrentAccounts',
   string
@@ -161,7 +156,13 @@ const NEGATIVE_SECTION_TITLES: Record<
   closedCurrentAccounts: 'Closed Current Account',
 };
 
-export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResultModalProps) {
+// The full Initial Credit Checking result body, no dialog chrome —
+// rendered inline on the Initial Credit Checking page (so the officer
+// reads it without opening a modal) and wrapped by
+// CreditCheckingResultModal for Call Report / Application Details' own
+// "View credit checking result" actions, same split as
+// CallReportResultContent/CallReportResultModal.
+export function CreditCheckingResultContent({ hideHeader }: { hideHeader?: boolean } = {}) {
   const { signUpData, application } = useRegistration();
   const { review, bureauResultRows } = useAdmin();
   const {
@@ -231,8 +232,8 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
   const negativeFindingReason = creditChecking.bureauFindingReason;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
+    <Stack spacing={2.5}>
+      {!hideHeader && (
         <Box>
           <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#14172A' }}>
             Initial Credit Checking Result
@@ -241,26 +242,8 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
             Report generated {generatedLabel}
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
-          <Tooltip title="PDF export coming soon">
-            <span>
-              <IconButton
-                disabled
-                sx={{ border: '1px solid #E1E4ED', borderRadius: '10px', px: 1.5 }}
-              >
-                <Iconify icon="solar:file-download-bold" width={18} sx={{ color: '#8891A6' }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <IconButton onClick={onClose} sx={{ border: '1px solid #E1E4ED', borderRadius: '10px' }}>
-            <Iconify icon="solar:close-circle-bold" width={18} sx={{ color: '#8891A6' }} />
-          </IconButton>
-        </Stack>
-      </Box>
-
-      <DialogContent sx={{ px: 3, pb: 3 }}>
-        <Stack spacing={2.5}>
-          {isCleared && (
+      )}
+      {isCleared && (
             <Stack
               direction="row"
               spacing={1.5}
@@ -453,7 +436,34 @@ export function CreditCheckingResultModal({ open, onClose }: CreditCheckingResul
               Credit Officer · {generatedLabel}
             </Typography>
           </Box>
+    </Stack>
+  );
+}
+
+export function CreditCheckingResultModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
+        <Box>
+          <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#14172A' }}>
+            Initial Credit Checking Result
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="PDF export coming soon">
+            <span>
+              <IconButton disabled sx={{ border: '1px solid #E1E4ED', borderRadius: '10px', px: 1.5 }}>
+                <Iconify icon="solar:file-download-bold" width={18} sx={{ color: '#8891A6' }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <IconButton onClick={onClose} sx={{ border: '1px solid #E1E4ED', borderRadius: '10px' }}>
+            <Iconify icon="solar:close-circle-bold" width={18} sx={{ color: '#8891A6' }} />
+          </IconButton>
         </Stack>
+      </Box>
+      <DialogContent sx={{ px: 3, pb: 3 }}>
+        <CreditCheckingResultContent />
       </DialogContent>
     </Dialog>
   );
