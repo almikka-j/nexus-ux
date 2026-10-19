@@ -554,7 +554,7 @@ export function CallReportResultModal({ open, onClose }: { open: boolean; onClos
         </Stack>
       </Box>
       <DialogContent sx={{ px: 3, pb: 3 }}>
-        <CallReportResultContent />
+        <CallReportResultContent hideHeader />
       </DialogContent>
     </Dialog>
   );

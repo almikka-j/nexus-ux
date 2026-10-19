@@ -565,18 +565,18 @@ export function ApplicationDetailsCard({
               View all officer notes
             </MenuItem>
           </Menu>
-        </Box>
 
-        {detailsExpanded && (
-          <>
-            <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
-            <Stack spacing={0.25} sx={{ mb: 2 }}>
-              <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A' }}>Full application</Typography>
-              <Typography sx={{ fontSize: 13, color: '#8891A6' }}>{fullName} · {applicationNumber}</Typography>
-            </Stack>
-            {detailsContent}
-          </>
-        )}
+          {detailsExpanded && (
+            <>
+              <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
+              <Stack spacing={0.25} sx={{ mb: 2 }}>
+                <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A' }}>Full application</Typography>
+                <Typography sx={{ fontSize: 13, color: '#8891A6' }}>{fullName} · {applicationNumber}</Typography>
+              </Stack>
+              {detailsContent}
+            </>
+          )}
+        </Box>
 
         <OfficerNotesDialog
           open={notesOpen}

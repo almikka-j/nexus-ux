@@ -453,7 +453,7 @@ export function CreditCheckingResultModal({ open, onClose }: { open: boolean; on
         </Stack>
       </Box>
       <DialogContent sx={{ px: 3, pb: 3 }}>
-        <CreditCheckingResultContent />
+        <CreditCheckingResultContent hideHeader />
       </DialogContent>
     </Dialog>
   );
