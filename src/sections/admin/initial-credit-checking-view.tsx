@@ -33,7 +33,7 @@ import { ApplicationDetailsCard } from './application-details-card';
 import { OfficerNotesDialog, buildOfficerNoteEntry } from './officer-notes-history';
 import { computeInstallment } from './cibi-form-card';
 import { BureauReportsCard } from './bureau-reports-card';
-import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
+import { CreditCheckingResultContent } from './call-report/credit-checking-result-modal';
 import { simulateBureauFinding } from './simulate-bureau-finding';
 import { buildInitialCreditCheckingResult } from './initial-credit-checking-risk';
 
@@ -139,7 +139,7 @@ export function InitialCreditCheckingView() {
   // session, not application data that should carry forward.
   const [isSplitLayout, setIsSplitLayout] = useState(false);
   const [aiReviewExpanded, setAiReviewExpanded] = useState(true);
-  const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [creditCheckingResultExpanded, setCreditCheckingResultExpanded] = useState(false);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
 
@@ -157,7 +157,7 @@ export function InitialCreditCheckingView() {
   // for why this is a deterministic hash rather than Math.random(). Runs
   // exactly once per upload session (guarded by bureauFindingStatus still
   // being 'pending'); the result is then sticky and read by
-  // CreditCheckingResultModal to decide which bureau-result content to show.
+  // CreditCheckingResultContent to decide which bureau-result content to show.
   useEffect(() => {
     if (!signUpData) return;
     if (!allBureauReportsUploaded) return;
@@ -519,7 +519,7 @@ export function InitialCreditCheckingView() {
                   </Typography>
                 </Stack>
                 <Button
-                  onClick={() => setResultModalOpen(true)}
+                  onClick={() => setCreditCheckingResultExpanded((prev) => !prev)}
                   variant="outlined"
                   startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
                   sx={{ ...outlinedNavyButtonSx, px: 2, flexShrink: 0 }}
@@ -530,6 +530,12 @@ export function InitialCreditCheckingView() {
             </>
           }
         />
+
+        {creditCheckingResultExpanded && (
+          <Box sx={adminCardSx}>
+            <CreditCheckingResultContent hideHeader />
+          </Box>
+        )}
 
         <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
@@ -698,11 +704,6 @@ export function InitialCreditCheckingView() {
         onClose={() => setNotesModalOpen(false)}
         notes={creditChecking.notes}
         process="Initial Credit Checking"
-      />
-
-      <CreditCheckingResultModal
-        open={resultModalOpen}
-        onClose={() => setResultModalOpen(false)}
       />
     </Container>
   );
