@@ -4256,16 +4256,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
-                bundle.id !== bundleId
-                  ? bundle
-                  : {
-                      ...bundle,
-                      appraiserType,
-                      realEstateReport: createAppraisalReportBundle(bundle.tctGroupIds, appraiserType, null, null)
-                        .realEstateReport,
-                    }
-              ),
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) => {
+                if (bundle.id !== bundleId) return bundle;
+                const blank = createAppraisalReportBundle(bundle.tctGroupIds, appraiserType, null, null);
+                return {
+                  ...bundle,
+                  appraiserType,
+                  realEstateReport: blank.realEstateReport,
+                  chattelReport: blank.chattelReport,
+                  machineriesReport: blank.machineriesReport,
+                };
+              }),
             },
           },
         })),
@@ -4577,8 +4578,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                   fileName: null,
                   fileUrl: null,
                 },
-                chattelReport: { ...bundle.chattelReport, uploadedAt: null },
-                machineriesReport: { ...bundle.machineriesReport, uploadedAt: null },
+                chattelReport: { ...bundle.chattelReport, uploadedAt: null, fileAttachments: [] },
+                machineriesReport: { ...bundle.machineriesReport, uploadedAt: null, fileAttachments: [] },
               })),
             },
           },
