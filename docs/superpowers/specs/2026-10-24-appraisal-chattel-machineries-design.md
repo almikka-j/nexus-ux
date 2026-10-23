@@ -179,17 +179,35 @@ export type AppraisalReportBundle = {
 ```
 
 This avoids a discriminated-union refactor across every call site that
-currently reads `bundle.report.*` (there are many — `appraisal-report-view.tsx`,
-`appraisal-report-preview.tsx`, `appraisal-approver-bundle-view.tsx`,
-`appraisal-appraiser-bundle-view.tsx`, the Fee/Report approval flows, the
-PDF/export paths, sample-data builders). A small helper,
-e.g. `getActiveAppraisalReport(bundle, collateralType)`, picks the right
-one of the three by the bundle's real kind, and every call site that
-currently does `bundle.report` switches to that helper. `fileName` /
-`fileUrl` / `uploadedAt` (the External-appraiser upload fields, and the
-"has this been submitted" check) likely need to stay on the bundle
-itself, not duplicated three times — confirm during planning which fields
-are truly kind-specific vs. shared.
+currently reads `bundle.report.*`. **Verified via builder-check**: there
+are more of these than this doc first listed — besides
+`appraisal-report-view.tsx`, `appraisal-report-preview.tsx`,
+`appraisal-approver-bundle-view.tsx`, and `appraisal-appraiser-bundle-view.tsx`,
+also `appraisal-view.tsx`, `appraisal-appraiser-view.tsx`,
+`report-approvals-view.tsx`, `credit-investigation-view.tsx`, and —
+critically — **`appraisal-bundle-status.ts`**, whose single-line bundle
+status derivation (`if (bundle.report.uploadedAt) return 'reported'`)
+likely drives list/badge rendering across several queue pages. A plan
+task must `grep -rn '\.report\.\|bundle\.report' src/sections/admin/`
+(and anywhere else `AppraisalReportBundle` is imported) **before**
+starting the rename, rather than trusting this doc's list as exhaustive.
+
+A small helper, e.g. `getActiveAppraisalReport(bundle, collateralType)`,
+picks the right one of the three by the bundle's real kind, and every
+call site above switches to it.
+
+**Resolved via builder-check** (this doc previously posed this as an open
+question, but the code already answers it): `fileName` / `fileUrl` /
+`uploadedAt` are **already fields on `AppraisalReport` itself**
+(`admin-context.tsx` lines 1325-1327), not on `AppraisalReportBundle` —
+the bundle has no such fields of its own today. So under the "three
+parallel fields" shape, each of `realEstateReport` / `chattelReport` /
+`machineriesReport` simply keeps carrying its own `fileName`/`fileUrl`/
+`uploadedAt`, exactly as `AppraisalChattelReport`/`AppraisalMachineriesReport`
+already do below — there is nothing to hoist onto the bundle, and a
+builder should not "fix" this by moving these fields up (doing so would
+break `appraisal-bundle-status.ts`'s `bundle.report.uploadedAt` check and
+every one of the many `setAppraisalBundleReport` call sites).
 
 Rejected alternative: a discriminated union
 (`report: RealEstateReport | ChattelReport | MachineriesReport`, tagged by
@@ -341,18 +359,25 @@ export type AppraisalMachineriesReport = {
 ("Credit Committee" / "Credit and Collection Department"), empty
 `machineries: []`, everything else blank.
 
-**Total Appraised Value / Total Appraised Value (Round Off)** are pure
-computed values (sum of `machineries[].appraisedValueLessDepreciation`,
-then rounded) — a small pure function alongside the existing
-`financial-summary-calcs.ts`-style computation modules, not stored state.
-Confirm the exact depreciation/rounding formula with the user during
-planning — the reference screenshot shows the result but not the
-underlying per-year depreciation calculation; "10% per year" appears in
-the field label itself, suggesting the depreciation math already lives in
-each entry's manually-entered `appraisedValueLessDepreciation` (i.e. the
-appraiser computes and types it in per machine, same as the legacy tool
-appears to do), with only the grand total computed. Flag this as a
-"theirs" question if the plan can't resolve it from the screenshot alone.
+**Total Appraised Value** is a pure computed value (sum of
+`machineries[].appraisedValueLessDepreciation`) — a small pure function,
+not stored state, same "compute at render time" convention as
+`financial-summary-calcs.ts`. Each entry's own
+`appraisedValueLessDepreciation` stays a manually-typed field (not a
+computed depreciation formula) — **verified via builder-check**: the
+existing Real Estate report's own analogous field, "Rounded Figures
+(PHP)" (`report.roundedFigures`), is likewise a plain manually-typed
+`TextField`, not a computed value anywhere in this codebase — there is no
+existing rounding-formula convention to match, confirming this doc's
+original guess. **Still open** — bring to the user during planning:
+**Total Appraised Value (Round Off)** could be (a) also manually typed
+(matching "Rounded Figures (PHP)"'s own precedent exactly), or (b)
+computed by rounding the grand total to the nearest ₱1,000 (or some other
+increment) — the reference screenshot shows only the result
+(₱568,468.00 → ₱568,000.00, i.e. rounded down to the nearest thousand in
+that one example) with no way to confirm the exact rule from a single
+data point. Default to (a) manually typed for consistency with the Real
+Estate precedent unless the user specifies a rounding rule.
 
 ## Form (data-entry) — `appraiser-assignment-card.tsx`
 
@@ -455,19 +480,37 @@ by the time assignment happens.
 
 ## Sample data
 
-`buildSampleAppraisalReport()` (or wherever "Fill with Sample Data"
-currently seeds the Real Estate report) gains two sibling builders,
-`buildSampleChattelReport()` / `buildSampleMachineriesReport()`, each
-producing a fully-filled example matching the new shapes — realistic
-vehicle details for Chattel, 2-3 sample machinery entries for
-Machineries — following this app's existing "deterministic, not random"
-sample-data convention (`docs/230-project-overview.md`).
+`buildSampleAppraisalReport()` lives in its own file,
+`src/sections/admin/appraisal/sample-appraisal-report.ts` (**verified via
+builder-check** — not inline in `admin-context.tsx`), used by 3+
+"Simulate"/Fill-with-Sample-Data entry points with a `submit: boolean`
+parameter distinguishing an officer-simulated already-submitted report
+from an appraiser-filled draft. This same file gains two sibling
+builders, `buildSampleChattelReport()` / `buildSampleMachineriesReport()`
+(same `submit` parameter shape), each producing a fully-filled example
+matching the new shapes — realistic vehicle details for Chattel, 2-3
+sample machinery entries for Machineries — following this app's existing
+"deterministic, not random" sample-data convention
+(`docs/230-project-overview.md`).
 
 ## Review Focus
 
 (Per `superpowers:writing-plans`' own convention — these are the known
 soft spots a plan's own tests should specifically cover, not yet
 resolved here:)
+
+- **Loanable Percent field type (Chattel).** The reference screenshot
+  renders it as a styled dropdown (default "50%"). **Verified via
+  builder-check and this app's own precedent**: the existing Real Estate
+  report's closest analog, "Leasable Percent (%)" (`report.leasablePercent`),
+  is a plain free-text `TextField` (placeholder `"70"`), not a `Select` —
+  there is no fixed-option-dropdown precedent anywhere else in this
+  codebase for a percent field. Default to a plain `TextField` (matching
+  the existing Real Estate convention and this prototype's general
+  preference for free-text over fixed enums where the legacy tool's own
+  option set isn't independently confirmed) unless the user specifically
+  confirms the real dropdown's option list (the screenshot shows only
+  "50%" selected, not the full list of choices).
 
 - **What happens to a bundle's preview-mode UI state on remount /
   navigation away and back** — does `previewKind` reset to the real kind
