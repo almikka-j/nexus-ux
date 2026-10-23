@@ -830,7 +830,7 @@ export type RequirementDoc = {
 // the same either way, but the label and appraisal approach differ enough
 // to track explicitly per entry rather than assuming every pledged item is
 // titled real property.
-export type AppraisalCollateralType = 'real-estate' | 'chattel';
+export type AppraisalCollateralType = 'real-estate' | 'chattel' | 'machineries';
 
 // One property/collateral pledged toward this application, identified by
 // its collateral number (a TCT/CCT number for real estate; a plate/serial

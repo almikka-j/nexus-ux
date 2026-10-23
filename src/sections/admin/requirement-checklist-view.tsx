@@ -58,6 +58,7 @@ import type { AppraisalDocMeta, RequirementDocMeta, RequirementDocStatus } from 
 const COLLATERAL_TYPE_LABEL: Record<AppraisalCollateralType, string> = {
   'real-estate': 'Real Estate',
   chattel: 'Chattel',
+  machineries: 'Machineries',
 };
 
 // Same reason set as Initial Credit Checking's and Call Report's Sales

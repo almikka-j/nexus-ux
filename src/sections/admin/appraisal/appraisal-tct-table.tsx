@@ -110,6 +110,7 @@ function AppraiserTypeOption({
 const COLLATERAL_TYPE_LABEL: Record<AppraisalCollateralType, string> = {
   'real-estate': 'Real Estate',
   chattel: 'Chattel',
+  machineries: 'Machineries',
 };
 
 export function AppraisalTctTable({ applicantName }: { applicantName: string }) {

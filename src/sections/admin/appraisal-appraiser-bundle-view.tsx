@@ -282,6 +282,7 @@ const FEE_STATUS_COPY: Record<'no-fee' | 'not-submitted' | 'pending-approval' | 
 const COLLATERAL_TYPE_LABEL: Record<AppraisalCollateralType, string> = {
   'real-estate': 'Real Estate',
   chattel: 'Chattel',
+  machineries: 'Machineries',
 };
 
 const APPRAISER_TYPE_LABEL: Record<'inhouse' | 'external', string> = {
