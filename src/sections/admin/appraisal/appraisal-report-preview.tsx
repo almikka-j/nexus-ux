@@ -5,70 +5,69 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { Iconify } from 'src/components/iconify';
+import { FieldTable, FieldTableRow } from 'src/components/admin-ui';
 
 import type { AppraisalReport, AppraisalReportLandTitle } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
-// Plain, always-expanded read-only preview of the report the appraiser is
-// currently filling in — opened from AppraiserAssignmentCard's own
-// "Preview Appraisal Report" button, before the report is even submitted.
-// Matches the Call Report modal's design system exactly (SectionLabel,
-// FieldRow, NarrativeBlock, SignatureField, section-as-bordered-card),
-// per explicit direction, rather than the grid-based Field/FieldGrid
-// this preview used before — the Officer/Approver's own AppraisalReportView
-// keeps its distinct printed-form styling (hairline-underline Field,
-// "At a Glance" hero, per-section collapse); this preview is a separate,
-// deliberately plain component, not that one.
+// Plain, always-expanded read-only preview of the Real Estate report the
+// appraiser is currently filling in — opened from AppraiserAssignmentCard's
+// own "Preview Appraisal Report" button (Real Estate + in-house only),
+// before the report is even submitted. Follows the app's read-only
+// report-result standard (credit-checking-result-modal.tsx /
+// call-report-result-modal.tsx / ci-report-preview.tsx): a pill-shaped
+// NumberedSectionHeader per section, label/value fields in a FieldTable of
+// FieldTableRows, and non-field content (free-text narratives, photo
+// strips) kept in its own styling underneath the section header. The
+// editable AppraiserAssignmentCard keeps its own form styling.
 // ----------------------------------------------------------------------
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+// Same pill header credit-checking-result-modal.tsx defines locally.
+function NumberedSectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <Typography
-      sx={{
-        fontSize: 11.5,
-        fontWeight: 700,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: '#8891A6',
-      }}
+    <Stack
+      direction="row"
+      spacing={1.25}
+      alignItems="center"
+      sx={{ px: 2, py: 1.25, borderRadius: '10px', bgcolor: '#EEF1FE' }}
     >
-      {children}
-    </Typography>
-  );
-}
-
-// One report section as its own bordered card — same shape
-// call-report-result-modal.tsx uses for each of its sections — separation
-// between sections comes from spacing between cards, not Dividers.
-function SectionCard({ label, children }: { label?: string; children: React.ReactNode }) {
-  return (
-    <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-      <Stack spacing={1.5}>
-        {label && <SectionLabel>{label}</SectionLabel>}
+      <Typography
+        sx={{ fontSize: 12.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#1C2A6E' }}
+      >
         {children}
-      </Stack>
-    </Box>
+      </Typography>
+    </Stack>
   );
 }
 
-// Label/value side-by-side row — same shape call-report-result-modal.tsx's
-// own FieldRow uses (fixed 200px label column, no grid, no hairline
-// underline) — replaces the old grid-based Field/FieldGrid.
-function FieldRow({ label, value }: { label: string; value: string }) {
+// One report section: pill header, then its content (FieldTables and/or
+// non-field blocks) stacked underneath — no bordered wrapper box.
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Stack direction="row" spacing={2}>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', width: 200, flexShrink: 0 }}>{label}</Typography>
-      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value || '—'}</Typography>
+    <Stack spacing={1.25}>
+      <NumberedSectionHeader>{title}</NumberedSectionHeader>
+      {children}
     </Stack>
+  );
+}
+
+// FieldTableRow renders its value as-is, so empty values get the same "—"
+// placeholder the old FieldRow showed; free-text values keep their line
+// breaks.
+function display(value: string): React.ReactNode {
+  return value ? (
+    <Box component="span" sx={{ whiteSpace: 'pre-wrap' }}>
+      {value}
+    </Box>
+  ) : (
+    '—'
   );
 }
 
 // Free-text value in its own bordered box — same shape
 // call-report-result-modal.tsx's own NarrativeBlock uses. Used for General
-// Construction Features, Remarks/Additional Information, and
-// Recommendation — Boundaries, Technical Specification, and
-// Encumbrances/Remarks stay plain label+text with no border, per explicit
-// direction.
+// Construction Features, Valuation Remarks, and Remarks/Additional
+// Information. Renders nothing when empty.
 function NarrativeBlock({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
@@ -81,129 +80,91 @@ function NarrativeBlock({ label, value }: { label: string; value: string }) {
   );
 }
 
-// One fact chip — label above, bold value below, in a shared bordered
-// strip with vertical dividers between chips. Same shape
-// appraisal-appraiser-bundle-view.tsx's own FactChip uses for its header
-// row, applied here to the Report details card.
-function FactChip({ label, value }: { label: string; value: string }) {
+// One repeatable-entry block (Improvement 1, Comparable 2, …) — bordered
+// inner box with an entry label, its fields in a FieldTable. Same shape
+// ci-report-preview.tsx's EntryBlock uses.
+function EntryBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Stack spacing={0.35} sx={{ px: 1.75, py: 1, minWidth: 0, flex: '1 1 128px' }}>
-      <Typography
-        sx={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-          color: '#9AA2B4',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-        title={label}
-      >
-        {label}
-      </Typography>
-      <Typography
-        sx={{
-          fontSize: 13.5,
-          fontWeight: 700,
-          color: '#14172A',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-        title={value}
-      >
-        {value || '—'}
-      </Typography>
-    </Stack>
-  );
-}
-
-function FactChipRow({ children }: { children: React.ReactNode }) {
-  return (
-    <Stack
-      direction="row"
-      flexWrap="wrap"
-      sx={{
-        border: '1px solid #EEF0F5',
-        borderRadius: '12px',
-        bgcolor: '#FAFBFD',
-        '& > div:not(:last-of-type)': { borderRight: { xs: 'none', sm: '1px solid #EEF0F5' } },
-      }}
-    >
-      {children}
-    </Stack>
+    <Box sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
+      <Stack spacing={1}>
+        <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#3448B0' }}>{title}</Typography>
+        {children}
+      </Stack>
+    </Box>
   );
 }
 
 function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitle; tctNumber: string }) {
   return (
-    <SectionCard label={`TCT No. ${tctNumber}`}>
-      <Stack spacing={1.5}>
-        <FieldRow label="File Type" value={title.fileType} />
-        <FieldRow label="Title No." value={title.titleNo} />
-        <FieldRow label="Area Size (sq.m.)" value={title.areaSize} />
-        <FieldRow label="Zonal Value" value={title.zonalValue} />
-        <FieldRow label="Lot No." value={title.lotNo} />
-        <FieldRow label="Survey No." value={title.surveyNo} />
-        <FieldRow label="Book No. / Page No." value={title.bookPageNo} />
-        <FieldRow label="Title Registration Date" value={title.titleRegistrationDate} />
-        <FieldRow label="Title Registration Place" value={title.titleRegistrationPlace} />
-
-        {title.boundaries && (
-          <Box>
-            <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Boundaries</Typography>
-            <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.65, whiteSpace: 'pre-wrap', mt: 0.25 }}>
-              {title.boundaries}
-            </Typography>
-          </Box>
-        )}
+    <Section title={`TCT No. ${tctNumber}`}>
+      <FieldTable>
+        <FieldTableRow
+          pairs={[
+            ['File Type', display(title.fileType)],
+            ['Title No.', display(title.titleNo)],
+          ]}
+        />
+        <FieldTableRow
+          pairs={[
+            ['Area Size (sq.m.)', display(title.areaSize)],
+            ['Zonal Value', display(title.zonalValue)],
+          ]}
+        />
+        <FieldTableRow
+          pairs={[
+            ['Lot No.', display(title.lotNo)],
+            ['Survey No.', display(title.surveyNo)],
+          ]}
+        />
+        <FieldTableRow
+          pairs={[
+            ['Book No. / Page No.', display(title.bookPageNo)],
+            ['Title Registration Date', display(title.titleRegistrationDate)],
+          ]}
+        />
+        <FieldTableRow pairs={[['Title Registration Place', display(title.titleRegistrationPlace)]]} />
+        {/* Boundaries / Technical Specification only appear when filled in,
+            same as before — full-width rows since they're free text. */}
+        {title.boundaries && <FieldTableRow pairs={[['Boundaries', display(title.boundaries)]]} />}
         {title.technicalSpecification && (
-          <Box>
-            <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Technical Specification</Typography>
-            <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.65, whiteSpace: 'pre-wrap', mt: 0.25 }}>
-              {title.technicalSpecification}
+          <FieldTableRow pairs={[['Technical Specification', display(title.technicalSpecification)]]} />
+        )}
+      </FieldTable>
+
+      {title.lotPlotPhotos.length > 0 && (
+        <Box sx={{ p: 1.25, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#F9FAFC' }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+            <Iconify icon="solar:map-point-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
+            <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A6273' }}>
+              Lot Plot Image
             </Typography>
-          </Box>
-        )}
-
-        {title.lotPlotPhotos.length > 0 && (
-          <Box sx={{ p: 1.25, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#F9FAFC' }}>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-              <Iconify icon="solar:map-point-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
-              <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A6273' }}>
-                Lot Plot Image
-              </Typography>
-            </Stack>
-            <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25}>
-              {title.lotPlotPhotos.map((photo, index) => (
+          </Stack>
+          <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25}>
+            {title.lotPlotPhotos.map((photo, index) => (
+              <Box
+                key={`${photo.fileUrl}-${index}`}
+                sx={{
+                  width: 56,
+                  height: 56,
+                  flexShrink: 0,
+                  borderRadius: '8px',
+                  border: '1px solid #EBEDF3',
+                  bgcolor: '#F5F6FA',
+                  overflow: 'hidden',
+                }}
+              >
                 <Box
-                  key={`${photo.fileUrl}-${index}`}
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    flexShrink: 0,
-                    borderRadius: '8px',
-                    border: '1px solid #EBEDF3',
-                    bgcolor: '#F5F6FA',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src={photo.fileUrl}
-                    alt={`Lot plot image ${index + 1} — TCT No. ${tctNumber}`}
-                    sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-                  />
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-        )}
-
-      </Stack>
-    </SectionCard>
+                  component="img"
+                  src={photo.fileUrl}
+                  alt={`Lot plot image ${index + 1} — TCT No. ${tctNumber}`}
+                  sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                />
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      )}
+    </Section>
   );
 }
 
@@ -216,27 +177,37 @@ export function AppraisalReportPreview({
 }) {
   return (
     <Stack spacing={2.5}>
-      <FactChipRow>
-        <FactChip label="Date Report" value={report.dateReport} />
-        <FactChip label="Date Inspected" value={report.dateInspected} />
-        <FactChip label="Requesting Officer" value={report.requestingOfficer} />
-        <FactChip label="Branch" value={report.branch} />
-        <FactChip label="Account Name" value={report.accountName} />
-        <FactChip label="Address" value={report.accountAddress} />
-      </FactChipRow>
+      {/* Was a FactChip strip — plain label/value pairs, so shown as a
+          FieldTable under its own header (same as ci-report-preview.tsx's
+          converted chip strips). */}
+      <Section title="Report Details">
+        <FieldTable>
+          <FieldTableRow
+            pairs={[
+              ['Date Report', display(report.dateReport)],
+              ['Date Inspected', display(report.dateInspected)],
+            ]}
+          />
+          <FieldTableRow
+            pairs={[
+              ['Requesting Officer', display(report.requestingOfficer)],
+              ['Branch', display(report.branch)],
+            ]}
+          />
+          <FieldTableRow pairs={[['Account Name', display(report.accountName)]]} />
+          <FieldTableRow pairs={[['Address', display(report.accountAddress)]]} />
+        </FieldTable>
+      </Section>
 
-      <SectionCard label="Land">
-        <FieldRow label="Registered Owner" value={report.registeredOwner} />
-        <FieldRow label="Location of Property" value={report.locationOfProperty} />
-        {report.encumbrancesRemarks && (
-          <Box>
-            <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Encumbrances / Remarks</Typography>
-            <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.65, whiteSpace: 'pre-wrap', mt: 0.25 }}>
-              {report.encumbrancesRemarks}
-            </Typography>
-          </Box>
-        )}
-      </SectionCard>
+      <Section title="Land">
+        <FieldTable>
+          <FieldTableRow pairs={[['Registered Owner', display(report.registeredOwner)]]} />
+          <FieldTableRow pairs={[['Location of Property', display(report.locationOfProperty)]]} />
+          {report.encumbrancesRemarks && (
+            <FieldTableRow pairs={[['Encumbrances / Remarks', display(report.encumbrancesRemarks)]]} />
+          )}
+        </FieldTable>
+      </Section>
 
       {titleGroups.map((group) => {
         const title = report.landTitles.find((entry) => entry.tctGroupId === group.id);
@@ -244,98 +215,190 @@ export function AppraisalReportPreview({
         return <LandTitlePreview key={group.id} title={title} tctNumber={group.tctNumber} />;
       })}
 
-      <SectionCard label="Technical Specification">
-        <FieldRow label="Present Use" value={report.presentUse} />
-        <FieldRow label="Street Frontage (metres)" value={report.streetFrontage} />
-        <FieldRow label="Street Width (metres)" value={report.streetWidth} />
-        <FieldRow label="Surfacing (Concrete/Asphalt)" value={report.surfacing} />
-        <FieldRow label="Average Depth" value={report.averageDepth} />
-        <FieldRow label="Approx. Shape" value={report.approxShape} />
-        <FieldRow label="Topography" value={report.topography} />
-        <FieldRow label="Neighborhood (Res'l/Comm'l/Ind'l.)" value={report.neighborhood} />
-      </SectionCard>
+      <Section title="Technical Specification">
+        <FieldTable>
+          <FieldTableRow pairs={[['Present Use', display(report.presentUse)]]} />
+          <FieldTableRow
+            pairs={[
+              ['Street Frontage (metres)', display(report.streetFrontage)],
+              ['Street Width (metres)', display(report.streetWidth)],
+            ]}
+          />
+          <FieldTableRow
+            pairs={[
+              ['Surfacing (Concrete/Asphalt)', display(report.surfacing)],
+              ['Average Depth', display(report.averageDepth)],
+            ]}
+          />
+          <FieldTableRow
+            pairs={[
+              ['Approx. Shape', display(report.approxShape)],
+              ['Topography', display(report.topography)],
+            ]}
+          />
+          <FieldTableRow pairs={[["Neighborhood (Res'l/Comm'l/Ind'l.)", display(report.neighborhood)]]} />
+        </FieldTable>
+      </Section>
 
-      <SectionCard label="Source or Kind of Utilities">
-        <FieldRow label="Public Conveyance Line" value={report.utilityPublicConveyance} />
-        <FieldRow label="Electricity" value={report.utilityElectricity} />
-        <FieldRow label="Water" value={report.utilityWater} />
-        <FieldRow label="Gas / Others" value={report.utilityGasOthers} />
-      </SectionCard>
+      <Section title="Source or Kind of Utilities">
+        <FieldTable>
+          <FieldTableRow
+            pairs={[
+              ['Public Conveyance Line', display(report.utilityPublicConveyance)],
+              ['Electricity', display(report.utilityElectricity)],
+            ]}
+          />
+          <FieldTableRow
+            pairs={[
+              ['Water', display(report.utilityWater)],
+              ['Gas / Others', display(report.utilityGasOthers)],
+            ]}
+          />
+        </FieldTable>
+      </Section>
 
-      <SectionCard label="Improvement">
-        {report.improvements.map((improvement) => (
-          <Box key={improvement.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
-            <Stack spacing={1}>
-              <FieldRow label="Year Constructed" value={improvement.yearConstructed} />
-              <FieldRow label="Construction" value={improvement.construction} />
-              <FieldRow label="Condition" value={improvement.condition} />
-              <FieldRow label="Est. Floor Area (sq.m.)" value={improvement.estFloorArea} />
-            </Stack>
-          </Box>
+      <Section title="Improvement">
+        {report.improvements.map((improvement, index) => (
+          <EntryBlock key={improvement.id} title={`Improvement ${index + 1}`}>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Year Constructed', display(improvement.yearConstructed)],
+                  ['Construction', display(improvement.construction)],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Condition', display(improvement.condition)],
+                  ['Est. Floor Area (sq.m.)', display(improvement.estFloorArea)],
+                ]}
+              />
+            </FieldTable>
+          </EntryBlock>
         ))}
-      </SectionCard>
+      </Section>
 
-      <NarrativeBlock label="General Construction Features" value={report.generalConstructionFeatures} />
+      {/* Standalone narrative — only rendered (header included) when filled
+          in, same as the old bare NarrativeBlock. */}
+      {report.generalConstructionFeatures && (
+        <Section title="General Construction Features">
+          <NarrativeBlock label="General Construction Features" value={report.generalConstructionFeatures} />
+        </Section>
+      )}
 
-      <SectionCard label="Particular Description">
-        {report.particularDescriptions.map((particular) => (
-          <Box key={particular.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
-            <Stack spacing={1}>
-              <FieldRow label="Floor Level" value={particular.floorLevel} />
-              <FieldRow label="Interior Walls & Partitions" value={particular.interiorWallsPartitions} />
-              <FieldRow label="Flooring" value={particular.flooring} />
-              <FieldRow label="Doors & Windows" value={particular.doorsWindows} />
-              <FieldRow label="Ceiling & Roofing" value={particular.ceilingRoofing} />
-            </Stack>
-          </Box>
+      <Section title="Particular Description">
+        {report.particularDescriptions.map((particular, index) => (
+          <EntryBlock key={particular.id} title={`Description ${index + 1}`}>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Floor Level', display(particular.floorLevel)],
+                  ['Interior Walls & Partitions', display(particular.interiorWallsPartitions)],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Flooring', display(particular.flooring)],
+                  ['Doors & Windows', display(particular.doorsWindows)],
+                ]}
+              />
+              <FieldTableRow pairs={[['Ceiling & Roofing', display(particular.ceilingRoofing)]]} />
+            </FieldTable>
+          </EntryBlock>
         ))}
-      </SectionCard>
+      </Section>
 
-      <SectionCard label="Basis of Valuation (Land)">
-        {report.basisOfValuationComparables.map((comparable) => (
-          <Box key={comparable.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
-            <Stack spacing={1}>
-              <FieldRow label="Source" value={comparable.source} />
-              <FieldRow label="Location" value={comparable.location} />
-              <FieldRow label="Area Size" value={comparable.areaSize} />
-              <FieldRow label="Price Type" value={comparable.priceType} />
-              <FieldRow label="Zonal Value" value={comparable.zonalValue} />
-              <FieldRow label="Value" value={comparable.value} />
-            </Stack>
-          </Box>
+      <Section title="Basis of Valuation (Land)">
+        {report.basisOfValuationComparables.map((comparable, index) => (
+          <EntryBlock key={comparable.id} title={`Comparable ${index + 1}`}>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Source', display(comparable.source)],
+                  ['Location', display(comparable.location)],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Area Size', display(comparable.areaSize)],
+                  ['Price Type', display(comparable.priceType)],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Zonal Value', display(comparable.zonalValue)],
+                  ['Value', display(comparable.value)],
+                ]}
+              />
+            </FieldTable>
+          </EntryBlock>
         ))}
-        <FieldRow label="Fair Market Value Per Square Meter" value={report.fairMarketValuePerSqm} />
-        <FieldRow label="Fair Market Value Total (PHP)" value={report.fairMarketValueTotal} />
+        <FieldTable>
+          <FieldTableRow
+            pairs={[
+              ['Fair Market Value Per Square Meter', display(report.fairMarketValuePerSqm)],
+              ['Fair Market Value Total (PHP)', display(report.fairMarketValueTotal)],
+            ]}
+          />
+        </FieldTable>
         <NarrativeBlock label="Valuation Remarks" value={report.valuationRemarks} />
-      </SectionCard>
+      </Section>
 
-      <NarrativeBlock label="Remarks / Additional Information" value={report.remarksAdditionalInfo} />
+      {/* Standalone narrative — only rendered (header included) when filled
+          in, same as the old bare NarrativeBlock. */}
+      {report.remarksAdditionalInfo && (
+        <Section title="Remarks / Additional Information">
+          <NarrativeBlock label="Remarks / Additional Information" value={report.remarksAdditionalInfo} />
+        </Section>
+      )}
 
-      <SectionCard label="Conditions for Acceptance of Collateral">
-        {report.conditionsForAcceptance.map((condition) => (
-          <Box key={condition.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
-            <Stack spacing={1}>
-              <FieldRow label="Item of Property" value={condition.itemOfProperty} />
-              <FieldRow label="Ref" value={condition.ref} />
-              <FieldRow label="Marketable" value={condition.marketable} />
-              <FieldRow label="Construction (%)" value={condition.constructionStatusPercent} />
-              <FieldRow label="Depreciated Value" value={condition.depreciatedValue} />
-              <FieldRow label="Appraised Value" value={condition.appraisedValue} />
-            </Stack>
-          </Box>
+      <Section title="Conditions for Acceptance of Collateral">
+        {report.conditionsForAcceptance.map((condition, index) => (
+          <EntryBlock key={condition.id} title={`Condition ${index + 1}`}>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Item of Property', display(condition.itemOfProperty)],
+                  ['Ref', display(condition.ref)],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Marketable', display(condition.marketable)],
+                  ['Construction (%)', display(condition.constructionStatusPercent)],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Depreciated Value', display(condition.depreciatedValue)],
+                  ['Appraised Value', display(condition.appraisedValue)],
+                ]}
+              />
+            </FieldTable>
+          </EntryBlock>
         ))}
-      </SectionCard>
+      </Section>
 
-      <SectionCard label="Appraisal Summary">
-        <FieldRow label="Appraised Value" value={report.appraisedValue} />
-        <FieldRow label="Rounded Figures" value={report.roundedFigures} />
-        <FieldRow label="Amount in Words" value={report.amountInWords} />
-        <FieldRow label="Leasable Percent (%)" value={report.leasablePercent} />
-        <FieldRow label="Leasable Amount (PHP)" value={report.leasableAmount} />
-      </SectionCard>
+      <Section title="Appraisal Summary">
+        <FieldTable>
+          <FieldTableRow
+            pairs={[
+              ['Appraised Value', display(report.appraisedValue)],
+              ['Rounded Figures', display(report.roundedFigures)],
+            ]}
+          />
+          <FieldTableRow pairs={[['Amount in Words', display(report.amountInWords)]]} />
+          <FieldTableRow
+            pairs={[
+              ['Leasable Percent (%)', display(report.leasablePercent)],
+              ['Leasable Amount (PHP)', display(report.leasableAmount)],
+            ]}
+          />
+        </FieldTable>
+      </Section>
 
       {report.feeAttachments.length > 0 && (
-        <SectionCard label="Fee Attachment">
+        <Section title="Fee Attachment">
           <Stack direction="row" flexWrap="wrap" gap={1.5}>
             {report.feeAttachments.map((photo, index) => (
               <Box
@@ -347,7 +410,7 @@ export function AppraisalReportPreview({
               />
             ))}
           </Stack>
-        </SectionCard>
+        </Section>
       )}
     </Stack>
   );

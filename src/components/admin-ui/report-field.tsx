@@ -73,3 +73,71 @@ export function FieldGrid({ children }: { children: React.ReactNode }) {
     </Box>
   );
 }
+
+// ----------------------------------------------------------------------
+// FieldTable / FieldTableRow — a bordered 2-column field table (shaded
+// label cell, white value cell, horizontal dividers between rows), the
+// Initial Credit Checking Result's own Memorandum/Client Information
+// layout. Extracted from credit-checking-result-modal.tsx (2026-10-24) so
+// other read-only "application details"-shaped views can reuse the same
+// shaded-label key-value table instead of each inventing its own.
+// ----------------------------------------------------------------------
+
+export function FieldTableRow({
+  pairs,
+}: {
+  pairs: [label: string, value: React.ReactNode][];
+}) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        '&:not(:last-of-type)': { borderBottom: '1px solid #EEF0F5' },
+        '& > div': { flex: 1, minWidth: 0 },
+        '& > div:not(:last-of-type)': {
+          borderBottom: { xs: '1px solid #EEF0F5', sm: 'none' },
+          borderRight: { xs: 'none', sm: '1px solid #EEF0F5' },
+        },
+      }}
+    >
+      {pairs.map(([label, value]) => (
+        <Box key={label} sx={{ display: 'flex', minWidth: 0 }}>
+          <Box
+            sx={{
+              width: 150,
+              flexShrink: 0,
+              px: 1.5,
+              py: 0.75,
+              bgcolor: '#F5F6FA',
+              borderRight: '1px solid #EEF0F5',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            {/* Labels vary a lot across callers (e.g. Call Report's
+                "Identity / Authorized Representative") — wrap instead of
+                nowrap so a long label grows the row's height rather than
+                spilling past this fixed-width cell into the value cell. */}
+            <Typography sx={{ fontSize: 13, color: '#8891A6', lineHeight: 1.35 }}>{label}</Typography>
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0, px: 1.5, py: 0.75, display: 'flex', alignItems: 'center' }}>
+            <Typography
+              sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A', minWidth: 0, wordBreak: 'break-word' }}
+            >
+              {value}
+            </Typography>
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+export function FieldTable({ children }: { children: React.ReactNode }) {
+  return (
+    <Box sx={{ border: '1px solid #EEF0F5', borderRadius: '12px', bgcolor: 'common.white', overflow: 'hidden' }}>
+      {children}
+    </Box>
+  );
+}
