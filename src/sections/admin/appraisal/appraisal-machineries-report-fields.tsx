@@ -3,7 +3,6 @@
 import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -14,13 +13,15 @@ import Typography from '@mui/material/Typography';
 import { useAdmin } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
-import { SectionLabel, FieldGrid, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { RichTextField } from 'src/components/rich-text-field';
 import { fCurrency } from 'src/utils/format-number';
 
 import { parseNum } from 'src/sections/admin/financial-summary-calcs';
 
-import { MultiPhotoDropzone } from './appraiser-assignment-card';
+// Real Estate's own local SectionLabel (bare label, no rule under it) —
+// sections are separated by explicit Dividers below, same as Real Estate.
+import { SectionLabel, MultiPhotoDropzone } from './appraiser-assignment-card';
 
 import type { AppraisalMachineriesReport, AppraisalMachineryEntry } from 'src/auth/admin-context';
 
@@ -63,6 +64,37 @@ const fieldSx = {
   },
 };
 
+// ----------------------------------------------------------------------
+// Sticky left section nav items for this form. The sidebar itself is
+// rendered by the parent AppraiserAssignmentCard (as a sibling of the
+// white card, same as Real Estate's), which also owns this form's
+// `sectionRefs` and active-section state and passes the refs down via the
+// `sectionRefs` prop so the sections below can register themselves.
+// Exported so the parent can feed this list to AppraisalSectionNav.
+// "Qualification & Remarks" (the printed form's own "II.") gets its own nav entry distinct
+// from "Appraised Value" (the computed/entered value fields plus Loanable
+// Percent/Amount) even though both currently render inside the same JSX
+// Stack — they're two separate steps in the printed form, and a user
+// scanning the nav would expect to jump to the remarks rich-text box
+// without it being lumped under "Appraised Value".
+// ----------------------------------------------------------------------
+export type MachineriesSectionKey =
+  | 'reportDetails'
+  | 'descriptionOfEquipments'
+  | 'machineries'
+  | 'appraisedValue'
+  | 'qualificationRemarks'
+  | 'fileAttachment';
+
+export const MACHINERIES_SECTION_NAV_ITEMS: { key: MachineriesSectionKey; label: string }[] = [
+  { key: 'reportDetails', label: 'Report Details' },
+  { key: 'descriptionOfEquipments', label: 'Description of Equipments' },
+  { key: 'machineries', label: 'Machineries' },
+  { key: 'appraisedValue', label: 'Appraised Value' },
+  { key: 'qualificationRemarks', label: 'Qualification & Remarks' },
+  { key: 'fileAttachment', label: 'File Attachment' },
+];
+
 // A 3-line sum — not worth a new shared calc module per this plan's
 // proportion principle. Exported so Task 7 (the read-only view) can
 // import and reuse this exact function rather than duplicating the sum
@@ -84,8 +116,8 @@ function MachineryEntryForm({
 }) {
   return (
     <Box sx={{ pt: 1.5 }}>
-      <Grid container spacing={1.5}>
-        <Grid item xs={12} sm={6}>
+      <Stack spacing={1.5}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           <TextField
             fullWidth
             size="small"
@@ -95,8 +127,6 @@ function MachineryEntryForm({
             onChange={(event) => onChange({ units: event.target.value })}
             sx={fieldSx}
           />
-        </Grid>
-        <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             size="small"
@@ -106,8 +136,8 @@ function MachineryEntryForm({
             onChange={(event) => onChange({ description: event.target.value })}
             sx={fieldSx}
           />
-        </Grid>
-        <Grid item xs={12} sm={6}>
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           <TextField
             fullWidth
             size="small"
@@ -117,8 +147,6 @@ function MachineryEntryForm({
             onChange={(event) => onChange({ serialNo: event.target.value })}
             sx={fieldSx}
           />
-        </Grid>
-        <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             size="small"
@@ -128,8 +156,8 @@ function MachineryEntryForm({
             onChange={(event) => onChange({ acquisitionPricePhp: event.target.value })}
             sx={fieldSx}
           />
-        </Grid>
-        <Grid item xs={12} sm={6}>
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           <TextField
             fullWidth
             size="small"
@@ -141,8 +169,6 @@ function MachineryEntryForm({
             InputLabelProps={{ shrink: true }}
             sx={fieldSx}
           />
-        </Grid>
-        <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             size="small"
@@ -152,8 +178,8 @@ function MachineryEntryForm({
             onChange={(event) => onChange({ appraisedValueLessDepreciation: event.target.value })}
             sx={fieldSx}
           />
-        </Grid>
-      </Grid>
+        </Stack>
+      </Stack>
     </Box>
   );
 }
@@ -233,25 +259,23 @@ function MachineriesSection({
   return (
     <Stack spacing={1.5}>
       <SectionLabel>Machineries</SectionLabel>
-      <Box sx={{ bgcolor: '#F9FAFC', border: '1px solid #EEF0F5', borderRadius: '11px', p: 1.5 }}>
+      {/* Outer group box reuses Real Estate's Lot Plotting wrapper style;
+          each entry is its own bordered row (Real Estate's repeatable-row
+          style, white so it reads against the group box's tint). */}
+      <Box sx={{ p: 2, borderRadius: '13px', bgcolor: '#F8F9FC', border: '1px solid #E3E7F0' }}>
         <Stack spacing={1.25}>
           {machineries.length === 0 ? (
-            <Box
-              sx={{
-                border: '1px dashed #E1E4ED',
-                borderRadius: '10px',
-                py: 1.5,
-                textAlign: 'center',
-                fontSize: 12.5,
-                color: '#8891A6',
-              }}
-            >
-              No machineries recorded yet.
+            <Box sx={{ p: 1.5, borderRadius: '10px', border: '1.5px dashed #C7CCDA', bgcolor: '#F9FAFC' }}>
+              <Typography sx={{ fontSize: 12, fontStyle: 'italic', color: '#5A6273' }}>
+                No machineries recorded yet.
+              </Typography>
             </Box>
           ) : (
-            machineries.map((entry, index) => (
-              <Box key={entry.id}>
-                {index > 0 && <Divider sx={{ borderColor: '#EEF0F5', mb: 1.25 }} />}
+            machineries.map((entry) => (
+              <Box
+                key={entry.id}
+                sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'common.white', border: '1px solid #EBEDF3' }}
+              >
                 <MachinerySummaryLine
                   entry={entry}
                   expanded={expandedIds.has(entry.id)}
@@ -275,8 +299,7 @@ function MachineriesSection({
         <Button
           onClick={() => addAppraisalMachineryEntry(bundleId)}
           variant="outlined"
-          size="small"
-          startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+          startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
           sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
         >
           Add Machinery
@@ -290,10 +313,15 @@ export function MachineriesReportFields({
   bundleId,
   report,
   editable,
+  sectionRefs,
 }: {
   bundleId: string;
   report: AppraisalMachineriesReport;
   editable: boolean;
+  // Owned by the parent AppraiserAssignmentCard, which renders this
+  // form's sidebar nav outside the white card and reads these refs for
+  // its active-section highlight and jump-to-section scrolling.
+  sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>;
 }): JSX.Element {
   const { setAppraisalBundleMachineriesReport } = useAdmin();
 
@@ -305,84 +333,84 @@ export function MachineriesReportFields({
   return (
     <Stack spacing={2.5}>
       {/* Step 1: memo header fields */}
-      <Stack spacing={1.5}>
+      <Stack
+        spacing={1.5}
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('reportDetails', el); }}
+      >
         <SectionLabel>Report Details</SectionLabel>
-        <Grid container spacing={1.5}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="To"
-              value={report.to}
-              disabled={!editable}
-              onChange={(event) => patch({ to: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Thru"
-              value={report.thru}
-              disabled={!editable}
-              onChange={(event) => patch({ thru: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="From"
-              value={report.from}
-              disabled={!editable}
-              onChange={(event) => patch({ from: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              type="date"
-              label="Date Report"
-              value={report.dateReport}
-              disabled={!editable}
-              onChange={(event) => patch({ dateReport: event.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              type="date"
-              label="Date Inspected"
-              value={report.dateInspected}
-              disabled={!editable}
-              onChange={(event) => patch({ dateInspected: event.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Subject"
-              value={report.subject}
-              disabled={!editable}
-              onChange={(event) => patch({ subject: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-        </Grid>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="To"
+            value={report.to}
+            disabled={!editable}
+            onChange={(event) => patch({ to: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Thru"
+            value={report.thru}
+            disabled={!editable}
+            onChange={(event) => patch({ thru: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="From"
+            value={report.from}
+            disabled={!editable}
+            onChange={(event) => patch({ from: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            type="date"
+            label="Date Report"
+            value={report.dateReport}
+            disabled={!editable}
+            onChange={(event) => patch({ dateReport: event.target.value })}
+            InputLabelProps={{ shrink: true }}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            type="date"
+            label="Date Inspected"
+            value={report.dateInspected}
+            disabled={!editable}
+            onChange={(event) => patch({ dateInspected: event.target.value })}
+            InputLabelProps={{ shrink: true }}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Subject"
+            value={report.subject}
+            disabled={!editable}
+            onChange={(event) => patch({ subject: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
       </Stack>
 
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
       {/* Step 2: free-text Description of Equipments box */}
-      <Stack spacing={1.5}>
+      <Stack
+        spacing={1.5}
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('descriptionOfEquipments', el); }}
+      >
         <SectionLabel>I. Description of Equipments</SectionLabel>
         <TextField
           fullWidth
@@ -396,15 +424,26 @@ export function MachineriesReportFields({
         />
       </Stack>
 
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
       {/* Step 3: Machineries repeatable list */}
-      <MachineriesSection bundleId={bundleId} machineries={report.machineries} editable={editable} />
+      <Box ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('machineries', el); }}>
+        <MachineriesSection bundleId={bundleId} machineries={report.machineries} editable={editable} />
+      </Box>
+
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
 
       {/* Step 4 & 5: Total Appraised Value, Loanable Percent/Amount, Round Off,
           Qualification & Remarks, File Attachment */}
-      <Stack spacing={1.5}>
+      <Stack
+        spacing={1.5}
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('appraisedValue', el); }}
+      >
         <SectionLabel>Appraised Value</SectionLabel>
-        <FieldGrid>
-          <Box sx={{ gridColumn: 'span 1' }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
+          {/* The one genuinely computed, read-only value — rendered in the
+              shared Field label/value style rather than as an input. */}
+          <Box sx={{ width: '100%', minWidth: 0 }}>
             <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Total Appraised Value</Typography>
             <Typography
               sx={{
@@ -419,41 +458,42 @@ export function MachineriesReportFields({
               {fCurrency(totalAppraisedValue)}
             </Typography>
           </Box>
-          <Box sx={{ gridColumn: 'span 1' }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Total Appraised Value (Round Off)"
-              value={report.totalAppraisedValueRoundOff}
-              disabled={!editable}
-              onChange={(event) => patch({ totalAppraisedValueRoundOff: event.target.value })}
-              sx={fieldSx}
-            />
-          </Box>
-          <Box sx={{ gridColumn: 'span 1' }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Loanable Percent"
-              value={report.loanablePercent}
-              disabled={!editable}
-              onChange={(event) => patch({ loanablePercent: event.target.value })}
-              sx={fieldSx}
-            />
-          </Box>
-          <Box sx={{ gridColumn: 'span 1' }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Loanable Amount"
-              value={report.loanableAmount}
-              disabled={!editable}
-              onChange={(event) => patch({ loanableAmount: event.target.value })}
-              sx={fieldSx}
-            />
-          </Box>
-        </FieldGrid>
+          <TextField
+            fullWidth
+            size="small"
+            label="Total Appraised Value (Round Off)"
+            value={report.totalAppraisedValueRoundOff}
+            disabled={!editable}
+            onChange={(event) => patch({ totalAppraisedValueRoundOff: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Loanable Percent"
+            value={report.loanablePercent}
+            disabled={!editable}
+            onChange={(event) => patch({ loanablePercent: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Loanable Amount"
+            value={report.loanableAmount}
+            disabled={!editable}
+            onChange={(event) => patch({ loanableAmount: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
+      </Stack>
 
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('qualificationRemarks', el); }}
+      >
         {/* RichTextField has no disabled/read-only prop of its own (see
             src/components/rich-text-field/rich-text-field.tsx) — when
             !editable, wrap it so it's visually and functionally inert
@@ -473,16 +513,21 @@ export function MachineriesReportFields({
             placeholder="Qualification and remarks regarding this collateral"
           />
         </Box>
+      </Stack>
 
-        <Stack spacing={1}>
-          <SectionLabel>File Attachment</SectionLabel>
-          <MultiPhotoDropzone
-            photos={report.fileAttachments}
-            onChange={(fileAttachments) => patch({ fileAttachments })}
-            disabled={!editable}
-            label="File Attachment"
-          />
-        </Stack>
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('fileAttachment', el); }}
+      >
+        <SectionLabel>File Attachment</SectionLabel>
+        <MultiPhotoDropzone
+          photos={report.fileAttachments}
+          onChange={(fileAttachments) => patch({ fileAttachments })}
+          disabled={!editable}
+          label="File Attachment"
+        />
       </Stack>
     </Stack>
   );

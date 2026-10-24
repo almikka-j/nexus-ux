@@ -1153,7 +1153,10 @@ function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLand
     zonalValue: '',
     boundaries: '',
     technicalSpecification: '',
-    lotPlotLines: [],
+    // Seeds 3 blank bearing/distance rows up front — a lot plot almost
+    // always has at least this many lines, so starting empty just made
+    // the appraiser click "+ Add" 3 times before they could begin.
+    lotPlotLines: [createLotPlotLine(), createLotPlotLine(), createLotPlotLine()],
     lotPlotPhotos: [],
   };
 }
@@ -1213,7 +1216,7 @@ export function createAppraisalChattelReport(): AppraisalChattelReport {
     instrumentPanelLighting: CHATTEL_INSTRUMENT_PANEL_LABELS.map((label) => ({
       id: crypto.randomUUID(), label, rating: '' as const,
     })),
-    marketSurvey: [],
+    marketSurvey: [createAppraisalMarketSurveyEntry(), createAppraisalMarketSurveyEntry(), createAppraisalMarketSurveyEntry()],
     appraisedValue: '', loanablePercent: '', appraisedValueRoundOff: '',
     loanableAmount: '', encumbrancesRemarks: '',
     fileAttachments: [], uploadedAt: null,
@@ -1489,7 +1492,7 @@ export function createAppraisalMachineriesReport(): AppraisalMachineriesReport {
     from: 'Credit and Collection Department',
     dateReport: '', dateInspected: '', subject: '',
     descriptionOfEquipments: '',
-    machineries: [],
+    machineries: [createAppraisalMachineryEntry(), createAppraisalMachineryEntry(), createAppraisalMachineryEntry()],
     totalAppraisedValueRoundOff: '',
     loanablePercent: '', loanableAmount: '',
     qualificationRemarks: '',
@@ -2859,18 +2862,22 @@ function createBlankAppraisalReport(tctGroupIds: string[]): AppraisalReport {
     utilityWater: '',
     utilityGasOthers: '',
 
-    improvements: [],
+    // Seeds 3 blank rows up front in every "+ Add"-driven repeatable list
+    // below — an appraiser almost always needs at least this many, so
+    // starting empty just made them click "+ Add" 3 times before they
+    // could begin (matches lotPlotLines' own seeding above).
+    improvements: [createAppraisalImprovementEntry(), createAppraisalImprovementEntry(), createAppraisalImprovementEntry()],
 
     generalConstructionFeatures: '',
-    particularDescriptions: [],
+    particularDescriptions: [createAppraisalParticularEntry(), createAppraisalParticularEntry(), createAppraisalParticularEntry()],
 
-    basisOfValuationComparables: [],
+    basisOfValuationComparables: [createBasisOfValuationComparable(), createBasisOfValuationComparable(), createBasisOfValuationComparable()],
     fairMarketValuePerSqm: '',
     fairMarketValueTotal: '',
     valuationRemarks: '',
 
     remarksAdditionalInfo: '',
-    conditionsForAcceptance: [],
+    conditionsForAcceptance: [createAppraisalConditionEntry(), createAppraisalConditionEntry(), createAppraisalConditionEntry()],
 
     appraisedValue: '',
     roundedFigures: '',
@@ -3512,15 +3519,15 @@ function readStoredState(): AdminState {
                 utilityElectricity: '',
                 utilityWater: '',
                 utilityGasOthers: '',
-                improvements: [],
+                improvements: [createAppraisalImprovementEntry(), createAppraisalImprovementEntry(), createAppraisalImprovementEntry()],
                 generalConstructionFeatures: '',
-                particularDescriptions: [],
-                basisOfValuationComparables: [],
+                particularDescriptions: [createAppraisalParticularEntry(), createAppraisalParticularEntry(), createAppraisalParticularEntry()],
+                basisOfValuationComparables: [createBasisOfValuationComparable(), createBasisOfValuationComparable(), createBasisOfValuationComparable()],
                 fairMarketValuePerSqm: '',
                 fairMarketValueTotal: '',
                 valuationRemarks: '',
                 remarksAdditionalInfo: '',
-                conditionsForAcceptance: [],
+                conditionsForAcceptance: [createAppraisalConditionEntry(), createAppraisalConditionEntry(), createAppraisalConditionEntry()],
                 appraisedValue: '',
                 roundedFigures: '',
                 amountInWords: '',

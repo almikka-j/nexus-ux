@@ -1,10 +1,10 @@
 'use client';
 
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
 import Radio from '@mui/material/Radio';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import RadioGroup from '@mui/material/RadioGroup';
@@ -15,10 +15,12 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { useAdmin } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
-import { SectionLabel, FieldGrid, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { RichTextField } from 'src/components/rich-text-field';
 
-import { MultiPhotoDropzone } from './appraiser-assignment-card';
+// Real Estate's own local SectionLabel (bare label, no rule under it) —
+// sections are separated by explicit Dividers below, same as Real Estate.
+import { SectionLabel, MultiPhotoDropzone } from './appraiser-assignment-card';
 
 import type {
   AppraisalChattelReport,
@@ -68,6 +70,38 @@ const fieldSx = {
 };
 
 // ----------------------------------------------------------------------
+// Sticky left section nav items for this form. The sidebar itself is
+// rendered by the parent AppraiserAssignmentCard (as a sibling of the
+// white card, same as Real Estate's), which also owns this form's
+// `sectionRefs` and active-section state and passes the refs down via the
+// `sectionRefs` prop so the sections below can register themselves.
+// Exported so the parent can feed this list to AppraisalSectionNav.
+// Accessories and Power Features are grouped under "Description of Equipment" (they're
+// sub-checklists of that same step, not separate top-level sections a user
+// would think of jumping to independently), and General Condition /
+// Instrument Panel & Lighting each get their own entry since they're each
+// rendered once, as genuinely separate steps in the printed form.
+// ----------------------------------------------------------------------
+export type ChattelSectionKey =
+  | 'reportDetails'
+  | 'descriptionOfEquipment'
+  | 'generalCondition'
+  | 'instrumentPanelLighting'
+  | 'marketSurvey'
+  | 'appraisedValue'
+  | 'fileAttachment';
+
+export const CHATTEL_SECTION_NAV_ITEMS: { key: ChattelSectionKey; label: string }[] = [
+  { key: 'reportDetails', label: 'Report Details' },
+  { key: 'descriptionOfEquipment', label: 'Description of Equipment' },
+  { key: 'generalCondition', label: 'General Condition' },
+  { key: 'instrumentPanelLighting', label: 'Instrument Panel & Lighting' },
+  { key: 'marketSurvey', label: 'Market Survey' },
+  { key: 'appraisedValue', label: 'Appraised Value' },
+  { key: 'fileAttachment', label: 'File Attachment' },
+];
+
+// ----------------------------------------------------------------------
 // Accessories / Power Features checklist — a row per item: a Checkbox
 // bound to item.checked, the item's own (non-editable) label, and a
 // Comments TextField disabled unless the item is checked — matching the
@@ -85,17 +119,41 @@ function ChecklistSection({
   editable: boolean;
   onItemChange: (itemId: string, data: Partial<Pick<AppraisalChecklistItem, 'checked' | 'comments'>>) => void;
 }) {
+  const allChecked = items.length > 0 && items.every((item) => item.checked);
+  const someChecked = items.some((item) => item.checked);
+
+  const handleCheckAll = (checked: boolean) => {
+    items.forEach((item) => {
+      onItemChange(item.id, checked ? { checked: true } : { checked: false, comments: '' });
+    });
+  };
+
   return (
     <Stack spacing={1.5}>
-      <SectionLabel>{title}</SectionLabel>
-      <Stack spacing={1}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <SectionLabel>{title}</SectionLabel>
+        <FormControlLabel
+          label="Check all"
+          sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: 12.5, fontWeight: 600, color: '#8891A6' } }}
+          control={
+            <Checkbox
+              size="small"
+              checked={allChecked}
+              indeterminate={someChecked && !allChecked}
+              disabled={!editable}
+              onChange={(event) => handleCheckAll(event.target.checked)}
+            />
+          }
+        />
+      </Stack>
+      <Stack spacing={1.25}>
         {items.map((item) => (
           <Stack
             key={item.id}
             direction="row"
             alignItems="center"
             spacing={1.5}
-            sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
+            sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}
           >
             <Checkbox
               size="small"
@@ -144,14 +202,14 @@ function ConditionSection({
   return (
     <Stack spacing={1.5}>
       <SectionLabel>General Condition</SectionLabel>
-      <Stack spacing={1}>
+      <Stack spacing={1.25}>
         {items.map((item) => (
           <Stack
             key={item.id}
             direction={{ xs: 'column', sm: 'row' }}
             alignItems={{ sm: 'center' }}
             spacing={1.5}
-            sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
+            sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}
           >
             <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 140, flexShrink: 0 }}>
               {item.label}
@@ -209,14 +267,14 @@ function FunctionSection({
   return (
     <Stack spacing={1.5}>
       <SectionLabel>Instrument Panel &amp; Lighting</SectionLabel>
-      <Stack spacing={1}>
+      <Stack spacing={1.25}>
         {items.map((item) => (
           <Stack
             key={item.id}
             direction={{ xs: 'column', sm: 'row' }}
             alignItems={{ sm: 'center' }}
             spacing={1.5}
-            sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
+            sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}
           >
             <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 140, flexShrink: 0 }}>
               {item.label}
@@ -273,9 +331,11 @@ function MarketSurveySection({
       <SectionLabel>Market Survey</SectionLabel>
       <Stack spacing={1.25}>
         {entries.length === 0 && (
-          <Typography sx={{ fontSize: 12.5, color: '#8891A6', fontStyle: 'italic' }}>
-            No market survey entries yet.
-          </Typography>
+          <Box sx={{ p: 1.5, borderRadius: '10px', border: '1.5px dashed #C7CCDA', bgcolor: '#F9FAFC' }}>
+            <Typography sx={{ fontSize: 12, fontStyle: 'italic', color: '#5A6273' }}>
+              No market survey entries yet.
+            </Typography>
+          </Box>
         )}
         {entries.map((entry) => (
           <Stack
@@ -349,8 +409,7 @@ function MarketSurveySection({
         <Button
           onClick={onAdd}
           variant="outlined"
-          size="small"
-          startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+          startIcon={<Iconify icon="solar:add-circle-bold" width={18} />}
           sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
         >
           Add Market Survey
@@ -364,10 +423,15 @@ export function ChattelReportFields({
   bundleId,
   report,
   editable,
+  sectionRefs,
 }: {
   bundleId: string;
   report: AppraisalChattelReport;
   editable: boolean;
+  // Owned by the parent AppraiserAssignmentCard, which renders this
+  // form's sidebar nav outside the white card and reads these refs for
+  // its active-section highlight and jump-to-section scrolling.
+  sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>;
 }): JSX.Element {
   const {
     setAppraisalBundleChattelReport,
@@ -385,266 +449,247 @@ export function ChattelReportFields({
   return (
     <Stack spacing={2.5}>
       {/* Step 1: header fields */}
-      <Stack spacing={1.5}>
+      <Stack spacing={1.5} ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('reportDetails', el); }}>
         <SectionLabel>Report Details</SectionLabel>
-        <Grid container spacing={1.5}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Account Name"
-              value={report.accountName}
-              disabled={!editable}
-              onChange={(event) => patch({ accountName: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Requested By"
-              value={report.requestedBy}
-              disabled={!editable}
-              onChange={(event) => patch({ requestedBy: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Purpose of Report"
-              value={report.purposeOfReport}
-              disabled={!editable}
-              onChange={(event) => patch({ purposeOfReport: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              type="date"
-              label="Report Date"
-              value={report.reportDate}
-              disabled={!editable}
-              onChange={(event) => patch({ reportDate: event.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Eqpt. Under App."
-              value={report.eqptUnderApp}
-              disabled={!editable}
-              onChange={(event) => patch({ eqptUnderApp: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              type="date"
-              label="Date Inspected"
-              value={report.dateInspected}
-              disabled={!editable}
-              onChange={(event) => patch({ dateInspected: event.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Registered Owner"
-              value={report.registeredOwner}
-              disabled={!editable}
-              onChange={(event) => patch({ registeredOwner: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Address"
-              value={report.address}
-              disabled={!editable}
-              onChange={(event) => patch({ address: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-        </Grid>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Account Name"
+            value={report.accountName}
+            disabled={!editable}
+            onChange={(event) => patch({ accountName: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Requested By"
+            value={report.requestedBy}
+            disabled={!editable}
+            onChange={(event) => patch({ requestedBy: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Purpose of Report"
+            value={report.purposeOfReport}
+            disabled={!editable}
+            onChange={(event) => patch({ purposeOfReport: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            type="date"
+            label="Report Date"
+            value={report.reportDate}
+            disabled={!editable}
+            onChange={(event) => patch({ reportDate: event.target.value })}
+            InputLabelProps={{ shrink: true }}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Eqpt. Under App."
+            value={report.eqptUnderApp}
+            disabled={!editable}
+            onChange={(event) => patch({ eqptUnderApp: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            type="date"
+            label="Date Inspected"
+            value={report.dateInspected}
+            disabled={!editable}
+            onChange={(event) => patch({ dateInspected: event.target.value })}
+            InputLabelProps={{ shrink: true }}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Registered Owner"
+            value={report.registeredOwner}
+            disabled={!editable}
+            onChange={(event) => patch({ registeredOwner: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Address"
+            value={report.address}
+            disabled={!editable}
+            onChange={(event) => patch({ address: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
       </Stack>
 
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
       {/* Step 2: Description of Equipment */}
-      <Stack spacing={1.5}>
+      <Stack
+        spacing={1.5}
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('descriptionOfEquipment', el); }}
+      >
         <SectionLabel>Description of Equipment</SectionLabel>
-        <Grid container spacing={1.5}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Make"
-              value={report.make}
-              disabled={!editable}
-              onChange={(event) => patch({ make: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="MVF No."
-              value={report.mvfNo}
-              disabled={!editable}
-              onChange={(event) => patch({ mvfNo: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Series"
-              value={report.series}
-              disabled={!editable}
-              onChange={(event) => patch({ series: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="C.R No."
-              value={report.crNo}
-              disabled={!editable}
-              onChange={(event) => patch({ crNo: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Type of Body / Denomination"
-              value={report.typeOfBodyDenomination}
-              disabled={!editable}
-              onChange={(event) => patch({ typeOfBodyDenomination: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              type="date"
-              label="Registration Date"
-              value={report.registrationDate}
-              disabled={!editable}
-              onChange={(event) => patch({ registrationDate: event.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Year Model"
-              value={report.yearModel}
-              disabled={!editable}
-              onChange={(event) => patch({ yearModel: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Place Registered"
-              value={report.placeRegistered}
-              disabled={!editable}
-              onChange={(event) => patch({ placeRegistered: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Color"
-              value={report.color}
-              disabled={!editable}
-              onChange={(event) => patch({ color: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Chassis Number"
-              value={report.chassisNumber}
-              disabled={!editable}
-              onChange={(event) => patch({ chassisNumber: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Odometer Reading"
-              value={report.odometerReading}
-              disabled={!editable}
-              onChange={(event) => patch({ odometerReading: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Engine No."
-              value={report.engineNo}
-              disabled={!editable}
-              onChange={(event) => patch({ engineNo: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Plate No."
-              value={report.plateNo}
-              disabled={!editable}
-              onChange={(event) => patch({ plateNo: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Fuel"
-              value={report.fuel}
-              disabled={!editable}
-              onChange={(event) => patch({ fuel: event.target.value })}
-              sx={fieldSx}
-            />
-          </Grid>
-        </Grid>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Make"
+            value={report.make}
+            disabled={!editable}
+            onChange={(event) => patch({ make: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="MVF No."
+            value={report.mvfNo}
+            disabled={!editable}
+            onChange={(event) => patch({ mvfNo: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Series"
+            value={report.series}
+            disabled={!editable}
+            onChange={(event) => patch({ series: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="C.R No."
+            value={report.crNo}
+            disabled={!editable}
+            onChange={(event) => patch({ crNo: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Type of Body / Denomination"
+            value={report.typeOfBodyDenomination}
+            disabled={!editable}
+            onChange={(event) => patch({ typeOfBodyDenomination: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            type="date"
+            label="Registration Date"
+            value={report.registrationDate}
+            disabled={!editable}
+            onChange={(event) => patch({ registrationDate: event.target.value })}
+            InputLabelProps={{ shrink: true }}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Year Model"
+            value={report.yearModel}
+            disabled={!editable}
+            onChange={(event) => patch({ yearModel: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Place Registered"
+            value={report.placeRegistered}
+            disabled={!editable}
+            onChange={(event) => patch({ placeRegistered: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Color"
+            value={report.color}
+            disabled={!editable}
+            onChange={(event) => patch({ color: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Chassis Number"
+            value={report.chassisNumber}
+            disabled={!editable}
+            onChange={(event) => patch({ chassisNumber: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Odometer Reading"
+            value={report.odometerReading}
+            disabled={!editable}
+            onChange={(event) => patch({ odometerReading: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Engine No."
+            value={report.engineNo}
+            disabled={!editable}
+            onChange={(event) => patch({ engineNo: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Plate No."
+            value={report.plateNo}
+            disabled={!editable}
+            onChange={(event) => patch({ plateNo: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Fuel"
+            value={report.fuel}
+            disabled={!editable}
+            onChange={(event) => patch({ fuel: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
       </Stack>
+
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
 
       {/* Step 3: Accessories and Power Features checklists */}
       <ChecklistSection
@@ -653,6 +698,8 @@ export function ChattelReportFields({
         editable={editable}
         onItemChange={(itemId, data) => setAppraisalChecklistItem(bundleId, 'accessories', itemId, data)}
       />
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
       <ChecklistSection
         title="Power Features"
         items={report.powerFeatures}
@@ -660,76 +707,85 @@ export function ChattelReportFields({
         onItemChange={(itemId, data) => setAppraisalChecklistItem(bundleId, 'powerFeatures', itemId, data)}
       />
 
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
       {/* Step 4: General Condition and Instrument Panel & Lighting checklists */}
-      <ConditionSection
-        items={report.generalCondition}
-        editable={editable}
-        onItemChange={(itemId, data) => setAppraisalConditionItem(bundleId, itemId, data)}
-      />
-      <FunctionSection
-        items={report.instrumentPanelLighting}
-        editable={editable}
-        onItemChange={(itemId, data) => setAppraisalFunctionItem(bundleId, itemId, data)}
-      />
+      <Box ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('generalCondition', el); }}>
+        <ConditionSection
+          items={report.generalCondition}
+          editable={editable}
+          onItemChange={(itemId, data) => setAppraisalConditionItem(bundleId, itemId, data)}
+        />
+      </Box>
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Box ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('instrumentPanelLighting', el); }}>
+        <FunctionSection
+          items={report.instrumentPanelLighting}
+          editable={editable}
+          onItemChange={(itemId, data) => setAppraisalFunctionItem(bundleId, itemId, data)}
+        />
+      </Box>
+
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
 
       {/* Step 5: Market Survey table */}
-      <MarketSurveySection
-        entries={report.marketSurvey}
-        editable={editable}
-        onAdd={() => addAppraisalMarketSurveyEntry(bundleId)}
-        onUpdate={(entryId, data) => updateAppraisalMarketSurveyEntry(bundleId, entryId, data)}
-        onRemove={(entryId) => removeAppraisalMarketSurveyEntry(bundleId, entryId)}
-      />
+      <Box ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('marketSurvey', el); }}>
+        <MarketSurveySection
+          entries={report.marketSurvey}
+          editable={editable}
+          onAdd={() => addAppraisalMarketSurveyEntry(bundleId)}
+          onUpdate={(entryId, data) => updateAppraisalMarketSurveyEntry(bundleId, entryId, data)}
+          onRemove={(entryId) => removeAppraisalMarketSurveyEntry(bundleId, entryId)}
+        />
+      </Box>
+
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
 
       {/* Step 6: Appraised Value block, Remarks, and File Attachment */}
-      <Stack spacing={1.5}>
+      <Stack
+        spacing={1.5}
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('appraisedValue', el); }}
+      >
         <SectionLabel>Appraised Value</SectionLabel>
-        <FieldGrid>
-          <Box sx={{ gridColumn: 'span 1' }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Appraised Value"
-              value={report.appraisedValue}
-              disabled={!editable}
-              onChange={(event) => patch({ appraisedValue: event.target.value })}
-              sx={fieldSx}
-            />
-          </Box>
-          <Box sx={{ gridColumn: 'span 1' }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Loanable Percent"
-              value={report.loanablePercent}
-              disabled={!editable}
-              onChange={(event) => patch({ loanablePercent: event.target.value })}
-              sx={fieldSx}
-            />
-          </Box>
-          <Box sx={{ gridColumn: 'span 1' }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Appraised Value (Round Off)"
-              value={report.appraisedValueRoundOff}
-              disabled={!editable}
-              onChange={(event) => patch({ appraisedValueRoundOff: event.target.value })}
-              sx={fieldSx}
-            />
-          </Box>
-          <Box sx={{ gridColumn: 'span 1' }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Loanable Amount"
-              value={report.loanableAmount}
-              disabled={!editable}
-              onChange={(event) => patch({ loanableAmount: event.target.value })}
-              sx={fieldSx}
-            />
-          </Box>
-        </FieldGrid>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label="Appraised Value"
+            value={report.appraisedValue}
+            disabled={!editable}
+            onChange={(event) => patch({ appraisedValue: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Loanable Percent"
+            value={report.loanablePercent}
+            disabled={!editable}
+            onChange={(event) => patch({ loanablePercent: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Appraised Value (Round Off)"
+            value={report.appraisedValueRoundOff}
+            disabled={!editable}
+            onChange={(event) => patch({ appraisedValueRoundOff: event.target.value })}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Loanable Amount"
+            value={report.loanableAmount}
+            disabled={!editable}
+            onChange={(event) => patch({ loanableAmount: event.target.value })}
+            sx={fieldSx}
+          />
+        </Stack>
 
         {/* RichTextField has no disabled/read-only prop of its own (see
             src/components/rich-text-field/rich-text-field.tsx) — when
@@ -750,16 +806,21 @@ export function ChattelReportFields({
             placeholder="Encumbrances or remarks regarding this collateral"
           />
         </Box>
+      </Stack>
 
-        <Stack spacing={1}>
-          <SectionLabel>File Attachment</SectionLabel>
-          <MultiPhotoDropzone
-            photos={report.fileAttachments}
-            onChange={(fileAttachments) => patch({ fileAttachments })}
-            disabled={!editable}
-            label="File Attachment"
-          />
-        </Stack>
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
+        ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('fileAttachment', el); }}
+      >
+        <SectionLabel>File Attachment</SectionLabel>
+        <MultiPhotoDropzone
+          photos={report.fileAttachments}
+          onChange={(fileAttachments) => patch({ fileAttachments })}
+          disabled={!editable}
+          label="File Attachment"
+        />
       </Stack>
     </Stack>
   );

@@ -33,8 +33,8 @@ import { TONE_COLORS, adminCardSx, outlinedNavyButtonSx } from 'src/components/a
 import { CollapsibleSection } from 'src/components/collapsible-section';
 
 import { AppraisalReportPreview } from './appraisal-report-preview';
-import { ChattelReportFields } from './appraisal-chattel-report-fields';
-import { MachineriesReportFields } from './appraisal-machineries-report-fields';
+import { ChattelReportFields, CHATTEL_SECTION_NAV_ITEMS } from './appraisal-chattel-report-fields';
+import { MachineriesReportFields, MACHINERIES_SECTION_NAV_ITEMS } from './appraisal-machineries-report-fields';
 
 import type {
   CollateralPhoto,
@@ -80,7 +80,7 @@ const COLLATERAL_TYPE_LABEL_FOR_PREVIEW: Record<AppraisalCollateralType, string>
 // legible; a light gray background is what signals "locked" instead now.
 // ----------------------------------------------------------------------
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <Typography
       sx={{
@@ -131,12 +131,20 @@ const APPRAISAL_SECTION_NAV_ITEMS: { key: AppraisalSectionKey; label: string }[]
   { key: 'feeAttachment', label: 'Fee Attachment' },
 ];
 
-function AppraisalSectionNav({
+// Generic over the caller's own section-key union (a plain `string` here,
+// widened from the Real Estate-only `AppraisalSectionKey` so Chattel's and
+// Machineries' own differently-shaped key unions can reuse this same
+// component/JSX instead of each pasting a copy of it) — `items`/`onJump`
+// are parameterized by `<K extends string>` so callers still get a
+// type-checked `onJump(key: K)` rather than a bare `string`.
+export function AppraisalSectionNav<K extends string>({
+  items,
   activeKey,
   onJump,
 }: {
+  items: { key: K; label: string }[];
   activeKey: string | null;
-  onJump: (key: AppraisalSectionKey) => void;
+  onJump: (key: K) => void;
 }) {
   return (
     <Box
@@ -156,7 +164,7 @@ function AppraisalSectionNav({
         </Typography>
       </Box>
       <Stack sx={{ px: 1, pb: 1 }} spacing={0.25}>
-        {APPRAISAL_SECTION_NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const isActive = activeKey === item.key;
           return (
             <ButtonBase
@@ -213,7 +221,7 @@ function AppraisalSectionNav({
 // otherwise run once against an empty ref map and never retry once the
 // sections genuinely mount a moment later, permanently leaving the nav
 // unable to highlight anything on scroll.
-function useAppraisalActiveSection(
+export function useAppraisalActiveSection(
   sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>,
   keys: string[],
   remountKey: string
@@ -744,11 +752,12 @@ export function AppraiserAssignmentCard({
   const { headApprovalStatus } = review.appraisal;
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
   const [previewOpen, setPreviewOpen] = useState(false);
-  // Kebab menu lets the user preview any of the 3 kinds' form layouts.
-  // Previewing a kind other than the bundle's real/assigned kind renders
-  // that kind's fields read-only (see `editable` below) — it never changes
-  // `collateralType` and never writes to a kind's report other than the
-  // one currently being edited. All TCT groups in one bundle share one
+  // Kebab menu lets the user switch which of the 3 kinds' form layouts is
+  // shown — it only picks which fields render, it doesn't change the
+  // bundle's actual assigned `collateralType`. Whichever kind is shown is
+  // editable (see `editable` below) and writes to that kind's own report
+  // field only (chattelReport/machineriesReport/realEstateReport) — never
+  // to a different kind's report. All TCT groups in one bundle share one
   // `collateralType` by construction, so reading `titleGroups[0]` is safe
   // — not an arbitrary pick. Falls back to 'real-estate' when
   // `titleGroups` is empty (e.g. a bundle whose `tctGroupIds` don't match
@@ -794,18 +803,43 @@ export function AppraiserAssignmentCard({
     APPRAISAL_SECTION_NAV_ITEMS.map((item) => item.key),
     `${bundle?.appraiserType ?? ''}:${previewKind}`
   );
-  const handleJumpToSection = (key: AppraisalSectionKey) => {
-    requestAnimationFrame(() => {
-      sectionRefs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
+  // Chattel's and Machineries' own sidebar-nav state, owned here (not
+  // inside ChattelReportFields/MachineriesReportFields) so their sidebar
+  // renders as a sibling of the white card below — same placement as Real
+  // Estate's — rather than nested inside it. Each kind gets its own refs
+  // map + hook instance; all three hooks are called unconditionally every
+  // render, and only the kind currently shown has any refs attached (the
+  // other kinds' forms aren't mounted), so the inactive observers no-op.
+  // The refs maps are passed down to the field components, which register
+  // their own section nodes into them.
+  const chattelSectionRefs = useRef(new Map<string, HTMLDivElement | null>());
+  const machinerySectionRefs = useRef(new Map<string, HTMLDivElement | null>());
+  const kindNavRemountKey = `${bundleId}:${bundle?.appraiserType ?? ''}:${previewKind}`;
+  const chattelActiveSectionKey = useAppraisalActiveSection(
+    chattelSectionRefs,
+    CHATTEL_SECTION_NAV_ITEMS.map((item) => item.key),
+    kindNavRemountKey
+  );
+  const machineryActiveSectionKey = useAppraisalActiveSection(
+    machinerySectionRefs,
+    MACHINERIES_SECTION_NAV_ITEMS.map((item) => item.key),
+    kindNavRemountKey
+  );
+  const jumpToSectionIn =
+    (refs: React.MutableRefObject<Map<string, HTMLDivElement | null>>) => (key: string) => {
+      requestAnimationFrame(() => {
+        refs.current.get(key)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
   if (!bundle) return null;
   const { appraiserType, realEstateReport: report } = bundle;
   const locked = headApprovalStatus !== 'pending' || !!getBundleUploadedAt(bundle);
-  // Previewing a kind other than the bundle's real/assigned kind is
-  // read-only: the kebab menu lets you see any of the 3 kinds' layouts,
-  // but only the real kind's own report slot is ever editable through it.
-  const editable = !locked && previewKind === realCollateralType;
+  // The kebab menu only decides which kind's form layout is shown — it
+  // does not restrict editing. Whichever kind is previewed is editable
+  // (unless the bundle itself is locked), and typing into it writes to
+  // that kind's own report field (chattelReport/machineriesReport/
+  // realEstateReport) via that component's own setter calls.
+  const editable = !locked;
   // Locked (disabled) fields still need to read clearly once a report is
   // submitted — MUI's default disabled state washes the text out to a
   // light gray (#919EAB) regardless of whether it's actually empty or
@@ -844,9 +878,37 @@ export function AppraiserAssignmentCard({
     ? new File([], report.fileName)
     : null;
 
+  // Which kind's nav items / active section / jump handler feed the one
+  // shared sidebar below — each kind reads only its own refs map, so the
+  // highlight always tracks the scroll position of the form actually shown.
+  const sectionNavByKind: Record<
+    AppraisalCollateralType,
+    { items: { key: string; label: string }[]; activeKey: string | null; onJump: (key: string) => void }
+  > = {
+    'real-estate': {
+      items: APPRAISAL_SECTION_NAV_ITEMS,
+      activeKey: activeSectionKey,
+      onJump: jumpToSectionIn(sectionRefs),
+    },
+    chattel: {
+      items: CHATTEL_SECTION_NAV_ITEMS,
+      activeKey: chattelActiveSectionKey,
+      onJump: jumpToSectionIn(chattelSectionRefs),
+    },
+    machineries: {
+      items: MACHINERIES_SECTION_NAV_ITEMS,
+      activeKey: machineryActiveSectionKey,
+      onJump: jumpToSectionIn(machinerySectionRefs),
+    },
+  };
+  const sectionNav = sectionNavByKind[previewKind];
+
   return (
     <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
-      {previewKind === 'real-estate' && appraiserType === 'inhouse' && (
+      {/* One sidebar for whichever kind is shown, always a sibling of the
+          white card (never nested in it). External appraisers only upload
+          a file — no per-kind form to navigate. */}
+      {appraiserType === 'inhouse' && (
         <Box
           sx={{
             width: { xs: 1, md: 220 },
@@ -856,7 +918,11 @@ export function AppraiserAssignmentCard({
             order: { xs: -1, md: 0 },
           }}
         >
-          <AppraisalSectionNav activeKey={activeSectionKey} onJump={handleJumpToSection} />
+          <AppraisalSectionNav
+            items={sectionNav.items}
+            activeKey={sectionNav.activeKey}
+            onJump={sectionNav.onJump}
+          />
         </Box>
       )}
       <Box sx={{ ...adminCardSx, flex: 1, minWidth: 0, width: 1 }}>
@@ -916,20 +982,21 @@ export function AppraiserAssignmentCard({
         ))}
       </Menu>
 
-      {appraiserType === 'inhouse' && previewKind !== realCollateralType && (
-        <Box sx={{ p: 1.5, mb: 2, borderRadius: '10px', bgcolor: TONE_COLORS.warning.bg }}>
-          <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: TONE_COLORS.warning.text }}>
-            Previewing {COLLATERAL_TYPE_LABEL_FOR_PREVIEW[previewKind]} layout — this bundle&apos;s actual
-            kind is {COLLATERAL_TYPE_LABEL_FOR_PREVIEW[realCollateralType]}.
-          </Typography>
-        </Box>
-      )}
-
       {previewKind === 'chattel' && appraiserType === 'inhouse' && (
-        <ChattelReportFields bundleId={bundleId} report={bundle.chattelReport} editable={editable} />
+        <ChattelReportFields
+          bundleId={bundleId}
+          report={bundle.chattelReport}
+          editable={editable}
+          sectionRefs={chattelSectionRefs}
+        />
       )}
       {previewKind === 'machineries' && appraiserType === 'inhouse' && (
-        <MachineriesReportFields bundleId={bundleId} report={bundle.machineriesReport} editable={editable} />
+        <MachineriesReportFields
+          bundleId={bundleId}
+          report={bundle.machineriesReport}
+          editable={editable}
+          sectionRefs={machinerySectionRefs}
+        />
       )}
 
       {previewKind === 'real-estate' && appraiserType === 'inhouse' && (

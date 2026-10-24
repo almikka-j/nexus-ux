@@ -927,6 +927,36 @@ just isn't surfaced here at all anymore.)
   own — `encumbrancesRemarks` is still just a field inside the Land
   section, not a separate card; splitting it out is a further
   restructure, not part of this pass.
+
+  **Chattel and Machineries get this same sidebar, reusing the component.**
+  `AppraisalSectionNav` and `useAppraisalActiveSection` are exported from
+  `appraiser-assignment-card.tsx` (the former made generic over `<K extends
+  string>`, taking its `items` list as a prop, rather than hardcoding the
+  Real Estate-only `AppraisalSectionKey` union). The sidebar for all three
+  kinds is rendered by `AppraiserAssignmentCard` itself, as a sibling of the
+  white card in its outer `direction={{xs:'column',md:'row'}}` Stack (never
+  nested inside the card), whenever `appraiserType === 'inhouse'` — one
+  `<AppraisalSectionNav>` call site, fed by a `sectionNavByKind[previewKind]`
+  lookup of items/active key/jump handler. The parent owns one refs map +
+  `useAppraisalActiveSection` call per kind (all called unconditionally;
+  only the shown kind's form has mounted nodes, so the others no-op) and
+  passes Chattel's/Machineries' map down as a `sectionRefs` prop to
+  `ChattelReportFields`/`MachineriesReportFields`
+  (`appraisal-chattel-report-fields.tsx`/`appraisal-machineries-report-fields.tsx`),
+  which only register their section nodes into it and return their plain
+  `<Stack spacing={2.5}>` content. Each field file exports its own
+  section-key union/nav-item list (`CHATTEL_SECTION_NAV_ITEMS`/
+  `MACHINERIES_SECTION_NAV_ITEMS`) for the parent to use. Chattel's nav: Report Details,
+  Description of Equipment (Accessories/Power Features checklists are
+  grouped under this entry, not split out — they're sub-checklists of that
+  same step, not sections a user would expect to jump to independently),
+  General Condition, Instrument Panel & Lighting, Market Survey, Appraised
+  Value, File Attachment. Machineries' nav: Report Details, Description of
+  Equipments, Machineries, Appraised Value, Qualification & Remarks, File
+  Attachment — Qualification & Remarks (the printed form's "II.") was split
+  into its own ref'd `Stack` distinct from Appraised Value's, even though
+  both previously rendered inside one `Stack`, since they're separate steps
+  in the printed form.
 - **External** — unchanged: a single dashed file dropzone for the external
   appraiser's finished report (image or PDF). Picking a file sets
   `fileName`/`fileUrl`/`uploadedAt` directly (no separate submit step). No
@@ -1561,6 +1591,32 @@ Pass/Fail terminal decision. The gating that does happen here:
 Concise milestones — the detailed pass-by-pass narrative is in "Read-only
 view (`AppraisalReportView`)" above.
 
+- **2026-10-24** — Gave `ChattelReportFields` and `MachineriesReportFields`
+  the same sticky left section nav the Real Estate in-house form already
+  had. `AppraisalSectionNav`/`useAppraisalActiveSection` are now exported
+  from `appraiser-assignment-card.tsx` (`AppraisalSectionNav` made generic
+  over `<K extends string>` via an `items` prop, instead of hardcoding the
+  Real Estate `AppraisalSectionKey` union). The sidebar is rendered once by
+  `AppraiserAssignmentCard` beside (not inside) the white card for all
+  three kinds; the parent owns each kind's refs map/active-section hook and
+  passes Chattel's/Machineries' map down via a `sectionRefs` prop. See
+  "In-house form (`AppraiserAssignmentCard`)" above for each kind's nav
+  entries.
+- **2026-10-24** — Made `ChattelReportFields`'s and `MachineriesReportFields`'s
+  visual styling match the Real Estate form exactly, per explicit user
+  feedback that the three kinds' forms looked inconsistent: both now use
+  Real Estate's own local `SectionLabel` (exported from
+  `appraiser-assignment-card.tsx`) with explicit `<Divider>`s between
+  sections, instead of the shared `admin-ui` `SectionLabel` (which bakes a
+  divider under every label and left no divider between sections — the
+  single biggest cause of the mismatch). Checklist/condition/market-survey
+  and machinery-entry rows now use Real Estate's row container style
+  (`p: 1.5`, `borderRadius: '10px'`, `border: '1px solid #EBEDF3'`).
+  Plain fields switched from a `Grid`/`FieldGrid` mix to Real Estate's own
+  `Stack direction={{ xs: 'column', sm: 'row' }}` two-per-row layout.
+  Add-row buttons, empty-state text, and the Machineries repeatable-list
+  outer container were also restyled to match Real Estate's equivalents.
+  No data/behavior logic changed — this was a styling-only pass.
 - **2026-10-19** — Removed each title's `collateralPhotos:
   CollateralPhoto[]` field and every bit of its UI (the form's own
   second `MultiPhotoDropzone` below Technical Specification,
