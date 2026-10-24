@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone';
 
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
+import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -19,6 +20,7 @@ import DialogContent from '@mui/material/DialogContent';
 import {
   useAdmin,
   createLotPlotLine,
+  getBundleUploadedAt,
   createAppraisalImprovementEntry,
   createAppraisalParticularEntry,
   createAppraisalConditionEntry,
@@ -26,12 +28,30 @@ import {
 
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
-import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { TONE_COLORS, adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { CollapsibleSection } from 'src/components/collapsible-section';
 
 import { AppraisalReportPreview } from './appraisal-report-preview';
+import { ChattelReportFields } from './appraisal-chattel-report-fields';
+import { MachineriesReportFields } from './appraisal-machineries-report-fields';
 
-import type { CollateralPhoto, AppraisalReportLandTitle, LotPlotLine } from 'src/auth/admin-context';
+import type {
+  CollateralPhoto,
+  AppraisalCollateralType,
+  AppraisalReportLandTitle,
+  LotPlotLine,
+} from 'src/auth/admin-context';
+
+// Local label map for the kebab menu / preview banner — this file doesn't
+// otherwise import one; the 3 other sites that need this same mapping
+// (appraisal-tct-table.tsx, appraisal-appraiser-bundle-view.tsx,
+// requirement-checklist-view.tsx) each define their own local copy too,
+// rather than sharing one exported constant.
+const COLLATERAL_TYPE_LABEL_FOR_PREVIEW: Record<AppraisalCollateralType, string> = {
+  'real-estate': 'Real Estate',
+  chattel: 'Chattel',
+  machineries: 'Machineries',
+};
 
 // ----------------------------------------------------------------------
 // In-house vs external appraiser report. In-house fills out the full
@@ -723,6 +743,26 @@ export function AppraiserAssignmentCard({
   const { headApprovalStatus } = review.appraisal;
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
   const [previewOpen, setPreviewOpen] = useState(false);
+  // Kebab menu lets the user preview any of the 3 kinds' form layouts —
+  // view-only: it never writes to the bundle's actual stored collateral
+  // type or data. All TCT groups in one bundle share one `collateralType`
+  // by construction, so reading `titleGroups[0]` is safe — not an
+  // arbitrary pick. Falls back to 'real-estate' when `titleGroups` is
+  // empty (e.g. a bundle whose `tctGroupIds` don't match any existing
+  // `appraisalGroups` entry). Computed here (ahead of `titleGroups`' own
+  // later declaration, and ahead of the `if (!bundle) return null` guard
+  // below) since hooks that depend on it must run unconditionally.
+  const titleGroups = review.requirementChecklist.appraisalGroups.filter((group) =>
+    bundle?.tctGroupIds.includes(group.id)
+  );
+  const realCollateralType: AppraisalCollateralType =
+    titleGroups[0]?.collateralType ?? 'real-estate';
+  const [previewKind, setPreviewKind] = useState<AppraisalCollateralType>(realCollateralType);
+  const [kindMenuAnchor, setKindMenuAnchor] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPreviewKind(realCollateralType);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bundleId]);
   // Per-TCT expand state for a multi-property bundle's LandTitleFields.
   // Tracks COLLAPSED ids (inverse of the "present means expanded"
   // convention this app's other per-TCT expand/collapse UIs use) so that
@@ -756,8 +796,8 @@ export function AppraiserAssignmentCard({
     });
   };
   if (!bundle) return null;
-  const { appraiserType, report } = bundle;
-  const locked = headApprovalStatus !== 'pending' || !!report.uploadedAt;
+  const { appraiserType, realEstateReport: report } = bundle;
+  const locked = headApprovalStatus !== 'pending' || !!getBundleUploadedAt(bundle);
   const editable = !locked;
   // Locked (disabled) fields still need to read clearly once a report is
   // submitted — MUI's default disabled state washes the text out to a
@@ -780,10 +820,6 @@ export function AppraiserAssignmentCard({
       color: '#14172A',
     },
   };
-
-  const titleGroups = review.requirementChecklist.appraisalGroups.filter((group) =>
-    bundle.tctGroupIds.includes(group.id)
-  );
 
   const handleExternalFile = (file: File | null) => {
     if (!file) {
@@ -808,7 +844,7 @@ export function AppraiserAssignmentCard({
 
   return (
     <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
-      {appraiserType === 'inhouse' && (
+      {previewKind === 'real-estate' && appraiserType === 'inhouse' && (
         <Box
           sx={{
             width: { xs: 1, md: 220 },
@@ -822,14 +858,75 @@ export function AppraiserAssignmentCard({
         </Box>
       )}
       <Box sx={{ ...adminCardSx, flex: 1, minWidth: 0, width: 1 }}>
-      <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-        Appraisal Report
-      </Typography>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-        Covers {tctNumbers.join(', ')}.
-      </Typography>
+      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+        <Box>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
+            Appraisal Report
+          </Typography>
+          <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
+            Covers {tctNumbers.join(', ')}.
+          </Typography>
+        </Box>
+        <IconButton
+          onClick={(event) => setKindMenuAnchor(event.currentTarget)}
+          aria-label="Preview collateral kind layout"
+          aria-controls={kindMenuAnchor ? 'appraisal-kind-preview-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={kindMenuAnchor ? 'true' : undefined}
+          sx={{
+            width: 36,
+            height: 36,
+            flexShrink: 0,
+            color: '#1C2A6E',
+            border: '1px solid #E1E4ED',
+            borderRadius: '10px',
+            '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
+          }}
+        >
+          <Iconify icon="solar:menu-dots-bold" width={20} />
+        </IconButton>
+      </Stack>
 
-      {appraiserType === 'inhouse' && (
+      <Menu
+        id="appraisal-kind-preview-menu"
+        anchorEl={kindMenuAnchor}
+        open={Boolean(kindMenuAnchor)}
+        onClose={() => setKindMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { mt: 0.75, minWidth: 200, borderRadius: '10px' } } }}
+      >
+        {(['real-estate', 'chattel', 'machineries'] as const).map((kind) => (
+          <MenuItem
+            key={kind}
+            selected={previewKind === kind}
+            onClick={() => {
+              setPreviewKind(kind);
+              setKindMenuAnchor(null);
+            }}
+          >
+            {COLLATERAL_TYPE_LABEL_FOR_PREVIEW[kind]}
+          </MenuItem>
+        ))}
+      </Menu>
+
+      {previewKind !== realCollateralType && (
+        <Box sx={{ p: 1.5, mb: 2, borderRadius: '10px', bgcolor: TONE_COLORS.warning.bg }}>
+          <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: TONE_COLORS.warning.text }}>
+            Previewing {COLLATERAL_TYPE_LABEL_FOR_PREVIEW[previewKind]} layout — this bundle&apos;s actual
+            kind is {COLLATERAL_TYPE_LABEL_FOR_PREVIEW[realCollateralType]}.
+          </Typography>
+        </Box>
+      )}
+
+      {previewKind === 'chattel' && (
+        <ChattelReportFields bundleId={bundleId} report={bundle.chattelReport} editable={editable} />
+      )}
+      {previewKind === 'machineries' && (
+        <MachineriesReportFields bundleId={bundleId} report={bundle.machineriesReport} editable={editable} />
+      )}
+
+      {previewKind === 'real-estate' && appraiserType === 'inhouse' && (
         <Stack spacing={2.5}>
           <Stack
             spacing={1.5}
@@ -1762,7 +1859,7 @@ export function AppraiserAssignmentCard({
         </Stack>
       )}
 
-      {appraiserType === 'external' && (
+      {previewKind === 'real-estate' && appraiserType === 'external' && (
         <Stack spacing={1.5}>
           <ReportFileDropzone value={externalFile} onChange={handleExternalFile} disabled={!editable} />
           {report.uploadedAt && (
@@ -1773,7 +1870,7 @@ export function AppraiserAssignmentCard({
         </Stack>
       )}
 
-      {appraiserType === 'inhouse' && (
+      {previewKind === 'real-estate' && appraiserType === 'inhouse' && (
         <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} fullWidth maxWidth="md">
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
             <Box>
@@ -1831,8 +1928,8 @@ export function AppraisalReportSubmitCard({ bundleId }: { bundleId: string }) {
   const { headApprovalStatus } = review.appraisal;
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
   if (!bundle || bundle.appraiserType !== 'inhouse') return null;
-  const { report } = bundle;
-  const editable = headApprovalStatus === 'pending' && !report.uploadedAt;
+  const { realEstateReport: report } = bundle;
+  const editable = headApprovalStatus === 'pending' && !getBundleUploadedAt(bundle);
 
   const submitInhouseReport = () => {
     if (!report.appraisedValue.trim()) return;
