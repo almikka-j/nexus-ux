@@ -101,7 +101,12 @@ function ChecklistSection({
               size="small"
               checked={item.checked}
               disabled={!editable}
-              onChange={(event) => onItemChange(item.id, { checked: event.target.checked })}
+              onChange={(event) =>
+                onItemChange(
+                  item.id,
+                  event.target.checked ? { checked: true } : { checked: false, comments: '' }
+                )
+              }
             />
             <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 220, flexShrink: 0 }}>
               {item.label}
@@ -160,13 +165,13 @@ function ConditionSection({
             >
               <FormControlLabel
                 value="good"
-                control={<Radio size="small" disabled={!editable} />}
+                control={<Radio size="small" />}
                 label={<Typography sx={{ fontSize: 13.5 }}>Good</Typography>}
                 disabled={!editable}
               />
               <FormControlLabel
                 value="bad"
-                control={<Radio size="small" disabled={!editable} />}
+                control={<Radio size="small" />}
                 label={<Typography sx={{ fontSize: 13.5 }}>Bad</Typography>}
                 disabled={!editable}
               />
@@ -225,13 +230,13 @@ function FunctionSection({
             >
               <FormControlLabel
                 value="functioning"
-                control={<Radio size="small" disabled={!editable} />}
+                control={<Radio size="small" />}
                 label={<Typography sx={{ fontSize: 13.5 }}>Functioning Well</Typography>}
                 disabled={!editable}
               />
               <FormControlLabel
                 value="not-functioning"
-                control={<Radio size="small" disabled={!editable} />}
+                control={<Radio size="small" />}
                 label={<Typography sx={{ fontSize: 13.5 }}>Not Functioning Well</Typography>}
                 disabled={!editable}
               />
@@ -726,12 +731,20 @@ export function ChattelReportFields({
           </Box>
         </FieldGrid>
 
-        <RichTextField
-          label="Encumbrances / Remarks"
-          value={report.encumbrancesRemarks}
-          onChange={(html) => patch({ encumbrancesRemarks: html })}
-          placeholder="Encumbrances or remarks regarding this collateral"
-        />
+        {/* RichTextField has no disabled/read-only prop of its own (see
+            src/components/rich-text-field/rich-text-field.tsx) — when
+            !editable, wrap it so it's visually and functionally inert
+            rather than modifying the shared component, which other
+            callers outside this task also rely on. The stored value
+            still renders underneath; it just can't be edited. */}
+        <Box sx={!editable ? { pointerEvents: 'none', opacity: 0.7 } : undefined}>
+          <RichTextField
+            label="Encumbrances / Remarks"
+            value={report.encumbrancesRemarks}
+            onChange={(html) => patch({ encumbrancesRemarks: html })}
+            placeholder="Encumbrances or remarks regarding this collateral"
+          />
+        </Box>
 
         <Stack spacing={1}>
           <SectionLabel>File Attachment</SectionLabel>
