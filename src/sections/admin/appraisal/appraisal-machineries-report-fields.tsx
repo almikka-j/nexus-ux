@@ -163,11 +163,13 @@ function MachinerySummaryLine({
   expanded,
   onToggle,
   onRemove,
+  editable,
 }: {
   entry: AppraisalMachineryEntry;
   expanded: boolean;
   onToggle: () => void;
   onRemove: () => void;
+  editable: boolean;
 }) {
   const summary = [entry.units, entry.description].filter(Boolean).join(' — ') || 'Untitled machinery';
   return (
@@ -183,9 +185,11 @@ function MachinerySummaryLine({
       >
         <Iconify icon={expanded ? 'solar:alt-arrow-up-bold' : 'solar:pen-bold'} width={15} />
       </IconButton>
-      <IconButton size="small" onClick={onRemove} aria-label="Remove machinery entry" sx={{ flexShrink: 0 }}>
-        <Iconify icon="mingcute:close-line" width={15} />
-      </IconButton>
+      {editable && (
+        <IconButton size="small" onClick={onRemove} aria-label="Remove machinery entry" sx={{ flexShrink: 0 }}>
+          <Iconify icon="mingcute:close-line" width={15} />
+        </IconButton>
+      )}
     </Stack>
   );
 }
@@ -251,6 +255,7 @@ function MachineriesSection({
                   expanded={expandedIds.has(entry.id)}
                   onToggle={() => toggle(entry.id)}
                   onRemove={() => removeAppraisalMachineryEntry(bundleId, entry.id)}
+                  editable={editable}
                 />
                 {expandedIds.has(entry.id) && (
                   <MachineryEntryForm
