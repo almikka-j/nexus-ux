@@ -237,10 +237,12 @@ canned note.
 Appraisal is **not** part of `REQUIREMENT_DOC_META` — it's a repeatable,
 officer-managed set of "collateral groups," because a borrower can pledge
 more than one item as collateral, each with its own collateral number and
-its own independent set of paperwork. Two collateral types are modeled —
-**Real Estate** (a TCT/CCT number) and **Chattel** (a plate/serial number)
-— via `AppraisalCollateralType` (`'real-estate' | 'chattel'`,
-`admin-context.tsx`); other collateral types aren't represented here.
+its own independent set of paperwork. Three collateral types are modeled —
+**Real Estate** (a TCT/CCT number), **Chattel** (a plate/serial number)
+and **Machineries** (equipment serial/ID) — via `AppraisalCollateralType`
+(`'real-estate' | 'chattel' | 'machineries'`, `admin-context.tsx`); each
+kind has its own Appraisal Report form/report field on the bundle (see
+`docs/110-appraisal.md`). Other collateral types aren't represented here.
 
 - **`APPRAISAL_DOC_META`** (`requirement-checklist-docs.ts`): a fixed
   8-document list — Photocopy of TCT/CCT (all pages), Photocopy of Tax
