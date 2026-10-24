@@ -20,7 +20,7 @@ import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
@@ -188,28 +188,25 @@ export function ReportApprovalsView() {
         .filter((group) => bundleNeedingReport.tctGroupIds.includes(group.id))
         .map((group) => group.tctNumber);
       const applicantNameForReport = `${signUpData.firstName} ${signUpData.lastName}`;
-      setAppraisalBundleReport(
-        bundleNeedingReport.id,
-        buildSampleAppraisalReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
-      );
-      // Only populate the Chattel/Machineries sample reports when the
-      // bundle's own kind matches — a Real Estate bundle's sample-fill
-      // must not also seed the other two kinds' unused reports. All TCT
-      // groups in one bundle share one collateralType by construction
-      // (see appraiser-assignment-card.tsx's own titleGroups[0] comment).
-      const bundleTitleGroups = appraisalGroups.filter((group) =>
-        bundleNeedingReport.tctGroupIds.includes(group.id)
-      );
-      const bundleCollateralType = bundleTitleGroups[0]?.collateralType ?? 'real-estate';
-      if (bundleCollateralType === 'chattel') {
+      // Exactly one kind's sample report per bundle. External appraisers
+      // upload a file on ANY kind (stored on realEstateReport — see
+      // appraiser-assignment-card.tsx's external dropzone), so they always
+      // get the Real Estate builder's sample-file shape.
+      const bundleCollateralType = getBundleCollateralType(bundleNeedingReport, appraisalGroups);
+      if (bundleNeedingReport.appraiserType === 'inhouse' && bundleCollateralType === 'chattel') {
         setAppraisalBundleChattelReport(
           bundleNeedingReport.id,
           buildSampleChattelReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
         );
-      } else if (bundleCollateralType === 'machineries') {
+      } else if (bundleNeedingReport.appraiserType === 'inhouse' && bundleCollateralType === 'machineries') {
         setAppraisalBundleMachineriesReport(
           bundleNeedingReport.id,
           buildSampleMachineriesReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
+        );
+      } else {
+        setAppraisalBundleReport(
+          bundleNeedingReport.id,
+          buildSampleAppraisalReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
         );
       }
     }

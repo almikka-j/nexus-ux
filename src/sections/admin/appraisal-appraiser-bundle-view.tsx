@@ -18,7 +18,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin, getBundleUploadedAt } from 'src/auth/admin-context';
+import { useAdmin, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -503,25 +503,25 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
               .filter((group) => currentBundle.tctGroupIds.includes(group.id))
               .map((group) => group.tctNumber);
             const applicantName = `${signUpData.firstName} ${signUpData.lastName}`;
-            setAppraisalBundleReport(
-              currentBundle.id,
-              buildSampleAppraisalReport(currentBundle, bundleTctNumbers, applicantName, false)
-            );
-            // Gate Chattel/Machineries sample-fill on this bundle's own
-            // kind — see report-approvals-view.tsx's identical comment.
-            const bundleTitleGroups = appraisalGroups.filter((group) =>
-              currentBundle.tctGroupIds.includes(group.id)
-            );
-            const bundleCollateralType = bundleTitleGroups[0]?.collateralType ?? 'real-estate';
-            if (bundleCollateralType === 'chattel') {
+            // Exactly one kind's sample report per bundle. External appraisers
+            // upload a file on ANY kind (stored on realEstateReport — see
+            // appraiser-assignment-card.tsx's external dropzone), so they always
+            // get the Real Estate builder's sample-file shape.
+            const bundleCollateralType = getBundleCollateralType(currentBundle, appraisalGroups);
+            if (currentBundle.appraiserType === 'inhouse' && bundleCollateralType === 'chattel') {
               setAppraisalBundleChattelReport(
                 currentBundle.id,
                 buildSampleChattelReport(currentBundle, bundleTctNumbers, applicantName, false)
               );
-            } else if (bundleCollateralType === 'machineries') {
+            } else if (currentBundle.appraiserType === 'inhouse' && bundleCollateralType === 'machineries') {
               setAppraisalBundleMachineriesReport(
                 currentBundle.id,
                 buildSampleMachineriesReport(currentBundle, bundleTctNumbers, applicantName, false)
+              );
+            } else {
+              setAppraisalBundleReport(
+                currentBundle.id,
+                buildSampleAppraisalReport(currentBundle, bundleTctNumbers, applicantName, false)
               );
             }
           },

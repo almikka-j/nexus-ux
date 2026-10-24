@@ -27,7 +27,7 @@ import DialogContent from '@mui/material/DialogContent';
 import ListItemText from '@mui/material/ListItemText';
 import TableContainer from '@mui/material/TableContainer';
 
-import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { Iconify } from 'src/components/iconify';
@@ -236,22 +236,25 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
           .filter((group) => bundle.tctGroupIds.includes(group.id))
           .map((group) => group.tctNumber);
 
-        setAppraisalBundleReport(bundle.id, buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName));
-        // Gate Chattel/Machineries sample-fill on this bundle's own kind
-        // — see report-approvals-view.tsx's identical comment.
-        const bundleTitleGroups = appraisalGroups.filter((group) =>
-          bundle.tctGroupIds.includes(group.id)
-        );
-        const bundleCollateralType = bundleTitleGroups[0]?.collateralType ?? 'real-estate';
-        if (bundleCollateralType === 'chattel') {
+        // Exactly one kind's sample report per bundle. External appraisers
+        // upload a file on ANY kind (stored on realEstateReport — see
+        // appraiser-assignment-card.tsx's external dropzone), so they always
+        // get the Real Estate builder's sample-file shape.
+        const bundleCollateralType = getBundleCollateralType(bundle, appraisalGroups);
+        if (bundle.appraiserType === 'inhouse' && bundleCollateralType === 'chattel') {
           setAppraisalBundleChattelReport(
             bundle.id,
             buildSampleChattelReport(bundle, bundleTctNumbers, applicantName)
           );
-        } else if (bundleCollateralType === 'machineries') {
+        } else if (bundle.appraiserType === 'inhouse' && bundleCollateralType === 'machineries') {
           setAppraisalBundleMachineriesReport(
             bundle.id,
             buildSampleMachineriesReport(bundle, bundleTctNumbers, applicantName)
+          );
+        } else {
+          setAppraisalBundleReport(
+            bundle.id,
+            buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName)
           );
         }
       });
