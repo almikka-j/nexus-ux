@@ -14,6 +14,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import type {
+  BureauFileKind,
   BureauReportFile,
   CmapCase,
   BapNfisRecord,
@@ -27,8 +28,10 @@ import { Iconify } from 'src/components/iconify';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { AiRecommendationSummary } from 'src/components/admin-ui/ai-recommendation-summary';
+import { FieldTable, FieldTableRow } from 'src/components/admin-ui';
 
 import { buildInitialCreditCheckingResult } from '../initial-credit-checking-risk';
+import { deriveBureauFileSummary } from '../bureau-file-summary';
 import {
   CmapCasesTable,
   BapNfisRecordsTable,
@@ -75,63 +78,10 @@ function NumberedSectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-// A bordered 2-column field table (shaded label cell, white value cell,
-// horizontal dividers between rows) — the Memorandum/Client Information
-// layout in the mockup: each row is a single full-width line with one or
-// two label/value pairs, not a chip grid.
-function FieldTableRow({
-  pairs,
-}: {
-  pairs: [label: string, value: React.ReactNode][];
-}) {
-  return (
-    <Stack
-      direction={{ xs: 'column', sm: 'row' }}
-      sx={{
-        '&:not(:last-of-type)': { borderBottom: '1px solid #EEF0F5' },
-        '& > div': { flex: 1, minWidth: 0 },
-        '& > div:not(:last-of-type)': {
-          borderBottom: { xs: '1px solid #EEF0F5', sm: 'none' },
-          borderRight: { xs: 'none', sm: '1px solid #EEF0F5' },
-        },
-      }}
-    >
-      {pairs.map(([label, value]) => (
-        <Stack key={label} direction="row" sx={{ minWidth: 0 }}>
-          <Box
-            sx={{
-              width: 150,
-              flexShrink: 0,
-              px: 1.5,
-              py: 0.75,
-              bgcolor: '#F5F6FA',
-              borderRight: '1px solid #EEF0F5',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Typography sx={{ fontSize: 13, color: '#8891A6', whiteSpace: 'nowrap' }}>{label}</Typography>
-          </Box>
-          <Box sx={{ flex: 1, minWidth: 0, px: 1.5, py: 0.75, display: 'flex', alignItems: 'center' }}>
-            <Typography
-              sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A', minWidth: 0, wordBreak: 'break-word' }}
-            >
-              {value}
-            </Typography>
-          </Box>
-        </Stack>
-      ))}
-    </Stack>
-  );
-}
-
-function FieldTable({ children }: { children: React.ReactNode }) {
-  return (
-    <Box sx={{ border: '1px solid #EEF0F5', borderRadius: '12px', bgcolor: 'common.white', overflow: 'hidden' }}>
-      {children}
-    </Box>
-  );
-}
+// FieldTable/FieldTableRow (the Memorandum/Client Information layout in
+// the mockup — a shaded-label key-value table) now live in
+// src/components/admin-ui/report-field.tsx, shared with other read-only
+// "application details"-shaped views.
 
 // Header (bureau name, status chip) matches the old BureauResultRow's — the
 // status chip is labeled "AI: Clear"/"AI: Needs review" so each bureau card
@@ -141,13 +91,17 @@ function FieldTable({ children }: { children: React.ReactNode }) {
 // upload date, and results table.
 function BureauResultSection({
   title,
+  kind,
   files,
+  applicantName,
   needsReview,
   reviewNote,
   renderTable,
 }: {
   title: string;
+  kind: BureauFileKind;
   files: BureauReportFile[];
+  applicantName: string;
   needsReview?: boolean;
   reviewNote?: string;
   renderTable: (file: BureauReportFile) => React.ReactNode;
@@ -186,19 +140,95 @@ function BureauResultSection({
       {needsReview && reviewNote && (
         <Typography sx={{ fontSize: 13, color: '#B32C22', lineHeight: 1.55 }}>{reviewNote}</Typography>
       )}
-      {files.map((file) => (
-        <Stack key={file.id} spacing={0.75}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0, sm: 0.75 }}>
-            <Typography noWrap sx={{ fontSize: 11.5, fontWeight: 700, color: '#5b6270', maxWidth: 260 }}>
-              {file.fileName}
-            </Typography>
-            <Typography sx={{ fontSize: 11.5, color: '#8891A6', whiteSpace: 'nowrap' }}>
-              · Uploaded {fmtDate(file.uploadedAt)}
-            </Typography>
+      {files.map((file) => {
+        // Same per-file "AI read" BureauFilePanel shows on the intake card
+        // (bureau-reports-card.tsx) — deriveBureauFileSummary is a pure,
+        // never-stored derivation computed from file.rows, so showing it
+        // again here can't disagree with the card's own reading.
+        const fileSummary = deriveBureauFileSummary(kind, file, applicantName);
+        const riskStyle = {
+          Low: { bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold' },
+          Moderate: { bg: '#EEF1FE', color: '#3448B0', icon: 'solar:info-circle-bold' },
+          High: { bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold' },
+        }[fileSummary.riskLevel];
+        return (
+          <Stack key={file.id} spacing={0.75}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0, sm: 0.75 }}>
+              <Typography noWrap sx={{ fontSize: 11.5, fontWeight: 700, color: '#5b6270', maxWidth: 260 }}>
+                {file.fileName}
+              </Typography>
+              <Typography sx={{ fontSize: 11.5, color: '#8891A6', whiteSpace: 'nowrap' }}>
+                · Uploaded {fmtDate(file.uploadedAt)}
+              </Typography>
+            </Stack>
+            {renderTable(file)}
+
+            <Box sx={{ mt: 1.25, p: 2.25, borderRadius: '14px', bgcolor: riskStyle.bg }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                spacing={1.5}
+                sx={{ mb: 1.25 }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                    color: riskStyle.color,
+                  }}
+                >
+                  Summary Report
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  alignItems="center"
+                  sx={{ px: 1.5, py: 0.5, borderRadius: '999px', bgcolor: 'common.white', flexShrink: 0 }}
+                >
+                  <Iconify icon={riskStyle.icon} width={15} sx={{ color: riskStyle.color }} />
+                  <Typography sx={{ fontSize: 12, fontWeight: 800, color: riskStyle.color, whiteSpace: 'nowrap' }}>
+                    {fileSummary.riskLevel} risk
+                  </Typography>
+                </Stack>
+              </Stack>
+
+              <Typography sx={{ fontSize: 13.5, color: '#14172A', lineHeight: 1.65 }}>
+                {fileSummary.summary}
+              </Typography>
+
+              <Divider sx={{ borderColor: riskStyle.color, opacity: 0.15, my: 1.75 }} />
+
+              <Stack spacing={1.5}>
+                {(
+                  [
+                    ['Recommendation', fileSummary.recommendation],
+                    ['Document Match', fileSummary.documentMatch],
+                  ] as const
+                ).map(([label, value]) => (
+                  <Box key={label}>
+                    <Typography
+                      sx={{
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        letterSpacing: '0.03em',
+                        textTransform: 'uppercase',
+                        color: riskStyle.color,
+                        mb: 0.5,
+                      }}
+                    >
+                      {label}
+                    </Typography>
+                    <Typography sx={{ fontSize: 13.5, color: '#3B4256', lineHeight: 1.6 }}>{value}</Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
           </Stack>
-          {renderTable(file)}
-        </Stack>
-      ))}
+        );
+      })}
     </Stack>
   );
 }
@@ -375,36 +405,48 @@ export function CreditCheckingResultContent({ hideHeader }: { hideHeader?: boole
             <Stack spacing={2}>
               <BureauResultSection
                 title="CIBI"
+                kind="cibi"
                 files={cibiForm.reportFiles}
+                applicantName={fullName}
                 renderTable={(file) => <CibiResultsTable rows={file.rows as CibiResult[]} />}
               />
               <BureauResultSection
                 title="LOANDEX"
+                kind="loandex"
                 files={loandexFiles}
+                applicantName={fullName}
                 renderTable={(file) => <LoandexRecordsTable rows={file.rows as LoandexRecord[]} />}
               />
               <BureauResultSection
                 title="CIC"
+                kind="cic"
                 files={cicFiles}
+                applicantName={fullName}
                 renderTable={(file) => <CicContractsTable rows={file.rows as CicContract[]} />}
               />
               <BureauResultSection
                 title="CMAP"
+                kind="cmap"
                 files={cmapFiles}
+                applicantName={fullName}
                 needsReview={hasNegativeBureauFinding && negativeFindingBureau === 'CMAP'}
                 reviewNote={`Flagged: ${negativeFindingReason}. Requires officer validation.`}
                 renderTable={(file) => <CmapCasesTable rows={file.rows as CmapCase[]} />}
               />
               <BureauResultSection
                 title="NFIS / BAP"
+                kind="nfisBap"
                 files={nfisBapFiles}
+                applicantName={fullName}
                 needsReview={hasNegativeBureauFinding && negativeFindingBureau === 'NFIS'}
                 reviewNote={`Flagged: ${negativeFindingReason}. Requires officer validation.`}
                 renderTable={(file) => <BapNfisRecordsTable rows={file.rows as BapNfisRecord[]} />}
               />
               <BureauResultSection
                 title="PGFC Existing Exposure"
+                kind="pgfcExposure"
                 files={pgfcExposureFiles}
+                applicantName={fullName}
                 renderTable={(file) => <PgfcExposureTable rows={file.rows as PgfcExposureRecord[]} />}
               />
             </Stack>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -19,7 +18,7 @@ import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
-import { StatusBadge, adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { StatusBadge, FieldTable, FieldTableRow, adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { OfficerNotesDialog } from './officer-notes-history';
@@ -119,17 +118,6 @@ function BusinessDocumentPreview({ label, src }: { label: string; src: string | 
   );
 }
 
-function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <Stack spacing={0.4} sx={{ minWidth: 120 }}>
-      <Typography sx={{ fontSize: 12, color: '#8891A6' }}>{label}</Typography>
-      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', wordBreak: 'break-word' }}>
-        {value || '—'}
-      </Typography>
-    </Stack>
-  );
-}
-
 // Compact label-over-value chip used in the collapsible summary header —
 // a bordered strip of these replaces the old fixed 6-column grid so long
 // free-text values (e.g. Purpose) don't fight fixed column widths and the
@@ -207,32 +195,28 @@ function DetailSection({
   children: React.ReactNode;
 }) {
   return (
-    <Box
-      sx={{
-        border: '1px solid #EEF0F5',
-        borderRadius: '14px',
-        bgcolor: '#FAFBFD',
-        p: 2,
-      }}
-    >
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-        <Box
+    <Stack spacing={1.25}>
+      <Stack
+        direction="row"
+        spacing={1.25}
+        alignItems="center"
+        sx={{ px: 2, py: 1.25, borderRadius: '10px', bgcolor: '#EEF1FE' }}
+      >
+        <Iconify icon={icon} width={16} sx={{ color: '#1C2A6E' }} />
+        <Typography
           sx={{
-            width: 28,
-            height: 28,
-            borderRadius: '8px',
-            bgcolor: '#EEF1FE',
-            display: 'grid',
-            placeItems: 'center',
-            flexShrink: 0,
+            fontSize: 12.5,
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: '#1C2A6E',
           }}
         >
-          <Iconify icon={icon} width={16} sx={{ color: '#3448B0' }} />
-        </Box>
-        <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>{title}</Typography>
+          {title}
+        </Typography>
       </Stack>
       {children}
-    </Box>
+    </Stack>
   );
 }
 
@@ -256,75 +240,113 @@ export function ApplicationFullDetails() {
     ? `₱${Number(financialInfo.desiredLoanAmount).toLocaleString()}`
     : '—';
 
+  // FieldTableRow takes up to 2 pairs per row (label-left/value-right,
+  // matching Initial Credit Checking Result's own Memorandum table) — a
+  // trailing odd field renders alone on its own full-width row.
+  const rowsOf2 = (pairs: [label: string, value: React.ReactNode][]) => {
+    const rows: [label: string, value: React.ReactNode][][] = [];
+    for (let i = 0; i < pairs.length; i += 2) rows.push(pairs.slice(i, i + 2));
+    return rows;
+  };
+
+  const applicantPairs: [string, React.ReactNode][] = [
+    ['Full name', fullName],
+    ['Email address', signUpData.email],
+    ['Mobile number', signUpData.mobile ? `+63 ${signUpData.mobile}` : '—'],
+  ];
+
+  const loanRequestPairs: [string, React.ReactNode][] = [['Loan type', loanTypeLabel]];
+  if (financialInfo) {
+    loanRequestPairs.push(
+      ['Desired loan amount', desiredAmount],
+      ['Loan term', `${financialInfo.loanTermMonths} months`],
+      ['Purpose of loan', financialInfo.loanPurpose],
+      ['Employment status', financialInfo.employmentStatus],
+      ['Gross Monthly Income', `₱${Number(financialInfo.monthlyIncome).toLocaleString()}`],
+      ['Has collateral', financialInfo.hasCollateral === 'yes' ? 'Yes' : 'No']
+    );
+    if (financialInfo.employmentStatus === 'Business Owner') {
+      loanRequestPairs.push(['Business type', financialInfo.businessType]);
+    }
+  }
+
+  const personalPairsA: [string, React.ReactNode][] = personalInfo
+    ? [
+        ['Birthday', personalInfo.birthday],
+        ['Gender', personalInfo.gender],
+        ['Civil status', personalInfo.civilStatus],
+        ['ID type', personalInfo.idType],
+        ['ID number', personalInfo.idNumber],
+      ]
+    : [];
+  const personalPairsB: [string, React.ReactNode][] = personalInfo
+    ? [
+        ['Address', personalInfo.address],
+        ['Barangay', personalInfo.barangay],
+        ['City', personalInfo.city],
+        ['Province', personalInfo.province],
+        ['Zip code', personalInfo.zipCode],
+        ['TIN number', personalInfo.tinNumber],
+        ['Referral source', personalInfo.referralSource],
+        ...(personalInfo.referralSource === 'Agent'
+          ? ([['Agent code', personalInfo.agentCode]] as [string, React.ReactNode][])
+          : []),
+      ]
+    : [];
+
+  const spousePairs: [string, React.ReactNode][] = personalInfo
+    ? [
+        [
+          'Name',
+          `${personalInfo.spouseFirstName ?? ''}${personalInfo.spouseMiddleName ? ` ${personalInfo.spouseMiddleName}` : ''} ${personalInfo.spouseLastName ?? ''}${personalInfo.spouseExtensionName ? ` ${personalInfo.spouseExtensionName}` : ''}`.trim(),
+        ],
+        ['Birthday', personalInfo.spouseBirthday],
+        ['Address', personalInfo.spouseAddress],
+        ['Barangay', personalInfo.spouseBarangay],
+        ['City', personalInfo.spouseCity],
+        ['Province', personalInfo.spouseProvince],
+        ['Zip code', personalInfo.spouseZipCode],
+      ]
+    : [];
+
   return (
     <Stack spacing={2}>
       <DetailSection icon="solar:user-bold-duotone" title="Applicant">
-        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
-          <DetailField label="Full name" value={fullName} />
-          <DetailField label="Email address" value={signUpData.email} />
-          <DetailField label="Mobile number" value={signUpData.mobile ? `+63 ${signUpData.mobile}` : ''} />
-        </Stack>
+        <FieldTable>
+          {rowsOf2(applicantPairs).map((pairs, index) => (
+            <FieldTableRow key={index} pairs={pairs} />
+          ))}
+        </FieldTable>
       </DetailSection>
 
       <DetailSection icon="solar:document-text-bold-duotone" title="Loan request">
-        <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
-          <DetailField label="Loan type" value={loanTypeLabel} />
-          {financialInfo && (
-            <>
-              <DetailField label="Desired loan amount" value={desiredAmount} />
-              <DetailField label="Loan term" value={`${financialInfo.loanTermMonths} months`} />
-              <DetailField label="Purpose of loan" value={financialInfo.loanPurpose} />
-              <DetailField label="Employment status" value={financialInfo.employmentStatus} />
-              <DetailField label="Gross Monthly Income" value={`₱${Number(financialInfo.monthlyIncome).toLocaleString()}`} />
-              <DetailField label="Has collateral" value={financialInfo.hasCollateral === 'yes' ? 'Yes' : 'No'} />
-              {financialInfo.employmentStatus === 'Business Owner' && (
-                <DetailField label="Business type" value={financialInfo.businessType} />
-              )}
-            </>
-          )}
-        </Stack>
+        <FieldTable>
+          {rowsOf2(loanRequestPairs).map((pairs, index) => (
+            <FieldTableRow key={index} pairs={pairs} />
+          ))}
+        </FieldTable>
       </DetailSection>
 
       {personalInfo && (
         <>
-          <DetailSection icon="solar:id-card-bold-duotone" title="Personal & ID information">
-            <Stack spacing={2}>
-              <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
-                <DetailField label="Birthday" value={personalInfo.birthday} />
-                <DetailField label="Gender" value={personalInfo.gender} />
-                <DetailField label="Civil status" value={personalInfo.civilStatus} />
-                <DetailField label="ID type" value={personalInfo.idType} />
-                <DetailField label="ID number" value={personalInfo.idNumber} />
-              </Stack>
-              <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
-                <DetailField label="Address" value={personalInfo.address} />
-                <DetailField label="Barangay" value={personalInfo.barangay} />
-                <DetailField label="City" value={personalInfo.city} />
-                <DetailField label="Province" value={personalInfo.province} />
-                <DetailField label="Zip code" value={personalInfo.zipCode} />
-                <DetailField label="TIN number" value={personalInfo.tinNumber} />
-                <DetailField label="Referral source" value={personalInfo.referralSource} />
-                {personalInfo.referralSource === 'Agent' && (
-                  <DetailField label="Agent code" value={personalInfo.agentCode} />
-                )}
-              </Stack>
-            </Stack>
+          <DetailSection icon="solar:user-id-bold-duotone" title="Personal & ID information">
+            <FieldTable>
+              {rowsOf2(personalPairsA).map((pairs, index) => (
+                <FieldTableRow key={`a-${index}`} pairs={pairs} />
+              ))}
+              {rowsOf2(personalPairsB).map((pairs, index) => (
+                <FieldTableRow key={`b-${index}`} pairs={pairs} />
+              ))}
+            </FieldTable>
           </DetailSection>
 
           {personalInfo.civilStatus === 'Married' && (
             <DetailSection icon="solar:heart-bold-duotone" title="Spouse information">
-              <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
-                <DetailField
-                  label="Name"
-                  value={`${personalInfo.spouseFirstName ?? ''}${personalInfo.spouseMiddleName ? ` ${personalInfo.spouseMiddleName}` : ''} ${personalInfo.spouseLastName ?? ''}${personalInfo.spouseExtensionName ? ` ${personalInfo.spouseExtensionName}` : ''}`.trim()}
-                />
-                <DetailField label="Birthday" value={personalInfo.spouseBirthday} />
-                <DetailField label="Address" value={personalInfo.spouseAddress} />
-                <DetailField label="Barangay" value={personalInfo.spouseBarangay} />
-                <DetailField label="City" value={personalInfo.spouseCity} />
-                <DetailField label="Province" value={personalInfo.spouseProvince} />
-                <DetailField label="Zip code" value={personalInfo.spouseZipCode} />
-              </Stack>
+              <FieldTable>
+                {rowsOf2(spousePairs).map((pairs, index) => (
+                  <FieldTableRow key={index} pairs={pairs} />
+                ))}
+              </FieldTable>
             </DetailSection>
           )}
 
@@ -374,11 +396,11 @@ export function ApplicationDetailsCard({
 }) {
   const { signUpData, application } = useRegistration();
   const { review } = useAdmin();
-  const router = useRouter();
-  // On long workflow pages, "View full application", "Initial credit
-  // checking result", and "View call report" each navigate to their own
-  // dedicated page (same tab) rather than expanding inline or opening a
-  // Dialog — see paths.admin.fullApplication/callReportResult/creditCheckingResult.
+  // "View full application", "Initial credit checking result", and "View
+  // call report" each open their own dedicated page in a new tab (so the
+  // reviewer doesn't lose their place on this page) rather than expanding
+  // inline or opening a Dialog — see
+  // paths.admin.fullApplication/callReportResult/creditCheckingResult.
   const [notesOpen, setNotesOpen] = useState(false);
   const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
 
@@ -409,7 +431,7 @@ export function ApplicationDetailsCard({
   const overflowOnly = showCreditCheckingResultAction && showCallReportAction;
   const handleViewCreditChecking = () => {
     setActionsAnchor(null);
-    router.push(paths.admin.creditCheckingResult(encodeURIComponent(signUpData.email)));
+    window.open(paths.admin.creditCheckingResult(encodeURIComponent(signUpData.email)), '_blank', 'noopener,noreferrer');
   };
 
   if (collapsible) {
@@ -483,7 +505,7 @@ export function ApplicationDetailsCard({
             <Button
               variant="outlined"
               startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-              onClick={() => router.push(paths.admin.fullApplication(encodeURIComponent(signUpData.email)))}
+              onClick={() => window.open(paths.admin.fullApplication(encodeURIComponent(signUpData.email)), '_blank', 'noopener,noreferrer')}
               sx={{
                 color: '#1C2A6E',
                 borderColor: '#C7CEEA',
@@ -510,7 +532,7 @@ export function ApplicationDetailsCard({
               <Button
                 variant="outlined"
                 startIcon={<Iconify icon="solar:phone-calling-rounded-bold-duotone" width={18} />}
-                onClick={() => router.push(paths.admin.callReportResult(encodeURIComponent(signUpData.email)))}
+                onClick={() => window.open(paths.admin.callReportResult(encodeURIComponent(signUpData.email)), '_blank', 'noopener,noreferrer')}
                 sx={{ display: { xs: 'none', md: overflowOnly ? 'none' : 'inline-flex', lg: 'inline-flex' }, color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: { md: 1.5, lg: 2 }, whiteSpace: 'nowrap', fontSize: 13, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
               >
                 View call report
@@ -567,7 +589,7 @@ export function ApplicationDetailsCard({
             )}
             {showCallReportAction && (
               <MenuItem
-                onClick={() => { setActionsAnchor(null); router.push(paths.admin.callReportResult(encodeURIComponent(signUpData.email))); }}
+                onClick={() => { setActionsAnchor(null); window.open(paths.admin.callReportResult(encodeURIComponent(signUpData.email)), '_blank', 'noopener,noreferrer'); }}
                 sx={{ gap: 1.25, display: { xs: 'flex', md: overflowOnly ? 'flex' : 'none', lg: 'none' } }}
               >
                 <Iconify icon="solar:phone-calling-rounded-bold-duotone" width={18} sx={{ color: '#1C2A6E' }} />

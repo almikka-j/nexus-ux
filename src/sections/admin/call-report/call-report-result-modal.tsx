@@ -13,7 +13,7 @@ import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
-import { SectionLabel } from 'src/components/admin-ui';
+import { FieldTable, FieldTableRow } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import {
@@ -42,23 +42,28 @@ import {
 } from './call-report-risk';
 
 // ----------------------------------------------------------------------
-// Matches CreditCheckingResultModal's design system exactly (SectionLabel,
-// FieldRow, header layout, "Prepared by" footer) rather than the grid-based
-// ResultField/FieldGrid this modal used before, so the two result modals
-// read as the same product instead of two different designs. SectionLabel
-// itself is now the shared src/components/admin-ui version (2026-10-19) —
-// same uppercase label, plus a divider underneath matching
-// appraisal-report-view.tsx's own header style, so every inline "view what
-// was submitted" screen in the app reads as one design system.
+// Matches CreditCheckingResultContent's layout exactly (2026-10-24): every
+// field section is a pill-style NumberedSectionHeader followed by the shared
+// src/components/admin-ui FieldTable/FieldTableRow (shaded-label key-value
+// table, up to 2 pairs per row), so the two result views read as the same
+// product. The AI Review section keeps its own free-form layout.
 // ----------------------------------------------------------------------
 
-function FieldRow({ label, value }: { label: string; value: string | null }) {
+// Same pill-style section header as credit-checking-result-modal.tsx's own
+// (file-local there too) — a light-blue bar with an uppercase navy label.
+function NumberedSectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <Stack direction="row" spacing={2}>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', width: 200, flexShrink: 0 }}>
-        {label}
+    <Stack
+      direction="row"
+      spacing={1.25}
+      alignItems="center"
+      sx={{ px: 2, py: 1.25, borderRadius: '10px', bgcolor: '#EEF1FE' }}
+    >
+      <Typography
+        sx={{ fontSize: 12.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#1C2A6E' }}
+      >
+        {children}
       </Typography>
-      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value || '—'}</Typography>
     </Stack>
   );
 }
@@ -242,202 +247,227 @@ export function CallReportResultContent({ hideHeader }: { hideHeader?: boolean }
             </Stack>
           )}
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>Call Report</SectionLabel>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-              <FieldRow label="Application No." value={applicationNo} />
-              <FieldRow label="Client Name" value={fullName} />
-              <FieldRow label="Email Address" value={signUpData.email} />
-              <FieldRow label="Contact Number" value={signUpData.mobile || '—'} />
-              <FieldRow label="Account Officer" value={accountOfficer} />
-              <FieldRow label="Date / Time" value={generatedLabel} />
-            </Stack>
-          </Box>
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Call Report</NumberedSectionHeader>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Application No.', applicationNo],
+                  ['Client Name', fullName],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Email Address', signUpData.email],
+                  ['Contact Number', signUpData.mobile || '—'],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Account Officer', accountOfficer],
+                  ['Date / Time', generatedLabel],
+                ]}
+              />
+            </FieldTable>
+          </Stack>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>Interaction Record</SectionLabel>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-              <FieldRow label="Call / Visit Date" value={callReport.callVisitDate} />
-              <FieldRow label="Time" value={callReport.callTime} />
-              <FieldRow label="Interviewed Person" value={callReport.interviewedPerson} />
-              <FieldRow label="Relationship to Borrower" value={callReport.relationshipToBorrower} />
-              <FieldRow label="Interaction Type" value={labelFor(INTERACTION_TYPE_OPTIONS, callReport.interactionType)} />
-              <FieldRow label="Identity Status" value={labelFor(IDENTITY_STATUS_OPTIONS, callReport.identityStatus)} />
-              <FieldRow label="Basis of Identity Confirmation" value={identityBasisLabels} />
-            </Stack>
-          </Box>
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Interaction Record</NumberedSectionHeader>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Call / Visit Date', callReport.callVisitDate || '—'],
+                  ['Time', callReport.callTime || '—'],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Interviewed Person', callReport.interviewedPerson || '—'],
+                  ['Relationship to Borrower', callReport.relationshipToBorrower || '—'],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Interaction Type', labelFor(INTERACTION_TYPE_OPTIONS, callReport.interactionType) || '—'],
+                  ['Identity Status', labelFor(IDENTITY_STATUS_OPTIONS, callReport.identityStatus) || '—'],
+                ]}
+              />
+              <FieldTableRow pairs={[['Basis of Identity Confirmation', identityBasisLabels || '—']]} />
+            </FieldTable>
+          </Stack>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>Application Validation</SectionLabel>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-              <FieldRow label="Identity / Authorized Representative" value={validationLabels[callReport.validation.identityAuthorizedRep]} />
-              <FieldRow label="Loan Facility" value={validationLabels[callReport.validation.loanFacility]} />
-              <FieldRow label="Loan Purpose" value={validationLabels[callReport.validation.loanPurpose]} />
-              <FieldRow label="Primary Source of Repayment" value={validationLabels[callReport.validation.primaryRepaymentSource]} />
-              <FieldRow label="Business / Employment Info" value={validationLabels[callReport.validation.businessEmploymentInfo]} />
-              <FieldRow label="Existing Loans / Obligations" value={validationLabels[callReport.validation.existingLoansObligations]} />
-              <FieldRow label="Residence / Business Address" value={validationLabels[callReport.validation.residenceBusinessAddress]} />
-              <FieldRow label="Collateral / Security Declaration" value={validationLabels[callReport.validation.collateralSecurityDeclaration]} />
-              <FieldRow label="Co-maker/Guarantee" value={validationLabels[callReport.validation.comakerGuarantee]} />
-            </Stack>
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Application Validation</NumberedSectionHeader>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Identity / Authorized Representative', validationLabels[callReport.validation.identityAuthorizedRep] || '—'],
+                  ['Loan Facility', validationLabels[callReport.validation.loanFacility] || '—'],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Loan Purpose', validationLabels[callReport.validation.loanPurpose] || '—'],
+                  ['Primary Source of Repayment', validationLabels[callReport.validation.primaryRepaymentSource] || '—'],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Business / Employment Info', validationLabels[callReport.validation.businessEmploymentInfo] || '—'],
+                  ['Existing Loans / Obligations', validationLabels[callReport.validation.existingLoansObligations] || '—'],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Residence / Business Address', validationLabels[callReport.validation.residenceBusinessAddress] || '—'],
+                  ['Collateral / Security Declaration', validationLabels[callReport.validation.collateralSecurityDeclaration] || '—'],
+                ]}
+              />
+              <FieldTableRow pairs={[['Co-maker/Guarantee', validationLabels[callReport.validation.comakerGuarantee] || '—']]} />
+            </FieldTable>
             {callReport.validation.identityAuthorizedRep === 'changed' && (
-              <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock
-                  label="IDENTITY / AUTHORIZED REPRESENTATIVE CHANGED TO"
-                  value={`${callReport.identityAuthorizedRepChangedTo} — ${callReport.identityAuthorizedRepChangeReason}`}
-                />
-              </Box>
+              <NarrativeBlock
+                label="IDENTITY / AUTHORIZED REPRESENTATIVE CHANGED TO"
+                value={`${callReport.identityAuthorizedRepChangedTo} — ${callReport.identityAuthorizedRepChangeReason}`}
+              />
             )}
             {callReport.validation.loanFacility === 'changed' && (
-              <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock
-                  label="LOAN FACILITY CHANGED TO"
-                  value={`${labelFor(LOAN_FACILITY_OPTIONS, callReport.loanFacilityChangedTo) || ''} — ${callReport.loanFacilityChangeReason}`}
-                />
-              </Box>
+              <NarrativeBlock
+                label="LOAN FACILITY CHANGED TO"
+                value={`${labelFor(LOAN_FACILITY_OPTIONS, callReport.loanFacilityChangedTo) || ''} — ${callReport.loanFacilityChangeReason}`}
+              />
             )}
             {callReport.validation.loanPurpose === 'changed' && (
-              <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock
-                  label="LOAN PURPOSE CHANGED TO"
-                  value={labelFor(LOAN_PURPOSE_OPTIONS, callReport.loanPurposeChangedTo) || ''}
-                />
-              </Box>
+              <NarrativeBlock
+                label="LOAN PURPOSE CHANGED TO"
+                value={labelFor(LOAN_PURPOSE_OPTIONS, callReport.loanPurposeChangedTo) || ''}
+              />
             )}
             {callReport.validation.primaryRepaymentSource === 'changed' && (
-              <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock
-                  label="PRIMARY REPAYMENT SOURCE CHANGED TO"
-                  value={labelFor(REPAYMENT_SOURCE_TYPE_OPTIONS, callReport.primaryRepaymentSourceChangedTo) || ''}
-                />
-              </Box>
+              <NarrativeBlock
+                label="PRIMARY REPAYMENT SOURCE CHANGED TO"
+                value={labelFor(REPAYMENT_SOURCE_TYPE_OPTIONS, callReport.primaryRepaymentSourceChangedTo) || ''}
+              />
             )}
             {callReport.existingLoanRows.length > 0 && (
-              <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock
-                  label="EXISTING LOANS DECLARED"
-                  value={callReport.existingLoanRows
-                    .map((row) => `${row.lender} (${row.loanType}) — ${formatCurrency(row.outstandingBalance)}`)
-                    .join('\n')}
-                />
-              </Box>
+              <NarrativeBlock
+                label="EXISTING LOANS DECLARED"
+                value={callReport.existingLoanRows
+                  .map((row) => `${row.lender} (${row.loanType}) — ${formatCurrency(row.outstandingBalance)}`)
+                  .join('\n')}
+              />
             )}
             {callReport.comakerChange.completeName && (
-              <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock
-                  label="CO-MAKER/GUARANTOR"
-                  value={`${callReport.comakerChange.completeName} — ${callReport.comakerChange.relationshipToBorrower}`}
-                />
-              </Box>
+              <NarrativeBlock
+                label="CO-MAKER/GUARANTOR"
+                value={`${callReport.comakerChange.completeName} — ${callReport.comakerChange.relationshipToBorrower}`}
+              />
             )}
             {callReport.materialChangesNotes && (
-              <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock label="MATERIAL CHANGES / CLARIFICATIONS" value={callReport.materialChangesNotes} />
-              </Box>
+              <NarrativeBlock label="MATERIAL CHANGES / CLARIFICATIONS" value={callReport.materialChangesNotes} />
             )}
-          </Box>
+          </Stack>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>AML / KYC Questions</SectionLabel>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-              <FieldRow label="Politically Exposed Person" value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPep)} />
-              <FieldRow
-                label="PGFC-related Party"
-                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPgfcRelatedParty)}
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>AML / KYC Questions</NumberedSectionHeader>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Politically Exposed Person', labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPep) || '—'],
+                  ['PGFC-related Party', labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlIsPgfcRelatedParty) || '—'],
+                ]}
               />
-              <FieldRow
-                label="Has Existing Loans"
-                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasExistingLoans)}
+              <FieldTableRow
+                pairs={[
+                  ['Has Existing Loans', labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasExistingLoans) || '—'],
+                  ['Payment History', labelFor(PAYMENT_HISTORY_DESCRIPTOR_OPTIONS, callReport.amlPaymentHistory) || '—'],
+                ]}
               />
-              <FieldRow
-                label="Payment History"
-                value={labelFor(PAYMENT_HISTORY_DESCRIPTOR_OPTIONS, callReport.amlPaymentHistory)}
+              <FieldTableRow
+                pairs={[
+                  ['Returned Checks', labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasReturnedChecks) || '—'],
+                  ['Past Due Obligations', labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasPastDueObligations) || '—'],
+                ]}
               />
-              <FieldRow
-                label="Returned Checks"
-                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasReturnedChecks)}
-              />
-              <FieldRow
-                label="Past Due Obligations"
-                value={labelFor(YES_NO_VERIFY_OPTIONS, callReport.amlHasPastDueObligations)}
-              />
-            </Stack>
-          </Box>
+            </FieldTable>
+          </Stack>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>Customer Understanding</SectionLabel>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-              <FieldRow
-                label="Level of Understanding"
-                value={labelFor(UNDERSTANDING_LEVEL_OPTIONS, callReport.understandingLevel)}
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Customer Understanding</NumberedSectionHeader>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[['Level of Understanding', labelFor(UNDERSTANDING_LEVEL_OPTIONS, callReport.understandingLevel) || '—']]}
               />
-              <FieldRow label="Terms Understood" value={termsUnderstoodLabels} />
-            </Stack>
+              <FieldTableRow pairs={[['Terms Understood', termsUnderstoodLabels || '—']]} />
+            </FieldTable>
             {callReport.concernsClarifications && (
-              <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock label="CONCERNS / CLARIFICATIONS" value={callReport.concernsClarifications} />
-              </Box>
+              <NarrativeBlock label="CONCERNS / CLARIFICATIONS" value={callReport.concernsClarifications} />
             )}
-          </Box>
+          </Stack>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>Proposed Loan Package</SectionLabel>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-              <FieldRow label="Original Requested Amount" value={formatCurrency(callReport.originalRequestedAmount)} />
-              <FieldRow
-                label="Interest Rate"
-                value={callReport.proposalInterestRate ? `${callReport.proposalInterestRate}%` : ''}
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Proposed Loan Package</NumberedSectionHeader>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Original Requested Amount', formatCurrency(callReport.originalRequestedAmount) || '—'],
+                  ['Interest Rate', callReport.proposalInterestRate ? `${callReport.proposalInterestRate}%` : '—'],
+                ]}
               />
-              <FieldRow
-                label="Interest Rate Basis"
-                value={labelFor(PROPOSAL_INTEREST_RATE_BASIS_OPTIONS, callReport.proposalInterestRateBasis)}
+              <FieldTableRow
+                pairs={[
+                  [
+                    'Interest Rate Basis',
+                    labelFor(PROPOSAL_INTEREST_RATE_BASIS_OPTIONS, callReport.proposalInterestRateBasis) || '—',
+                  ],
+                  ['Proposed Facility / Product', labelFor(LOAN_FACILITY_OPTIONS, callReport.proposedFacilityProduct) || '—'],
+                ]}
               />
-              <FieldRow
-                label="Proposed Facility / Product"
-                value={labelFor(LOAN_FACILITY_OPTIONS, callReport.proposedFacilityProduct)}
+              <FieldTableRow
+                pairs={[
+                  [
+                    'Computation Type',
+                    (callReport.proposalComputationType === 'other'
+                      ? callReport.proposalComputationTypeOther
+                      : labelFor(PROPOSAL_COMPUTATION_TYPE_OPTIONS, callReport.proposalComputationType)) || '—',
+                  ],
+                  ['Proposed Loan Amount', formatCurrency(callReport.proposedLoanAmount) || '—'],
+                ]}
               />
-              <FieldRow
-                label="Computation Type"
-                value={
-                  callReport.proposalComputationType === 'other'
-                    ? callReport.proposalComputationTypeOther
-                    : labelFor(PROPOSAL_COMPUTATION_TYPE_OPTIONS, callReport.proposalComputationType)
-                }
+              <FieldTableRow
+                pairs={[
+                  ['Estimated Monthly Amortization', formatCurrency(callReport.estimatedMonthlyAmortization) || '—'],
+                  [
+                    'Proposed Loan Term',
+                    callReport.proposedLoanTermMonths ? `${callReport.proposedLoanTermMonths} months` : '—',
+                  ],
+                ]}
               />
-              <FieldRow label="Proposed Loan Amount" value={formatCurrency(callReport.proposedLoanAmount)} />
-              <FieldRow
-                label="Estimated Monthly Amortization"
-                value={formatCurrency(callReport.estimatedMonthlyAmortization)}
-              />
-              <FieldRow
-                label="Proposed Loan Term"
-                value={callReport.proposedLoanTermMonths ? `${callReport.proposedLoanTermMonths} months` : ''}
-              />
-            </Stack>
-          </Box>
+            </FieldTable>
+          </Stack>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>AO Preliminary Risk &amp; Call Disposition</SectionLabel>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-              <FieldRow
-                label="AO Preliminary Risk"
-                value={labelFor(AO_PRELIMINARY_RISK_LEVEL_OPTIONS, callReport.preliminaryRiskLevel)}
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>AO Preliminary Risk &amp; Call Disposition</NumberedSectionHeader>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  [
+                    'AO Preliminary Risk',
+                    labelFor(AO_PRELIMINARY_RISK_LEVEL_OPTIONS, callReport.preliminaryRiskLevel) || '—',
+                  ],
+                ]}
               />
-              <FieldRow label="Primary Risk Driver" value={riskDriverLabels} />
-              <FieldRow label="Call Disposition" value={labelFor(CALL_DISPOSITION_OPTIONS, callReport.callDisposition)} />
-            </Stack>
+              <FieldTableRow pairs={[['Primary Risk Driver', riskDriverLabels || '—']]} />
+              <FieldTableRow pairs={[['Call Disposition', labelFor(CALL_DISPOSITION_OPTIONS, callReport.callDisposition) || '—']]} />
+            </FieldTable>
             {callReport.reasonKeyCondition && (
-              <Box sx={{ mt: 1.5 }}>
-                <NarrativeBlock label="REASON / KEY CONDITION" value={callReport.reasonKeyCondition} />
-              </Box>
+              <NarrativeBlock label="REASON / KEY CONDITION" value={callReport.reasonKeyCondition} />
             )}
-          </Box>
+          </Stack>
 
-          <Box>
-            <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              AI Review, Summary &amp; Recommendation
-            </Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5, mb: 2 }}>
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>AI Review, Summary &amp; Recommendation</NumberedSectionHeader>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5 }}>
               Based on everything entered above, recomputed live so it always matches the current
               report.
             </Typography>
@@ -491,43 +521,45 @@ export function CallReportResultContent({ hideHeader }: { hideHeader?: boolean }
                 Credit personnel.
               </Typography>
             </Stack>
-          </Box>
+          </Stack>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>Account Officer Endorsement Declaration</SectionLabel>
-            <Stack spacing={1.5} sx={{ mt: 1.5, mb: 2 }}>
-              {DECLARATION_PARAGRAPHS.map((paragraph) => (
-                <Typography key={paragraph.slice(0, 24)} sx={{ fontSize: 13, color: '#3B4256', lineHeight: 1.65 }}>
-                  {paragraph}
-                </Typography>
-              ))}
-            </Stack>
-
-            <Divider sx={{ borderColor: '#EEF0F5', mb: 2 }} />
-
-            <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#E7F8F0' }}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-                <Iconify icon="solar:verified-check-bold" width={17} sx={{ color: '#0C8A4F' }} />
-                <Box>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#0C8A4F' }}>Endorsed</Typography>
-                  <Typography sx={{ fontSize: 11.5, color: '#0C8A4F', opacity: 0.75 }}>
-                    Recorded automatically when this officer opened the Call Report step.
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Account Officer Endorsement Declaration</NumberedSectionHeader>
+            <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
+              <Stack spacing={1.5} sx={{ mb: 2 }}>
+                {DECLARATION_PARAGRAPHS.map((paragraph) => (
+                  <Typography key={paragraph.slice(0, 24)} sx={{ fontSize: 13, color: '#3B4256', lineHeight: 1.65 }}>
+                    {paragraph}
                   </Typography>
-                </Box>
-              </Stack>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <SignatureField icon="solar:user-id-bold-duotone" label="Account Officer" value={accountOfficer} />
-                <SignatureField icon="solar:clock-circle-bold-duotone" label="Date / Time" value={generatedLabel} />
+                ))}
               </Stack>
 
-              {(isApproved || showApproverFallback) && (
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
-                  <SignatureField icon="solar:shield-check-bold-duotone" label="Approved By" value={approvedByLabel} />
-                  <SignatureField icon="solar:clock-circle-bold-duotone" label="Approval Date / Time" value={approvedAtLabel} />
+              <Divider sx={{ borderColor: '#EEF0F5', mb: 2 }} />
+
+              <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#E7F8F0' }}>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                  <Iconify icon="solar:verified-check-bold" width={17} sx={{ color: '#0C8A4F' }} />
+                  <Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#0C8A4F' }}>Endorsed</Typography>
+                    <Typography sx={{ fontSize: 11.5, color: '#0C8A4F', opacity: 0.75 }}>
+                      Recorded automatically when this officer opened the Call Report step.
+                    </Typography>
+                  </Box>
                 </Stack>
-              )}
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <SignatureField icon="solar:user-id-bold-duotone" label="Account Officer" value={accountOfficer} />
+                  <SignatureField icon="solar:clock-circle-bold-duotone" label="Date / Time" value={generatedLabel} />
+                </Stack>
+
+                {(isApproved || showApproverFallback) && (
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
+                    <SignatureField icon="solar:shield-check-bold-duotone" label="Approved By" value={approvedByLabel} />
+                    <SignatureField icon="solar:clock-circle-bold-duotone" label="Approval Date / Time" value={approvedAtLabel} />
+                  </Stack>
+                )}
+              </Box>
             </Box>
-          </Box>
+          </Stack>
       </Stack>
     </>
   );
