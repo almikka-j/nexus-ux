@@ -12,7 +12,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, getBundleUploadedAt } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
@@ -39,7 +39,7 @@ import { AppraisalReportView } from './appraisal/appraisal-report-view';
 // here uses — a 42px icon-avatar + applicant name as the title (15px/800)
 // + "App No. … · email" subtitle, a StatusBadge top-right, then a
 // bordered/tinted FactChip strip for Properties, Appraiser, and Requested
-// On (bundle.report.uploadedAt from the LAST bundle to submit — same idea
+// On (getBundleUploadedAt(bundle) from the LAST bundle to submit — same idea
 // as feeSubmittedAt on the Fee Approval detail page, just derived from the
 // per-bundle report timestamps since there's no separate batch-level
 // "submitted" stamp for reports the way there is for fees).
@@ -173,7 +173,7 @@ export function AppraisalApproverBundleView() {
     reportBundles.map((bundle) => bundle.appraiserName).filter(Boolean).join(', ') || 'No appraiser assigned';
   const propertyCount = reportBundles.reduce((sum, bundle) => sum + bundle.tctGroupIds.length, 0);
   const latestReportSubmittedAt = reportBundles
-    .map((bundle) => bundle.report.uploadedAt)
+    .map((bundle) => getBundleUploadedAt(bundle))
     .filter((value): value is string => !!value)
     .sort()
     .pop();

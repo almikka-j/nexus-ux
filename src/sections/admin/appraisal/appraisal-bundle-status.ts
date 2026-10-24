@@ -1,4 +1,7 @@
 import type { SemanticTone } from 'src/components/admin-ui';
+
+import { getBundleUploadedAt } from 'src/auth/admin-context';
+
 import type { AppraisalReportBundle } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
@@ -33,7 +36,7 @@ export const APPRAISAL_BUNDLE_STATUS_COPY: Record<AppraisalBundleStatus, { label
 };
 
 export function getAppraisalBundleStatus(bundle: AppraisalReportBundle, feeSettled: boolean): AppraisalBundleStatus {
-  if (bundle.report.uploadedAt) return 'reported';
+  if (getBundleUploadedAt(bundle)) return 'reported';
   if (bundle.feeNeeded === 'no' || (bundle.feeApprovalStatus === 'approved' && feeSettled)) return 'for-report';
   if (bundle.feeApprovalStatus === 'pending-approval') return 'for-approval';
   return 'on-process';

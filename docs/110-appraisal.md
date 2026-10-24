@@ -158,16 +158,24 @@ the **"Request Document"** / **"Add Collateral"** buttons — plain
 `outlinedNavyButtonSx` outlined buttons at default MUI size, same as
 "View full application" — sit inline on the right of that same row.
 
-`collateralType: 'real-estate' | 'chattel'` (`AppraisalCollateralType`)
-distinguishes titled real property from chattel (no title document — e.g.
-a vehicle or equipment), defaulting to `'real-estate'` everywhere (the 5
+`collateralType: 'real-estate' | 'chattel' | 'machineries'`
+(`AppraisalCollateralType`) distinguishes titled real property from
+chattel (no title document — e.g. a vehicle) and machineries (shop/
+production equipment), defaulting to `'real-estate'` everywhere (the 5
 seed rows, and the "Add Collateral" form unless the officer switches it).
 Older stored sessions from before this field existed are topped up to
 `'real-estate'` on hydration (`readStoredState()`), same convention as
 other backfilled fields on this page.
+Each `AppraisalReportBundle` holds one kind only and carries three report
+fields — `realEstateReport`, `chattelReport`, `machineriesReport` — of
+which only the bundle's own kind (`getBundleCollateralType(bundle,
+appraisalGroups)`, read from its first group) is ever filled/submitted;
+`getBundleUploadedAt(bundle)` answers "submitted?" across all three. The
+table's row selection is restricted to a single kind, so a new bundle
+can't mix kinds.
 
 "Add Collateral" (renamed from "Add TCT") expands an inline form —
-a compact **Type** `Select` (Real Estate / Chattel) next to the number
+a compact **Type** `Select` (Real Estate / Chattel / Machineries) next to the number
 `TextField`, whose placeholder swaps between `"e.g. TCT-2024-00991"` and
 `"e.g. Plate/Serial No."` depending on the selected type — then
 `addAppraisalGroup(tctNumber, collateralType)` (same duplicate-number
@@ -211,7 +219,7 @@ in the system.
 
 Each row has a checkbox, the **Collateral No.** (renamed from "TCT No."
 — same generic reasoning as the card title), a **Type** column showing
-"Real Estate" or "Chattel" (`COLLATERAL_TYPE_LABEL[group.collateralType]`,
+"Real Estate", "Chattel" or "Machineries" (`COLLATERAL_TYPE_LABEL[group.collateralType]`,
 plain text, no chip/pill — the Status column already carries the row's
 badge, a second one would be visual noise) between it and Documents, a
 **"X/8 docs"** count (verified documents out of
@@ -375,8 +383,8 @@ TCTs"** folds every still-`Unassigned` group into its own single-property
 in-house bundle (cycling `APPRAISER_ROSTER`); **"Unassign All
 TCTs"** deletes every bundle and resets every group's `reportId` back to
 `null`; and **"Simulate: Appraiser Submits Report"** fills in
-`bundle.report` for every bundle that doesn't yet have
-`report.uploadedAt` and stamps `uploadedAt`, simulating the Appraiser
+the bundle's own kind's report for every bundle not yet submitted
+(`getBundleUploadedAt`) and stamps `uploadedAt`, simulating the Appraiser
 having already filled in and submitted their report on the Appraisal
 Appraiser page. The actual sample values (in-house bundles get a full
 sample REM covering every section `AppraisalReportView` renders —
@@ -393,7 +401,11 @@ per-bundle detail pages register (see `docs/170-request-appraiser.md`),
 instead of three near-copies of the same object slowly drifting apart. It
 only ever fills bundles missing a report, so re-clicking after new bundles
 are assigned won't clobber a report an appraiser (or this same action)
-already submitted. All three are dev/testing conveniences for reaching
+already submitted. Each bundle gets exactly one kind's sample —
+`buildSampleChattelReport()`/`buildSampleMachineriesReport()` for in-house
+Chattel/Machineries bundles, `buildSampleAppraisalReport()` otherwise
+(external bundles of every kind use its fake-file shape, since external
+uploads always live on `realEstateReport`). All three are dev/testing conveniences for reaching
 downstream states quickly, not user-facing officer actions.
 
 Unlike the Appraiser page's own "Simulate: Fill Sample Report" entries
@@ -475,7 +487,8 @@ on this page reads.
 The **right side** of each row shows a status pill computed per bundle by
 `getAppraisalBundleStatus(bundle, feeSettled)` from that bundle's own
 `feeApprovalStatus` + `feeSettled` + that specific bundle's own
-`report.uploadedAt` (in that priority order: a submitted report always
+`getBundleUploadedAt(bundle)` (whichever of its three kind reports is
+stamped; in that priority order: a submitted report always
 wins, overriding whatever the fee state would otherwise imply). Fee
 approval is per-bundle (see
 `docs/superpowers/specs/2026-09-14-per-bundle-appraisal-fee-approval-design.md`),
@@ -490,10 +503,10 @@ same application can be at a completely different stage:
   this bundle's fee from their own page; waiting on the Head/Approver.
 - **For Report** (info/blue pill) — this bundle's own
   `feeApprovalStatus === 'approved' && feeSettled` but this bundle's
-  `report.uploadedAt` is still `null`. The fee is cleared; the appraiser
+  `getBundleUploadedAt(bundle)` is still `null`. The fee is cleared; the appraiser
   should now be doing the on-site work and filling in/uploading the
   report.
-- **`bundle.report.uploadedAt` set** → a green **"Report submitted"** pill
+- **`getBundleUploadedAt(bundle)` set** → a green **"Report submitted"** pill
   plus a chevron toggle, and the full read-only `AppraisalReportView` for
   that bundle rendered **inline** — a `Collapse` panel below the row,
   **expanded by default**, that the whole row header toggles. Each

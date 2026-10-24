@@ -27,7 +27,7 @@ import DialogContent from '@mui/material/DialogContent';
 import ListItemText from '@mui/material/ListItemText';
 import TableContainer from '@mui/material/TableContainer';
 
-import { useAdmin, APPRAISER_ROSTER } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { Iconify } from 'src/components/iconify';
@@ -35,7 +35,11 @@ import { adminCardSx, outlinedNavyButtonSx, TONE_COLORS } from 'src/components/a
 
 import { APPRAISAL_DOC_META } from '../requirement-checklist-docs';
 import { ReadOnlyRequirementDocRow } from '../credit-investigation/credit-investigation-doc-row';
-import { buildSampleAppraisalReport } from './sample-appraisal-report';
+import {
+  buildSampleAppraisalReport,
+  buildSampleChattelReport,
+  buildSampleMachineriesReport,
+} from './sample-appraisal-report';
 
 import type { AppraiserType, AppraisalCollateralType } from 'src/auth/admin-context';
 
@@ -110,6 +114,7 @@ function AppraiserTypeOption({
 const COLLATERAL_TYPE_LABEL: Record<AppraisalCollateralType, string> = {
   'real-estate': 'Real Estate',
   chattel: 'Chattel',
+  machineries: 'Machineries',
 };
 
 export function AppraisalTctTable({ applicantName }: { applicantName: string }) {
@@ -120,6 +125,8 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
     addDocumentRequestMessage,
     setAppraisal,
     setAppraisalBundleReport,
+    setAppraisalBundleChattelReport,
+    setAppraisalBundleMachineriesReport,
     setRequirementChecklist,
   } = useAdmin();
   const { appraisalGroups, documentRequests } = review.requirementChecklist;
@@ -223,13 +230,33 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
   // appraiser (or this same action) already submitted.
   const handleSimulateReportSubmission = () => {
     reportBundles
-      .filter((bundle) => !bundle.report.uploadedAt)
+      .filter((bundle) => !getBundleUploadedAt(bundle))
       .forEach((bundle) => {
         const bundleTctNumbers = appraisalGroups
           .filter((group) => bundle.tctGroupIds.includes(group.id))
           .map((group) => group.tctNumber);
 
-        setAppraisalBundleReport(bundle.id, buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName));
+        // Exactly one kind's sample report per bundle. External appraisers
+        // upload a file on ANY kind (stored on realEstateReport — see
+        // appraiser-assignment-card.tsx's external dropzone), so they always
+        // get the Real Estate builder's sample-file shape.
+        const bundleCollateralType = getBundleCollateralType(bundle, appraisalGroups);
+        if (bundle.appraiserType === 'inhouse' && bundleCollateralType === 'chattel') {
+          setAppraisalBundleChattelReport(
+            bundle.id,
+            buildSampleChattelReport(bundle, bundleTctNumbers, applicantName)
+          );
+        } else if (bundle.appraiserType === 'inhouse' && bundleCollateralType === 'machineries') {
+          setAppraisalBundleMachineriesReport(
+            bundle.id,
+            buildSampleMachineriesReport(bundle, bundleTctNumbers, applicantName)
+          );
+        } else {
+          setAppraisalBundleReport(
+            bundle.id,
+            buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName)
+          );
+        }
       });
   };
 
@@ -314,6 +341,17 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
   const docsIncomplete = (groupId: string) => {
     const { done, total } = docsCompleteCount(groupId);
     return done < total;
+  };
+
+  const selectionKind: AppraisalCollateralType | null =
+    selectedIds.length === 0
+      ? null
+      : (appraisalGroups.find((g) => g.id === selectedIds[0])?.collateralType ?? null);
+
+  const isWrongKind = (groupId: string) => {
+    if (selectionKind === null) return false;
+    const group = appraisalGroups.find((g) => g.id === groupId);
+    return group?.collateralType !== selectionKind;
   };
 
   const toggleRow = (groupId: string) => {
@@ -534,6 +572,7 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
               const appraiserName = appraiserNameForGroup(group.id);
               const locked = isRowLocked(group.id);
               const incomplete = docsIncomplete(group.id);
+              const wrongKind = isWrongKind(group.id);
               const expanded = expandedId === group.id;
               const justAdded = justAddedId === group.id;
               const docs = docsCompleteCount(group.id);
@@ -559,12 +598,18 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
                   >
                     <TableCell padding="checkbox">
                       <Tooltip
-                        title={!locked && incomplete ? 'Every document must be verified before this property can be assigned to an appraiser.' : ''}
+                        title={
+                          !locked && incomplete
+                            ? 'Every document must be verified before this property can be assigned to an appraiser.'
+                            : !locked && !incomplete && wrongKind
+                              ? `This selection is already ${COLLATERAL_TYPE_LABEL[selectionKind!]} — a report can't mix collateral kinds.`
+                              : ''
+                        }
                       >
                         <span>
                           <Checkbox
                             checked={selectedIds.includes(group.id)}
-                            disabled={locked || incomplete}
+                            disabled={locked || incomplete || wrongKind}
                             onChange={() => toggleRow(group.id)}
                           />
                         </span>

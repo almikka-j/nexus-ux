@@ -58,7 +58,12 @@ component the Appraisal Officer's own "View Report" dialog uses on
 (`AppraisalReportView`)" for its letterhead/"At a Glance"/collapsible-section
 internals) — one per bundle, labeled with that bundle's own Appraisal No.
 only when the request spans more than one (a single-bundle request, the
-common case in this prototype, has nothing to disambiguate). This is the
+common case in this prototype, has nothing to disambiguate).
+`AppraisalReportView` renders the bundle's own kind
+(`getBundleCollateralType`) — the Real Estate REM, or the Chattel /
+Machineries read-only summaries from `chattelReport`/`machineriesReport`;
+external bundles of any kind show the uploaded file from
+`realEstateReport`. This is the
 reason the restructure exists: the flat version this replaced showed only
 the applicant summary, with no way to see what the appraiser actually
 submitted before approving.
@@ -66,7 +71,7 @@ submitted before approving.
 An earlier pass of this same restructure reused `AppraiserAssignmentCard`
 directly instead — the Appraiser's own *editable* form, which already
 locks itself read-only once a report is submitted
-(`locked = headApprovalStatus !== 'pending' || !!report.uploadedAt`), so
+(`locked = headApprovalStatus !== 'pending' || !!getBundleUploadedAt(bundle)`), so
 it seemed like it needed no separate read-only variant. In practice a
 disabled form reads as broken on a review page — bare `TextField`s with
 no section styling, and a "Choose a photo" dropzone shell sitting around
@@ -126,7 +131,8 @@ Approval", which also covers why `'declined'` is a type-level member the
 decline handler never actually sets, and where the "Last decline reason"
 line surfaces) — clearing every bundle's submitted report/file so each
 assigned appraiser resubmits from their own page. Since
-`clearAllAppraisalBundleReports()` wipes `report.uploadedAt`,
+`clearAllAppraisalBundleReports()` wipes all three kind reports'
+`uploadedAt` (so `getBundleUploadedAt` reads `null`),
 `AppraisalReportView` returns `null` for a bundle the instant a decline is
 confirmed (it only ever renders a bundle with a submitted report) — the
 report card disappears from this page in place, no navigation away, until
@@ -146,7 +152,8 @@ No completeness gate beyond "a report has been submitted".
 - **No real Head login** — `AdminUser` has no role field; the review is
   simulated.
 - **The detail page renders every bundle's report inline** via
-  `AppraisalReportView` — a read-only render of `bundle.report`, nothing
+  `AppraisalReportView` — a read-only render of the bundle's own kind
+  report (`realEstateReport`/`chattelReport`/`machineriesReport`), nothing
   parsed from an upload.
 - **`buildSampleAppraisalReport()` stamps a `SAMPLE_COLLATERAL_PHOTO`
   data URI** on every land title because this page cannot attach a real

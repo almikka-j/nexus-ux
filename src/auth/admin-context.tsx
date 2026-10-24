@@ -830,7 +830,7 @@ export type RequirementDoc = {
 // the same either way, but the label and appraisal approach differ enough
 // to track explicitly per entry rather than assuming every pledged item is
 // titled real property.
-export type AppraisalCollateralType = 'real-estate' | 'chattel';
+export type AppraisalCollateralType = 'real-estate' | 'chattel' | 'machineries';
 
 // One property/collateral pledged toward this application, identified by
 // its collateral number (a TCT/CCT number for real estate; a plate/serial
@@ -1153,7 +1153,10 @@ function createAppraisalReportLandTitle(tctGroupId: string): AppraisalReportLand
     zonalValue: '',
     boundaries: '',
     technicalSpecification: '',
-    lotPlotLines: [],
+    // Seeds 3 blank bearing/distance rows up front — a lot plot almost
+    // always has at least this many lines, so starting empty just made
+    // the appraiser click "+ Add" 3 times before they could begin.
+    lotPlotLines: [createLotPlotLine(), createLotPlotLine(), createLotPlotLine()],
     lotPlotPhotos: [],
   };
 }
@@ -1171,6 +1174,54 @@ export type BasisOfValuationComparable = {
   zonalValue: string;
   value: string;
 };
+
+const CHATTEL_ACCESSORIES_LABELS = [
+  'Air conditioning unit', 'Radio/Stereo', 'CD Player', 'ABS', 'Airbags',
+  'Defogger', 'Mags', 'Spoiler', 'Tools/Warning Kit', 'Spare Tires',
+];
+const CHATTEL_POWER_FEATURES_LABELS = [
+  'Door Lock', 'Steering', 'Windows', 'Side Mirror', 'Antenna',
+];
+const CHATTEL_GENERAL_CONDITION_LABELS = [
+  'Engine', 'Chassis', 'Body', 'Doors', 'Glasses', 'Upholstery',
+  'Tire/Wheel', 'Paint', 'Bumper',
+];
+const CHATTEL_INSTRUMENT_PANEL_LABELS = [
+  'Instrument Panel', 'Head Light', 'Tail Light', 'Signal Light',
+];
+
+export function createAppraisalMarketSurveyEntry(): AppraisalMarketSurveyEntry {
+  return {
+    id: crypto.randomUUID(), source: '', date: '', type: '',
+    generalCondition: '', sellingPrice: '',
+  };
+}
+
+export function createAppraisalChattelReport(): AppraisalChattelReport {
+  return {
+    accountName: '', requestedBy: '', purposeOfReport: '', reportDate: '',
+    eqptUnderApp: '', dateInspected: '', registeredOwner: '', address: '',
+    make: '', mvfNo: '', series: '', crNo: '', typeOfBodyDenomination: '',
+    registrationDate: '', yearModel: '', placeRegistered: '', color: '',
+    chassisNumber: '', odometerReading: '', engineNo: '', plateNo: '', fuel: '',
+    accessories: CHATTEL_ACCESSORIES_LABELS.map((label) => ({
+      id: crypto.randomUUID(), label, checked: false, comments: '',
+    })),
+    powerFeatures: CHATTEL_POWER_FEATURES_LABELS.map((label) => ({
+      id: crypto.randomUUID(), label, checked: false, comments: '',
+    })),
+    generalCondition: CHATTEL_GENERAL_CONDITION_LABELS.map((label) => ({
+      id: crypto.randomUUID(), label, rating: '' as const, comments: '',
+    })),
+    instrumentPanelLighting: CHATTEL_INSTRUMENT_PANEL_LABELS.map((label) => ({
+      id: crypto.randomUUID(), label, rating: '' as const,
+    })),
+    marketSurvey: [createAppraisalMarketSurveyEntry(), createAppraisalMarketSurveyEntry(), createAppraisalMarketSurveyEntry()],
+    appraisedValue: '', loanablePercent: '', appraisedValueRoundOff: '',
+    loanableAmount: '', encumbrancesRemarks: '',
+    fileAttachments: [], uploadedAt: null,
+  };
+}
 
 function createBasisOfValuationComparable(): BasisOfValuationComparable {
   return {
@@ -1327,6 +1378,128 @@ export type AppraisalReport = {
   uploadedAt: string | null;
 };
 
+export type AppraisalChecklistItem = {
+  id: string;
+  label: string;
+  checked: boolean;
+  comments: string;
+};
+
+export type AppraisalConditionItem = {
+  id: string;
+  label: string;
+  rating: '' | 'good' | 'bad';
+  comments: string;
+};
+
+export type AppraisalFunctionItem = {
+  id: string;
+  label: string;
+  rating: '' | 'functioning' | 'not-functioning';
+};
+
+export type AppraisalMarketSurveyEntry = {
+  id: string;
+  source: string;
+  date: string;
+  type: string;
+  generalCondition: string;
+  sellingPrice: string;
+};
+
+export type AppraisalChattelReport = {
+  accountName: string;
+  requestedBy: string;
+  purposeOfReport: string;
+  reportDate: string;
+  eqptUnderApp: string;
+  dateInspected: string;
+  registeredOwner: string;
+  address: string;
+
+  make: string;
+  mvfNo: string;
+  series: string;
+  crNo: string;
+  typeOfBodyDenomination: string;
+  registrationDate: string;
+  yearModel: string;
+  placeRegistered: string;
+  color: string;
+  chassisNumber: string;
+  odometerReading: string;
+  engineNo: string;
+  plateNo: string;
+  fuel: string;
+
+  accessories: AppraisalChecklistItem[];
+  powerFeatures: AppraisalChecklistItem[];
+  generalCondition: AppraisalConditionItem[];
+  instrumentPanelLighting: AppraisalFunctionItem[];
+
+  marketSurvey: AppraisalMarketSurveyEntry[];
+
+  appraisedValue: string;
+  loanablePercent: string;
+  appraisedValueRoundOff: string;
+  loanableAmount: string;
+
+  encumbrancesRemarks: string;
+
+  fileAttachments: CollateralPhoto[];
+  uploadedAt: string | null;
+};
+
+export type AppraisalMachineryEntry = {
+  id: string;
+  units: string;
+  description: string;
+  serialNo: string;
+  acquisitionPricePhp: string;
+  dateOfProformaInvoice: string;
+  appraisedValueLessDepreciation: string;
+};
+
+export function createAppraisalMachineryEntry(): AppraisalMachineryEntry {
+  return {
+    id: crypto.randomUUID(), units: '', description: '', serialNo: '',
+    acquisitionPricePhp: '', dateOfProformaInvoice: '',
+    appraisedValueLessDepreciation: '',
+  };
+}
+
+export type AppraisalMachineriesReport = {
+  to: string;
+  thru: string;
+  from: string;
+  dateReport: string;
+  dateInspected: string;
+  subject: string;
+  descriptionOfEquipments: string;
+  machineries: AppraisalMachineryEntry[];
+  totalAppraisedValueRoundOff: string;
+  loanablePercent: string;
+  loanableAmount: string;
+  qualificationRemarks: string;
+  fileAttachments: CollateralPhoto[];
+  uploadedAt: string | null;
+};
+
+export function createAppraisalMachineriesReport(): AppraisalMachineriesReport {
+  return {
+    to: 'Credit Committee',
+    thru: '',
+    from: 'Credit and Collection Department',
+    dateReport: '', dateInspected: '', subject: '',
+    descriptionOfEquipments: '',
+    machineries: [createAppraisalMachineryEntry(), createAppraisalMachineryEntry(), createAppraisalMachineryEntry()],
+    totalAppraisedValueRoundOff: '',
+    loanablePercent: '', loanableAmount: '',
+    qualificationRemarks: '',
+    fileAttachments: [], uploadedAt: null,
+  };
+}
+
 // One "Appraisal Report" the officer creates by selecting one or more
 // pledged properties (AppraisalTctGroup) from the TCT table and assigning
 // a single appraiser to that selection — tctGroupIds.length === 1 is a
@@ -1370,7 +1543,9 @@ export type AppraisalReportBundle = {
   // createEmptyPaymentDetails below. Moved down from Appraisal for the
   // same reason as the fee-approval fields above.
   feePayment: PaymentDetails;
-  report: AppraisalReport;
+  realEstateReport: AppraisalReport;
+  chattelReport: AppraisalChattelReport;
+  machineriesReport: AppraisalMachineriesReport;
 };
 
 // Sample roster for the "Assign to" picker in the Assign Appraiser modal —
@@ -1935,6 +2110,58 @@ type AdminContextValue = AdminState & {
     data: Partial<Omit<BasisOfValuationComparable, 'id'>>
   ) => void;
   removeAppraisalBundleComparable: (bundleId: string, comparableId: string) => void;
+  // Partial<AppraisalChattelReport> in full (not Omit-restricted) — mirrors
+  // setAppraisalBundleReport's own precedent for AppraisalReport, since the
+  // "Fill with Sample Data" flow (sample-appraisal-report.ts) needs to
+  // bulk-replace the checklist/market-survey arrays in one call, the same
+  // way buildSampleAppraisalReport bulk-replaces landTitles/improvements.
+  // The editable per-item UI still goes through the dedicated
+  // setAppraisalChecklistItem/setAppraisalConditionItem/
+  // setAppraisalFunctionItem/*MarketSurveyEntry mutators below, which this
+  // wider type does not change.
+  setAppraisalBundleChattelReport: (
+    bundleId: string,
+    data: Partial<AppraisalChattelReport>
+  ) => void;
+  setAppraisalChecklistItem: (
+    bundleId: string,
+    listKey: 'accessories' | 'powerFeatures',
+    itemId: string,
+    data: Partial<Pick<AppraisalChecklistItem, 'checked' | 'comments'>>
+  ) => void;
+  setAppraisalConditionItem: (
+    bundleId: string,
+    itemId: string,
+    data: Partial<Pick<AppraisalConditionItem, 'rating' | 'comments'>>
+  ) => void;
+  setAppraisalFunctionItem: (
+    bundleId: string,
+    itemId: string,
+    data: Partial<Pick<AppraisalFunctionItem, 'rating'>>
+  ) => void;
+  addAppraisalMarketSurveyEntry: (bundleId: string) => void;
+  updateAppraisalMarketSurveyEntry: (
+    bundleId: string,
+    entryId: string,
+    data: Partial<Omit<AppraisalMarketSurveyEntry, 'id'>>
+  ) => void;
+  removeAppraisalMarketSurveyEntry: (bundleId: string, entryId: string) => void;
+  // Partial<AppraisalMachineriesReport> in full — same reasoning as
+  // setAppraisalBundleChattelReport above (sample-fill needs to
+  // bulk-replace `machineries`); per-item edits still go through
+  // addAppraisalMachineryEntry/updateAppraisalMachineryEntry/
+  // removeAppraisalMachineryEntry.
+  setAppraisalBundleMachineriesReport: (
+    bundleId: string,
+    data: Partial<AppraisalMachineriesReport>
+  ) => void;
+  addAppraisalMachineryEntry: (bundleId: string) => void;
+  updateAppraisalMachineryEntry: (
+    bundleId: string,
+    entryId: string,
+    data: Partial<Omit<AppraisalMachineryEntry, 'id'>>
+  ) => void;
+  removeAppraisalMachineryEntry: (bundleId: string, entryId: string) => void;
   deleteAppraisalReportBundle: (bundleId: string) => void;
   clearAllAppraisalBundleReports: () => void;
   // Per-bundle fee-approval actions — each bundle (appraiser assignment)
@@ -2681,18 +2908,22 @@ function createBlankAppraisalReport(tctGroupIds: string[]): AppraisalReport {
     utilityWater: '',
     utilityGasOthers: '',
 
-    improvements: [],
+    // Seeds 3 blank rows up front in every "+ Add"-driven repeatable list
+    // below — an appraiser almost always needs at least this many, so
+    // starting empty just made them click "+ Add" 3 times before they
+    // could begin (matches lotPlotLines' own seeding above).
+    improvements: [createAppraisalImprovementEntry(), createAppraisalImprovementEntry(), createAppraisalImprovementEntry()],
 
     generalConstructionFeatures: '',
-    particularDescriptions: [],
+    particularDescriptions: [createAppraisalParticularEntry(), createAppraisalParticularEntry(), createAppraisalParticularEntry()],
 
-    basisOfValuationComparables: [],
+    basisOfValuationComparables: [createBasisOfValuationComparable(), createBasisOfValuationComparable(), createBasisOfValuationComparable()],
     fairMarketValuePerSqm: '',
     fairMarketValueTotal: '',
     valuationRemarks: '',
 
     remarksAdditionalInfo: '',
-    conditionsForAcceptance: [],
+    conditionsForAcceptance: [createAppraisalConditionEntry(), createAppraisalConditionEntry(), createAppraisalConditionEntry()],
 
     appraisedValue: '',
     roundedFigures: '',
@@ -2706,6 +2937,29 @@ function createBlankAppraisalReport(tctGroupIds: string[]): AppraisalReport {
     fileUrl: null,
     uploadedAt: null,
   };
+}
+
+export function getBundleUploadedAt(bundle: AppraisalReportBundle): string | null {
+  return (
+    bundle.realEstateReport.uploadedAt ??
+    bundle.chattelReport.uploadedAt ??
+    bundle.machineriesReport.uploadedAt ??
+    null
+  );
+}
+
+// Which collateral kind a bundle is — every bundle holds one kind only (the
+// TCT table restricts selection to a single kind), so the first member
+// group's collateralType decides which of the bundle's 3 report fields is
+// the active one. Defaults to 'real-estate' for an empty/unmatched bundle.
+export function getBundleCollateralType(
+  bundle: AppraisalReportBundle,
+  appraisalGroups: AppraisalTctGroup[]
+): AppraisalCollateralType {
+  return (
+    appraisalGroups.filter((group) => bundle.tctGroupIds.includes(group.id))[0]?.collateralType ??
+    'real-estate'
+  );
 }
 
 function createAppraisalReportBundle(
@@ -2730,7 +2984,9 @@ function createAppraisalReportBundle(
     feeSubmittedAt: null,
     feeApprovedAt: null,
     feePayment: createEmptyPaymentDetails(),
-    report: createBlankAppraisalReport(tctGroupIds),
+    realEstateReport: createBlankAppraisalReport(tctGroupIds),
+    chattelReport: createAppraisalChattelReport(),
+    machineriesReport: createAppraisalMachineriesReport(),
   };
 }
 
@@ -3256,17 +3512,21 @@ function readStoredState(): AdminState {
         appraisal: {
           ...initialState.review.appraisal,
           ...storedReview.appraisal,
-          reportBundles: (storedReview.appraisal?.reportBundles ?? []).map((bundle: Partial<AppraisalReportBundle>) => {
+          reportBundles: (storedReview.appraisal?.reportBundles ?? []).map((bundle: any) => {
             const tctGroupIds = bundle.tctGroupIds ?? [];
+            // Old sessions stored the Real Estate report at `bundle.report`;
+            // migrate it to `realEstateReport`. New sessions already have
+            // `realEstateReport` directly.
+            const storedRealEstate = bundle.realEstateReport ?? bundle.report ?? {};
             // Stored sessions from before the full Appraisal Report form
             // existed have no landTitles array at all (or one missing
             // entries for groups added since) — top it up by tctGroupId
             // the same way requirementChecklist.appraisalGroups is topped
             // up above, rather than trusting the stored array wholesale.
-            const storedLandTitles = bundle.report?.landTitles ?? [];
-            const landTitles = tctGroupIds.map((tctGroupId) => ({
+            const storedLandTitles = storedRealEstate.landTitles ?? [];
+            const landTitles = tctGroupIds.map((tctGroupId: string) => ({
               ...createAppraisalReportLandTitle(tctGroupId),
-              ...storedLandTitles.find((title) => title.tctGroupId === tctGroupId),
+              ...storedLandTitles.find((title: any) => title.tctGroupId === tctGroupId),
             }));
             return {
               id: bundle.id,
@@ -3278,7 +3538,12 @@ function readStoredState(): AdminState {
               feeAmount: bundle.feeAmount ?? '',
               feeDescription: bundle.feeDescription ?? '',
               feeRemarks: bundle.feeRemarks ?? '',
-              report: {
+              feeApprovalStatus: bundle.feeApprovalStatus ?? 'not-submitted',
+              feeDeclineReason: bundle.feeDeclineReason ?? '',
+              feeSubmittedAt: bundle.feeSubmittedAt ?? null,
+              feeApprovedAt: bundle.feeApprovedAt ?? null,
+              feePayment: bundle.feePayment ?? createEmptyPaymentDetails(),
+              realEstateReport: {
                 dateReport: '',
                 dateInspected: '',
                 requestingOfficer: '',
@@ -3296,50 +3561,33 @@ function readStoredState(): AdminState {
                 topography: '',
                 neighborhood: '',
                 presentUse: '',
-                highestAndBestUse: '',
                 utilityPublicConveyance: '',
                 utilityElectricity: '',
                 utilityWater: '',
                 utilityGasOthers: '',
-                improvements: [],
+                improvements: [createAppraisalImprovementEntry(), createAppraisalImprovementEntry(), createAppraisalImprovementEntry()],
                 generalConstructionFeatures: '',
-                particularDescriptions: [],
-                basisOfValuationComparables: [],
+                particularDescriptions: [createAppraisalParticularEntry(), createAppraisalParticularEntry(), createAppraisalParticularEntry()],
+                basisOfValuationComparables: [createBasisOfValuationComparable(), createBasisOfValuationComparable(), createBasisOfValuationComparable()],
                 fairMarketValuePerSqm: '',
                 fairMarketValueTotal: '',
                 valuationRemarks: '',
                 remarksAdditionalInfo: '',
-                conditionsForAcceptance: [],
+                conditionsForAcceptance: [createAppraisalConditionEntry(), createAppraisalConditionEntry(), createAppraisalConditionEntry()],
                 appraisedValue: '',
                 roundedFigures: '',
                 amountInWords: '',
-                loanableAmount: '',
                 leasablePercent: '',
                 leasableAmount: '',
-                preparedBy: '',
-                preparedAt: null,
-                reviewedBy: '',
-                reviewedAt: null,
-                endorsedBy: '',
-                endorsedAt: null,
-                notedBy: '',
-                notedAt: null,
-                propertyDetails: '',
-                remarks: '',
-                recommendation: '',
-                subdivisionPlanFileName: null,
-                subdivisionPlanFileUrl: null,
-                subdivisionPlanUploadedAt: null,
-                taxMapFileName: null,
-                taxMapFileUrl: null,
-                taxMapUploadedAt: null,
                 feeAttachments: [],
                 fileName: null,
                 fileUrl: null,
                 uploadedAt: null,
-                ...bundle.report,
+                ...storedRealEstate,
                 landTitles,
               },
+              chattelReport: { ...createAppraisalChattelReport(), ...bundle.chattelReport },
+              machineriesReport: { ...createAppraisalMachineriesReport(), ...bundle.machineriesReport },
             };
           }),
         },
@@ -4166,15 +4414,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             ...prev.review,
             appraisal: {
               ...prev.review.appraisal,
-              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
-                bundle.id !== bundleId
-                  ? bundle
-                  : {
-                      ...bundle,
-                      appraiserType,
-                      report: createAppraisalReportBundle(bundle.tctGroupIds, appraiserType, null, null).report,
-                    }
-              ),
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) => {
+                if (bundle.id !== bundleId) return bundle;
+                const blank = createAppraisalReportBundle(bundle.tctGroupIds, appraiserType, null, null);
+                return {
+                  ...bundle,
+                  appraiserType,
+                  realEstateReport: blank.realEstateReport,
+                  chattelReport: blank.chattelReport,
+                  machineriesReport: blank.machineriesReport,
+                };
+              }),
             },
           },
         })),
@@ -4288,7 +4538,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
                 bundle.id !== bundleId
                   ? bundle
-                  : { ...bundle, report: createBlankAppraisalReport(bundle.tctGroupIds) }
+                  : { ...bundle, realEstateReport: createBlankAppraisalReport(bundle.tctGroupIds) }
               ),
             },
           },
@@ -4354,7 +4604,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             appraisal: {
               ...prev.review.appraisal,
               reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
-                bundle.id !== bundleId ? bundle : { ...bundle, report: { ...bundle.report, ...data } }
+                bundle.id !== bundleId
+                  ? bundle
+                  : { ...bundle, realEstateReport: { ...bundle.realEstateReport, ...data } }
               ),
             },
           },
@@ -4371,9 +4623,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                   ? bundle
                   : {
                       ...bundle,
-                      report: {
-                        ...bundle.report,
-                        landTitles: bundle.report.landTitles.map((title) =>
+                      realEstateReport: {
+                        ...bundle.realEstateReport,
+                        landTitles: bundle.realEstateReport.landTitles.map((title) =>
                           title.tctGroupId !== tctGroupId ? title : { ...title, ...data }
                         ),
                       },
@@ -4394,10 +4646,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                   ? bundle
                   : {
                       ...bundle,
-                      report: {
-                        ...bundle.report,
+                      realEstateReport: {
+                        ...bundle.realEstateReport,
                         basisOfValuationComparables: [
-                          ...bundle.report.basisOfValuationComparables,
+                          ...bundle.realEstateReport.basisOfValuationComparables,
                           createBasisOfValuationComparable(),
                         ],
                       },
@@ -4418,10 +4670,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                   ? bundle
                   : {
                       ...bundle,
-                      report: {
-                        ...bundle.report,
-                        basisOfValuationComparables: bundle.report.basisOfValuationComparables.map((comparable) =>
-                          comparable.id !== comparableId ? comparable : { ...comparable, ...data }
+                      realEstateReport: {
+                        ...bundle.realEstateReport,
+                        basisOfValuationComparables: bundle.realEstateReport.basisOfValuationComparables.map(
+                          (comparable) => (comparable.id !== comparableId ? comparable : { ...comparable, ...data })
                         ),
                       },
                     }
@@ -4441,10 +4693,249 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                   ? bundle
                   : {
                       ...bundle,
-                      report: {
-                        ...bundle.report,
-                        basisOfValuationComparables: bundle.report.basisOfValuationComparables.filter(
+                      realEstateReport: {
+                        ...bundle.realEstateReport,
+                        basisOfValuationComparables: bundle.realEstateReport.basisOfValuationComparables.filter(
                           (comparable) => comparable.id !== comparableId
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      setAppraisalBundleChattelReport: (bundleId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : { ...bundle, chattelReport: { ...bundle.chattelReport, ...data } }
+              ),
+            },
+          },
+        })),
+      setAppraisalChecklistItem: (bundleId, listKey, itemId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        [listKey]: bundle.chattelReport[listKey].map((item) =>
+                          item.id !== itemId ? item : { ...item, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      setAppraisalConditionItem: (bundleId, itemId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        generalCondition: bundle.chattelReport.generalCondition.map((item) =>
+                          item.id !== itemId ? item : { ...item, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      setAppraisalFunctionItem: (bundleId, itemId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        instrumentPanelLighting: bundle.chattelReport.instrumentPanelLighting.map((item) =>
+                          item.id !== itemId ? item : { ...item, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      addAppraisalMarketSurveyEntry: (bundleId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        marketSurvey: [
+                          ...bundle.chattelReport.marketSurvey,
+                          createAppraisalMarketSurveyEntry(),
+                        ],
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      updateAppraisalMarketSurveyEntry: (bundleId, entryId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        marketSurvey: bundle.chattelReport.marketSurvey.map((entry) =>
+                          entry.id !== entryId ? entry : { ...entry, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      removeAppraisalMarketSurveyEntry: (bundleId, entryId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        marketSurvey: bundle.chattelReport.marketSurvey.filter(
+                          (entry) => entry.id !== entryId
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      setAppraisalBundleMachineriesReport: (bundleId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : { ...bundle, machineriesReport: { ...bundle.machineriesReport, ...data } }
+              ),
+            },
+          },
+        })),
+      addAppraisalMachineryEntry: (bundleId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      machineriesReport: {
+                        ...bundle.machineriesReport,
+                        machineries: [
+                          ...bundle.machineriesReport.machineries,
+                          createAppraisalMachineryEntry(),
+                        ],
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      updateAppraisalMachineryEntry: (bundleId, entryId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      machineriesReport: {
+                        ...bundle.machineriesReport,
+                        machineries: bundle.machineriesReport.machineries.map((entry) =>
+                          entry.id !== entryId ? entry : { ...entry, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      removeAppraisalMachineryEntry: (bundleId, entryId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      machineriesReport: {
+                        ...bundle.machineriesReport,
+                        machineries: bundle.machineriesReport.machineries.filter(
+                          (entry) => entry.id !== entryId
                         ),
                       },
                     }
@@ -4478,7 +4969,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
               ...prev.review.appraisal,
               reportBundles: prev.review.appraisal.reportBundles.map((bundle) => ({
                 ...bundle,
-                report: { ...bundle.report, uploadedAt: null, fileName: null, fileUrl: null },
+                realEstateReport: {
+                  ...bundle.realEstateReport,
+                  uploadedAt: null,
+                  fileName: null,
+                  fileUrl: null,
+                },
+                chattelReport: { ...bundle.chattelReport, uploadedAt: null, fileAttachments: [] },
+                machineriesReport: { ...bundle.machineriesReport, uploadedAt: null, fileAttachments: [] },
               })),
             },
           },

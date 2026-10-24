@@ -18,7 +18,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -34,7 +34,11 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { AppraiserAssignmentCard, AppraisalReportSubmitCard } from './appraisal/appraiser-assignment-card';
-import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
+import {
+  buildSampleAppraisalReport,
+  buildSampleChattelReport,
+  buildSampleMachineriesReport,
+} from './appraisal/sample-appraisal-report';
 
 import type { AppraisalCollateralType } from 'src/auth/admin-context';
 
@@ -282,6 +286,7 @@ const FEE_STATUS_COPY: Record<'no-fee' | 'not-submitted' | 'pending-approval' | 
 const COLLATERAL_TYPE_LABEL: Record<AppraisalCollateralType, string> = {
   'real-estate': 'Real Estate',
   chattel: 'Chattel',
+  machineries: 'Machineries',
 };
 
 const APPRAISER_TYPE_LABEL: Record<'inhouse' | 'external', string> = {
@@ -371,6 +376,8 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
     setAppraisal,
     setAppraisalBundleFee,
     setAppraisalBundleReport,
+    setAppraisalBundleChattelReport,
+    setAppraisalBundleMachineriesReport,
     submitAppraisalBundleFeeForApproval,
     approveAppraisalBundleFee,
     declineAppraisalBundleFee,
@@ -491,15 +498,32 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
           color: '#1C2A6E',
           onClick: () => {
             const currentBundle = reportBundles.find((entry) => entry.id === bundleId);
-            if (!currentBundle || currentBundle.report.uploadedAt || !signUpData) return;
+            if (!currentBundle || getBundleUploadedAt(currentBundle) || !signUpData) return;
             const bundleTctNumbers = appraisalGroups
               .filter((group) => currentBundle.tctGroupIds.includes(group.id))
               .map((group) => group.tctNumber);
             const applicantName = `${signUpData.firstName} ${signUpData.lastName}`;
-            setAppraisalBundleReport(
-              currentBundle.id,
-              buildSampleAppraisalReport(currentBundle, bundleTctNumbers, applicantName, false)
-            );
+            // Exactly one kind's sample report per bundle. External appraisers
+            // upload a file on ANY kind (stored on realEstateReport — see
+            // appraiser-assignment-card.tsx's external dropzone), so they always
+            // get the Real Estate builder's sample-file shape.
+            const bundleCollateralType = getBundleCollateralType(currentBundle, appraisalGroups);
+            if (currentBundle.appraiserType === 'inhouse' && bundleCollateralType === 'chattel') {
+              setAppraisalBundleChattelReport(
+                currentBundle.id,
+                buildSampleChattelReport(currentBundle, bundleTctNumbers, applicantName, false)
+              );
+            } else if (currentBundle.appraiserType === 'inhouse' && bundleCollateralType === 'machineries') {
+              setAppraisalBundleMachineriesReport(
+                currentBundle.id,
+                buildSampleMachineriesReport(currentBundle, bundleTctNumbers, applicantName, false)
+              );
+            } else {
+              setAppraisalBundleReport(
+                currentBundle.id,
+                buildSampleAppraisalReport(currentBundle, bundleTctNumbers, applicantName, false)
+              );
+            }
           },
         },
       ],
@@ -616,7 +640,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
     0
   );
 
-  const status = bundle.report.uploadedAt
+  const status = getBundleUploadedAt(bundle)
     ? 'reported'
     : bundle.feeNeeded === 'no' || (bundle.feeApprovalStatus === 'approved' && feeSettled)
       ? 'for-report'

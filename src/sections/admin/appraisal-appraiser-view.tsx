@@ -24,7 +24,7 @@ import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin, APPRAISER_ROSTER } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -38,7 +38,11 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { SAMPLE_APPLICATION } from './sample-application';
-import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
+import {
+  buildSampleAppraisalReport,
+  buildSampleChattelReport,
+  buildSampleMachineriesReport,
+} from './appraisal/sample-appraisal-report';
 import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './appraisal/appraisal-bundle-status';
 
 // ----------------------------------------------------------------------
@@ -117,6 +121,8 @@ export function AppraisalAppraiserView() {
     setAppraisal,
     setAppraisalBundleFee,
     setAppraisalBundleReport,
+    setAppraisalBundleChattelReport,
+    setAppraisalBundleMachineriesReport,
     setCreditInvestigation,
     createAppraisalReportBundle,
     submitAppraisalBundleFeeForApproval,
@@ -360,15 +366,32 @@ export function AppraisalAppraiserView() {
           color: '#1C2A6E',
           onClick: () => {
             reportBundles
-              .filter((bundle) => !bundle.report.uploadedAt)
+              .filter((bundle) => !getBundleUploadedAt(bundle))
               .forEach((bundle) => {
                 const bundleTctNumbers = appraisalGroups
                   .filter((group) => bundle.tctGroupIds.includes(group.id))
                   .map((group) => group.tctNumber);
-                setAppraisalBundleReport(
-                  bundle.id,
-                  buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName, false)
-                );
+                // Exactly one kind's sample report per bundle. External appraisers
+                // upload a file on ANY kind (stored on realEstateReport — see
+                // appraiser-assignment-card.tsx's external dropzone), so they always
+                // get the Real Estate builder's sample-file shape.
+                const bundleCollateralType = getBundleCollateralType(bundle, appraisalGroups);
+                if (bundle.appraiserType === 'inhouse' && bundleCollateralType === 'chattel') {
+                  setAppraisalBundleChattelReport(
+                    bundle.id,
+                    buildSampleChattelReport(bundle, bundleTctNumbers, applicantName, false)
+                  );
+                } else if (bundle.appraiserType === 'inhouse' && bundleCollateralType === 'machineries') {
+                  setAppraisalBundleMachineriesReport(
+                    bundle.id,
+                    buildSampleMachineriesReport(bundle, bundleTctNumbers, applicantName, false)
+                  );
+                } else {
+                  setAppraisalBundleReport(
+                    bundle.id,
+                    buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName, false)
+                  );
+                }
               });
           },
         },

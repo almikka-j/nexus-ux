@@ -20,7 +20,7 @@ import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin, APPRAISER_ROSTER } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
@@ -31,7 +31,11 @@ import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { SAMPLE_APPLICATION } from './sample-application';
 import { buildSampleCallReportFields } from './call-report/sample-call-report';
-import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
+import {
+  buildSampleAppraisalReport,
+  buildSampleChattelReport,
+  buildSampleMachineriesReport,
+} from './appraisal/sample-appraisal-report';
 
 import type { CallReportApprovalStatus } from 'src/auth/admin-context';
 
@@ -81,6 +85,8 @@ export function ReportApprovalsView() {
     setAppraisal,
     createAppraisalReportBundle,
     setAppraisalBundleReport,
+    setAppraisalBundleChattelReport,
+    setAppraisalBundleMachineriesReport,
     submitAppraisalBundleFeeForApproval,
     approveAppraisalBundleFee,
   } = useAdmin();
@@ -134,7 +140,7 @@ export function ReportApprovalsView() {
   const hasBundleNeedingFeeApproval = reportBundles.some(
     (bundle) => bundle.feeNeeded === 'yes' && bundle.feeApprovalStatus !== 'approved'
   );
-  const hasBundleNeedingReport = reportBundles.some((bundle) => !bundle.report.uploadedAt);
+  const hasBundleNeedingReport = reportBundles.some((bundle) => !getBundleUploadedAt(bundle));
   useEffect(() => {
     if (!hydrated) return;
     if (!hasApplication) return;
@@ -176,16 +182,33 @@ export function ReportApprovalsView() {
       approveAppraisalBundleFee(bundleNeedingFeeApproval.id);
       return;
     }
-    const bundleNeedingReport = reportBundles.find((bundle) => !bundle.report.uploadedAt);
+    const bundleNeedingReport = reportBundles.find((bundle) => !getBundleUploadedAt(bundle));
     if (bundleNeedingReport && signUpData) {
       const bundleTctNumbers = appraisalGroups
         .filter((group) => bundleNeedingReport.tctGroupIds.includes(group.id))
         .map((group) => group.tctNumber);
       const applicantNameForReport = `${signUpData.firstName} ${signUpData.lastName}`;
-      setAppraisalBundleReport(
-        bundleNeedingReport.id,
-        buildSampleAppraisalReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
-      );
+      // Exactly one kind's sample report per bundle. External appraisers
+      // upload a file on ANY kind (stored on realEstateReport — see
+      // appraiser-assignment-card.tsx's external dropzone), so they always
+      // get the Real Estate builder's sample-file shape.
+      const bundleCollateralType = getBundleCollateralType(bundleNeedingReport, appraisalGroups);
+      if (bundleNeedingReport.appraiserType === 'inhouse' && bundleCollateralType === 'chattel') {
+        setAppraisalBundleChattelReport(
+          bundleNeedingReport.id,
+          buildSampleChattelReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
+        );
+      } else if (bundleNeedingReport.appraiserType === 'inhouse' && bundleCollateralType === 'machineries') {
+        setAppraisalBundleMachineriesReport(
+          bundleNeedingReport.id,
+          buildSampleMachineriesReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
+        );
+      } else {
+        setAppraisalBundleReport(
+          bundleNeedingReport.id,
+          buildSampleAppraisalReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
+        );
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, hasApplication, reportBundles.length, hasBundleNeedingFeeApproval, hasBundleNeedingReport]);
@@ -197,7 +220,7 @@ export function ReportApprovalsView() {
   const submittedOnLabel = callReportSubmittedAt ? new Date(callReportSubmittedAt).toLocaleDateString() : '—';
 
   const allGroupsAssigned = appraisalGroups.every((group) => group.reportId !== null);
-  const allBundlesSubmitted = reportBundles.every((bundle) => !!bundle.report.uploadedAt);
+  const allBundlesSubmitted = reportBundles.every((bundle) => !!getBundleUploadedAt(bundle));
   const reportSubmitted =
     appraisalNotApplicable || (allGroupsAssigned && reportBundles.length > 0 && allBundlesSubmitted);
   const showAppraisalRow = hasApplication && reportSubmitted && headApprovalStatus === 'pending';
