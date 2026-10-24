@@ -5,7 +5,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, getBundleUploadedAt } from 'src/auth/admin-context';
 
 import { paths } from 'src/routes/paths';
 
@@ -81,6 +81,11 @@ export function AssignedAppraiserCard() {
                   {bundle.targetCompletionDate && (
                     <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>
                       Target completion: {new Date(bundle.targetCompletionDate).toLocaleDateString()}
+                    </Typography>
+                  )}
+                  {isReported && getBundleUploadedAt(bundle) && (
+                    <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>
+                      Submitted on {new Date(getBundleUploadedAt(bundle)!).toLocaleString()}
                     </Typography>
                   )}
                 </Box>

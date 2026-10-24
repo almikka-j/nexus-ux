@@ -1266,6 +1266,7 @@ export function RequirementChecklistView() {
                             <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
                               {group.tctNumber}
                             </Typography>
+                            <StatusBadge tone="info" label={COLLATERAL_TYPE_LABEL[group.collateralType]} />
                             <StatusBadge
                               tone={groupComplete ? 'success' : 'warning'}
                               label={`${groupReceivedDocuments}/${group.documents.length} documents`}

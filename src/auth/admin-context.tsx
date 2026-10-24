@@ -3347,18 +3347,22 @@ function createInitialReview(): ApplicationReview {
     },
     requirementChecklist: {
       documents: createInitialRequirementDocuments(),
-      // Seeded with one starting property/TCT group (matching
+      // Seeded with starting property/TCT groups (matching
       // createInitialRequirementDocuments()'s pre-populated sample data
       // pattern) rather than starting empty — an empty appraisalGroups
       // array is a valid "no real estate collateral yet" state the officer
       // can still reach via "Remove Property", but a fresh session
-      // shouldn't start there.
+      // shouldn't start there. 3 Real Estate / 1 Chattel / 1 Machineries —
+      // same mix as buildSampleAppraisalGroups() in
+      // requirement-checklist-view.tsx — so a brand-new session (no
+      // localStorage yet) already has a bundle to test for every
+      // Appraisal Report kind, not Real Estate only.
       appraisalGroups: [
         createAppraisalGroup('TCT-2024-00981', 'real-estate', true),
         createAppraisalGroup('TCT-2024-00982', 'real-estate', true),
         createAppraisalGroup('TCT-2024-00983', 'real-estate', true),
-        createAppraisalGroup('TCT-2024-00984', 'real-estate', true),
-        createAppraisalGroup('TCT-2024-00985', 'real-estate', true),
+        createAppraisalGroup('TCT-2024-00984', 'chattel', true),
+        createAppraisalGroup('TCT-2024-00985', 'machineries', true),
       ],
       appraisalNotApplicable: false,
       collateralNotes: '',

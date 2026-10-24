@@ -1,30 +1,32 @@
 'use client';
 
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, getBundleCollateralType } from 'src/auth/admin-context';
 
 import { adminCardSx } from 'src/components/admin-ui';
 
-import { AppraiserAssignmentCard, AppraisalReportSubmitCard } from './appraiser-assignment-card';
+import { ResultPageHeader } from '../result-page-header';
+import { AppraisalReportView } from './appraisal-report-view';
+import { AppraisalReportPreview } from './appraisal-report-preview';
 
 // ----------------------------------------------------------------------
-// Read-only-by-locking Appraisal Report page for one bundle — opened in a
-// new tab (window.open) from "View Appraisal Report" buttons (e.g.
+// Read-only Appraisal Report page for one bundle — opened in a new tab
+// (window.open) from "View Appraisal Report" buttons (e.g.
 // AssignedAppraiserCard) instead of a Dialog, matching the
 // creditCheckingResult/callReportResult "result page in its own tab"
-// convention. Deliberately renders the SAME AppraiserAssignmentCard /
-// AppraisalReportSubmitCard pair the appraiser's own
-// /admin/appraisal-appraiser/[bundleId] page renders (not
-// AppraisalReportView's own "At a Glance" summary shell) — per explicit
-// user request: this page must show exactly what the appraiser's own
-// page shows, not a differently-formatted summary. Once a report is
-// actually submitted, AppraiserAssignmentCard's own `editable`/`locked`
-// logic (getBundleUploadedAt) already renders every field read-only, so
-// this page is naturally read-only without needing its own locking.
+// convention — including the same ResultPageHeader banner (Back button,
+// PG Finance branding, applicant name/App No.) those pages use.
+//
+// Per explicit user request, Real Estate bundles render the exact same
+// content as the "Preview Appraisal Report" button inside the appraiser's
+// own form (AppraisalReportPreview) — not AppraisalReportView's own
+// summary. AppraisalReportPreview only supports Real Estate's
+// AppraisalReport shape, so Chattel/Machineries bundles still fall back
+// to AppraisalReportView (which already covers all 3 kinds) until an
+// equivalent preview exists for those two kinds.
 // ----------------------------------------------------------------------
 
 export function AppraisalReportResultView({ bundleId }: { bundleId: string }) {
@@ -47,16 +49,28 @@ export function AppraisalReportResultView({ bundleId }: { bundleId: string }) {
     );
   }
 
-  const tctNumbers = appraisalGroups
-    .filter((group) => bundle.tctGroupIds.includes(group.id))
-    .map((group) => group.tctNumber);
+  const titleGroups = appraisalGroups.filter((group) => bundle.tctGroupIds.includes(group.id));
+  const tctNumbers = titleGroups.map((group) => group.tctNumber);
+  const realCollateralType = getBundleCollateralType(bundle, appraisalGroups);
 
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 }, maxWidth: '1040px !important' }}>
-      <Stack spacing={2.5}>
-        <AppraiserAssignmentCard bundleId={bundleId} tctNumbers={tctNumbers} />
-        <AppraisalReportSubmitCard bundleId={bundleId} />
-      </Stack>
+    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
+      <ResultPageHeader title="Appraisal Report" meta={`Covers ${tctNumbers.join(', ')}`} />
+      <Box
+        sx={{
+          ...adminCardSx,
+          p: { xs: 2.5, sm: 3.5, md: 4.5 },
+          borderRadius: '0 0 16px 16px',
+          borderTop: 'none',
+          mb: 4,
+        }}
+      >
+        {realCollateralType === 'real-estate' ? (
+          <AppraisalReportPreview report={bundle.realEstateReport} titleGroups={titleGroups} />
+        ) : (
+          <AppraisalReportView bundleId={bundleId} tctNumbers={tctNumbers} />
+        )}
+      </Box>
     </Container>
   );
 }
