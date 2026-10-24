@@ -8,10 +8,12 @@ import { useDropzone } from 'react-dropzone';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogContent from '@mui/material/DialogContent';
 
 import { paths } from 'src/routes/paths';
 
@@ -33,6 +35,12 @@ import { RequirementDocRow } from './requirement-doc-row';
 import { RequestDocumentsDrawer } from './request-documents-drawer';
 import { CiFeeCard } from './credit-investigation/ci-fee-card';
 import { CiReportCard } from './credit-investigation/ci-report-card';
+import { CiReportPreview } from './credit-investigation/ci-report-preview';
+import {
+  buildSampleCiReportFields,
+  SAMPLE_CI_TRANSCRIPT_FILE_NAME,
+  buildClearedSampleCiReportFields,
+} from './credit-investigation/sample-ci-report';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 import { buildCreditInvestigationSummary } from './credit-investigation-risk';
 import { buildTranscriptAutoFill } from './credit-investigation-transcript';
@@ -126,7 +134,7 @@ function AddDocFileDropzone({ value, onChange }: { value: File | null; onChange:
 
 export function CreditInvestigationView() {
   const router = useRouter();
-  const { signUpData } = useRegistration();
+  const { signUpData, application } = useRegistration();
   const {
     review,
     adminUser,
@@ -145,6 +153,7 @@ export function CreditInvestigationView() {
   const [disapproveReason, setDisapproveReason] = useState('');
   const [declineCiFeeOpen, setDeclineCiFeeOpen] = useState(false);
   const [declineCiFeeReason, setDeclineCiFeeReason] = useState('');
+  const [ciReportPreviewOpen, setCiReportPreviewOpen] = useState(false);
   const { documents: customDocuments, ciFeeStatus } = review.creditInvestigation;
 
   // Document Checklist and the AI review card start collapsed whenever the
@@ -249,7 +258,7 @@ export function CreditInvestigationView() {
   // the literal transcriptFileName value that only handleFillSampleData
   // itself ever sets — a real transcript upload elsewhere never produces
   // this exact filename.
-  const isSampleFilled = review.creditInvestigation.report.transcriptFileName === 'sample-transcript.pdf';
+  const isSampleFilled = review.creditInvestigation.report.transcriptFileName === SAMPLE_CI_TRANSCRIPT_FILE_NAME;
 
   const handleFillSampleData = () => {
     setCreditInvestigation({
@@ -261,27 +270,51 @@ export function CreditInvestigationView() {
       ciFeeApprovedAt: new Date().toISOString(),
     });
 
-    const autoFill = buildTranscriptAutoFill(
-      [signUpData?.email ?? '', 'sample-transcript.pdf'],
-      applicantName
+    setCiReport(
+      buildSampleCiReportFields({
+        email: signUpData?.email ?? '',
+        applicantName,
+        personalInfo: application.personalInfo,
+        financialInfo: application.financialInfo,
+      })
     );
-    setCiReport({
-      visitDate: new Date().toISOString().slice(0, 10),
-      subjectAsOf: autoFill.findingsNarrativeHtml,
-      residenceAddressType: autoFill.residenceAddressType,
-      residenceLengthOfStay: autoFill.residenceLengthOfStay,
-      employmentType: autoFill.employmentType,
-      employerName: 'Sample Employer Corp.',
-      position: 'Staff Supervisor',
-      salary: '35000',
-      lengthOfService: autoFill.lengthOfService,
-      negativeRecordFinding: autoFill.negativeRecordFinding,
-      recommendation: 'proceed-as-requested',
-      recommendationNotes: 'Sample data: site visit findings support proceeding with the application as requested.',
-      transcriptFileName: 'sample-transcript.pdf',
-      transcriptUploadedAt: new Date().toISOString(),
-    });
   };
+
+  // Auto-fill on open: populates ONLY the CI Report's field data (the
+  // setCiReport half of handleFillSampleData) once per mount, when the report
+  // is still blank. It deliberately never calls setCreditInvestigation — the
+  // CI Fee request/approval is an officer decision and must still be made
+  // via the CI Fee card or the "Simulate" actions, never by opening the
+  // page. Blank check: not already sample-filled (same signal as
+  // isSampleFilled) AND no transcript or hand-entered report fields yet, so
+  // genuine officer work is never overwritten.
+  const didAutoFillRef = useRef(false);
+  useEffect(() => {
+    if (didAutoFillRef.current || !signUpData) return;
+    didAutoFillRef.current = true;
+    const report = review.creditInvestigation.report;
+    const alreadyFilled =
+      report.transcriptFileName === SAMPLE_CI_TRANSCRIPT_FILE_NAME ||
+      !!report.transcriptFileName ||
+      !!report.visitDate ||
+      !!report.subjectAsOf ||
+      !!report.employerName ||
+      !!report.position ||
+      !!report.salary ||
+      !!report.recommendation ||
+      !!report.recommendationNotes;
+    if (alreadyFilled) return;
+
+    setCiReport(
+      buildSampleCiReportFields({
+        email: signUpData.email,
+        applicantName,
+        personalInfo: application.personalInfo,
+        financialInfo: application.financialInfo,
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signUpData?.email]);
 
   const handleClearSampleData = () => {
     setCreditInvestigation({
@@ -294,33 +327,12 @@ export function CreditInvestigationView() {
       ciFeePayment: createEmptyPaymentDetails(),
     });
 
-    setCiReport({
-      visitDate: '',
-      subjectAsOf: '',
-      residenceAddressType: '',
-      residenceLengthOfStay: '',
-      employmentType: '',
-      employerName: '',
-      position: '',
-      salary: '',
-      lengthOfService: '',
-      negativeRecordFinding: '',
-      recommendation: '',
-      recommendationNotes: '',
-      transcriptFileName: null,
-      transcriptUploadedAt: null,
-    });
+    setCiReport(buildClearedSampleCiReportFields());
   };
 
   useRegisterPageActions(
     useMemo(
       () => [
-        {
-          key: 'sample-data',
-          label: isSampleFilled ? 'Remove Sample Data' : 'Fill with Sample Data',
-          icon: 'solar:magic-stick-3-bold-duotone',
-          onClick: isSampleFilled ? handleClearSampleData : handleFillSampleData,
-        },
         // The officer who requests the CI Fee can't also approve/decline it —
         // there's no real second-officer login in this prototype, so both
         // outcomes are simulated here as explicit "as another officer" dev
@@ -361,6 +373,14 @@ export function CreditInvestigationView() {
   );
 
   if (!signUpData) return null;
+
+  const ciReport = review.creditInvestigation.report;
+  const ciReportUnlocked = ciFeeStatus === 'approved' || ciFeeStatus === 'not-applicable';
+  // Same derivation CiReportCard uses for its own "AI Summary" box, so the
+  // preview shows the identical text.
+  const ciReportAiSummary = ciReport.transcriptFileName
+    ? buildTranscriptAutoFill([signUpData.email, ciReport.transcriptFileName], applicantName).aiSummary
+    : null;
 
   const handleProceed = () => {
     setCreditInvestigation({ decision: 'approved' });
@@ -590,8 +610,42 @@ export function CreditInvestigationView() {
 
         <CiFeeCard />
 
-        {ciFeeStatus === 'approved' || ciFeeStatus === 'not-applicable' ? (
-          <CiReportCard />
+        {ciReportUnlocked ? (
+          <>
+            <CiReportCard />
+
+            {/* Read-only "Preview Report" footer — same text + outlined-navy
+                button row as Appraisal's "Preview Appraisal Report" and
+                Initial Credit Checking's result footer, as its own card
+                directly under the CI Report it previews. Dialog (not
+                inline expand) since the report is long and multi-section. */}
+            <Box sx={adminCardSx}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                alignItems={{ xs: 'stretch', sm: 'center' }}
+                justifyContent="space-between"
+                spacing={1.5}
+              >
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
+                  <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
+                    {ciReport.type
+                      ? 'View the full formatted report generated from everything above.'
+                      : 'Select a report type in the CI Report above to preview the full formatted report.'}
+                  </Typography>
+                </Stack>
+                <Button
+                  onClick={() => setCiReportPreviewOpen(true)}
+                  disabled={!ciReport.type}
+                  variant="outlined"
+                  startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+                  sx={{ ...outlinedNavyButtonSx, px: 2, flexShrink: 0 }}
+                >
+                  Preview Report
+                </Button>
+              </Stack>
+            </Box>
+          </>
         ) : (
           <Box sx={{ ...adminCardSx, bgcolor: '#F9FAFC', border: '1px dashed #E1E4ED', boxShadow: 'none', textAlign: 'center' }}>
             <Iconify icon="solar:lock-keyhole-bold-duotone" width={26} sx={{ color: '#C7CCDA', mb: 1 }} />
@@ -684,6 +738,63 @@ export function CreditInvestigationView() {
           </Button>
         }
       />
+
+      <Dialog open={ciReportPreviewOpen} onClose={() => setCiReportPreviewOpen(false)} fullWidth maxWidth="md">
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
+          <Box>
+            <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#14172A' }}>CI Report</Typography>
+            {ciReport.type && (
+              <Stack direction="row" spacing={0.75} sx={{ mt: 0.75 }}>
+                <Box
+                  sx={{
+                    px: 1.25,
+                    py: 0.4,
+                    borderRadius: '999px',
+                    border: '1px solid #E3E7F5',
+                    bgcolor: '#F7F8FE',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: '#1C2A6E',
+                  }}
+                >
+                  {ciReport.type === 'commercial' ? 'Commercial' : 'Consumer'}
+                </Box>
+                <Box
+                  sx={{
+                    px: 1.25,
+                    py: 0.4,
+                    borderRadius: '999px',
+                    border: '1px solid #E3E7F5',
+                    bgcolor: '#F7F8FE',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: '#1C2A6E',
+                  }}
+                >
+                  {applicantName}
+                </Box>
+              </Stack>
+            )}
+          </Box>
+          <IconButton
+            onClick={() => setCiReportPreviewOpen(false)}
+            aria-label="Close preview"
+            sx={{ border: '1px solid #E1E4ED', borderRadius: '10px' }}
+          >
+            <Iconify icon="solar:close-circle-bold" width={18} sx={{ color: '#8891A6' }} />
+          </IconButton>
+        </Box>
+        <DialogContent sx={{ px: 3, pb: 3 }}>
+          <CiReportPreview
+            report={ciReport}
+            applicantName={applicantName}
+            financialInfo={application.financialInfo}
+            loanType={application.loanType}
+            comakers={review.callReport.comakers}
+            aiSummary={ciReportAiSummary}
+          />
+        </DialogContent>
+      </Dialog>
 
       <RequestDocumentsDrawer
         open={requestDrawerOpen}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -98,6 +98,26 @@ export function CallReportView() {
       callReportApprovedBy: null,
     });
   };
+
+  // Auto-fill on open: if this step is still blank when the page loads,
+  // seed it with the same sample data the manual "Fill with Sample Data"
+  // button fills — so testers/officers don't have to click it themselves
+  // before exercising a later step. Fields only: callReportApprovalStatus
+  // is deliberately left/reset to 'not-submitted' here too (never
+  // 'pending-approval'), matching handleFillSampleData exactly — the
+  // officer still clicks "Submit for Approval" themselves. The manual
+  // button keeps working unchanged as a re-fill/reset option.
+  const didAutoFillRef = useRef(false);
+  useEffect(() => {
+    if (didAutoFillRef.current || !signUpData) return;
+    if (canProceed) {
+      didAutoFillRef.current = true;
+      return;
+    }
+    didAutoFillRef.current = true;
+    handleFillSampleData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signUpData?.email]);
 
   const handleClearSampleData = () => {
     setCallReport({

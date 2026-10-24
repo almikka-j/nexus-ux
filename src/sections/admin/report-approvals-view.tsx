@@ -82,13 +82,11 @@ export function ReportApprovalsView() {
   const {
     review,
     setCallReport,
-    setAppraisal,
     createAppraisalReportBundle,
     setAppraisalBundleReport,
     setAppraisalBundleChattelReport,
     setAppraisalBundleMachineriesReport,
     submitAppraisalBundleFeeForApproval,
-    approveAppraisalBundleFee,
   } = useAdmin();
   const { callReportApprovalStatus, callReportSubmittedAt } = review.callReport;
   const isCallReportEmpty =
@@ -96,11 +94,16 @@ export function ReportApprovalsView() {
     !review.callReport.identityStatus &&
     !review.callReport.callDisposition;
   const { appraisalGroups, appraisalNotApplicable } = review.requirementChecklist;
-  const { headApprovalStatus, reportBundles } = review.appraisal;
+  const { headApprovalStatus, reportBundles, paymentReceivedAt } = review.appraisal;
 
   const hasApplication = !!signUpData && !!application.personalInfo;
 
-  // Call Report's auto-seed rule, unchanged from call-report-approval-view.tsx.
+  // Call Report's auto-seed rule: FIELDS ONLY. Load the sample application
+  // once if there's no live application yet; then, if the Call Report is
+  // still empty and not submitted, fill its fields — but leave it
+  // 'not-submitted' (same convention as call-report-view.tsx's sample
+  // fill). Submitting for approval is the officer's own click on the Call
+  // Report page; this list never submits (or re-submits) on their behalf.
   const didSeedApplication = useRef(false);
   useEffect(() => {
     if (!hydrated) return;
@@ -110,35 +113,39 @@ export function ReportApprovalsView() {
       loadSample(SAMPLE_APPLICATION);
       return;
     }
-    if (callReportApprovalStatus === 'pending-approval') return;
+    if (callReportApprovalStatus !== 'not-submitted') return;
     // Never overwrite a declined-but-untouched report.
-    if (callReportApprovalStatus === 'not-submitted' && review.callReport.decisionReason) return;
-    if (isCallReportEmpty) {
-      setCallReport({
-        ...buildSampleCallReportFields({
-          firstName: signUpData?.firstName ?? '',
-          assignedOfficer: application.assignedOfficer,
-          desiredLoanAmount: application.financialInfo?.desiredLoanAmount,
-          loanTermMonths: application.financialInfo?.loanTermMonths,
-        }),
-        callReportApprovalStatus: 'pending-approval',
-        callReportSubmittedAt: new Date().toISOString(),
-      });
-    } else {
-      setCallReport({
-        callReportApprovalStatus: 'pending-approval',
-        callReportSubmittedAt: new Date().toISOString(),
-      });
-    }
+    if (review.callReport.decisionReason) return;
+    if (!isCallReportEmpty) return;
+    setCallReport({
+      ...buildSampleCallReportFields({
+        firstName: signUpData?.firstName ?? '',
+        assignedOfficer: application.assignedOfficer,
+        desiredLoanAmount: application.financialInfo?.desiredLoanAmount,
+        loanTermMonths: application.financialInfo?.loanTermMonths,
+      }),
+      callReportApprovalStatus: 'not-submitted',
+      callReportSubmittedAt: null,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, hasApplication, callReportApprovalStatus, isCallReportEmpty]);
 
-  // Appraisal Head Approval's auto-seed rule, unchanged from
-  // appraisal-approver-view.tsx: seed a bundle with its fee already
-  // settled, then fill in and submit its report — so this list always has
-  // a genuinely reviewable row on a fresh session.
-  const hasBundleNeedingFeeApproval = reportBundles.some(
-    (bundle) => bundle.feeNeeded === 'yes' && bundle.feeApprovalStatus !== 'approved'
+  // Appraisal Head Approval's auto-seed rule: FIELDS ONLY. Seed one sample
+  // bundle with its fee proposal filled in, submit that fee for approval
+  // (a request, not a decision — Approve/Decline stays a real click on the
+  // Appraisal Fee Approval page), and fill a sample report only once the
+  // bundle's fee is genuinely settled (approved by a real click AND the
+  // client-advisory payment marked received by a real click) or no fee is
+  // needed. Never approves a fee, never re-submits a declined fee, and
+  // never fakes the client-advisory / payment timestamps.
+  const hasBundleNeedingFeeSubmit = reportBundles.some(
+    (bundle) => bundle.feeNeeded === 'yes' && bundle.feeApprovalStatus === 'not-submitted'
+  );
+  const isPaymentReceived = !!paymentReceivedAt;
+  const hasBundleSettledForReport = reportBundles.some(
+    (bundle) =>
+      !getBundleUploadedAt(bundle) &&
+      (bundle.feeNeeded !== 'yes' || (bundle.feeApprovalStatus === 'approved' && isPaymentReceived))
   );
   const hasBundleNeedingReport = reportBundles.some((bundle) => !getBundleUploadedAt(bundle));
   useEffect(() => {
@@ -158,31 +165,27 @@ export function ReportApprovalsView() {
           null,
           { feeNeeded: 'yes', feeAmount: '5000', feeDescription: 'Site visit + valuation fee', feeRemarks: '' }
         );
-        const now = new Date().toISOString();
-        setAppraisal({
-          clientNotifiedAt: now,
-          sentToOdooAt: now,
-          paymentReceivedAt: now,
-        });
       }
       return;
     }
     // The bundle now exists (created on the previous render's branch
-    // above) but its own fee approval hasn't settled yet — submit then
-    // approve it directly, same "skip the request/approve steps since
-    // nothing on this page needs them mid-flight" reasoning the old
-    // batch-level seed used, just scoped to this one bundle now.
-    const bundleNeedingFeeApproval = reportBundles.find(
-      (bundle) => bundle.feeNeeded === 'yes' && bundle.feeApprovalStatus !== 'approved'
+    // above). Submit its fee for approval if it hasn't been submitted yet —
+    // only 'not-submitted', so a 'declined' fee (a real decision) is never
+    // silently re-submitted. Approval itself is left to a real click.
+    const bundleNeedingFeeSubmit = reportBundles.find(
+      (bundle) => bundle.feeNeeded === 'yes' && bundle.feeApprovalStatus === 'not-submitted'
     );
-    if (bundleNeedingFeeApproval) {
-      if (bundleNeedingFeeApproval.feeApprovalStatus !== 'pending-approval') {
-        submitAppraisalBundleFeeForApproval(bundleNeedingFeeApproval.id);
-      }
-      approveAppraisalBundleFee(bundleNeedingFeeApproval.id);
+    if (bundleNeedingFeeSubmit) {
+      submitAppraisalBundleFeeForApproval(bundleNeedingFeeSubmit.id);
       return;
     }
-    const bundleNeedingReport = reportBundles.find((bundle) => !getBundleUploadedAt(bundle));
+    // Only fill a sample report for a bundle whose fee is genuinely settled
+    // (same `feeSettled` gate the appraiser pages use) or that needs no fee.
+    const bundleNeedingReport = reportBundles.find(
+      (bundle) =>
+        !getBundleUploadedAt(bundle) &&
+        (bundle.feeNeeded !== 'yes' || (bundle.feeApprovalStatus === 'approved' && isPaymentReceived))
+    );
     if (bundleNeedingReport && signUpData) {
       const bundleTctNumbers = appraisalGroups
         .filter((group) => bundleNeedingReport.tctGroupIds.includes(group.id))
@@ -211,7 +214,7 @@ export function ReportApprovalsView() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, hasApplication, reportBundles.length, hasBundleNeedingFeeApproval, hasBundleNeedingReport]);
+  }, [hydrated, hasApplication, reportBundles.length, hasBundleNeedingFeeSubmit, hasBundleSettledForReport, hasBundleNeedingReport]);
 
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '';
   const appNo = signUpData ? getLoanNumber(signUpData.email) : '';
