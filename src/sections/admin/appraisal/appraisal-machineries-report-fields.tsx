@@ -18,6 +18,8 @@ import { SectionLabel, FieldGrid, outlinedNavyButtonSx } from 'src/components/ad
 import { RichTextField } from 'src/components/rich-text-field';
 import { fCurrency } from 'src/utils/format-number';
 
+import { parseNum } from 'src/sections/admin/financial-summary-calcs';
+
 import { MultiPhotoDropzone } from './appraiser-assignment-card';
 
 import type { AppraisalMachineriesReport, AppraisalMachineryEntry } from 'src/auth/admin-context';
@@ -66,7 +68,7 @@ const fieldSx = {
 // import and reuse this exact function rather than duplicating the sum
 // logic.
 export function computeTotalAppraisedValue(machineries: AppraisalMachineryEntry[]): number {
-  return machineries.reduce((sum, m) => sum + (Number(m.appraisedValueLessDepreciation) || 0), 0);
+  return machineries.reduce((sum, m) => sum + parseNum(m.appraisedValueLessDepreciation), 0);
 }
 
 /** The full field form for one machinery entry — rendered only while
@@ -457,12 +459,17 @@ export function MachineriesReportFields({
             !editable, wrap it so it's visually and functionally inert
             rather than modifying the shared component, which other
             callers outside this task also rely on. The stored value
-            still renders underneath; it just can't be edited. */}
-        <Box sx={!editable ? { pointerEvents: 'none', opacity: 0.7 } : undefined}>
+            still renders underneath; it just can't be edited. The wrapper
+            only blocks the pointer, so onChange is also a no-op while
+            locked — keyboard focus can't then mutate the stored report. */}
+        <Box
+          sx={!editable ? { pointerEvents: 'none', opacity: 0.7 } : undefined}
+          tabIndex={!editable ? -1 : undefined}
+        >
           <RichTextField
             label="II. Qualification & Remarks"
             value={report.qualificationRemarks}
-            onChange={(html) => patch({ qualificationRemarks: html })}
+            onChange={editable ? (html) => patch({ qualificationRemarks: html }) : () => {}}
             placeholder="Qualification and remarks regarding this collateral"
           />
         </Box>

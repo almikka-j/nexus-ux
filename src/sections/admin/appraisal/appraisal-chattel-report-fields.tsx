@@ -736,12 +736,17 @@ export function ChattelReportFields({
             !editable, wrap it so it's visually and functionally inert
             rather than modifying the shared component, which other
             callers outside this task also rely on. The stored value
-            still renders underneath; it just can't be edited. */}
-        <Box sx={!editable ? { pointerEvents: 'none', opacity: 0.7 } : undefined}>
+            still renders underneath; it just can't be edited. The wrapper
+            only blocks the pointer, so onChange is also a no-op while
+            locked — keyboard focus can't then mutate the stored report. */}
+        <Box
+          sx={!editable ? { pointerEvents: 'none', opacity: 0.7 } : undefined}
+          tabIndex={!editable ? -1 : undefined}
+        >
           <RichTextField
             label="Encumbrances / Remarks"
             value={report.encumbrancesRemarks}
-            onChange={(html) => patch({ encumbrancesRemarks: html })}
+            onChange={editable ? (html) => patch({ encumbrancesRemarks: html }) : () => {}}
             placeholder="Encumbrances or remarks regarding this collateral"
           />
         </Box>
