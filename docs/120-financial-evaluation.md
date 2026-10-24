@@ -6,9 +6,10 @@
 > `bank-statement-modal.tsx`, `financial-summary-card.tsx`,
 > `financial-summary-calcs.ts`, `financial-statement-modal.tsx`,
 > `financial-statement-report.tsx`, `bank-loans-modal.tsx`,
-> `bank-loan-report.tsx`, `financial-highlights-modal.tsx`,
-> `financial-highlights-report.tsx`, or
-> `additional-financial-files-card.tsx` change. Companion to `docs/230-project-overview.md`,
+> `bank-loan-report.tsx`, `financial-highlights-modal.tsx`, or
+> `financial-highlights-report.tsx` change. (`additional-financial-files-card.tsx`
+> still exists on disk but is no longer rendered on this page as of
+> 2026-10-21 — see History.) Companion to `docs/230-project-overview.md`,
 > `docs/090-account-solicitation-requirement-checklist.md` (the screen that actually collects
 > these documents), `docs/100-credit-investigation.md` (the sibling
 > process-stage detail page this one follows the same pattern as), and
@@ -80,10 +81,12 @@ this build. The page is:
    own section below.
 7. **Bank Statement card** (`bank-statement-card.tsx`) — see its own section
    below.
-8. **Additional Financial Files card** (`additional-financial-files-card.tsx`)
-   — see its own section below.
-9. **"Proceed application?" decision card** — same shape as Credit
+8. **"Proceed application?" decision card** — same shape as Credit
    Investigation's Proceed/Disapprove, see "Decision" below.
+
+(An **Additional Financial Files card** used to sit here, between Bank
+Statement and the decision card — removed from the page 2026-10-21; see
+"Additional Financial Files (removed)" below and the History entry.)
 
 ## Financial Summary
 
@@ -132,55 +135,76 @@ fields: `productLine`, `amd`, rich-text HTML `remarks`, and nullable ISO
 defaults, and partial edits persist through `setFinancialStatementDetails()`.
 The sample-data action seeds these details; Remove Sample Data resets them.
 
-**Form** (`financial-statement-modal.tsx`) — a **two-level** `<Dialog
-maxWidth="sm">` matching the legacy period-row model (minus the
-separate-page navigation):
-- *Level 1 (landing):* a read-only `FactChip` strip (bordered `#FAFBFD`)
-  with **Applicant Name** and **Amount Applied** (from
-  registration/application state); the 5 period rows (2023 … Projected),
-  each with a "Filled / Empty" chip and **Manage** then **View** (Manage
-  first); and a rich-text **Remarks** field. **Submit** simply stamps
-  `submittedAt` with the current ISO timestamp and closes — there is no
-  required-field gate.
-- *Level 2 (period form):* **three sub-steps**
-  (`step: 'income' | 'balance' | 'combined'`), no section banners. A fresh
-  or Balance-Sheet-not-yet-saved period opens on **Income Statement** — 7
-  editable ₱ inputs on the left (Gross Sales, Cost of Goods Sold,
-  Operating Expenses, Other Income (Expense), Interest Expense (Expense),
-  Provision for Taxes, Depreciation) with the **live computed** column on
-  the right (Net Sale, Gross Profit, Operating Income Before Other Income
+**Form** (`financial-statement-modal.tsx`) — as of 2026-10-21, a single
+scrollable `<Dialog maxWidth="md">` with **every period inline**, no
+separate "Manage" click per period and no income→balance step gating:
+- A read-only **`InfoChip1`** strip (bordered `#FAFBFD`, a flexbox strip
+  with simple right-hand borders — this file's original local chip
+  component) with **Applicant Name** and **Amount Applied** (from
+  registration/application state) sits at the top.
+- Each of the 5 periods (2023 … Projected) is its own
+  `CollapsibleSection` (the same shared header component
+  `BankStatementCard`/`FinancialSummaryCard` use elsewhere on this page),
+  collapsed by default — the officer expands whichever period they want
+  to work on; there's nothing to navigate into. The section header
+  carries a "Filled" / "Empty" `badge` chip and a **View** button (→ that
+  one period's single-period report, `FinancialStatementReport` with
+  `period` set) in `headerAction`.
+- Expanding a period reveals its **Income Statement** and **Balance
+  Sheet** together (`PeriodForm`), separated by **"Income Statement"** /
+  **"Balance Sheet"** title banners (`sectionBannerSx`) styled to match
+  the Initial Credit Checking Result's own section header pill
+  (`credit-checking-result-modal.tsx`'s `NumberedSectionHeader`) —
+  light-blue `#EEF1FE` background, uppercase navy `#1C2A6E` text,
+  `10px` radius — rather than the solid navy banner this used before
+  2026-10-21. Both sections always show together — no more staged
+  `income`/`balance`/`combined` steps.
+  Income Statement (restyled 2026-10-21): the **7 live computed values**
+  (Net Sale, Gross Profit, Operating Income Before Other Income
   (Expenses), Operating Income, Net Income Before Tax, Net Income After
-  Tax, EBITDA); footer buttons **Back to periods** + **Proceed to Balance
-  Sheet**. The **Balance Sheet** sub-step is a **flat full-width list** of
-  five dynamic line-item categories — Current Assets, Non-Current Asset,
-  Current Liabilities, Non-Current Liabilities, Equity
-  (`BalanceCategoryBlock`, stacked). Each category is a §4.4
-  **sub-section label** (`12/700/#8891A6` uppercase) above a `#F9FAFC` /
-  `1px #EEF0F5` / `11px`-radius inset holding its line rows. Each row is
-  inline on `sm+`: a fixed-option **item dropdown** (flex; e.g. Cash /
-  Account Receivable – Trade / Inventory) + a `Php` value input (`220px`)
-  + a red-× remove; on `xs` the dropdown and value stack full-width. An
-  empty category shows a dashed-border empty-state box (§9). An
-  outlined-navy **"Add {Category}"** button sits below each inset (outside
-  the box, not inside it), right-aligned (same style as the Cash Flow
-  Manage form's "Add Other Loan"). No
-  per-category total, no Assets = Liabilities + Equity tally row. Footer
-  buttons **Back to Income Statement** + **Save**. **Save** sets the
-  period's `balanceSheetSaved` flag (via
-  `markFinancialStatementBalanceSheetSaved`) and returns to the period
-  list. **Once `balanceSheetSaved` is true, Manage opens that period on
-  the `combined` sub-step** — Income Statement and Balance Sheet rendered
-  together, one scroll, no Proceed/Save gating; footer is **Back to
-  periods** + **Done** (both just return to the period list — every field
-  already persists on keystroke). The title bar reads `Financial Statement
-  · {period} · Income Statement` / `· Balance Sheet` for the two staged
-  sub-steps, and drops the suffix entirely for `combined`. **Only in
-  `combined` mode** do the navy **"Income Statement"** / **"Balance
-  Sheet"** title banners (`sectionBannerSx` — solid `#1C2A6E`, white
-  uppercase, `8px` radius) reappear above each block, so the two are
-  visually distinguishable when shown together; the standalone `income`
-  and `balance` sub-steps have no banner (the dialog title already names
-  the section there).
+  Tax, EBITDA) sit **above** the inputs, as **`InfoChip2`**/`InfoChip2Row`
+  — a second, distinct chip component in this same file matching Credit
+  Investigation's own `CommercialInfoChips` grid exactly
+  (`ci-report-card.tsx`'s exported `FactChip`/`FactChipRow`, renamed
+  locally to `InfoChip2` to avoid colliding with this file's own
+  `InfoChip1` above) — reimplemented the same way
+  `credit-checking-result-modal.tsx` does (see
+  `docs/080-account-solicitation-call-report.md`'s 2026-10-20 "fourth
+  later revision" entry for that precedent). Same CSS-grid-with-
+  box-shadow-dividers construction: cells divide with `boxShadow` insets
+  rather than borders, only the strip's own outer corners round. A
+  single `cols={3}` `FactChipRow` (`position="only"`, the default) —
+  matching exactly how Credit Investigation's own `CommercialInfoChips`
+  handles its one long-labeled cell: the long-labeled "Op. Income Before
+  Other Inc. (Exp.)" cell is `wide` and placed **first**, so it takes a
+  full row by itself (a `wide` cell always starts its own row), then the
+  remaining 6 short-labeled values pack cleanly into two 3-column rows
+  after it — the grid adapts to content the same way Credit
+  Investigation's does, rather than a fixed 4-column grid with a blank
+  filler cell (an earlier, same-day attempt that didn't actually fix the
+  underlying misalignment). The **7 editable ₱ inputs** (Gross Sales, Cost of Goods Sold,
+  Operating Expenses, Other Income (Expense), Interest Expense
+  (Expense), Provision for Taxes, Depreciation) sit below the strip, in
+  a plain 2-column grid (`sm:` 2 cols, `xs:` 1 col) rather than a
+  label/computed-value pairing. Balance Sheet: the same **flat
+  full-width list** of five dynamic line-item categories — Current
+  Assets, Non-Current Asset, Current Liabilities, Non-Current
+  Liabilities, Equity (`BalanceCategoryBlock`, stacked) — unchanged from
+  before: each category is a §4.4 **sub-section label**
+  (`12/700/#8891A6` uppercase) above a `#F9FAFC` / `1px #EEF0F5` /
+  `11px`-radius inset holding its line rows; each row is inline on `sm+`
+  (item dropdown + `Php` value input + red-× remove, stacking full-width
+  on `xs`); an empty category shows a dashed-border empty-state box
+  (§9); an outlined-navy **"Add {Category}"** button sits below each
+  inset, right-aligned.
+- A rich-text **Remarks** field sits below all 5 periods. **Save Record**
+  (renamed from "Submit" 2026-10-24 — there's no backend to submit to;
+  matches Cash Flow Statement's own "Save Record" button, the app's
+  "I'm done for now" marker convention) simply stamps `submittedAt` with
+  the current ISO timestamp and closes — there is no required-field gate,
+  and it is the dialog's only footer button now (no more period-specific
+  Back/Proceed/Save/Done buttons, since every field already persists on
+  keystroke and there's no screen to navigate out of).
 
 **Balance Sheet data model.** The five categories on
 `FinancialStatementPeriod` are `BalanceSheetLine[]` (`{ id, label, value }`)
@@ -192,9 +216,12 @@ Financial Highlights are untouched. Context setters:
 (keyed by `BalanceSheetCategory`). Hydration converts an older stored
 string total into a single `{ label: 'Opening balance', value }` line.
 `FinancialStatementField` is now the income-statement string keys only.
-`balanceSheetSaved: boolean` (default `false`; sample data sets it `true`
-for all 5 periods). Product Line / AMD were removed from this modal
-(2026-09-10) and there is no required Submit gate.
+`balanceSheetSaved: boolean` is still on the stored shape (default `false`;
+sample data sets it `true` for all 5 periods) but is no longer read by the
+Manage UI as of 2026-10-21 — it only ever controlled which step the old
+two-level modal opened to, and there are no more steps to open to. Product
+Line / AMD were removed from this modal (2026-09-10) and there is no
+required Submit gate.
 
 **Report** (`financial-statement-report.tsx`) — two distinct layouts,
 branched on whether a `period` is passed in:
@@ -429,23 +456,48 @@ statement:
 `CreditCheckingResultModal` and the "Full application" modal. **Add bank
 statement** and a row's edit icon both open it — no separate route.
 Sections:
-1. **Account details** — **Depository Bank** is a `select` of the major
+1. **Upload** (added 2026-10-21) — a single bordered row (`#F9FAFC` /
+   `#EEF0F5`, `11px` radius) at the top of the dialog, laid out identically
+   to CI Report's own transcript-upload row
+   (`ci-report-card.tsx`'s "Upload transcript" — see
+   `docs/100-credit-investigation.md`): a leading icon, the filename (or
+   "No bank statement uploaded") + an "Uploaded {date}" sub-line once one
+   exists, an outlined **Upload bank statement** / **Replace statement**
+   button, and a red text-only **Remove** button shown only once a file
+   exists. Reused the exact same row component shape rather than
+   designing a new upload UI, per feedback that the first attempt (a
+   multi-file list with its own per-file delete icons) wasn't cohesive
+   with the rest of the design system.
+   - **Auto-fill.** Uploading a file (`uploadBankStatementFile`) simulates
+     an extraction: if the statement's own fields (Depository Bank,
+     Account Name, Account Number, Month Range, Deposits, Daily Balances)
+     are still completely blank, they're filled in with the same
+     deterministic sample values "Fill with Sample Data" uses
+     (`sampleBankStatementFields()`, shared by both so they can never
+     drift apart) — not a real OCR/parse, consistent with every other
+     "AI" feature in this app. It never overwrites fields the officer
+     already typed in by hand. Only the filename + upload timestamp are
+     stored (`statementFileName` / `statementUploadedAt`) — no file data
+     is kept and there is no "View" action, matching the transcript
+     upload's own scope exactly. **Remove** (`removeBankStatementFile`)
+     clears only the filename/timestamp — it does not revert the
+     auto-filled fields, the same ruling CI Report's own
+     `handleRemoveTranscript` makes, since those are now just regular
+     editable fields the officer may have built on.
+2. **Account details** — **Depository Bank** is a `select` of the major
    Philippine banks (`PHILIPPINE_BANKS` in `bank-statement.ts`; a stored
    value not in the list still renders as its own option so it isn't
    blanked). **Account Name** and **Account Number** share one row
    (`xs=12 sm=6` each). **Month Range** (From / To) sits below as two
    `select` dropdowns (January–December, blank "Select…" first item).
-2. **Deposits** — `SubsectionLabel` + outlined **Add deposit** button; each
+3. **Deposits** — `SubsectionLabel` + outlined **Add deposit** button; each
    deposit is an *inline editable row* (Date `type="date"`, Amount
    ₱-`NumericFormat`, trailing ✕) appended empty and filled in place — the
    app's `CashFlowStatementCard` "Add Other Loan" pattern, no staging row.
    Right-aligned running `Total deposits: {₱}`.
-3. **Account Daily Balance** — same pattern: **Add balance** button; each row
+4. **Account Daily Balance** — same pattern: **Add balance** button; each row
    = Period From (`date`), Period To (`date`), Balance (₱), ✕. Running
    `Average daily balance: {₱ | —}` (arithmetic mean of entered balances).
-
-Data-entry only — there is no file-attachment section (the legacy screen's
-File Attachment card was dropped as unused).
 
 **Footer** (`DialogActions`) — a single **Done** button (`onClose`). Every
 field already persists on change via the `useAdmin()` setters (app
@@ -461,37 +513,42 @@ populated statement never auto-deletes.
 a new top-level `ApplicationReview` slot, seeded `[]` by
 `createInitialReview()` and array-merged in `readStoredState()`
 (`Array.isArray(...) ? ... : []`, same as the bureau file arrays). Shape:
-`BankStatement { id, depositoryBank, accountName, accountNumber, monthFrom,
+`BankStatement { id, statementFileName: string | null, statementUploadedAt:
+string | null, depositoryBank, accountName, accountNumber, monthFrom,
 monthTo, deposits: BankStatementDeposit[], dailyBalances:
 BankStatementDailyBalance[] }`; `deposits` rows are `{ id, date, amount }`,
 `dailyBalances` rows `{ id, periodFrom, periodTo, balance }`. All
 amounts/balances are free-text strings (blank/non-numeric → 0 for
-arithmetic).
+arithmetic). `statementFileName`/`statementUploadedAt` are backfilled to
+`null` in `readStoredState()` for a session saved before they existed.
 
 **Setters** (`useAdmin()`) — `addBankStatement(id)` (the **card** generates
 the id via `crypto.randomUUID()` and passes it in, then opens the modal on
 that id — keeps setters side-effect-only), `updateBankStatement(id, data)`
-(header fields only), `removeBankStatement(id)`, and the nested
+(header fields only), `removeBankStatement(id)`, the nested
 `add/update/removeBankStatementDeposit` /
-`add/update/removeBankStatementDailyBalance`. The 6 nested mutations all
-route through one private `updateOneBankStatement(review, id, updater)`
-helper (mirrors `updateBureauFiles` from the bureau-reports work).
+`add/update/removeBankStatementDailyBalance`, and
+`uploadBankStatementFile(id, fileName)` / `removeBankStatementFile(id)` (the
+Upload row — see "Add / edit modal" above). The nested mutations all route
+through one private `updateOneBankStatement(review, id, updater)` helper
+(mirrors `updateBureauFiles` from the bureau-reports work).
 
 ### Fill with Sample Data (whole page)
 
 Two dev/QA setters — `fillFinancialEvaluationSample()` /
 `clearFinancialEvaluationSample()` — back the Financial Evaluation page's
 **Fill with Sample Data** / **Remove Sample Data** floating-settings action
-(toggled by `review.bankStatements.length > 0 || cashFlowStatement.savedAt ||
-additionalFinancialFiles.length > 0`). Fill seeds **every** workspace on the
-page in one shot: one bank statement (BDO, 6 deposits, 3 balance rows), the
-Cash Flow Statement (income/expense figures + one Other Loan + a
-proposed-loan block, `savedAt` stamped), the Financial Statement (all 5
-periods — growing 2023→2025 actuals, a half-year Interim, a Projected),
-Bank Loans (2 bank rows + 1 PGFC row + the PGFC proposed loan), Financial
-Highlights (per-period days ratios, EBITDA, total loans, debt service,
-rating), and two Additional Financial Files. Remove resets each of those to
-its empty factory default.
+(toggled by `review.bankStatements.length > 0 || cashFlowStatement.savedAt`).
+Fill seeds **every** workspace still on the page in one shot: one bank
+statement (BDO, 6 deposits, 3 balance rows), the Cash Flow Statement
+(income/expense figures + one Other Loan + a proposed-loan block, `savedAt`
+stamped), the Financial Statement (all 5 periods — growing 2023→2025
+actuals, a half-year Interim, a Projected), Bank Loans (2 bank rows + 1
+PGFC row + the PGFC proposed loan), and Financial Highlights (per-period
+days ratios, EBITDA, total loans, debt service, rating). Remove resets each
+of those to its empty factory default. (It no longer seeds/clears
+Additional Financial Files — see "Additional Financial Files (removed)"
+below.)
 
 **Computation** (`bank-statement.ts`, pure, nothing stored) —
 `computeTotalDeposits(deposits)` = Σ amounts; `computeAvgDailyBalance(balances)`
@@ -623,32 +680,33 @@ sourced from `signUpData`/`application.financialInfo.desiredLoanAmount` (the
 `RegistrationState` from the loan application itself) — not part of
 `CashFlowStatement`'s own stored state.
 
-## Additional Financial Files
+## Additional Financial Files (removed)
 
-A card (`AdditionalFinancialFilesCard` in `additional-financial-files-card.tsx`)
-for **free-form supporting-document uploads beyond the fixed Document
-Checklist** — supplier contracts, leases, bank certifications, etc. Same
-`adminCardSx` + `CollapsibleSection` shell — `subtitle` under the title, a
-`{count}` badge next to the title once anything is uploaded, and an
-**Upload files** button (`<input multiple accept="image/*,.pdf">`) in the
-`headerAction` slot. The body is one bordered row per file: filename +
-upload timestamp (plus a `Remarks: …` line when set), an
-outlined **View** (opens the data URL in a new tab), and a **⋮ menu** with
-**Add/Edit remarks** (opens a small
-`Dialog` with a multiline field — same pattern as Requirement Checklist's
-`RequirementDocRow`) and **Delete file** (→ `ConfirmDialog`).
+**Removed from this page 2026-10-21** — the `AdditionalFinancialFilesCard`
+(`additional-financial-files-card.tsx`) is no longer rendered on Financial
+Evaluation; see this file's own History entry for why. The card component,
+its `review.additionalFinancialFiles: AdditionalFinancialFile[]` state slot
+(`{ id, fileName, fileData, remarks, uploadedAt }`), and its setters
+(`addAdditionalFinancialFiles(files)`, `updateAdditionalFinancialFile(id, {
+remarks })`, `removeAdditionalFinancialFile(id)`) all still exist in
+`admin-context.tsx` and `additional-financial-files-card.tsx` — only the
+page-level usage was removed, so the underlying feature can be re-added
+without rebuilding it from scratch. The whole-page **Fill with Sample
+Data** / **Remove Sample Data** actions no longer seed/clear this state
+(previously seeded two sample files, `supplier-contract-2026.pdf` with a
+remark and `warehouse-lease.pdf` without, both pointing at the bundled
+`/assets/documents/sample-local-pdf.pdf`).
 
-**State** — `review.additionalFinancialFiles: AdditionalFinancialFile[]`
-(`{ id, fileName, fileData, remarks, uploadedAt }`), array-merged in
-`readStoredState()`. Setters: `addAdditionalFinancialFiles(files)`,
-`updateAdditionalFinancialFile(id, { remarks })`, `removeAdditionalFinancialFile(id)`.
-
-Data URLs only — no parsing, no OCR, same prototype convention as every
-other upload in this app. Informational — does not gate the Endorse
-decision. The whole-page **Fill with Sample Data** action seeds two sample
-files here (`supplier-contract-2026.pdf` with a remark, `warehouse-lease.pdf`
-without), both pointing at the bundled `/assets/documents/sample-local-pdf.pdf`;
-**Remove Sample Data** clears them.
+For reference, before removal this card was: free-form supporting-document
+uploads beyond the fixed Document Checklist (supplier contracts, leases,
+bank certifications, etc.), same `adminCardSx` + `CollapsibleSection` shell
+as the other cards on this page, a `{count}` badge next to the title once
+anything was uploaded, an **Upload files** button
+(`<input multiple accept="image/*,.pdf">`) in the `headerAction` slot, one
+bordered row per file (filename + upload timestamp, optional `Remarks: …`
+line, an outlined **View** opening the data URL in a new tab, and a **⋮
+menu** with **Add/Edit remarks** / **Delete file**). Data URLs only — no
+parsing, no OCR. Informational — never gated the Endorse decision.
 
 ## Decision Gate
 
@@ -673,10 +731,10 @@ gate on:
   disapprove path in this pipeline uses.
 
 Neither button is blocked by the Document Checklist, the AI review, the
-Financial Summary sub-tools, the Bank Statement card, the Cash Flow
-Statement, or the Additional Financial Files card — those are all
-supporting evidence, **informational only**, and never gate the decision.
-The only condition is a typed reason for Disapprove.
+Financial Summary sub-tools, the Bank Statement card, or the Cash Flow
+Statement — those are all supporting evidence, **informational only**, and
+never gate the decision. The only condition is a typed reason for
+Disapprove.
 
 ## Fabricated Claims — Real vs. Simulated
 
@@ -689,9 +747,11 @@ Consistent with the rest of this prototype (`docs/230-project-overview.md`'s
   computation over the checklist's own completeness, not a model inference.
   Because this page is read-only, the level can only ever be `'good'` or
   `'watch'`, never `'high'`.
-- **Bank Statement / Additional Financial Files uploads** — store the
-  filename + a **data URL only**. No file is ever parsed, OCR'd, or verified
-  against anything.
+- **Bank Statement upload** — stores only the filename + upload
+  timestamp, no file data at all (same scope as CI Report's own
+  transcript upload). "Auto-fill" on upload writes deterministic sample
+  values into the statement's own fields when they're still blank; no
+  file is ever parsed, OCR'd, or verified against anything.
 - **Financial Summary sub-tools** — every report figure (income statement,
   balance sheet, ~15 ratios, growth, % of sales, DSCR, the Highlights table)
   is **pure client-side arithmetic** in `financial-summary-calcs.ts`,
@@ -750,7 +810,137 @@ it directly rather than filtering `REQUIREMENT_DOC_META` by tab.
 
 ## History
 
-### 2026-09-07
+### 2026-10-24
+
+- **Financial Statement Manage's footer button renamed "Submit" →
+  "Save Record"** — nothing is ever submitted to a backend (every field
+  already persists on keystroke), so "Submit" was misleading; this app's
+  own equivalent action elsewhere (Cash Flow Statement's footer button)
+  is already labeled "Save Record", so this just matches the existing
+  convention instead of inventing a different label for the same
+  behavior (stamping `financialStatementDetails.submittedAt`). The local
+  click-handler was renamed `handleSubmit` → `handleSaveRecord` to match.
+
+### 2026-10-21 (later)
+
+- **Added "Upload bank statement" to the Bank Statement add/edit modal**,
+  which auto-fills the statement's fields on upload. `BankStatement`
+  gained `statementFileName: string | null` / `statementUploadedAt:
+  string | null` (filename + timestamp only, no file data — same scope
+  as CI Report's own transcript upload). New setters
+  `uploadBankStatementFile(id, fileName)` / `removeBankStatementFile(id)`
+  in `admin-context.tsx`; uploading simulates an extraction by filling
+  in Depository Bank / Account Name / Account Number / Month Range /
+  Deposits / Daily Balances with the same deterministic sample values
+  "Fill with Sample Data" uses (`sampleBankStatementFields()`, now
+  shared by both so they can't drift apart) — but only when the
+  statement's own fields are still completely blank; it never overwrites
+  fields the officer already typed in. **First attempt** built a
+  multi-file list with its own per-file delete icons, which didn't match
+  the rest of the design system; **corrected** to reuse CI Report's own
+  transcript-upload row layout exactly (`ci-report-card.tsx`'s "Upload
+  transcript" — icon + filename/status + Upload/Replace + Remove, one
+  bordered row) instead of inventing a new upload UI. `BankStatementRow`'s
+  own "Empty" check (`bank-statement-card.tsx`) now also treats an
+  uploaded-but-otherwise-blank statement as non-empty.
+
+### 2026-10-21
+
+- **Removed the Additional Financial Files card from the page** —
+  `financial-evaluation-view.tsx` no longer imports or renders
+  `AdditionalFinancialFilesCard`. The `sampleFilled` toggle and the
+  `fillFinancialEvaluationSample()` / `clearFinancialEvaluationSample()`
+  setters in `admin-context.tsx` no longer reference
+  `additionalFinancialFiles` either, so "Fill with Sample Data" doesn't
+  seed files nobody can see. The underlying card component, state slot,
+  and setters are untouched (just unused from this page) — see
+  "Additional Financial Files (removed)".
+- **Financial Statement Manage no longer requires clicking "Manage" per
+  period.** `financial-statement-modal.tsx`'s old two-level flow (a period
+  list, each row opening into its own `income`/`balance`/`combined`
+  staged sub-steps) was replaced with a single scrollable dialog showing
+  all 5 periods inline as `CollapsibleSection`s (collapsed by default),
+  each expanding to that period's full Income Statement + Balance Sheet
+  together (`PeriodForm`), reusing the design system's existing
+  collapsible-card pattern rather than inventing a new one. Each period's
+  own **View** button (→ its single-period report) moved into the
+  section's `headerAction`; the dialog's only footer button is now
+  **Submit** (stamps `submittedAt`). `balanceSheetSaved` is no longer read
+  by this UI — it only ever drove which step the old modal opened to.
+- **Income Statement's 7 computed values moved into an infochip strip
+  above the inputs**, instead of sitting in a second column beside them.
+  `PeriodForm` now renders a `FactChip`-based strip (Net Sale, Gross
+  Profit, Operating Income Before Other Income (Expenses), Operating
+  Income, Net Income Before Tax, Net Income After Tax, EBITDA) matching
+  the Applicant Name / Amount Applied strip already at the top of the
+  dialog, then the 7 editable ₱ inputs below it in a plain 2-column
+  grid. The now-unused `ComputedField` component was removed from
+  `financial-statement-modal.tsx`. **Later the same day**, both strips'
+  `FactChip` was rebuilt to match Credit Investigation's own
+  `CommercialInfoChips` grid exactly (box-shadow dividers, `FactChipRow`
+  segments) rather than the flexbox approximation this entry originally
+  described — see the "Form" section above for the current
+  implementation.
+- **Still the same day**, the Applicant Name / Amount Applied strip was
+  reverted back to its original flexbox `FactChip` (renamed `InfoChip1`)
+  — only the Income Statement computed-values strip keeps the grid-based
+  chip, renamed `InfoChip2`/`InfoChip2Row` to avoid name-colliding with
+  `InfoChip1` in the same file. `InfoChip2`'s two rows were changed from
+  a 4-col + 3-col split to two 4-col rows (the last cell of row 2 is a
+  blank filler), so column widths — and their dividers — line up
+  vertically between rows; the mismatched 4-vs-3 column widths had been
+  the "ayusin yung lines" issue. The **"Income Statement"** / **"Balance
+  Sheet"** section banners (`sectionBannerSx`) were also restyled from a
+  solid navy bar to the same light-blue pill
+  (`credit-checking-result-modal.tsx`'s `NumberedSectionHeader` style)
+  the Initial Credit Checking Result page uses for its own section
+  headers.
+- **Still the same day**, fixed a second misalignment in `InfoChip2`:
+  the long label "Op. Income Before Other Inc. (Exp.)" wraps to 2 lines
+  while every other label in its row fits on 1, so that cell's value
+  rendered lower than its row-mates'. `InfoChip2`'s label now reserves a
+  fixed `minHeight` (2 lines' worth), so every cell's value starts at
+  the same vertical position regardless of whether its own label wraps.
+- **Still the same day**, replaced the fixed 4-column-with-filler-cell
+  layout with the actual adaptive pattern Credit Investigation's
+  `CommercialInfoChips` uses: a single `cols={3}` `FactChipRow`, with the
+  one long-labeled cell ("Op. Income Before Other Inc. (Exp.)") marked
+  `wide` and placed first so it takes its own full row, then the
+  remaining 6 short values pack into two clean 3-column rows — the grid
+  now adapts to content instead of using a fixed column count with a
+  blank filler. Also removed a doubled top padding above the "Income
+  Statement" banner: `CollapsibleSection` already wraps its `children` in
+  `pt: 2.5`, and `financial-statement-modal.tsx` was wrapping
+  `PeriodForm` in a second `pt: 2.5` Box — removed the redundant one.
+- **Still the same day**, fixed the `InfoChip2`/`InfoChip2Row` `edge`
+  props themselves, which had the right/bottom-divider logic backwards —
+  `edge.right: true` means "this cell sits on the strip's own outer right
+  edge, skip its divider" (per `InfoChip2`'s own shadow logic), but the
+  middle cells (Net Sale, Gross Profit, Net Income Before Tax, Net Income
+  After Tax) had been marked `edge.right: true`, which suppressed their
+  dividers instead of the true last-column cells (Operating Income,
+  EBITDA). The result was a strip with no vertical dividers between
+  cells at all — matching neither Credit Investigation's own rendering
+  nor the intent. Corrected so only the real outer-edge cells (the last
+  column of each row, and the `wide` cell which has nothing to its right)
+  suppress their divider; every other cell keeps its right-hand line,
+  same as Credit Investigation's `CommercialInfoChips`.
+- **Still the same day**, removed the per-cell label `minHeight`
+  reservation added earlier — since the long-labeled `wide` cell now
+  always sits alone on its own full-width row, nothing shares a row with
+  it anymore, so the 2-line reservation was just adding uneven, unused
+  vertical padding to every short-labeled cell. `InfoChip2` is now
+  byte-for-byte identical to Credit Investigation's own `FactChip`
+  again. Also moved the `wide` "Op. Income Before Other Inc. (Exp.)"
+  cell from the **first** row to the **last** row — the 6 short values
+  (Net Sale, Gross Profit, Operating Income, Net Income Before Tax, Net
+  Income After Tax, EBITDA) now pack into the first two 3-column rows,
+  with the long-labeled cell's own full-width row at the bottom.
+- **Still the same day**, the Balance Sheet line-item remove button's
+  "×" icon changed from `TONE_COLORS.error.solid` (a bright red,
+  reads as more alarming than a plain "remove a draft row" action
+  warrants) to a muted `#8891A6` gray, matching the app's other inline
+  icon-only controls.
 
 - Added the **Bank Statement card** — multi-statement entry in a centered
   modal (Depository Bank dropdown of PH banks, account name/number, month

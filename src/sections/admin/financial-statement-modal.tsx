@@ -37,23 +37,26 @@ import { fCurrency } from 'src/utils/format-number';
 import { Iconify } from 'src/components/iconify';
 import { TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { RichTextField } from 'src/components/rich-text-field';
+import { CollapsibleSection } from 'src/components/collapsible-section';
 
 import { parseNum, computeIncomeStatement, sumBalanceSheetLines } from './financial-summary-calcs';
 import { FinancialStatementReport } from './financial-statement-report';
 
 // ----------------------------------------------------------------------
-// Financial Statement sub-tool — a two-level modal matching the legacy
-// period-row model, minus the separate-page navigation:
-//
-//   Level 1 (landing): a read-only Applicant Name / Amount Applied
-//   FactChip strip, 5 period rows (2023 … Projected) with status, Manage
-//   then View, rich-text Remarks, and Submit (just stamps submittedAt).
-//   Level 2 (period form): that period's Income Statement — editable
-//   inputs left, live computed values right. Every field persists on
-//   keystroke — no "save income statement first" gating.
+// Financial Statement sub-tool — every period's Income Statement and
+// Balance Sheet sits inline in one scrollable dialog, as a
+// CollapsibleSection per period (2023 … Projected), so entering or
+// reviewing a period's figures never requires a separate "Manage" click
+// into its own screen — every field already persists on keystroke, so
+// there's nothing to navigate away from to save. A read-only Applicant
+// Name / Amount Applied InfoChip1 strip sits above the periods, and a
+// rich-text Remarks field + Save Record (stamps submittedAt) sits below
+// them — the same "I'm done for now" marker convention as Cash Flow
+// Statement's own "Save Record" button, not a real submission.
 //
 // Opened from the Financial Summary card's "Manage" on the Financial
-// Statement row. The card's "View" opens the comparative report separately.
+// Statement row. The card's "View" opens the comparative report separately;
+// each period section's own "View" button opens that one period's report.
 // ----------------------------------------------------------------------
 
 // Lock both the ₱ input and the computed-value box to this exact height so
@@ -78,20 +81,27 @@ const primaryBtnSx = {
   '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
 };
 
+// Matches the Initial Credit Checking Result's own section header pill
+// (credit-checking-result-modal.tsx's NumberedSectionHeader) — a light-blue
+// bar with navy uppercase text, instead of a solid navy banner.
 const sectionBannerSx = {
-  bgcolor: '#1C2A6E',
-  color: 'common.white',
-  fontSize: 13,
+  bgcolor: '#EEF1FE',
+  color: '#1C2A6E',
+  fontSize: 12.5,
   fontWeight: 800,
-  letterSpacing: '0.06em',
+  letterSpacing: '0.04em',
   textTransform: 'uppercase' as const,
   px: 2,
-  py: 1,
-  borderRadius: '8px',
+  py: 1.25,
+  borderRadius: '10px',
   mb: 2,
 };
 
-function FactChip({ label, value }: { label: string; value: React.ReactNode }) {
+// "InfoChip1" — the original local chip, a flexbox strip with simple
+// right-hand borders, used for the Applicant Name / Amount Applied strip
+// (restored 2026-10-21 after briefly being migrated to the grid-based
+// InfoChip2 below).
+function InfoChip1({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <Stack spacing={0.35} sx={{ px: 1.75, py: 1, minWidth: 0, flex: '1 1 160px' }}>
       <Typography
@@ -123,6 +133,92 @@ function FactChip({ label, value }: { label: string; value: React.ReactNode }) {
         {value || '—'}
       </Typography>
     </Stack>
+  );
+}
+
+// "InfoChip2" — the Credit Investigation infochip grid
+// (ci-report-card.tsx's exported FactChip/FactChipRow, renamed here to
+// avoid colliding with this file's own InfoChip1 above),
+// reimplemented locally since the pattern isn't extracted into a shared
+// component yet (see docs/225-admin-design-system.md §16's FactChip/
+// FactChipRow entry). Grid cells with box-shadow dividers (not borders, so
+// dividers don't consume grid track space), rounded only at the strip's
+// own outer corners. `edge` marks a cell sitting on the strip's own outer
+// right/bottom border so its divider isn't doubled against it; `wide`
+// spans the cell full-width for a long value. Used only by the Income
+// Statement's computed-values strip.
+function InfoChip2({
+  label,
+  value,
+  wide,
+  edge = {},
+}: {
+  label: string;
+  value: React.ReactNode;
+  wide?: boolean;
+  edge?: { right?: boolean; bottom?: boolean };
+}) {
+  const shadowParts = [
+    !edge.right && 'inset -1px 0 0 0 #EEF0F5',
+    !edge.bottom && 'inset 0 -1px 0 0 #EEF0F5',
+  ].filter(Boolean);
+  return (
+    <Box
+      sx={{
+        gridColumn: wide ? '1 / -1' : 'span 1',
+        minWidth: 0,
+        px: 1.75,
+        py: 1,
+        bgcolor: 'common.white',
+        ...(shadowParts.length > 0 ? { boxShadow: shadowParts.join(', ') } : {}),
+      }}
+    >
+      <Typography
+        sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#9AA2B4' }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          fontSize: 13.5,
+          fontWeight: 700,
+          color: '#14172A',
+          mt: 0.25,
+          overflowWrap: 'break-word',
+          wordBreak: 'break-word',
+        }}
+      >
+        {value || '—'}
+      </Typography>
+    </Box>
+  );
+}
+
+function InfoChip2Row({
+  children,
+  cols = 3,
+  position = 'only',
+}: {
+  children: React.ReactNode;
+  cols?: number;
+  position?: 'only' | 'first' | 'last';
+}) {
+  const topRadius = position === 'last' ? 0 : 12;
+  const bottomRadius = position === 'first' ? 0 : 12;
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: `repeat(${cols}, 1fr)` },
+        borderRadius: `${topRadius}px ${topRadius}px ${bottomRadius}px ${bottomRadius}px`,
+        border: '1px solid #EEF0F5',
+        borderTop: position === 'last' ? 'none' : '1px solid #EEF0F5',
+        bgcolor: 'common.white',
+        overflow: 'hidden',
+      }}
+    >
+      {children}
+    </Box>
   );
 }
 
@@ -257,30 +353,6 @@ const fsLabelSx = {
   textOverflow: 'ellipsis',
 };
 
-function ComputedField({ label, value }: { label: string; value: string }) {
-  return (
-    <Stack spacing={0.6}>
-      <Typography sx={{ ...fsLabelSx, color: '#8891A6' }} title={label}>{label}</Typography>
-      <Box
-        sx={{
-          px: 1.5,
-          borderRadius: '10px',
-          bgcolor: '#F1F3F8',
-          border: '1px solid #E1E4ED',
-          fontSize: 13.5,
-          fontWeight: 700,
-          color: '#14172A',
-          height: FS_FIELD_HEIGHT,
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        {value}
-      </Box>
-    </Stack>
-  );
-}
-
 function periodFilled(p: FinancialStatementPeriod): boolean {
   const incomeFilled = INCOME_INPUTS.some(({ field }) => parseNum(p[field]) !== 0);
   const bsFilled = BALANCE_CATEGORIES.some(({ key }) => sumBalanceSheetLines(p[key]) !== 0);
@@ -400,7 +472,7 @@ function BalanceCategoryBlock({
                     aria-label="Remove line item"
                     sx={{ flexShrink: 0 }}
                   >
-                    <Iconify icon="mingcute:close-line" width={15} sx={{ color: TONE_COLORS.error.solid }} />
+                    <Iconify icon="mingcute:close-line" width={15} sx={{ color: '#8891A6' }} />
                   </IconButton>
                 </Stack>
               </Stack>
@@ -427,55 +499,120 @@ type FinancialStatementModalProps = {
   onClose: () => void;
 };
 
+// One period's Income Statement + Balance Sheet, inline — the body of
+// each period's CollapsibleSection. Combines what used to be the modal's
+// separate `income`/`balance`/`combined` steps into one always-visible
+// block, since there's no more "proceed"/"save" gate between them.
+function PeriodForm({
+  data,
+  onField,
+  onAddLine,
+  onUpdateLine,
+  onRemoveLine,
+}: {
+  data: FinancialStatementPeriod;
+  onField: (field: FinancialStatementField, value: string) => void;
+  onAddLine: (category: BalanceSheetCategory) => void;
+  onUpdateLine: (category: BalanceSheetCategory, id: string, patch: { label?: string; value?: string }) => void;
+  onRemoveLine: (category: BalanceSheetCategory, id: string) => void;
+}) {
+  const inc = computeIncomeStatement(data);
+  const money = (n: number) => fCurrency(n) || '₱0.00';
+
+  return (
+    <Stack spacing={3}>
+      <Box>
+        <Box sx={sectionBannerSx}>Income Statement</Box>
+
+        <Box sx={{ mb: 2.5 }}>
+          <InfoChip2Row cols={3}>
+            <InfoChip2 label="Net Sale" value={money(inc.netSales)} />
+            <InfoChip2 label="Gross Profit" value={money(inc.grossProfit)} />
+            <InfoChip2 label="Operating Income" value={money(inc.operatingIncome)} edge={{ right: true }} />
+            <InfoChip2 label="Net Income Before Tax" value={money(inc.netIncomeBeforeTax)} />
+            <InfoChip2 label="Net Income After Tax" value={money(inc.netIncomeAfterTax)} />
+            <InfoChip2 label="EBITDA" value={money(inc.ebitda)} edge={{ right: true }} />
+            <InfoChip2
+              label="Op. Income Before Other Inc. (Exp.)"
+              value={money(inc.operatingIncomeBeforeOther)}
+              wide
+              edge={{ right: true, bottom: true }}
+            />
+          </InfoChip2Row>
+        </Box>
+
+        <Grid container spacing={2.5}>
+          {INCOME_INPUTS.map(({ field, label, allowNegative }) => (
+            <Grid key={field} item xs={12} sm={6}>
+              <MoneyInput
+                label={label}
+                value={data[field]}
+                onValueChange={(value) => onField(field, value)}
+                allowNegative={allowNegative}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+
+      <Box>
+        <Box sx={sectionBannerSx}>Balance Sheet</Box>
+        <Stack spacing={2.5}>
+          {BALANCE_CATEGORIES.map((cat) => (
+            <BalanceCategoryBlock
+              key={cat.key}
+              banner={cat.banner}
+              addLabel={cat.addLabel}
+              options={cat.options}
+              lines={data[cat.key]}
+              onAdd={() => onAddLine(cat.key)}
+              onUpdate={(id, patch) => onUpdateLine(cat.key, id, patch)}
+              onRemove={(id) => onRemoveLine(cat.key, id)}
+            />
+          ))}
+        </Stack>
+      </Box>
+    </Stack>
+  );
+}
+
 export function FinancialStatementModal({ open, onClose }: FinancialStatementModalProps) {
   const { signUpData, application } = useRegistration();
   const {
     review,
     setFinancialStatementField,
-    markFinancialStatementBalanceSheetSaved,
     addBalanceSheetLine,
     updateBalanceSheetLine,
     removeBalanceSheetLine,
     setFinancialStatementDetails,
   } = useAdmin();
-  const [editing, setEditing] = useState<FinancialPeriod | null>(null);
-  const [step, setStep] = useState<'income' | 'balance' | 'combined'>('income');
+  // Collapsed by default for every period — the officer expands whichever
+  // they want to work on; nothing needs a separate screen to reach it.
+  const [expandedPeriods, setExpandedPeriods] = useState<Set<FinancialPeriod>>(new Set());
   const [reportPeriod, setReportPeriod] = useState<FinancialPeriod | null>(null);
 
   const details = review.financialStatementDetails;
   const applicantName = signUpData ? `${signUpData.firstName} ${signUpData.lastName}` : '—';
   const amountApplied = application.financialInfo?.desiredLoanAmount;
 
-  const openPeriod = (p: FinancialPeriod) => {
-    setStep(review.financialStatement[p].balanceSheetSaved ? 'combined' : 'income');
-    setEditing(p);
-  };
-
-  const exitToPeriodList = () => {
-    setEditing(null);
-    setStep('income');
+  const togglePeriod = (p: FinancialPeriod) => {
+    setExpandedPeriods((prev) => {
+      const next = new Set(prev);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
   };
 
   const handleClose = () => {
-    exitToPeriodList();
     setReportPeriod(null);
     onClose();
   };
 
-  const handleSubmit = () => {
+  const handleSaveRecord = () => {
     setFinancialStatementDetails(submitFinancialStatementDetails(details, new Date().toISOString()));
     handleClose();
   };
-
-  const handleSaveBalanceSheet = () => {
-    if (editing) markFinancialStatementBalanceSheetSaved(editing);
-    exitToPeriodList();
-  };
-
-  const money = (n: number) => fCurrency(n) || '₱0.00';
-
-  const data = editing ? review.financialStatement[editing] : null;
-  const inc = data ? computeIncomeStatement(data) : null;
 
   // Unmount the outgoing dialog so its exit transition cannot overlap the
   // incoming dialog or render a report whose selected period was cleared.
@@ -490,30 +627,17 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
   }
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm" scroll="paper">
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md" scroll="paper">
       <DialogTitle sx={{ p: 3, pb: 2 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            {editing && (
-              <IconButton onClick={exitToPeriodList} aria-label="Back to period list" size="small">
-                <Iconify icon="solar:alt-arrow-left-linear" width={20} />
-              </IconButton>
-            )}
-            <Box>
-              <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>
-                Financial Statement
-                {editing ? ` · ${FINANCIAL_PERIOD_LABELS[editing]}` : ''}
-                {editing && step === 'income' ? ' · Income Statement' : ''}
-                {editing && step === 'balance' ? ' · Balance Sheet' : ''}
-              </Typography>
-              <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
-                {!editing && 'Pick a period to enter its income statement & balance sheet'}
-                {editing && step === 'income' && 'Enter the income statement, then proceed to the balance sheet'}
-                {editing && step === 'balance' && 'Enter the balance sheet — computed totals update as you type'}
-                {editing && step === 'combined' && 'Income statement & balance sheet — computed values update as you type'}
-              </Typography>
-            </Box>
-          </Stack>
+          <Box>
+            <Typography sx={{ fontSize: 18, fontWeight: 800, color: '#14172A' }}>
+              Financial Statement
+            </Typography>
+            <Typography sx={{ fontSize: 13, color: '#8891A6', mt: 0.25 }}>
+              Every period&apos;s income statement &amp; balance sheet — expand a period to enter or review its figures.
+            </Typography>
+          </Box>
           <IconButton onClick={handleClose} aria-label="Close Financial Statement">
             <Iconify icon="mingcute:close-line" width={22} />
           </IconButton>
@@ -523,44 +647,42 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
       <Divider />
 
       <DialogContent sx={{ p: 3 }}>
-        {!editing && (
-          <Stack spacing={2.5}>
-            <Stack
-              direction="row"
-              flexWrap="wrap"
-              sx={{
-                border: '1px solid #EEF0F5',
-                borderRadius: '12px',
-                bgcolor: '#FAFBFD',
-                '& > div:not(:last-of-type)': { borderRight: { xs: 'none', sm: '1px solid #EEF0F5' } },
-              }}
-            >
-              <FactChip label="Applicant Name" value={applicantName} />
-              <FactChip
-                label="Amount Applied"
-                value={amountApplied == null ? '—' : `₱${amountApplied.toLocaleString('en-PH')}`}
-              />
-            </Stack>
+        <Stack spacing={2.5}>
+          <Stack
+            direction="row"
+            flexWrap="wrap"
+            sx={{
+              border: '1px solid #EEF0F5',
+              borderRadius: '12px',
+              bgcolor: '#FAFBFD',
+              '& > div:not(:last-of-type)': { borderRight: { xs: 'none', sm: '1px solid #EEF0F5' } },
+            }}
+          >
+            <InfoChip1 label="Applicant Name" value={applicantName} />
+            <InfoChip1
+              label="Amount Applied"
+              value={amountApplied == null ? '—' : `₱${amountApplied.toLocaleString('en-PH')}`}
+            />
+          </Stack>
 
-            {FINANCIAL_PERIODS.map((p) => {
-              const filled = periodFilled(review.financialStatement[p]);
-              return (
-                <Box
-                  key={p}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    p: 2,
-                    borderRadius: '13px',
-                    border: '1px solid #EBEDF3',
-                    bgcolor: 'common.white',
-                  }}
-                >
-                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', flex: 1 }}>
-                    {FINANCIAL_PERIOD_LABELS[p]}
-                  </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="flex-end">
+          {FINANCIAL_PERIODS.map((p) => {
+            const data = review.financialStatement[p];
+            const filled = periodFilled(data);
+            return (
+              <Box
+                key={p}
+                sx={{
+                  borderRadius: '13px',
+                  border: '1px solid #EBEDF3',
+                  bgcolor: 'common.white',
+                  p: 2,
+                }}
+              >
+                <CollapsibleSection
+                  title={FINANCIAL_PERIOD_LABELS[p]}
+                  expanded={expandedPeriods.has(p)}
+                  onToggle={() => togglePeriod(p)}
+                  badge={
                     <Chip
                       size="small"
                       label={filled ? 'Filled' : 'Empty'}
@@ -571,21 +693,8 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
                         color: filled ? TONE_COLORS.success.text : TONE_COLORS.neutral.text,
                       }}
                     />
-                    <Button
-                      onClick={() => openPeriod(p)}
-                      variant="contained"
-                      size="small"
-                      startIcon={<Iconify icon="solar:pen-bold" width={15} />}
-                      sx={{
-                        bgcolor: '#1C2A6E',
-                        borderRadius: '9px',
-                        px: 2,
-                        boxShadow: 'none',
-                        '&:hover': { bgcolor: '#14205A', boxShadow: 'none' },
-                      }}
-                    >
-                      Manage
-                    </Button>
+                  }
+                  headerAction={
                     <Button
                       onClick={() => setReportPeriod(p)}
                       variant="outlined"
@@ -595,119 +704,35 @@ export function FinancialStatementModal({ open, onClose }: FinancialStatementMod
                     >
                       View
                     </Button>
-                  </Stack>
-                </Box>
-              );
-            })}
-
-            <RichTextField
-              label="Remarks"
-              value={details.remarks}
-              onChange={(remarks) => setFinancialStatementDetails({ remarks })}
-              placeholder="Enter financial statement remarks…"
-            />
-          </Stack>
-        )}
-
-        {editing && data && inc && (step === 'income' || step === 'combined') && (
-          <Box sx={{ mb: step === 'combined' ? 3 : 0 }}>
-            {step === 'combined' && <Box sx={sectionBannerSx}>Income Statement</Box>}
-            <Grid container spacing={2.5}>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={2}>
-                  {INCOME_INPUTS.map(({ field, label, allowNegative }) => (
-                    <MoneyInput
-                      key={field}
-                      label={label}
-                      value={data[field]}
-                      onValueChange={(value) => setFinancialStatementField(editing, field, value)}
-                      allowNegative={allowNegative}
-                    />
-                  ))}
-                </Stack>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Stack spacing={2}>
-                  <ComputedField label="Net Sale" value={money(inc.netSales)} />
-                  <ComputedField label="Gross Profit" value={money(inc.grossProfit)} />
-                  <ComputedField
-                    label="Operating Income Before Other Income (Expenses)"
-                    value={money(inc.operatingIncomeBeforeOther)}
+                  }
+                >
+                  <PeriodForm
+                    data={data}
+                    onField={(field, value) => setFinancialStatementField(p, field, value)}
+                    onAddLine={(category) => addBalanceSheetLine(p, category)}
+                    onUpdateLine={(category, id, patch) => updateBalanceSheetLine(p, category, id, patch)}
+                    onRemoveLine={(category, id) => removeBalanceSheetLine(p, category, id)}
                   />
-                  <ComputedField label="Operating Income" value={money(inc.operatingIncome)} />
-                  <ComputedField label="Net Income Before Tax" value={money(inc.netIncomeBeforeTax)} />
-                  <ComputedField label="Net Income After Tax" value={money(inc.netIncomeAfterTax)} />
-                  <ComputedField label="EBITDA" value={money(inc.ebitda)} />
-                </Stack>
-              </Grid>
-            </Grid>
-          </Box>
-        )}
+                </CollapsibleSection>
+              </Box>
+            );
+          })}
 
-        {editing && data && (step === 'balance' || step === 'combined') && (
-          <Stack spacing={2.5}>
-            {step === 'combined' && <Box sx={sectionBannerSx}>Balance Sheet</Box>}
-            {BALANCE_CATEGORIES.map((cat) => (
-              <BalanceCategoryBlock
-                key={cat.key}
-                banner={cat.banner}
-                addLabel={cat.addLabel}
-                options={cat.options}
-                lines={data[cat.key]}
-                onAdd={() => addBalanceSheetLine(editing, cat.key)}
-                onUpdate={(id, patch) => updateBalanceSheetLine(editing, cat.key, id, patch)}
-                onRemove={(id) => removeBalanceSheetLine(editing, cat.key, id)}
-              />
-            ))}
-          </Stack>
-        )}
+          <RichTextField
+            label="Remarks"
+            value={details.remarks}
+            onChange={(remarks) => setFinancialStatementDetails({ remarks })}
+            placeholder="Enter financial statement remarks…"
+          />
+        </Stack>
       </DialogContent>
 
       <Divider />
 
       <DialogActions sx={{ p: 2.5 }}>
-        {!editing && (
-          <Button
-            onClick={handleSubmit}
-            variant="contained"
-            sx={primaryBtnSx}
-          >
-            Submit
-          </Button>
-        )}
-
-        {editing && step === 'income' && (
-          <>
-            <Button onClick={exitToPeriodList} variant="outlined" sx={{ ...outlinedNavyButtonSx, px: 3 }}>
-              Back to periods
-            </Button>
-            <Button onClick={() => setStep('balance')} variant="contained" sx={primaryBtnSx}>
-              Proceed to Balance Sheet
-            </Button>
-          </>
-        )}
-
-        {editing && step === 'balance' && (
-          <>
-            <Button onClick={() => setStep('income')} variant="outlined" sx={{ ...outlinedNavyButtonSx, px: 3 }}>
-              Back to Income Statement
-            </Button>
-            <Button onClick={handleSaveBalanceSheet} variant="contained" sx={primaryBtnSx}>
-              Save
-            </Button>
-          </>
-        )}
-
-        {editing && step === 'combined' && (
-          <>
-            <Button onClick={exitToPeriodList} variant="outlined" sx={{ ...outlinedNavyButtonSx, px: 3 }}>
-              Back to periods
-            </Button>
-            <Button onClick={exitToPeriodList} variant="contained" sx={primaryBtnSx}>
-              Done
-            </Button>
-          </>
-        )}
+        <Button onClick={handleSaveRecord} variant="contained" sx={primaryBtnSx}>
+          Save Record
+        </Button>
       </DialogActions>
     </Dialog>
   );

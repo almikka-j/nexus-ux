@@ -26,7 +26,6 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 import { ApplicationReviewHeader } from './application-review-header';
 import { BankStatementCard } from './bank-statement-card';
 import { FinancialSummaryCard } from './financial-summary-card';
-import { AdditionalFinancialFilesCard } from './additional-financial-files-card';
 import { ApplicationDetailsCard } from './application-details-card';
 import { CashFlowStatementCard } from './cash-flow-statement-card';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
@@ -57,15 +56,13 @@ export function FinancialEvaluationView() {
   const { review, setCashFlowStatement, fillFinancialEvaluationSample, clearFinancialEvaluationSample } =
     useAdmin();
 
-  const [checklistExpanded, setChecklistExpanded] = useState(true);
-  const [aiReviewExpanded, setAiReviewExpanded] = useState(true);
+  const [checklistExpanded, setChecklistExpanded] = useState(false);
+  const [aiReviewExpanded, setAiReviewExpanded] = useState(false);
   const [disapproveOpen, setDisapproveOpen] = useState(false);
   const [disapproveReason, setDisapproveReason] = useState('');
 
   const sampleFilled =
-    review.bankStatements.length > 0 ||
-    review.cashFlowStatement.savedAt !== null ||
-    review.additionalFinancialFiles.length > 0;
+    review.bankStatements.length > 0 || review.cashFlowStatement.savedAt !== null;
 
   useRegisterPageActions(
     useMemo(
@@ -176,8 +173,6 @@ export function FinancialEvaluationView() {
         <CashFlowStatementCard />
 
         <BankStatementCard />
-
-        <AdditionalFinancialFilesCard />
 
         <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
