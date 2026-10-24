@@ -1,4 +1,15 @@
-import type { AppraisalReport, AppraisalReportBundle } from 'src/auth/admin-context';
+import type {
+  AppraisalChattelReport,
+  AppraisalMachineriesReport,
+  AppraisalReport,
+  AppraisalReportBundle,
+} from 'src/auth/admin-context';
+import {
+  createAppraisalChattelReport,
+  createAppraisalMachineriesReport,
+  createAppraisalMachineryEntry,
+  createAppraisalMarketSurveyEntry,
+} from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Single source of truth for the sample Appraisal Report data every
@@ -224,6 +235,188 @@ export function buildSampleAppraisalReport(
 
     feeAttachments: [
       { fileName: 'Fee-Attachment-Sample.svg', fileUrl: SAMPLE_COLLATERAL_PHOTO, uploadedAt: now },
+    ],
+
+    uploadedAt: submit ? now : null,
+  };
+}
+
+// Chattel counterpart to buildSampleAppraisalReport above — same
+// "Fill with Sample Data"/"Simulate: Fill Sample Report" entry points,
+// gated by the bundle's own collateralType (see each call site's
+// `titleGroups[0]?.collateralType === 'chattel'` check) so a Real Estate
+// bundle's sample-fill never also populates this unused report. Builds on
+// createAppraisalChattelReport()'s defaulted shape rather than duplicating
+// its field list, then overlays realistic values — a plausible pledged
+// vehicle (Toyota Hilux), a mix of checked/unchecked accessories and
+// good/bad condition ratings (not all-true/all-good, matching this file's
+// own "realistic, not placeholder" sample data above), and 2 Market Survey
+// comparables.
+export function buildSampleChattelReport(
+  bundle: AppraisalReportBundle,
+  bundleTctNumbers: string[],
+  applicantName: string,
+  // Same submit/fill distinction as buildSampleAppraisalReport: `true`
+  // (Officer's "Simulate: Appraiser Submits Report") stamps `uploadedAt`;
+  // `false` (Appraiser's "Simulate: Fill Sample Report") leaves it
+  // editable/unsubmitted.
+  submit: boolean = true
+): AppraisalChattelReport {
+  const now = new Date().toISOString();
+  const base = createAppraisalChattelReport();
+
+  return {
+    ...base,
+    accountName: applicantName,
+    requestedBy: 'Ramon Cruz',
+    purposeOfReport: 'Collateral appraisal for loan application',
+    reportDate: now.slice(0, 10),
+    eqptUnderApp: '2021 Toyota Hilux 4x2 G Diesel A/T Pickup',
+    dateInspected: now.slice(0, 10),
+    registeredOwner: applicantName,
+    address: `${bundleTctNumbers.join(', ') || 'No. 25 Sampaguita Street'}, Quezon City, Metro Manila`,
+
+    make: 'Toyota',
+    mvfNo: 'MVF-2021-00458',
+    series: 'Hilux 4x2 G',
+    crNo: 'CR-0923847561',
+    typeOfBodyDenomination: 'Pickup',
+    registrationDate: '2021-03-15',
+    yearModel: '2021',
+    placeRegistered: 'LTO Quezon City',
+    color: 'Silver Metallic',
+    chassisNumber: 'MR0FZ8CD7M0123456',
+    odometerReading: '42,500 km',
+    engineNo: '2GD-0987654',
+    plateNo: 'NFT 2456',
+    fuel: 'Diesel',
+
+    accessories: base.accessories.map((item, index) => ({
+      ...item,
+      // Mix of checked/unchecked — first 7 present, last 3 absent, not
+      // an all-true placeholder list.
+      checked: index < base.accessories.length - 3,
+      comments: index < base.accessories.length - 3 ? 'Present, functioning' : 'Not installed',
+    })),
+    powerFeatures: base.powerFeatures.map((item, index) => ({
+      ...item,
+      checked: index !== base.powerFeatures.length - 1,
+      comments: index !== base.powerFeatures.length - 1 ? 'Working normally' : 'Sticky, needs lubrication',
+    })),
+    generalCondition: base.generalCondition.map((item, index) => ({
+      ...item,
+      // One deliberately "Bad" item (Tire/Wheel) among mostly "Good" ones.
+      rating: item.label === 'Tire/Wheel' ? ('bad' as const) : ('good' as const),
+      comments:
+        item.label === 'Tire/Wheel'
+          ? 'Rear tires worn, recommend replacement soon'
+          : index % 2 === 0
+          ? 'Good condition, minor wear consistent with age'
+          : 'No visible defects noted',
+    })),
+    instrumentPanelLighting: base.instrumentPanelLighting.map((item) => ({
+      ...item,
+      rating: item.label === 'Tail Light' ? ('not-functioning' as const) : ('functioning' as const),
+    })),
+
+    marketSurvey: [
+      {
+        ...createAppraisalMarketSurveyEntry(),
+        source: 'Toyota Quezon Avenue (used unit listing)',
+        date: now.slice(0, 10),
+        type: '2021 Toyota Hilux 4x2 G A/T',
+        generalCondition: 'Good, low mileage',
+        sellingPrice: '1,150,000',
+      },
+      {
+        ...createAppraisalMarketSurveyEntry(),
+        source: 'AutoDeal classified listing',
+        date: now.slice(0, 10),
+        type: '2020-2021 Toyota Hilux 4x2 G',
+        generalCondition: 'Fair to good',
+        sellingPrice: '1,080,000',
+      },
+    ],
+
+    appraisedValue: '1100000',
+    loanablePercent: '70',
+    appraisedValueRoundOff: '1,100,000',
+    loanableAmount: '770,000',
+    encumbrancesRemarks: 'Unit is free from any chattel mortgage at time of inspection.',
+
+    fileAttachments: [
+      { fileName: 'Chattel-Unit-Photo-Sample.svg', fileUrl: SAMPLE_COLLATERAL_PHOTO, uploadedAt: now },
+    ],
+
+    uploadedAt: submit ? now : null,
+  };
+}
+
+// Machineries counterpart to buildSampleAppraisalReport above — same
+// gating/entry-point conventions as buildSampleChattelReport. Builds on
+// createAppraisalMachineriesReport()'s defaults (which already seed
+// `to`/`from` with the standing memo routing), overlaying a believable
+// set of 2-3 shop/production equipment line items with plausible
+// acquisition prices and depreciation.
+export function buildSampleMachineriesReport(
+  bundle: AppraisalReportBundle,
+  bundleTctNumbers: string[],
+  applicantName: string,
+  submit: boolean = true
+): AppraisalMachineriesReport {
+  const now = new Date().toISOString();
+  const base = createAppraisalMachineriesReport();
+
+  return {
+    ...base,
+    thru: 'Branch Credit Head',
+    dateReport: now.slice(0, 10),
+    dateInspected: now.slice(0, 10),
+    subject: `Appraisal of Machineries and Equipment — ${applicantName}`,
+    descriptionOfEquipments:
+      `Machineries and shop equipment located at ${bundleTctNumbers.join(', ') || 'the borrower\'s business address'}, ` +
+      'Quezon City, Metro Manila, used in the ordinary course of the business\' production/service operations. ' +
+      'Units were physically inspected and found operational at the time of appraisal.',
+
+    machineries: [
+      {
+        ...createAppraisalMachineryEntry(),
+        units: '1 unit',
+        description: 'Lincoln Electric Arc Welding Machine, 300A, Model SA-300',
+        serialNo: 'LE-SA300-88213',
+        acquisitionPricePhp: '185,000',
+        dateOfProformaInvoice: '2022-06-10',
+        appraisedValueLessDepreciation: '130,000',
+      },
+      {
+        ...createAppraisalMachineryEntry(),
+        units: '1 unit',
+        description: 'Hyundai Diesel Generator Set, 50 kVA, Model DHY6000SE',
+        serialNo: 'HY-DHY6000-45102',
+        acquisitionPricePhp: '420,000',
+        dateOfProformaInvoice: '2021-11-02',
+        appraisedValueLessDepreciation: '260,000',
+      },
+      {
+        ...createAppraisalMachineryEntry(),
+        units: '2 units',
+        description: 'Metal Lathe Machine, 1.5m bed length, bench-type',
+        serialNo: 'ML-150-20394',
+        acquisitionPricePhp: '96,000',
+        dateOfProformaInvoice: '2020-09-18',
+        appraisedValueLessDepreciation: '52,000',
+      },
+    ],
+
+    totalAppraisedValueRoundOff: '442,000',
+    loanablePercent: '60',
+    loanableAmount: '265,200',
+    qualificationRemarks:
+      'Units are in good working condition and are suited for continued use in the business\' operations; ' +
+      'appraised values reflect current physical condition and estimated remaining useful life.',
+
+    fileAttachments: [
+      { fileName: 'Machineries-Photo-Sample.svg', fileUrl: SAMPLE_COLLATERAL_PHOTO, uploadedAt: now },
     ],
 
     uploadedAt: submit ? now : null,

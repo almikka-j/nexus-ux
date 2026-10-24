@@ -31,7 +31,11 @@ import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { SAMPLE_APPLICATION } from './sample-application';
 import { buildSampleCallReportFields } from './call-report/sample-call-report';
-import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
+import {
+  buildSampleAppraisalReport,
+  buildSampleChattelReport,
+  buildSampleMachineriesReport,
+} from './appraisal/sample-appraisal-report';
 
 import type { CallReportApprovalStatus } from 'src/auth/admin-context';
 
@@ -81,6 +85,8 @@ export function ReportApprovalsView() {
     setAppraisal,
     createAppraisalReportBundle,
     setAppraisalBundleReport,
+    setAppraisalBundleChattelReport,
+    setAppraisalBundleMachineriesReport,
     submitAppraisalBundleFeeForApproval,
     approveAppraisalBundleFee,
   } = useAdmin();
@@ -186,6 +192,26 @@ export function ReportApprovalsView() {
         bundleNeedingReport.id,
         buildSampleAppraisalReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
       );
+      // Only populate the Chattel/Machineries sample reports when the
+      // bundle's own kind matches — a Real Estate bundle's sample-fill
+      // must not also seed the other two kinds' unused reports. All TCT
+      // groups in one bundle share one collateralType by construction
+      // (see appraiser-assignment-card.tsx's own titleGroups[0] comment).
+      const bundleTitleGroups = appraisalGroups.filter((group) =>
+        bundleNeedingReport.tctGroupIds.includes(group.id)
+      );
+      const bundleCollateralType = bundleTitleGroups[0]?.collateralType ?? 'real-estate';
+      if (bundleCollateralType === 'chattel') {
+        setAppraisalBundleChattelReport(
+          bundleNeedingReport.id,
+          buildSampleChattelReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
+        );
+      } else if (bundleCollateralType === 'machineries') {
+        setAppraisalBundleMachineriesReport(
+          bundleNeedingReport.id,
+          buildSampleMachineriesReport(bundleNeedingReport, bundleTctNumbers, applicantNameForReport, true)
+        );
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, hasApplication, reportBundles.length, hasBundleNeedingFeeApproval, hasBundleNeedingReport]);

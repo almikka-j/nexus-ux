@@ -35,7 +35,11 @@ import { adminCardSx, outlinedNavyButtonSx, TONE_COLORS } from 'src/components/a
 
 import { APPRAISAL_DOC_META } from '../requirement-checklist-docs';
 import { ReadOnlyRequirementDocRow } from '../credit-investigation/credit-investigation-doc-row';
-import { buildSampleAppraisalReport } from './sample-appraisal-report';
+import {
+  buildSampleAppraisalReport,
+  buildSampleChattelReport,
+  buildSampleMachineriesReport,
+} from './sample-appraisal-report';
 
 import type { AppraiserType, AppraisalCollateralType } from 'src/auth/admin-context';
 
@@ -121,6 +125,8 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
     addDocumentRequestMessage,
     setAppraisal,
     setAppraisalBundleReport,
+    setAppraisalBundleChattelReport,
+    setAppraisalBundleMachineriesReport,
     setRequirementChecklist,
   } = useAdmin();
   const { appraisalGroups, documentRequests } = review.requirementChecklist;
@@ -231,6 +237,23 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
           .map((group) => group.tctNumber);
 
         setAppraisalBundleReport(bundle.id, buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName));
+        // Gate Chattel/Machineries sample-fill on this bundle's own kind
+        // — see report-approvals-view.tsx's identical comment.
+        const bundleTitleGroups = appraisalGroups.filter((group) =>
+          bundle.tctGroupIds.includes(group.id)
+        );
+        const bundleCollateralType = bundleTitleGroups[0]?.collateralType ?? 'real-estate';
+        if (bundleCollateralType === 'chattel') {
+          setAppraisalBundleChattelReport(
+            bundle.id,
+            buildSampleChattelReport(bundle, bundleTctNumbers, applicantName)
+          );
+        } else if (bundleCollateralType === 'machineries') {
+          setAppraisalBundleMachineriesReport(
+            bundle.id,
+            buildSampleMachineriesReport(bundle, bundleTctNumbers, applicantName)
+          );
+        }
       });
   };
 

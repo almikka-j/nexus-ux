@@ -1194,7 +1194,7 @@ export function createAppraisalMarketSurveyEntry(): AppraisalMarketSurveyEntry {
   };
 }
 
-function createAppraisalChattelReport(): AppraisalChattelReport {
+export function createAppraisalChattelReport(): AppraisalChattelReport {
   return {
     accountName: '', requestedBy: '', purposeOfReport: '', reportDate: '',
     eqptUnderApp: '', dateInspected: '', registeredOwner: '', address: '',
@@ -1482,7 +1482,7 @@ export type AppraisalMachineriesReport = {
   uploadedAt: string | null;
 };
 
-function createAppraisalMachineriesReport(): AppraisalMachineriesReport {
+export function createAppraisalMachineriesReport(): AppraisalMachineriesReport {
   return {
     to: 'Credit Committee',
     thru: '',
@@ -2080,9 +2080,18 @@ type AdminContextValue = AdminState & {
     data: Partial<Omit<BasisOfValuationComparable, 'id'>>
   ) => void;
   removeAppraisalBundleComparable: (bundleId: string, comparableId: string) => void;
+  // Partial<AppraisalChattelReport> in full (not Omit-restricted) — mirrors
+  // setAppraisalBundleReport's own precedent for AppraisalReport, since the
+  // "Fill with Sample Data" flow (sample-appraisal-report.ts) needs to
+  // bulk-replace the checklist/market-survey arrays in one call, the same
+  // way buildSampleAppraisalReport bulk-replaces landTitles/improvements.
+  // The editable per-item UI still goes through the dedicated
+  // setAppraisalChecklistItem/setAppraisalConditionItem/
+  // setAppraisalFunctionItem/*MarketSurveyEntry mutators below, which this
+  // wider type does not change.
   setAppraisalBundleChattelReport: (
     bundleId: string,
-    data: Partial<Omit<AppraisalChattelReport, 'accessories' | 'powerFeatures' | 'generalCondition' | 'instrumentPanelLighting' | 'marketSurvey'>>
+    data: Partial<AppraisalChattelReport>
   ) => void;
   setAppraisalChecklistItem: (
     bundleId: string,
@@ -2107,9 +2116,14 @@ type AdminContextValue = AdminState & {
     data: Partial<Omit<AppraisalMarketSurveyEntry, 'id'>>
   ) => void;
   removeAppraisalMarketSurveyEntry: (bundleId: string, entryId: string) => void;
+  // Partial<AppraisalMachineriesReport> in full — same reasoning as
+  // setAppraisalBundleChattelReport above (sample-fill needs to
+  // bulk-replace `machineries`); per-item edits still go through
+  // addAppraisalMachineryEntry/updateAppraisalMachineryEntry/
+  // removeAppraisalMachineryEntry.
   setAppraisalBundleMachineriesReport: (
     bundleId: string,
-    data: Partial<Omit<AppraisalMachineriesReport, 'machineries'>>
+    data: Partial<AppraisalMachineriesReport>
   ) => void;
   addAppraisalMachineryEntry: (bundleId: string) => void;
   updateAppraisalMachineryEntry: (

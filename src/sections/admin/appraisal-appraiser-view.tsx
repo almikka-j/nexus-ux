@@ -38,7 +38,11 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { SAMPLE_APPLICATION } from './sample-application';
-import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
+import {
+  buildSampleAppraisalReport,
+  buildSampleChattelReport,
+  buildSampleMachineriesReport,
+} from './appraisal/sample-appraisal-report';
 import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './appraisal/appraisal-bundle-status';
 
 // ----------------------------------------------------------------------
@@ -117,6 +121,8 @@ export function AppraisalAppraiserView() {
     setAppraisal,
     setAppraisalBundleFee,
     setAppraisalBundleReport,
+    setAppraisalBundleChattelReport,
+    setAppraisalBundleMachineriesReport,
     setCreditInvestigation,
     createAppraisalReportBundle,
     submitAppraisalBundleFeeForApproval,
@@ -369,6 +375,24 @@ export function AppraisalAppraiserView() {
                   bundle.id,
                   buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName, false)
                 );
+                // Gate Chattel/Machineries sample-fill on this bundle's
+                // own kind — see report-approvals-view.tsx's identical
+                // comment.
+                const bundleTitleGroups = appraisalGroups.filter((group) =>
+                  bundle.tctGroupIds.includes(group.id)
+                );
+                const bundleCollateralType = bundleTitleGroups[0]?.collateralType ?? 'real-estate';
+                if (bundleCollateralType === 'chattel') {
+                  setAppraisalBundleChattelReport(
+                    bundle.id,
+                    buildSampleChattelReport(bundle, bundleTctNumbers, applicantName, false)
+                  );
+                } else if (bundleCollateralType === 'machineries') {
+                  setAppraisalBundleMachineriesReport(
+                    bundle.id,
+                    buildSampleMachineriesReport(bundle, bundleTctNumbers, applicantName, false)
+                  );
+                }
               });
           },
         },

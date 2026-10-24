@@ -34,7 +34,11 @@ import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 import { ReadOnlyRequirementDocRow } from './credit-investigation/credit-investigation-doc-row';
 import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { AppraiserAssignmentCard, AppraisalReportSubmitCard } from './appraisal/appraiser-assignment-card';
-import { buildSampleAppraisalReport } from './appraisal/sample-appraisal-report';
+import {
+  buildSampleAppraisalReport,
+  buildSampleChattelReport,
+  buildSampleMachineriesReport,
+} from './appraisal/sample-appraisal-report';
 
 import type { AppraisalCollateralType } from 'src/auth/admin-context';
 
@@ -372,6 +376,8 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
     setAppraisal,
     setAppraisalBundleFee,
     setAppraisalBundleReport,
+    setAppraisalBundleChattelReport,
+    setAppraisalBundleMachineriesReport,
     submitAppraisalBundleFeeForApproval,
     approveAppraisalBundleFee,
     declineAppraisalBundleFee,
@@ -501,6 +507,23 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
               currentBundle.id,
               buildSampleAppraisalReport(currentBundle, bundleTctNumbers, applicantName, false)
             );
+            // Gate Chattel/Machineries sample-fill on this bundle's own
+            // kind — see report-approvals-view.tsx's identical comment.
+            const bundleTitleGroups = appraisalGroups.filter((group) =>
+              currentBundle.tctGroupIds.includes(group.id)
+            );
+            const bundleCollateralType = bundleTitleGroups[0]?.collateralType ?? 'real-estate';
+            if (bundleCollateralType === 'chattel') {
+              setAppraisalBundleChattelReport(
+                currentBundle.id,
+                buildSampleChattelReport(currentBundle, bundleTctNumbers, applicantName, false)
+              );
+            } else if (bundleCollateralType === 'machineries') {
+              setAppraisalBundleMachineriesReport(
+                currentBundle.id,
+                buildSampleMachineriesReport(currentBundle, bundleTctNumbers, applicantName, false)
+              );
+            }
           },
         },
       ],
