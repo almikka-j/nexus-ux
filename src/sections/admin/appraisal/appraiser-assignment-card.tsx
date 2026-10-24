@@ -306,7 +306,7 @@ function ReportFileDropzone({
 // plus a thumbnail grid of every photo uploaded so far, each with its own
 // delete (×) button. Every drop APPENDS to the array rather than
 // replacing it, unlike ReportFileDropzone's single-value contract.
-function MultiPhotoDropzone({
+export function MultiPhotoDropzone({
   photos,
   onChange,
   disabled,
