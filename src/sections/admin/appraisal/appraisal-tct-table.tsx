@@ -27,7 +27,7 @@ import DialogContent from '@mui/material/DialogContent';
 import ListItemText from '@mui/material/ListItemText';
 import TableContainer from '@mui/material/TableContainer';
 
-import { useAdmin, APPRAISER_ROSTER } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt } from 'src/auth/admin-context';
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
 import { Iconify } from 'src/components/iconify';
@@ -224,7 +224,7 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
   // appraiser (or this same action) already submitted.
   const handleSimulateReportSubmission = () => {
     reportBundles
-      .filter((bundle) => !bundle.report.uploadedAt)
+      .filter((bundle) => !getBundleUploadedAt(bundle))
       .forEach((bundle) => {
         const bundleTctNumbers = appraisalGroups
           .filter((group) => bundle.tctGroupIds.includes(group.id))

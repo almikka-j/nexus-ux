@@ -24,7 +24,7 @@ import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin, APPRAISER_ROSTER } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -360,7 +360,7 @@ export function AppraisalAppraiserView() {
           color: '#1C2A6E',
           onClick: () => {
             reportBundles
-              .filter((bundle) => !bundle.report.uploadedAt)
+              .filter((bundle) => !getBundleUploadedAt(bundle))
               .forEach((bundle) => {
                 const bundleTctNumbers = appraisalGroups
                   .filter((group) => bundle.tctGroupIds.includes(group.id))

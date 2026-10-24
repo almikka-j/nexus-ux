@@ -20,7 +20,7 @@ import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin, APPRAISER_ROSTER } from 'src/auth/admin-context';
+import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
@@ -134,7 +134,7 @@ export function ReportApprovalsView() {
   const hasBundleNeedingFeeApproval = reportBundles.some(
     (bundle) => bundle.feeNeeded === 'yes' && bundle.feeApprovalStatus !== 'approved'
   );
-  const hasBundleNeedingReport = reportBundles.some((bundle) => !bundle.report.uploadedAt);
+  const hasBundleNeedingReport = reportBundles.some((bundle) => !getBundleUploadedAt(bundle));
   useEffect(() => {
     if (!hydrated) return;
     if (!hasApplication) return;
@@ -176,7 +176,7 @@ export function ReportApprovalsView() {
       approveAppraisalBundleFee(bundleNeedingFeeApproval.id);
       return;
     }
-    const bundleNeedingReport = reportBundles.find((bundle) => !bundle.report.uploadedAt);
+    const bundleNeedingReport = reportBundles.find((bundle) => !getBundleUploadedAt(bundle));
     if (bundleNeedingReport && signUpData) {
       const bundleTctNumbers = appraisalGroups
         .filter((group) => bundleNeedingReport.tctGroupIds.includes(group.id))
@@ -197,7 +197,7 @@ export function ReportApprovalsView() {
   const submittedOnLabel = callReportSubmittedAt ? new Date(callReportSubmittedAt).toLocaleDateString() : '—';
 
   const allGroupsAssigned = appraisalGroups.every((group) => group.reportId !== null);
-  const allBundlesSubmitted = reportBundles.every((bundle) => !!bundle.report.uploadedAt);
+  const allBundlesSubmitted = reportBundles.every((bundle) => !!getBundleUploadedAt(bundle));
   const reportSubmitted =
     appraisalNotApplicable || (allGroupsAssigned && reportBundles.length > 0 && allBundlesSubmitted);
   const showAppraisalRow = hasApplication && reportSubmitted && headApprovalStatus === 'pending';

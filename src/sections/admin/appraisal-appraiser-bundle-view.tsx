@@ -18,7 +18,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, getBundleUploadedAt } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -492,7 +492,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
           color: '#1C2A6E',
           onClick: () => {
             const currentBundle = reportBundles.find((entry) => entry.id === bundleId);
-            if (!currentBundle || currentBundle.report.uploadedAt || !signUpData) return;
+            if (!currentBundle || getBundleUploadedAt(currentBundle) || !signUpData) return;
             const bundleTctNumbers = appraisalGroups
               .filter((group) => currentBundle.tctGroupIds.includes(group.id))
               .map((group) => group.tctNumber);
@@ -617,7 +617,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
     0
   );
 
-  const status = bundle.report.uploadedAt
+  const status = getBundleUploadedAt(bundle)
     ? 'reported'
     : bundle.feeNeeded === 'no' || (bundle.feeApprovalStatus === 'approved' && feeSettled)
       ? 'for-report'

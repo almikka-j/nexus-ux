@@ -121,7 +121,7 @@ export function buildSampleAppraisalReport(
 
     registeredOwner: applicantName,
     locationOfProperty: `${bundleTctNumbers.join(', ')}, Quezon City, Metro Manila`,
-    landTitles: bundle.report.landTitles.map((title) => ({
+    landTitles: bundle.realEstateReport.landTitles.map((title) => ({
       ...title,
       fileType: 'TCT',
       titleNo: 'TCT-2026-00001',

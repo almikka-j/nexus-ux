@@ -10,7 +10,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, getBundleUploadedAt } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
 import { Iconify } from 'src/components/iconify';
@@ -99,7 +99,7 @@ export function AppraisalView() {
   // once the Approver approves the report there, the Pass/Fail decision
   // unlocks here immediately with no extra step in between.
   const allGroupsAssigned = appraisalGroups.every((group) => group.reportId !== null);
-  const allBundlesSubmitted = reportBundles.every((bundle) => !!bundle.report.uploadedAt);
+  const allBundlesSubmitted = reportBundles.every((bundle) => !!getBundleUploadedAt(bundle));
   const reportSubmitted =
     appraisalNotApplicable || (allGroupsAssigned && reportBundles.length > 0 && allBundlesSubmitted);
   const headApproved = headApprovalStatus === 'approved';
