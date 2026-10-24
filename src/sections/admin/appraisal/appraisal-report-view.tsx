@@ -384,258 +384,251 @@ function LandTitleSummary({
 // Equipment, the 4 checklists as read-only label/value rows, Market
 // Survey as a read-only table, Encumbrances/Remarks, file attachments.
 // ----------------------------------------------------------------------
-function ChattelReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportBundle; tctNumbers: string[] }) {
+// No outer adminCardSx wrapper — this is a bare, card-less report body
+// like appraisal-report-preview.tsx's AppraisalReportPreview, so it reads
+// consistently whether the caller places it directly (where it needs its
+// own card — see below) or inside a Dialog's own DialogContent (which
+// already provides its own padding/chrome — see appraiser-assignment-card.tsx's
+// "Preview Appraisal Report" dialogs for Chattel/Machineries).
+export function ChattelReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportBundle; tctNumbers: string[] }) {
   const { appraiserName } = bundle;
   const report = bundle.chattelReport;
   const uploadedAt = report.uploadedAt;
-  const badRatedCount = report.generalCondition.filter((item) => item.rating === 'bad').length;
 
   return (
-    <Box sx={adminCardSx}>
-      {/* Lead-in summary: the Appraised Value hero (also itemized in the
-          report body's "Appraised Value" section, as in the form) and the
-          bad-rated-item flag (derived, not a field). Registered Owner /
+    <Stack spacing={2.5}>
+      {/* Lead-in summary: the Appraised Value hero. Registered Owner /
           Make / Plate No. used to repeat here too, but the always-visible
           report below already shows them, so they live there only. */}
-      <Stack spacing={2.5}>
-        <AppraisedValueHero appraisedValue={report.appraisedValue} amountInWords="" />
+      <AppraisedValueHero appraisedValue={report.appraisedValue} amountInWords="" />
 
-        {badRatedCount > 0 && (
-          <Box>
-            <StatusBadge tone="error" label={`${badRatedCount} bad-rated item${badRatedCount === 1 ? '' : 's'}`} />
-          </Box>
-        )}
-      </Stack>
+      <FieldSection
+        title="Report Details"
+        rows={[
+          [
+            ['Account Name', report.accountName],
+            ['Requested By', report.requestedBy],
+          ],
+          [
+            ['Purpose of Report', report.purposeOfReport],
+            ['Report Date', report.reportDate],
+          ],
+          [
+            ['Eqpt. Under App.', report.eqptUnderApp],
+            ['Date Inspected', report.dateInspected],
+          ],
+          [
+            ['Registered Owner', report.registeredOwner],
+            ['Address', report.address],
+          ],
+        ]}
+      />
 
-      <Stack spacing={3} sx={{ mt: 3 }}>
-        <FieldSection
-          title="Report Details"
+      <Section title="Description of Equipment">
+        <FieldRows
           rows={[
             [
-              ['Account Name', report.accountName],
-              ['Requested By', report.requestedBy],
+              ['Make', report.make],
+              ['MVF No.', report.mvfNo],
             ],
             [
-              ['Purpose of Report', report.purposeOfReport],
-              ['Report Date', report.reportDate],
+              ['Series', report.series],
+              ['C.R No.', report.crNo],
             ],
             [
-              ['Eqpt. Under App.', report.eqptUnderApp],
-              ['Date Inspected', report.dateInspected],
+              ['Type of Body / Denomination', report.typeOfBodyDenomination],
+              ['Registration Date', report.registrationDate],
             ],
             [
-              ['Registered Owner', report.registeredOwner],
-              ['Address', report.address],
+              ['Year Model', report.yearModel],
+              ['Place Registered', report.placeRegistered],
+            ],
+            [
+              ['Color', report.color],
+              ['Chassis Number', report.chassisNumber],
+            ],
+            [
+              ['Odometer Reading', report.odometerReading],
+              ['Engine No.', report.engineNo],
+            ],
+            [
+              ['Plate No.', report.plateNo],
+              ['Fuel', report.fuel],
             ],
           ]}
         />
+      </Section>
 
-        <Section title="Description of Equipment">
-          <FieldRows
-            rows={[
-              [
-                ['Make', report.make],
-                ['MVF No.', report.mvfNo],
-              ],
-              [
-                ['Series', report.series],
-                ['C.R No.', report.crNo],
-              ],
-              [
-                ['Type of Body / Denomination', report.typeOfBodyDenomination],
-                ['Registration Date', report.registrationDate],
-              ],
-              [
-                ['Year Model', report.yearModel],
-                ['Place Registered', report.placeRegistered],
-              ],
-              [
-                ['Color', report.color],
-                ['Chassis Number', report.chassisNumber],
-              ],
-              [
-                ['Odometer Reading', report.odometerReading],
-                ['Engine No.', report.engineNo],
-              ],
-              [
-                ['Plate No.', report.plateNo],
-                ['Fuel', report.fuel],
-              ],
-            ]}
+      {/* Checklists: every item's row always shows (as before), the
+          value being "Yes"/"No" plus comments when checked — the muted
+          color for an unchecked item is kept. */}
+      <Section title="Accessories">
+        {report.accessories.length > 0 && (
+          <FieldTable>
+            {pairUp(report.accessories).map((row) => (
+              <FieldTableRow
+                key={row.map((item) => item.id).join('|')}
+                pairs={row.map((item) => [
+                  item.label,
+                  <Box key={item.id} component="span" sx={{ color: item.checked ? '#14172A' : '#8891A6' }}>
+                    {item.checked ? 'Yes' : 'No'}
+                    {item.checked && item.comments ? ` — ${item.comments}` : ''}
+                  </Box>,
+                ])}
+              />
+            ))}
+          </FieldTable>
+        )}
+      </Section>
+
+      <Section title="Power Features">
+        {report.powerFeatures.length > 0 && (
+          <FieldTable>
+            {pairUp(report.powerFeatures).map((row) => (
+              <FieldTableRow
+                key={row.map((item) => item.id).join('|')}
+                pairs={row.map((item) => [
+                  item.label,
+                  <Box key={item.id} component="span" sx={{ color: item.checked ? '#14172A' : '#8891A6' }}>
+                    {item.checked ? 'Yes' : 'No'}
+                    {item.checked && item.comments ? ` — ${item.comments}` : ''}
+                  </Box>,
+                ])}
+              />
+            ))}
+          </FieldTable>
+        )}
+      </Section>
+
+      {/* General Condition / Instrument Panel stay as their own rows: each
+          value is a StatusBadge (a block element, which can't sit inside
+          FieldTableRow's <p> value cell), so they're kept as non-field
+          status content under the new section header. */}
+      <Section title="General Condition">
+        <Stack spacing={1}>
+          {report.generalCondition.map((item) => (
+            <Stack
+              key={item.id}
+              direction={{ xs: 'column', sm: 'row' }}
+              alignItems={{ sm: 'center' }}
+              spacing={1.5}
+              sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
+            >
+              <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 140, flexShrink: 0 }}>
+                {item.label}
+              </Typography>
+              {item.rating && (
+                <StatusBadge
+                  tone={item.rating === 'bad' ? 'error' : 'success'}
+                  label={item.rating === 'bad' ? 'Bad' : 'Good'}
+                />
+              )}
+              {item.comments && (
+                <Typography sx={{ fontSize: 13, color: '#3B4256' }}>{item.comments}</Typography>
+              )}
+            </Stack>
+          ))}
+        </Stack>
+      </Section>
+
+      <Section title="Instrument Panel & Lighting">
+        <Stack spacing={1}>
+          {report.instrumentPanelLighting.map((item) => (
+            <Stack
+              key={item.id}
+              direction={{ xs: 'column', sm: 'row' }}
+              alignItems={{ sm: 'center' }}
+              spacing={1.5}
+              sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
+            >
+              <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 140, flexShrink: 0 }}>
+                {item.label}
+              </Typography>
+              {item.rating && (
+                <StatusBadge
+                  tone={item.rating === 'functioning' ? 'success' : 'error'}
+                  label={item.rating === 'functioning' ? 'Functioning Well' : 'Not Functioning Well'}
+                />
+              )}
+            </Stack>
+          ))}
+        </Stack>
+      </Section>
+
+      <Section title="Market Survey">
+        {report.marketSurvey.length === 0 ? (
+          <Typography sx={{ fontSize: 12.5, color: '#8891A6', fontStyle: 'italic' }}>
+            No market survey entries recorded.
+          </Typography>
+        ) : (
+          <Stack spacing={1.25}>
+            {report.marketSurvey.map((entry, index) => (
+              <EntryBlock key={entry.id} title={`Survey ${index + 1}`}>
+                <FieldRows
+                  rows={[
+                    [
+                      ['Source', entry.source],
+                      ['Date', entry.date],
+                    ],
+                    [
+                      ['Type', entry.type],
+                      ['Gen. Condition', entry.generalCondition],
+                    ],
+                    [['Selling Price', entry.sellingPrice]],
+                  ]}
+                />
+              </EntryBlock>
+            ))}
+          </Stack>
+        )}
+      </Section>
+
+      {/* Same 4 fields, same order, as ChattelReportFields' "Appraised
+          Value" step (Appraised Value, Loanable Percent, Appraised Value
+          (Round Off), Loanable Amount), followed by its Encumbrances /
+          Remarks rich text — the editable form places that rich text
+          inside the same step, after the 4 value fields. */}
+      <FieldSection
+        title="Appraised Value"
+        rows={[
+          [
+            ['Appraised Value', report.appraisedValue],
+            ['Loanable Percent', report.loanablePercent],
+          ],
+          [
+            ['Appraised Value (Round Off)', report.appraisedValueRoundOff],
+            ['Loanable Amount', report.loanableAmount],
+          ],
+        ]}
+      />
+
+      {report.encumbrancesRemarks && (
+        <Section title="Encumbrances / Remarks">
+          {/* Stored as HTML from the editable form's RichTextField — rendered
+              as plain read-only HTML here, no editable control. */}
+          <Box
+            sx={{ fontSize: 13.5, color: '#3B4256', '& p': { m: 0, mb: 1 } }}
+            dangerouslySetInnerHTML={{ __html: report.encumbrancesRemarks }}
           />
         </Section>
+      )}
 
-        {/* Checklists: every item's row always shows (as before), the
-            value being "Yes"/"No" plus comments when checked — the muted
-            color for an unchecked item is kept. */}
-        <Section title="Accessories">
-          {report.accessories.length > 0 && (
-            <FieldTable>
-              {pairUp(report.accessories).map((row) => (
-                <FieldTableRow
-                  key={row.map((item) => item.id).join('|')}
-                  pairs={row.map((item) => [
-                    item.label,
-                    <Box key={item.id} component="span" sx={{ color: item.checked ? '#14172A' : '#8891A6' }}>
-                      {item.checked ? 'Yes' : 'No'}
-                      {item.checked && item.comments ? ` — ${item.comments}` : ''}
-                    </Box>,
-                  ])}
-                />
-              ))}
-            </FieldTable>
-          )}
-        </Section>
-
-        <Section title="Power Features">
-          {report.powerFeatures.length > 0 && (
-            <FieldTable>
-              {pairUp(report.powerFeatures).map((row) => (
-                <FieldTableRow
-                  key={row.map((item) => item.id).join('|')}
-                  pairs={row.map((item) => [
-                    item.label,
-                    <Box key={item.id} component="span" sx={{ color: item.checked ? '#14172A' : '#8891A6' }}>
-                      {item.checked ? 'Yes' : 'No'}
-                      {item.checked && item.comments ? ` — ${item.comments}` : ''}
-                    </Box>,
-                  ])}
-                />
-              ))}
-            </FieldTable>
-          )}
-        </Section>
-
-        {/* General Condition / Instrument Panel stay as their own rows: each
-            value is a StatusBadge (a block element, which can't sit inside
-            FieldTableRow's <p> value cell), so they're kept as non-field
-            status content under the new section header. */}
-        <Section title="General Condition">
-          <Stack spacing={1}>
-            {report.generalCondition.map((item) => (
-              <Stack
-                key={item.id}
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ sm: 'center' }}
-                spacing={1.5}
-                sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
-              >
-                <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 140, flexShrink: 0 }}>
-                  {item.label}
-                </Typography>
-                {item.rating && (
-                  <StatusBadge
-                    tone={item.rating === 'bad' ? 'error' : 'success'}
-                    label={item.rating === 'bad' ? 'Bad' : 'Good'}
-                  />
-                )}
-                {item.comments && (
-                  <Typography sx={{ fontSize: 13, color: '#3B4256' }}>{item.comments}</Typography>
-                )}
-              </Stack>
+      {report.fileAttachments.length > 0 && (
+        <Section title="File Attachment">
+          <Stack direction="row" flexWrap="wrap" gap={1.5}>
+            {report.fileAttachments.map((photo, index) => (
+              <Box
+                key={`${photo.fileUrl}-${index}`}
+                component="img"
+                src={photo.fileUrl}
+                alt={photo.fileName}
+                sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
+              />
             ))}
           </Stack>
         </Section>
-
-        <Section title="Instrument Panel & Lighting">
-          <Stack spacing={1}>
-            {report.instrumentPanelLighting.map((item) => (
-              <Stack
-                key={item.id}
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ sm: 'center' }}
-                spacing={1.5}
-                sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
-              >
-                <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 140, flexShrink: 0 }}>
-                  {item.label}
-                </Typography>
-                {item.rating && (
-                  <StatusBadge
-                    tone={item.rating === 'functioning' ? 'success' : 'error'}
-                    label={item.rating === 'functioning' ? 'Functioning Well' : 'Not Functioning Well'}
-                  />
-                )}
-              </Stack>
-            ))}
-          </Stack>
-        </Section>
-
-        <Section title="Market Survey">
-          {report.marketSurvey.length === 0 ? (
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', fontStyle: 'italic' }}>
-              No market survey entries recorded.
-            </Typography>
-          ) : (
-            <Stack spacing={1.25}>
-              {report.marketSurvey.map((entry, index) => (
-                <EntryBlock key={entry.id} title={`Survey ${index + 1}`}>
-                  <FieldRows
-                    rows={[
-                      [
-                        ['Source', entry.source],
-                        ['Date', entry.date],
-                      ],
-                      [
-                        ['Type', entry.type],
-                        ['Gen. Condition', entry.generalCondition],
-                      ],
-                      [['Selling Price', entry.sellingPrice]],
-                    ]}
-                  />
-                </EntryBlock>
-              ))}
-            </Stack>
-          )}
-        </Section>
-
-        {/* Same 4 fields, same order, as ChattelReportFields' "Appraised
-            Value" step (Appraised Value, Loanable Percent, Appraised Value
-            (Round Off), Loanable Amount), followed by its Encumbrances /
-            Remarks rich text — the editable form places that rich text
-            inside the same step, after the 4 value fields. */}
-        <FieldSection
-          title="Appraised Value"
-          rows={[
-            [
-              ['Appraised Value', report.appraisedValue],
-              ['Loanable Percent', report.loanablePercent],
-            ],
-            [
-              ['Appraised Value (Round Off)', report.appraisedValueRoundOff],
-              ['Loanable Amount', report.loanableAmount],
-            ],
-          ]}
-        />
-
-        {report.encumbrancesRemarks && (
-          <Section title="Encumbrances / Remarks">
-            {/* Stored as HTML from the editable form's RichTextField — rendered
-                as plain read-only HTML here, no editable control. */}
-            <Box
-              sx={{ fontSize: 13.5, color: '#3B4256', '& p': { m: 0, mb: 1 } }}
-              dangerouslySetInnerHTML={{ __html: report.encumbrancesRemarks }}
-            />
-          </Section>
-        )}
-
-        {report.fileAttachments.length > 0 && (
-          <Section title="File Attachment">
-            <Stack direction="row" flexWrap="wrap" gap={1.5}>
-              {report.fileAttachments.map((photo, index) => (
-                <Box
-                  key={`${photo.fileUrl}-${index}`}
-                  component="img"
-                  src={photo.fileUrl}
-                  alt={photo.fileName}
-                  sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
-                />
-              ))}
-            </Stack>
-          </Section>
-        )}
-      </Stack>
-    </Box>
+      )}
+    </Stack>
   );
 }
 
@@ -645,131 +638,128 @@ function ChattelReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportB
 // own section groupings (Task 5): memo header fields, Description of
 // Equipments, the machineries list as read-only label/value rows (no
 // pencil, no collapse — every entry's fields always shown), Qualification
-// & Remarks, file attachments.
+// & Remarks, file attachments. No outer adminCardSx wrapper — same "bare"
+// convention as ChattelReportSummary above.
 // ----------------------------------------------------------------------
-function MachineriesReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportBundle; tctNumbers: string[] }) {
+export function MachineriesReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportBundle; tctNumbers: string[] }) {
   const { appraiserName } = bundle;
   const report = bundle.machineriesReport;
   const uploadedAt = report.uploadedAt;
   const totalAppraisedValue = computeTotalAppraisedValue(report.machineries);
 
   return (
-    <Box sx={adminCardSx}>
+    <Stack spacing={2.5}>
       {/* Lead-in summary: the Total Appraised Value hero (kept as the
           headline number, consistent with the other two collateral kinds)
           and the machinery count (derived, not a field). Subject used to
           repeat here too, but the always-visible Report Details section below
           already shows it, so it lives there only. */}
-      <Stack spacing={2.5}>
-        <AppraisedValueHero
-          appraisedValue={String(totalAppraisedValue)}
-          amountInWords=""
-          label="TOTAL APPRAISED VALUE"
-        />
+      <AppraisedValueHero
+        appraisedValue={String(totalAppraisedValue)}
+        amountInWords=""
+        label="TOTAL APPRAISED VALUE"
+      />
 
-        <FieldRows rows={[[['Machineries', `${report.machineries.length} machineries`]]]} />
-      </Stack>
+      <FieldRows rows={[[['Machineries', `${report.machineries.length} machineries`]]]} />
 
-      <Stack spacing={3} sx={{ mt: 3 }}>
-        <FieldSection
-          title="Report Details"
-          rows={[
-            [
-              ['To', report.to],
-              ['Thru', report.thru],
-            ],
-            [
-              ['From', report.from],
-              ['Date Report', report.dateReport],
-            ],
-            [
-              ['Date Inspected', report.dateInspected],
-              ['Subject', report.subject],
-            ],
-          ]}
-        />
+      <FieldSection
+        title="Report Details"
+        rows={[
+          [
+            ['To', report.to],
+            ['Thru', report.thru],
+          ],
+          [
+            ['From', report.from],
+            ['Date Report', report.dateReport],
+          ],
+          [
+            ['Date Inspected', report.dateInspected],
+            ['Subject', report.subject],
+          ],
+        ]}
+      />
 
-        {report.descriptionOfEquipments && (
-          <Section title="I. Description of Equipments">
-            <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
-              {report.descriptionOfEquipments}
-            </Typography>
-          </Section>
-        )}
-
-        <Section title="Machineries">
-          {report.machineries.length === 0 ? (
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', fontStyle: 'italic' }}>
-              No machineries recorded.
-            </Typography>
-          ) : (
-            <Stack spacing={1.25}>
-              {report.machineries.map((entry, index) => (
-                <EntryBlock key={entry.id} title={`Machinery ${index + 1}`}>
-                  <FieldRows
-                    rows={[
-                      [
-                        ['Unit(s)', entry.units],
-                        ['Description', entry.description],
-                      ],
-                      [
-                        ['Serial No.', entry.serialNo],
-                        ['Acquisition Price(s) in PHP', entry.acquisitionPricePhp],
-                      ],
-                      [
-                        ['Date of Proforma Invoice', entry.dateOfProformaInvoice],
-                        ['Appraised Value (Less % Depreciation of 10% per year)', entry.appraisedValueLessDepreciation],
-                      ],
-                    ]}
-                  />
-                </EntryBlock>
-              ))}
-            </Stack>
-          )}
+      {report.descriptionOfEquipments && (
+        <Section title="I. Description of Equipments">
+          <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
+            {report.descriptionOfEquipments}
+          </Typography>
         </Section>
+      )}
 
-        <FieldSection
-          title="Appraised Value"
-          rows={[
-            [
-              ['Total Appraised Value', fCurrency(totalAppraisedValue)],
-              ['Total Appraised Value (Round Off)', report.totalAppraisedValueRoundOff],
-            ],
-            [
-              ['Loanable Percent', report.loanablePercent],
-              ['Loanable Amount', report.loanableAmount],
-            ],
-          ]}
-        />
-
-        {report.qualificationRemarks && (
-          <Section title="II. Qualification & Remarks">
-            {/* Stored as HTML from the editable form's RichTextField — rendered
-                as plain read-only HTML here, no editable control. */}
-            <Box
-              sx={{ fontSize: 13.5, color: '#3B4256', '& p': { m: 0, mb: 1 } }}
-              dangerouslySetInnerHTML={{ __html: report.qualificationRemarks }}
-            />
-          </Section>
-        )}
-
-        {report.fileAttachments.length > 0 && (
-          <Section title="File Attachment">
-            <Stack direction="row" flexWrap="wrap" gap={1.5}>
-              {report.fileAttachments.map((photo, index) => (
-                <Box
-                  key={`${photo.fileUrl}-${index}`}
-                  component="img"
-                  src={photo.fileUrl}
-                  alt={photo.fileName}
-                  sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
+      <Section title="Machineries">
+        {report.machineries.length === 0 ? (
+          <Typography sx={{ fontSize: 12.5, color: '#8891A6', fontStyle: 'italic' }}>
+            No machineries recorded.
+          </Typography>
+        ) : (
+          <Stack spacing={1.25}>
+            {report.machineries.map((entry, index) => (
+              <EntryBlock key={entry.id} title={`Machinery ${index + 1}`}>
+                <FieldRows
+                  rows={[
+                    [
+                      ['Unit(s)', entry.units],
+                      ['Description', entry.description],
+                    ],
+                    [
+                      ['Serial No.', entry.serialNo],
+                      ['Acquisition Price(s) in PHP', entry.acquisitionPricePhp],
+                    ],
+                    [
+                      ['Date of Proforma Invoice', entry.dateOfProformaInvoice],
+                      ['Appraised Value (Less % Depreciation of 10% per year)', entry.appraisedValueLessDepreciation],
+                    ],
+                  ]}
                 />
-              ))}
-            </Stack>
-          </Section>
+              </EntryBlock>
+            ))}
+          </Stack>
         )}
-      </Stack>
-    </Box>
+      </Section>
+
+      <FieldSection
+        title="Appraised Value"
+        rows={[
+          [
+            ['Total Appraised Value', fCurrency(totalAppraisedValue)],
+            ['Total Appraised Value (Round Off)', report.totalAppraisedValueRoundOff],
+          ],
+          [
+            ['Loanable Percent', report.loanablePercent],
+            ['Loanable Amount', report.loanableAmount],
+          ],
+        ]}
+      />
+
+      {report.qualificationRemarks && (
+        <Section title="II. Qualification & Remarks">
+          {/* Stored as HTML from the editable form's RichTextField — rendered
+              as plain read-only HTML here, no editable control. */}
+          <Box
+            sx={{ fontSize: 13.5, color: '#3B4256', '& p': { m: 0, mb: 1 } }}
+            dangerouslySetInnerHTML={{ __html: report.qualificationRemarks }}
+          />
+        </Section>
+      )}
+
+      {report.fileAttachments.length > 0 && (
+        <Section title="File Attachment">
+          <Stack direction="row" flexWrap="wrap" gap={1.5}>
+            {report.fileAttachments.map((photo, index) => (
+              <Box
+                key={`${photo.fileUrl}-${index}`}
+                component="img"
+                src={photo.fileUrl}
+                alt={photo.fileName}
+                sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
+              />
+            ))}
+          </Stack>
+        </Section>
+      )}
+    </Stack>
   );
 }
 
@@ -851,10 +841,18 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
   }
 
   if (realCollateralType === 'chattel') {
-    return <ChattelReportSummary bundle={bundle} tctNumbers={tctNumbers} />;
+    return (
+      <Box sx={adminCardSx}>
+        <ChattelReportSummary bundle={bundle} tctNumbers={tctNumbers} />
+      </Box>
+    );
   }
   if (realCollateralType === 'machineries') {
-    return <MachineriesReportSummary bundle={bundle} tctNumbers={tctNumbers} />;
+    return (
+      <Box sx={adminCardSx}>
+        <MachineriesReportSummary bundle={bundle} tctNumbers={tctNumbers} />
+      </Box>
+    );
   }
 
   const report = bundle.realEstateReport;

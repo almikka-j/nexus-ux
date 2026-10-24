@@ -186,22 +186,24 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
   };
 
   // Dev/testing convenience, surfaced via the shared settings popover
-  // (useRegisterPageActions) — folds every still-`Unassigned` TCT group into
-  // its own single-property in-house bundle so a tester can reach the
-  // downstream Assigned Appraiser/fee/report states without clicking
-  // through the Assign Appraiser modal per row. Cycles APPRAISER_ROSTER so
-  // multiple groups don't all land on the same name.
+  // (useRegisterPageActions) — folds every still-`Unassigned` TCT group
+  // into one in-house bundle per collateral kind (same rule the Assign
+  // Appraiser modal itself enforces via isWrongKind: a bundle can only
+  // ever cover ONE kind, but may cover several properties of that same
+  // kind) so a tester can reach the downstream Assigned Appraiser/fee/
+  // report states without clicking through the Assign Appraiser modal
+  // per row. Cycles APPRAISER_ROSTER per kind so multiple kinds don't all
+  // land on the same name.
   const handleAutoAssignAll = () => {
-    appraisalGroups
-      .filter((group) => group.reportId === null && !docsIncomplete(group.id))
-      .forEach((group, index) => {
-        createAppraisalReportBundle(
-          [group.id],
-          'inhouse',
-          APPRAISER_ROSTER[index % APPRAISER_ROSTER.length],
-          null
-        );
-      });
+    const eligibleGroups = appraisalGroups.filter(
+      (group) => group.reportId === null && !docsIncomplete(group.id)
+    );
+    (['real-estate', 'chattel', 'machineries'] as const).forEach((kind, index) => {
+      const groupIds = eligibleGroups.filter((group) => group.collateralType === kind).map((group) => group.id);
+      if (groupIds.length > 0) {
+        createAppraisalReportBundle(groupIds, 'inhouse', APPRAISER_ROSTER[index % APPRAISER_ROSTER.length], null);
+      }
+    });
   };
 
   // Inverse of the above — deletes every report bundle and resets every

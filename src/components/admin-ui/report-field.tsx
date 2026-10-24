@@ -105,7 +105,7 @@ export function FieldTableRow({
         <Box key={label} sx={{ display: 'flex', minWidth: 0 }}>
           <Box
             sx={{
-              width: 150,
+              width: 200,
               flexShrink: 0,
               px: 1.5,
               py: 0.75,

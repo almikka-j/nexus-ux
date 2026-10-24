@@ -53,24 +53,31 @@ export function AppraisalReportResultView({ bundleId }: { bundleId: string }) {
   const tctNumbers = titleGroups.map((group) => group.tctNumber);
   const realCollateralType = getBundleCollateralType(bundle, appraisalGroups);
 
+  // AppraisalReportPreview (Real Estate) is a bare, card-less body, so it
+  // needs this page's own outer card. AppraisalReportView (Chattel/
+  // Machineries/external) already wraps itself in its own adminCardSx
+  // card — nesting that inside another card here would show two stacked
+  // card borders, so it renders directly, without the outer wrapper.
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
       <ResultPageHeader title="Appraisal Report" meta={`Covers ${tctNumbers.join(', ')}`} />
-      <Box
-        sx={{
-          ...adminCardSx,
-          p: { xs: 2.5, sm: 3.5, md: 4.5 },
-          borderRadius: '0 0 16px 16px',
-          borderTop: 'none',
-          mb: 4,
-        }}
-      >
-        {realCollateralType === 'real-estate' ? (
+      {realCollateralType === 'real-estate' ? (
+        <Box
+          sx={{
+            ...adminCardSx,
+            p: { xs: 2.5, sm: 3.5, md: 4.5 },
+            borderRadius: '0 0 16px 16px',
+            borderTop: 'none',
+            mb: 4,
+          }}
+        >
           <AppraisalReportPreview report={bundle.realEstateReport} titleGroups={titleGroups} />
-        ) : (
+        </Box>
+      ) : (
+        <Box sx={{ mb: 4 }}>
           <AppraisalReportView bundleId={bundleId} tctNumbers={tctNumbers} />
-        )}
-      </Box>
+        </Box>
+      )}
     </Container>
   );
 }

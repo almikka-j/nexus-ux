@@ -3352,17 +3352,17 @@ function createInitialReview(): ApplicationReview {
       // pattern) rather than starting empty — an empty appraisalGroups
       // array is a valid "no real estate collateral yet" state the officer
       // can still reach via "Remove Property", but a fresh session
-      // shouldn't start there. 3 Real Estate / 1 Chattel / 1 Machineries —
-      // same mix as buildSampleAppraisalGroups() in
-      // requirement-checklist-view.tsx — so a brand-new session (no
-      // localStorage yet) already has a bundle to test for every
-      // Appraisal Report kind, not Real Estate only.
+      // shouldn't start there. Two of each collateral kind (Real Estate,
+      // Chattel, Machineries) — a brand-new session (no localStorage yet)
+      // already has two groups per Appraisal Report kind to test multiple
+      // collaterals of the same kind, not just one of each.
       appraisalGroups: [
         createAppraisalGroup('TCT-2024-00981', 'real-estate', true),
-        createAppraisalGroup('TCT-2024-00982', 'real-estate', true),
-        createAppraisalGroup('TCT-2024-00983', 'real-estate', true),
-        createAppraisalGroup('TCT-2024-00984', 'chattel', true),
-        createAppraisalGroup('TCT-2024-00985', 'machineries', true),
+        createAppraisalGroup('TCT-2024-01147', 'real-estate', true),
+        createAppraisalGroup('CR-2024-55213', 'chattel', true),
+        createAppraisalGroup('CR-2024-67840', 'chattel', true),
+        createAppraisalGroup('MACH-2024-30291', 'machineries', true),
+        createAppraisalGroup('MACH-2024-48562', 'machineries', true),
       ],
       appraisalNotApplicable: false,
       collateralNotes: '',
@@ -3464,21 +3464,16 @@ function readStoredState(): AdminState {
               : mergedDoc;
           }),
           appraisalGroups: (() => {
+            // Use whatever is stored as-is if present — an officer's own
+            // added/removed/renamed TCT rows are real session state, not
+            // something to merge against the default seed. A session with
+            // no stored appraisalGroups at all (fresh/cleared) falls back
+            // to today's default seed exactly, instead of topping up stale
+            // seed numbers from a previous version of the seed on top of
+            // it (which only ever grew the list across seed changes).
             const storedGroups: AppraisalTctGroup[] =
               storedReview.requirementChecklist?.appraisalGroups ?? initialState.review.requirementChecklist.appraisalGroups;
-            // A session saved before more sample TCTs were added to the
-            // default seed would otherwise be stuck at whatever smaller
-            // count it started with forever — the plain ?? above only
-            // covers "no appraisalGroups key at all", not "fewer groups
-            // than today's default seed". Top up any seed TCT numbers
-            // missing from the stored array (by tctNumber, so an officer's
-            // own renamed/removed rows are left alone) rather than
-            // discarding what's stored.
-            const storedTctNumbers = new Set(storedGroups.map((group) => group.tctNumber));
-            const missingSeedGroups = initialState.review.requirementChecklist.appraisalGroups.filter(
-              (seedGroup) => !storedTctNumbers.has(seedGroup.tctNumber)
-            );
-            return [...storedGroups, ...missingSeedGroups].map((group: AppraisalTctGroup) => ({
+            return storedGroups.map((group: AppraisalTctGroup) => ({
               ...group,
               // Sessions stored before collateralType existed have no such
               // key at all — default them to 'real-estate' rather than

@@ -152,20 +152,28 @@ export function ReportApprovalsView() {
     if (!hydrated) return;
     if (!hasApplication) return;
     if (reportBundles.length === 0) {
-      const groupsForSampleBundle = appraisalGroups.filter(
+      const eligibleGroups = appraisalGroups.filter(
         (group) =>
           group.reportId === null &&
           APPRAISAL_DOC_META.every((meta) => group.documents.find((doc) => doc.key === meta.key)?.status === 'verified')
       );
-      if (groupsForSampleBundle.length > 0) {
-        createAppraisalReportBundle(
-          groupsForSampleBundle.map((group) => group.id),
-          'inhouse',
-          APPRAISER_ROSTER[0],
-          null,
-          { feeNeeded: 'yes', feeAmount: '5000', feeDescription: 'Site visit + valuation fee', feeRemarks: '' }
-        );
-      }
+      // One bundle per collateral kind — a bundle can only ever cover ONE
+      // kind (Real Estate, Chattel, or Machineries), same rule the
+      // Collateral table's own "Assign Appraiser" modal enforces. Lumping
+      // every eligible group together regardless of kind would create a
+      // single bundle spanning multiple kinds, which nothing downstream
+      // (report forms, previews) is built to handle.
+      (['real-estate', 'chattel', 'machineries'] as const).forEach((kind) => {
+        const groupIds = eligibleGroups.filter((group) => group.collateralType === kind).map((group) => group.id);
+        if (groupIds.length > 0) {
+          createAppraisalReportBundle(groupIds, 'inhouse', APPRAISER_ROSTER[0], null, {
+            feeNeeded: 'yes',
+            feeAmount: '5000',
+            feeDescription: 'Site visit + valuation fee',
+            feeRemarks: '',
+          });
+        }
+      });
       return;
     }
     // The bundle now exists (created on the previous render's branch

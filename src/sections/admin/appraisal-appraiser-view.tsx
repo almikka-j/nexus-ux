@@ -25,18 +25,19 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { useAdmin, APPRAISER_ROSTER, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
+
+import type { AppraisalCollateralType } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog, confirmDialogActionToneSx } from 'src/components/custom-dialog';
-import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx, type SemanticTone } from 'src/components/admin-ui';
+import { adminCardSx, StatusBadge, TONE_COLORS, outlinedNavyButtonSx, type SemanticTone } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 import { getAppraisalNumber } from 'src/utils/get-appraisal-number';
 
 import { useRegisterPageActions } from 'src/layouts/admin/page-actions-context';
 
-import { APPRAISAL_DOC_META } from './requirement-checklist-docs';
 import { SAMPLE_APPLICATION } from './sample-application';
 import {
   buildSampleAppraisalReport,
@@ -52,24 +53,14 @@ import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './apprai
 // hydrated, if there's no live application in the session yet, this page
 // calls `loadSample(SAMPLE_APPLICATION)` — the same sample dataset
 // Application List loads — so `signUpData` becomes real, active session
-// state (not a disabled placeholder). Since a live application here needs
-// an actual assigned bundle to show anything, this effect also seeds one
-// — covering EVERY still-unassigned, docs-complete `appraisalGroups`
-// entry together as one consolidated bundle (all 5 of the default seed,
-// on a fresh session), same as selecting multiple rows and assigning them
-// as one consolidated bundle via the Officer's Assign Appraiser modal —
-// via `createAppraisalReportBundle`, same call `AppraisalTctTable`'s own
-// "Auto-assign All TCTs" page action makes (see "documents must be
-// verified before assignment" below — this seed only ever picks
-// docs-complete groups, same gate that page action respects). The end
-// result is a genuinely active, clickable first row spanning multiple
-// collateral — not a single-property or static read-only sample row —
-// the same way Application List's auto-loaded sample application is a
-// real, actionable row there, not a disabled one.
-// (An earlier version instead rendered one hardcoded, disabled
-// SAMPLE_ASSIGNMENT row appended after any real bundles; that diverged
-// from how every other page in this app actually handles "no live data
-// yet," so it was replaced with this auto-load-a-real-sample approach.)
+// state (not a disabled placeholder).
+//
+// This page never creates or assigns a bundle itself — "Assign Appraiser"
+// is always the Officer's own decision, made on the Collateral/TCT table
+// (via its "Assign Appraiser" modal, or its own "Auto-assign All TCTs" dev
+// shortcut), never auto-fired just by an appraiser opening this page. If
+// no bundle is assigned to this appraiser yet, the list below is simply
+// empty until the Officer assigns one.
 //
 // The table is one row per report bundle assigned to this appraiser,
 // showing its TCT number(s), a per-bundle "Fee" status pill, and an
@@ -103,6 +94,12 @@ import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './apprai
 // table/Assign Appraiser modal — claiming/assigning is the Officer's
 // action there, not something this page needs to offer a shortcut into.)
 // ----------------------------------------------------------------------
+
+const COLLATERAL_TYPE_LABEL: Record<AppraisalCollateralType, string> = {
+  'real-estate': 'Real Estate',
+  chattel: 'Chattel',
+  machineries: 'Machineries',
+};
 
 const FEE_STATUS_COPY: Record<'no-fee' | 'not-submitted' | 'pending-approval' | 'approved' | 'settled' | 'declined', { label: string; tone: SemanticTone }> = {
   'no-fee': { label: 'No Fee', tone: 'neutral' },
@@ -138,34 +135,40 @@ export function AppraisalAppraiserView() {
   // Same auto-load convention application-list-view.tsx uses: if the
   // session hydrates with no live application, load the shared sample
   // dataset so `signUpData` becomes real session state (not a disabled
-  // placeholder). Then, since this page needs an actual assigned bundle
-  // to show anything, seed one — covering EVERY still-unassigned,
-  // docs-complete appraisalGroups entry together in one bundle, same as
-  // selecting every eligible TCT row and assigning them as one
-  // consolidated bundle via the Officer's Assign Appraiser modal — so the
-  // sample assignment shown here demonstrates a real multi-collateral
-  // bundle, not a single-property one.
+  // placeholder).
+  //
+  // A brand-new session (reportBundles totally empty — this has never run
+  // before) also seeds exactly ONE bundle per collateral kind that has
+  // eligible, docs-complete groups — covering every eligible group of
+  // that kind together (an appraiser can be assigned several properties
+  // at once, as long as they're all the same collateral type — same rule
+  // the Collateral table's own "Assign Appraiser" modal enforces via
+  // isWrongKind), not a separate bundle per group. So this page shows a
+  // default example of every Appraisal Report kind the very first time
+  // it's opened — one Real Estate bundle, one Chattel bundle, one
+  // Machineries bundle — instead of starting completely empty. This
+  // fires ONLY when reportBundles is still empty (same one-time-only
+  // gate the original version of this effect used) — once any bundle of
+  // any kind exists, assigning another one is the Officer's own decision
+  // again, made via the Collateral/TCT table's "Assign Appraiser" modal
+  // (or its own "Auto-assign All TCTs" dev shortcut), never auto-fired
+  // again just by opening this page.
   useEffect(() => {
     if (!hydrated) return;
     if (!hasApplication) {
       loadSample(SAMPLE_APPLICATION);
       return;
     }
-    if (reportBundles.length === 0) {
-      const groupsForSampleBundle = appraisalGroups.filter(
-        (group) =>
-          group.reportId === null &&
-          APPRAISAL_DOC_META.every((meta) => group.documents.find((doc) => doc.key === meta.key)?.status === 'verified')
-      );
-      if (groupsForSampleBundle.length > 0) {
-        createAppraisalReportBundle(
-          groupsForSampleBundle.map((group) => group.id),
-          'inhouse',
-          APPRAISER_ROSTER[0],
-          null
-        );
+    if (reportBundles.length > 0) return;
+    const eligibleGroups = appraisalGroups.filter(
+      (entry) => entry.reportId === null && entry.documents.every((doc) => doc.status === 'verified')
+    );
+    (['real-estate', 'chattel', 'machineries'] as const).forEach((kind, index) => {
+      const groupIds = eligibleGroups.filter((group) => group.collateralType === kind).map((group) => group.id);
+      if (groupIds.length > 0) {
+        createAppraisalReportBundle(groupIds, 'inhouse', APPRAISER_ROSTER[index % APPRAISER_ROSTER.length], null);
       }
-    }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, hasApplication, reportBundles.length]);
 
@@ -468,11 +471,12 @@ export function AppraisalAppraiserView() {
                         },
                       }}
                     >
-                      <TableCell sx={{ width: '16%' }}>Appraisal No.</TableCell>
-                      <TableCell sx={{ width: '23%' }}>Collateral No.</TableCell>
-                      <TableCell sx={{ width: '23%' }}>Applicant</TableCell>
-                      <TableCell sx={{ width: '18%' }}>Appraisal Fee</TableCell>
-                      <TableCell sx={{ width: '18%' }}>Status</TableCell>
+                      <TableCell sx={{ width: '13%' }}>Appraisal No.</TableCell>
+                      <TableCell sx={{ width: '13%' }}>Collateral Type</TableCell>
+                      <TableCell sx={{ width: '20%' }}>Collateral No.</TableCell>
+                      <TableCell sx={{ width: '20%' }}>Applicant</TableCell>
+                      <TableCell sx={{ width: '17%' }}>Appraisal Fee</TableCell>
+                      <TableCell sx={{ width: '17%' }}>Status</TableCell>
                       <TableCell sx={{ width: 44 }} />
                     </TableRow>
                   </TableHead>
@@ -500,6 +504,7 @@ export function AppraisalAppraiserView() {
                                   : 'not-submitted';
                       const feeCopy = FEE_STATUS_COPY[feeStatusKey];
                       const feeToneColors = TONE_COLORS[feeCopy.tone];
+                      const bundleCollateralType = getBundleCollateralType(bundle, appraisalGroups);
 
                       return (
                         <TableRow
@@ -519,6 +524,9 @@ export function AppraisalAppraiserView() {
                             <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A' }}>
                               {getAppraisalNumber(bundle.tctGroupIds)}
                             </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge tone="info" label={COLLATERAL_TYPE_LABEL[bundleCollateralType]} />
                           </TableCell>
                           <TableCell>
                             <Typography

@@ -18,10 +18,15 @@ import { getLoanNumber } from 'src/utils/get-loan-number';
 
 /**
  * Shared header for the dedicated result pages (Call Report result, Initial
- * Credit Checking result, Full Application) reached from ApplicationDetailsCard's
- * action buttons across many different parent pages — "Back" returns via
- * browser history rather than a fixed destination, since there's no single
- * parent page to link back to.
+ * Credit Checking result, Full Application, Appraisal Report result) — every
+ * one of them is only ever reached via window.open(..., '_blank') into a
+ * brand-new tab (see ApplicationDetailsCard's and AssignedAppraiserCard's
+ * action buttons), never same-tab navigation. A new tab has no prior
+ * history of its own, so router.back() either does nothing or — if the
+ * tab was navigated around inside afterward — walks that tab's own
+ * history instead of returning to where the tab came from. "Back" closes
+ * the tab instead, falling back to browser history only on the rare
+ * chance window.close() is blocked (e.g. a tab not opened by script).
  */
 export function ResultPageHeader({
   title,
@@ -41,10 +46,17 @@ export function ResultPageHeader({
 
   const fullName = `${signUpData.prefix ? `${signUpData.prefix} ` : ''}${signUpData.firstName}${signUpData.middleName ? ` ${signUpData.middleName}` : ''} ${signUpData.lastName}${signUpData.extensionName ? ` ${signUpData.extensionName}` : ''}`;
 
+  const handleBack = () => {
+    window.close();
+    // If the tab is still open after close() (browsers refuse to close a
+    // tab the page itself didn't open), fall back to browser history.
+    router.back();
+  };
+
   return (
     <Stack spacing={1.25}>
       <Button
-        onClick={() => router.back()}
+        onClick={handleBack}
         startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={16} />}
         sx={{
           alignSelf: 'flex-start',

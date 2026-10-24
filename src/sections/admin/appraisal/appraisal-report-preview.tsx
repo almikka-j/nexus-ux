@@ -104,65 +104,122 @@ function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitl
             ['Title No.', display(title.titleNo)],
           ]}
         />
+        {/* Same field order as LandTitleFields: File Type, Title No.,
+            Survey No., Book No. / Page No. → Registration Date / Place →
+            Area Size, Lot No., Zonal Value → Lot Plotting → Boundaries,
+            Technical Specification. */}
+        <FieldTableRow
+          pairs={[
+            ['Survey No.', display(title.surveyNo)],
+            ['Book No. / Page No.', display(title.bookPageNo)],
+          ]}
+        />
+        <FieldTableRow
+          pairs={[
+            ['Title Registration Date', display(title.titleRegistrationDate)],
+            ['Title Registration Place', display(title.titleRegistrationPlace)],
+          ]}
+        />
         <FieldTableRow
           pairs={[
             ['Area Size (sq.m.)', display(title.areaSize)],
-            ['Zonal Value', display(title.zonalValue)],
-          ]}
-        />
-        <FieldTableRow
-          pairs={[
             ['Lot No.', display(title.lotNo)],
-            ['Survey No.', display(title.surveyNo)],
           ]}
         />
-        <FieldTableRow
-          pairs={[
-            ['Book No. / Page No.', display(title.bookPageNo)],
-            ['Title Registration Date', display(title.titleRegistrationDate)],
-          ]}
-        />
-        <FieldTableRow pairs={[['Title Registration Place', display(title.titleRegistrationPlace)]]} />
-        {/* Boundaries / Technical Specification only appear when filled in,
-            same as before — full-width rows since they're free text. */}
-        {title.boundaries && <FieldTableRow pairs={[['Boundaries', display(title.boundaries)]]} />}
-        {title.technicalSpecification && (
-          <FieldTableRow pairs={[['Technical Specification', display(title.technicalSpecification)]]} />
-        )}
+        <FieldTableRow pairs={[['Zonal Value', display(title.zonalValue)]]} />
       </FieldTable>
 
-      {title.lotPlotPhotos.length > 0 && (
+      {(title.lotPlotLines.some(
+        (line) => line.label || line.northSouth || line.degrees || line.eastWest || line.minutes || line.distanceM
+      ) ||
+        title.lotPlotPhotos.length > 0) && (
         <Box sx={{ p: 1.25, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#F9FAFC' }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
             <Iconify icon="solar:map-point-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
             <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A6273' }}>
-              Lot Plot Image
+              Lot Plotting
             </Typography>
           </Stack>
-          <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25}>
-            {title.lotPlotPhotos.map((photo, index) => (
-              <Box
-                key={`${photo.fileUrl}-${index}`}
-                sx={{
-                  width: 56,
-                  height: 56,
-                  flexShrink: 0,
-                  borderRadius: '8px',
-                  border: '1px solid #EBEDF3',
-                  bgcolor: '#F5F6FA',
-                  overflow: 'hidden',
-                }}
-              >
-                <Box
-                  component="img"
-                  src={photo.fileUrl}
-                  alt={`Lot plot image ${index + 1} — TCT No. ${tctNumber}`}
-                  sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-                />
-              </Box>
-            ))}
-          </Stack>
+
+          {title.lotPlotLines.some(
+            (line) => line.label || line.northSouth || line.degrees || line.eastWest || line.minutes || line.distanceM
+          ) && (
+            <Stack spacing={1} sx={{ mb: title.lotPlotPhotos.length > 0 ? 1.5 : 0 }}>
+              {title.lotPlotLines
+                .filter(
+                  (line) =>
+                    line.label || line.northSouth || line.degrees || line.eastWest || line.minutes || line.distanceM
+                )
+                .map((line, index) => (
+                  <Stack
+                    key={line.id}
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{ p: 1, borderRadius: '8px', bgcolor: 'common.white', border: '1px solid #E3E7F0' }}
+                  >
+                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', width: 20, flexShrink: 0 }}>
+                      {index + 1}
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
+                      {line.label || '—'}
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
+                      {[line.northSouth, line.degrees && `${line.degrees}°`, line.eastWest, line.minutes && `${line.minutes}'`]
+                        .filter(Boolean)
+                        .join(' ') || '—'}
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: '#5A6273', ml: 'auto' }}>
+                      {line.distanceM ? `${line.distanceM} m` : '—'}
+                    </Typography>
+                  </Stack>
+                ))}
+            </Stack>
+          )}
+
+          {title.lotPlotPhotos.length > 0 && (
+            <>
+              <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A6273', mb: 1 }}>
+                Lot Plot Image
+              </Typography>
+              <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25}>
+                {title.lotPlotPhotos.map((photo, index) => (
+                  <Box
+                    key={`${photo.fileUrl}-${index}`}
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      flexShrink: 0,
+                      borderRadius: '8px',
+                      border: '1px solid #EBEDF3',
+                      bgcolor: '#F5F6FA',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={photo.fileUrl}
+                      alt={`Lot plot image ${index + 1} — TCT No. ${tctNumber}`}
+                      sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                    />
+                  </Box>
+                ))}
+              </Stack>
+            </>
+          )}
         </Box>
+      )}
+
+      {/* Boundaries / Technical Specification only appear when filled in,
+          same as before — full-width rows since they're free text. Placed
+          after Lot Plotting, matching LandTitleFields' own order. */}
+      {(title.boundaries || title.technicalSpecification) && (
+        <FieldTable>
+          {title.boundaries && <FieldTableRow pairs={[['Boundaries', display(title.boundaries)]]} />}
+          {title.technicalSpecification && (
+            <FieldTableRow pairs={[['Technical Specification', display(title.technicalSpecification)]]} />
+          )}
+        </FieldTable>
       )}
     </Section>
   );
@@ -203,21 +260,44 @@ export function AppraisalReportPreview({
         <FieldTable>
           <FieldTableRow pairs={[['Registered Owner', display(report.registeredOwner)]]} />
           <FieldTableRow pairs={[['Location of Property', display(report.locationOfProperty)]]} />
-          {report.encumbrancesRemarks && (
-            <FieldTableRow pairs={[['Encumbrances / Remarks', display(report.encumbrancesRemarks)]]} />
-          )}
         </FieldTable>
-      </Section>
 
-      {titleGroups.map((group) => {
-        const title = report.landTitles.find((entry) => entry.tctGroupId === group.id);
-        if (!title) return null;
-        return <LandTitlePreview key={group.id} title={title} tctNumber={group.tctNumber} />;
-      })}
+        {/* Per-title blocks, then Encumbrances / Remarks — same order as the
+            editable form's Land section (owner/location → each
+            LandTitleFields → Encumbrances / Remarks). Matched against
+            titleGroups by tctGroupId so each block gets its real TCT
+            number — but if a bundle's tctGroupIds no longer resolve to any
+            current titleGroups entry (e.g. the Collateral table's groups
+            were since regenerated), fall back to report.landTitles itself
+            so a submitted/filled-in report still shows every title it
+            actually has, instead of silently rendering none. */}
+        {(() => {
+          const matchedGroupIds = new Set(titleGroups.map((group) => group.id));
+          const matched = titleGroups
+            .map((group) => {
+              const title = report.landTitles.find((entry) => entry.tctGroupId === group.id);
+              return title ? { title, tctNumber: group.tctNumber, key: group.id } : null;
+            })
+            .filter((entry): entry is { title: AppraisalReportLandTitle; tctNumber: string; key: string } => !!entry);
+
+          const unmatched = report.landTitles
+            .filter((title) => !matchedGroupIds.has(title.tctGroupId))
+            .map((title) => ({ title, tctNumber: title.fileType || 'Unlinked title', key: title.tctGroupId }));
+
+          return [...matched, ...unmatched].map(({ title, tctNumber, key }) => (
+            <LandTitlePreview key={key} title={title} tctNumber={tctNumber} />
+          ));
+        })()}
+
+        {report.encumbrancesRemarks && (
+          <FieldTable>
+            <FieldTableRow pairs={[['Encumbrances / Remarks', display(report.encumbrancesRemarks)]]} />
+          </FieldTable>
+        )}
+      </Section>
 
       <Section title="Technical Specification">
         <FieldTable>
-          <FieldTableRow pairs={[['Present Use', display(report.presentUse)]]} />
           <FieldTableRow
             pairs={[
               ['Street Frontage (metres)', display(report.streetFrontage)],
@@ -236,7 +316,12 @@ export function AppraisalReportPreview({
               ['Topography', display(report.topography)],
             ]}
           />
-          <FieldTableRow pairs={[["Neighborhood (Res'l/Comm'l/Ind'l.)", display(report.neighborhood)]]} />
+          <FieldTableRow
+            pairs={[
+              ["Neighborhood (Res'l/Comm'l/Ind'l.)", display(report.neighborhood)],
+              ['Present Use', display(report.presentUse)],
+            ]}
+          />
         </FieldTable>
       </Section>
 
@@ -270,7 +355,7 @@ export function AppraisalReportPreview({
               <FieldTableRow
                 pairs={[
                   ['Condition', display(improvement.condition)],
-                  ['Est. Floor Area (sq.m.)', display(improvement.estFloorArea)],
+                  ['Est. Floor Area', display(improvement.estFloorArea)],
                 ]}
               />
             </FieldTable>
@@ -288,7 +373,7 @@ export function AppraisalReportPreview({
 
       <Section title="Particular Description">
         {report.particularDescriptions.map((particular, index) => (
-          <EntryBlock key={particular.id} title={`Description ${index + 1}`}>
+          <EntryBlock key={particular.id} title={`Entry ${index + 1}`}>
             <FieldTable>
               <FieldTableRow
                 pairs={[
@@ -341,7 +426,7 @@ export function AppraisalReportPreview({
             ]}
           />
         </FieldTable>
-        <NarrativeBlock label="Valuation Remarks" value={report.valuationRemarks} />
+        <NarrativeBlock label="Valuation remarks" value={report.valuationRemarks} />
       </Section>
 
       {/* Standalone narrative — only rendered (header included) when filled
@@ -354,7 +439,7 @@ export function AppraisalReportPreview({
 
       <Section title="Conditions for Acceptance of Collateral">
         {report.conditionsForAcceptance.map((condition, index) => (
-          <EntryBlock key={condition.id} title={`Condition ${index + 1}`}>
+          <EntryBlock key={condition.id} title={`Item ${index + 1}`}>
             <FieldTable>
               <FieldTableRow
                 pairs={[
@@ -383,8 +468,8 @@ export function AppraisalReportPreview({
         <FieldTable>
           <FieldTableRow
             pairs={[
-              ['Appraised Value', display(report.appraisedValue)],
-              ['Rounded Figures', display(report.roundedFigures)],
+              ['Appraised Value (PHP)', display(report.appraisedValue)],
+              ['Rounded Figures (PHP)', display(report.roundedFigures)],
             ]}
           />
           <FieldTableRow pairs={[['Amount in Words', display(report.amountInWords)]]} />

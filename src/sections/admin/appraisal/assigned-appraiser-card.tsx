@@ -5,14 +5,21 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 
-import { useAdmin, getBundleUploadedAt } from 'src/auth/admin-context';
+import { useAdmin, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
+import type { AppraisalCollateralType } from 'src/auth/admin-context';
 
 import { paths } from 'src/routes/paths';
 
 import { Iconify } from 'src/components/iconify';
-import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx, StatusBadge } from 'src/components/admin-ui';
 
 import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './appraisal-bundle-status';
+
+const COLLATERAL_TYPE_LABEL: Record<AppraisalCollateralType, string> = {
+  'real-estate': 'Real Estate',
+  chattel: 'Chattel',
+  machineries: 'Machineries',
+};
 
 // ----------------------------------------------------------------------
 // Read-only summary of every report bundle's assigned appraiser, for the
@@ -51,6 +58,7 @@ export function AssignedAppraiserCard() {
           const bundleTctNumbers = appraisalGroups
             .filter((group) => bundle.tctGroupIds.includes(group.id))
             .map((group) => group.tctNumber);
+          const bundleCollateralType = getBundleCollateralType(bundle, appraisalGroups);
           const feeSettled = bundle.feeApprovalStatus === 'approved' && !!paymentReceivedAt;
           const status = getAppraisalBundleStatus(bundle, feeSettled);
           const copy = status === 'reported' ? null : APPRAISAL_BUNDLE_STATUS_COPY[status];
@@ -70,27 +78,29 @@ export function AssignedAppraiserCard() {
                 sx={{ p: 1.5 }}
               >
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.25 }}>
+                    <Typography
+                      sx={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: bundle.appraiserName ? '#14172A' : '#8891A6',
+                      }}
+                    >
+                      {bundle.appraiserName ?? 'No appraiser assigned'}
+                    </Typography>
+                    <StatusBadge tone="info" label={COLLATERAL_TYPE_LABEL[bundleCollateralType]} />
+                  </Stack>
+                  <Typography sx={{ fontSize: 12, color: '#5A6273' }}>
                     {bundleTctNumbers.join(', ')}
-                  </Typography>
-                  <Typography
-                    sx={{ fontSize: 12, color: bundle.appraiserName ? '#5A6273' : '#8891A6' }}
-                  >
-                    {bundle.appraiserName ?? 'No appraiser assigned'}
                   </Typography>
                   {bundle.targetCompletionDate && (
                     <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>
                       Target completion: {new Date(bundle.targetCompletionDate).toLocaleDateString()}
                     </Typography>
                   )}
-                  {isReported && getBundleUploadedAt(bundle) && (
-                    <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>
-                      Submitted on {new Date(getBundleUploadedAt(bundle)!).toLocaleString()}
-                    </Typography>
-                  )}
                 </Box>
 
-                <Stack direction="row" alignItems="center" spacing={1.25} sx={{ flexShrink: 0 }}>
+                <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={0.5} sx={{ flexShrink: 0 }}>
                   {copy && toneColors ? (
                     <Box
                       sx={{
@@ -119,6 +129,11 @@ export function AssignedAppraiserCard() {
                     >
                       View Appraisal Report
                     </Button>
+                  )}
+                  {isReported && getBundleUploadedAt(bundle) && (
+                    <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>
+                      Submitted on {new Date(getBundleUploadedAt(bundle)!).toLocaleString()}
+                    </Typography>
                   )}
                 </Stack>
               </Stack>

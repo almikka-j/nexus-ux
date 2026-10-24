@@ -33,6 +33,7 @@ import { TONE_COLORS, adminCardSx, outlinedNavyButtonSx } from 'src/components/a
 import { CollapsibleSection } from 'src/components/collapsible-section';
 
 import { AppraisalReportPreview } from './appraisal-report-preview';
+import { ChattelReportSummary, MachineriesReportSummary } from './appraisal-report-view';
 import { ChattelReportFields, CHATTEL_SECTION_NAV_ITEMS } from './appraisal-chattel-report-fields';
 import { MachineriesReportFields, MACHINERIES_SECTION_NAV_ITEMS } from './appraisal-machineries-report-fields';
 
@@ -752,6 +753,8 @@ export function AppraiserAssignmentCard({
   const { headApprovalStatus } = review.appraisal;
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [chattelPreviewOpen, setChattelPreviewOpen] = useState(false);
+  const [machineriesPreviewOpen, setMachineriesPreviewOpen] = useState(false);
   // Kebab menu lets the user switch which of the 3 kinds' form layouts is
   // shown — it only picks which fields render, it doesn't change the
   // bundle's actual assigned `collateralType`. Whichever kind is shown is
@@ -983,20 +986,68 @@ export function AppraiserAssignmentCard({
       </Menu>
 
       {previewKind === 'chattel' && appraiserType === 'inhouse' && (
-        <ChattelReportFields
-          bundleId={bundleId}
-          report={bundle.chattelReport}
-          editable={editable}
-          sectionRefs={chattelSectionRefs}
-        />
+        <Stack spacing={2.5}>
+          <ChattelReportFields
+            bundleId={bundleId}
+            report={bundle.chattelReport}
+            editable={editable}
+            sectionRefs={chattelSectionRefs}
+          />
+          <Divider sx={{ borderColor: '#EEF0F5' }} />
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            justifyContent="space-between"
+            spacing={1.5}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
+              <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
+                Preview the full formatted report generated from everything above.
+              </Typography>
+            </Stack>
+            <Button
+              onClick={() => setChattelPreviewOpen(true)}
+              variant="outlined"
+              startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+              sx={{ ...outlinedNavyButtonSx, px: 2, flexShrink: 0 }}
+            >
+              Preview Appraisal Report
+            </Button>
+          </Stack>
+        </Stack>
       )}
       {previewKind === 'machineries' && appraiserType === 'inhouse' && (
-        <MachineriesReportFields
-          bundleId={bundleId}
-          report={bundle.machineriesReport}
-          editable={editable}
-          sectionRefs={machinerySectionRefs}
-        />
+        <Stack spacing={2.5}>
+          <MachineriesReportFields
+            bundleId={bundleId}
+            report={bundle.machineriesReport}
+            editable={editable}
+            sectionRefs={machinerySectionRefs}
+          />
+          <Divider sx={{ borderColor: '#EEF0F5' }} />
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            justifyContent="space-between"
+            spacing={1.5}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Iconify icon="solar:document-text-bold-duotone" width={18} sx={{ color: '#5A6273' }} />
+              <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
+                Preview the full formatted report generated from everything above.
+              </Typography>
+            </Stack>
+            <Button
+              onClick={() => setMachineriesPreviewOpen(true)}
+              variant="outlined"
+              startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
+              sx={{ ...outlinedNavyButtonSx, px: 2, flexShrink: 0 }}
+            >
+              Preview Appraisal Report
+            </Button>
+          </Stack>
+        </Stack>
       )}
 
       {previewKind === 'real-estate' && appraiserType === 'inhouse' && (
@@ -1713,7 +1764,7 @@ export function AppraiserAssignmentCard({
                           ),
                         })
                       }
-                      sx={{ ...fieldSx, flex: 2 }}
+                      sx={{ ...fieldSx, flex: 2, minWidth: 0 }}
                     />
                     <TextField
                       fullWidth
@@ -1728,7 +1779,7 @@ export function AppraiserAssignmentCard({
                           ),
                         })
                       }
-                      sx={fieldSx}
+                      sx={{ ...fieldSx, flex: 1, minWidth: 0 }}
                     />
                     <TextField
                       fullWidth
@@ -1743,7 +1794,7 @@ export function AppraiserAssignmentCard({
                           ),
                         })
                       }
-                      sx={fieldSx}
+                      sx={{ ...fieldSx, flex: 1, minWidth: 0 }}
                     />
                   </Stack>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 1.5 }}>
@@ -1762,7 +1813,7 @@ export function AppraiserAssignmentCard({
                           ),
                         })
                       }
-                      sx={fieldSx}
+                      sx={{ ...fieldSx, minWidth: 0 }}
                     />
                     <TextField
                       fullWidth
@@ -1777,7 +1828,7 @@ export function AppraiserAssignmentCard({
                           ),
                         })
                       }
-                      sx={fieldSx}
+                      sx={{ ...fieldSx, minWidth: 0 }}
                     />
                     <TextField
                       fullWidth
@@ -1792,7 +1843,7 @@ export function AppraiserAssignmentCard({
                           ),
                         })
                       }
-                      sx={fieldSx}
+                      sx={{ ...fieldSx, minWidth: 0 }}
                     />
                   </Stack>
                 </Box>
@@ -1983,6 +2034,84 @@ export function AppraiserAssignmentCard({
           </Box>
           <DialogContent sx={{ px: 3, pb: 3 }}>
             <AppraisalReportPreview report={report} titleGroups={titleGroups} />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {previewKind === 'chattel' && appraiserType === 'inhouse' && (
+        <Dialog open={chattelPreviewOpen} onClose={() => setChattelPreviewOpen(false)} fullWidth maxWidth="md">
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
+            <Box>
+              <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#14172A' }}>Appraisal Report</Typography>
+              <Stack direction="row" spacing={0.75} flexWrap="wrap" rowGap={0.75} sx={{ mt: 0.75 }}>
+                {tctNumbers.map((tctNumber) => (
+                  <Box
+                    key={tctNumber}
+                    sx={{
+                      px: 1.25,
+                      py: 0.4,
+                      borderRadius: '999px',
+                      border: '1px solid #E3E7F5',
+                      bgcolor: '#F7F8FE',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: '#1C2A6E',
+                    }}
+                  >
+                    {tctNumber}
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+            <IconButton
+              onClick={() => setChattelPreviewOpen(false)}
+              aria-label="Close preview"
+              sx={{ border: '1px solid #E1E4ED', borderRadius: '10px' }}
+            >
+              <Iconify icon="solar:close-circle-bold" width={18} sx={{ color: '#8891A6' }} />
+            </IconButton>
+          </Box>
+          <DialogContent sx={{ px: 3, pb: 3 }}>
+            <ChattelReportSummary bundle={bundle} tctNumbers={tctNumbers} />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {previewKind === 'machineries' && appraiserType === 'inhouse' && (
+        <Dialog open={machineriesPreviewOpen} onClose={() => setMachineriesPreviewOpen(false)} fullWidth maxWidth="md">
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', p: 3, pb: 2 }}>
+            <Box>
+              <Typography sx={{ fontSize: 18, fontWeight: 700, color: '#14172A' }}>Appraisal Report</Typography>
+              <Stack direction="row" spacing={0.75} flexWrap="wrap" rowGap={0.75} sx={{ mt: 0.75 }}>
+                {tctNumbers.map((tctNumber) => (
+                  <Box
+                    key={tctNumber}
+                    sx={{
+                      px: 1.25,
+                      py: 0.4,
+                      borderRadius: '999px',
+                      border: '1px solid #E3E7F5',
+                      bgcolor: '#F7F8FE',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: '#1C2A6E',
+                    }}
+                  >
+                    {tctNumber}
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+            <IconButton
+              onClick={() => setMachineriesPreviewOpen(false)}
+              aria-label="Close preview"
+              sx={{ border: '1px solid #E1E4ED', borderRadius: '10px' }}
+            >
+              <Iconify icon="solar:close-circle-bold" width={18} sx={{ color: '#8891A6' }} />
+            </IconButton>
+          </Box>
+          <DialogContent sx={{ px: 3, pb: 3 }}>
+            <MachineriesReportSummary bundle={bundle} tctNumbers={tctNumbers} />
           </DialogContent>
         </Dialog>
       )}
