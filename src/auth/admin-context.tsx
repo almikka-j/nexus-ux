@@ -2080,6 +2080,44 @@ type AdminContextValue = AdminState & {
     data: Partial<Omit<BasisOfValuationComparable, 'id'>>
   ) => void;
   removeAppraisalBundleComparable: (bundleId: string, comparableId: string) => void;
+  setAppraisalBundleChattelReport: (
+    bundleId: string,
+    data: Partial<Omit<AppraisalChattelReport, 'accessories' | 'powerFeatures' | 'generalCondition' | 'instrumentPanelLighting' | 'marketSurvey'>>
+  ) => void;
+  setAppraisalChecklistItem: (
+    bundleId: string,
+    listKey: 'accessories' | 'powerFeatures',
+    itemId: string,
+    data: Partial<Pick<AppraisalChecklistItem, 'checked' | 'comments'>>
+  ) => void;
+  setAppraisalConditionItem: (
+    bundleId: string,
+    itemId: string,
+    data: Partial<Pick<AppraisalConditionItem, 'rating' | 'comments'>>
+  ) => void;
+  setAppraisalFunctionItem: (
+    bundleId: string,
+    itemId: string,
+    data: Partial<Pick<AppraisalFunctionItem, 'rating'>>
+  ) => void;
+  addAppraisalMarketSurveyEntry: (bundleId: string) => void;
+  updateAppraisalMarketSurveyEntry: (
+    bundleId: string,
+    entryId: string,
+    data: Partial<Omit<AppraisalMarketSurveyEntry, 'id'>>
+  ) => void;
+  removeAppraisalMarketSurveyEntry: (bundleId: string, entryId: string) => void;
+  setAppraisalBundleMachineriesReport: (
+    bundleId: string,
+    data: Partial<Omit<AppraisalMachineriesReport, 'machineries'>>
+  ) => void;
+  addAppraisalMachineryEntry: (bundleId: string) => void;
+  updateAppraisalMachineryEntry: (
+    bundleId: string,
+    entryId: string,
+    data: Partial<Omit<AppraisalMachineryEntry, 'id'>>
+  ) => void;
+  removeAppraisalMachineryEntry: (bundleId: string, entryId: string) => void;
   deleteAppraisalReportBundle: (bundleId: string) => void;
   clearAllAppraisalBundleReports: () => void;
   // Per-bundle fee-approval actions — each bundle (appraiser assignment)
@@ -4539,6 +4577,245 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
                         ...bundle.realEstateReport,
                         basisOfValuationComparables: bundle.realEstateReport.basisOfValuationComparables.filter(
                           (comparable) => comparable.id !== comparableId
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      setAppraisalBundleChattelReport: (bundleId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : { ...bundle, chattelReport: { ...bundle.chattelReport, ...data } }
+              ),
+            },
+          },
+        })),
+      setAppraisalChecklistItem: (bundleId, listKey, itemId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        [listKey]: bundle.chattelReport[listKey].map((item) =>
+                          item.id !== itemId ? item : { ...item, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      setAppraisalConditionItem: (bundleId, itemId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        generalCondition: bundle.chattelReport.generalCondition.map((item) =>
+                          item.id !== itemId ? item : { ...item, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      setAppraisalFunctionItem: (bundleId, itemId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        instrumentPanelLighting: bundle.chattelReport.instrumentPanelLighting.map((item) =>
+                          item.id !== itemId ? item : { ...item, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      addAppraisalMarketSurveyEntry: (bundleId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        marketSurvey: [
+                          ...bundle.chattelReport.marketSurvey,
+                          createAppraisalMarketSurveyEntry(),
+                        ],
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      updateAppraisalMarketSurveyEntry: (bundleId, entryId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        marketSurvey: bundle.chattelReport.marketSurvey.map((entry) =>
+                          entry.id !== entryId ? entry : { ...entry, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      removeAppraisalMarketSurveyEntry: (bundleId, entryId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      chattelReport: {
+                        ...bundle.chattelReport,
+                        marketSurvey: bundle.chattelReport.marketSurvey.filter(
+                          (entry) => entry.id !== entryId
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      setAppraisalBundleMachineriesReport: (bundleId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : { ...bundle, machineriesReport: { ...bundle.machineriesReport, ...data } }
+              ),
+            },
+          },
+        })),
+      addAppraisalMachineryEntry: (bundleId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      machineriesReport: {
+                        ...bundle.machineriesReport,
+                        machineries: [
+                          ...bundle.machineriesReport.machineries,
+                          createAppraisalMachineryEntry(),
+                        ],
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      updateAppraisalMachineryEntry: (bundleId, entryId, data) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      machineriesReport: {
+                        ...bundle.machineriesReport,
+                        machineries: bundle.machineriesReport.machineries.map((entry) =>
+                          entry.id !== entryId ? entry : { ...entry, ...data }
+                        ),
+                      },
+                    }
+              ),
+            },
+          },
+        })),
+      removeAppraisalMachineryEntry: (bundleId, entryId) =>
+        setState((prev) => ({
+          ...prev,
+          review: {
+            ...prev.review,
+            appraisal: {
+              ...prev.review.appraisal,
+              reportBundles: prev.review.appraisal.reportBundles.map((bundle) =>
+                bundle.id !== bundleId
+                  ? bundle
+                  : {
+                      ...bundle,
+                      machineriesReport: {
+                        ...bundle.machineriesReport,
+                        machineries: bundle.machineriesReport.machineries.filter(
+                          (entry) => entry.id !== entryId
                         ),
                       },
                     }
