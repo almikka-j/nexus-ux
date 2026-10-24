@@ -10,14 +10,21 @@ import Divider from '@mui/material/Divider';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 
-import { useAdmin } from 'src/auth/admin-context';
+import { useAdmin, getBundleUploadedAt } from 'src/auth/admin-context';
 import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
-import { Field, FieldGrid, SectionLabel, adminCardSx, TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { Field, FieldGrid, SectionLabel, StatusBadge, adminCardSx, TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { CollapsibleSection } from 'src/components/collapsible-section';
 
-import type { CollateralPhoto, AppraisalReportLandTitle } from 'src/auth/admin-context';
+import { computeTotalAppraisedValue } from './appraisal-machineries-report-fields';
+
+import type {
+  CollateralPhoto,
+  AppraisalReportBundle,
+  AppraisalReportLandTitle,
+  AppraisalCollateralType,
+} from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
 // Read-only rendering of a submitted in-house Appraisal Report
@@ -267,6 +274,403 @@ function LandTitleSummary({
   );
 }
 
+// ----------------------------------------------------------------------
+// Chattel (vehicle/equipment) read-only summary — same At a
+// Glance/Full-Report shell as the Real Estate view above, but reading
+// bundle.chattelReport and following ChattelReportFields' own section
+// groupings (Task 4) for the full report: header fields, Description of
+// Equipment, the 4 checklists as read-only label/value rows, Market
+// Survey as a read-only table, Encumbrances/Remarks, file attachments.
+// ----------------------------------------------------------------------
+function ChattelReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportBundle; tctNumbers: string[] }) {
+  const [fullReportOpen, setFullReportOpen] = useState(false);
+  const { appraiserName } = bundle;
+  const report = bundle.chattelReport;
+  const uploadedAt = report.uploadedAt;
+  const badRatedCount = report.generalCondition.filter((item) => item.rating === 'bad').length;
+
+  return (
+    <Box sx={adminCardSx}>
+      <Stack alignItems="center" spacing={0.5} sx={{ textAlign: 'center', mb: 3 }}>
+        <Typography sx={{ fontSize: 17, fontWeight: 800, color: '#14172A' }}>Appraisal Report</Typography>
+        <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Covers {tctNumbers.join(', ')}</Typography>
+        {uploadedAt && (
+          <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
+            Submitted by {appraiserName ?? 'the assigned appraiser'} on {new Date(uploadedAt).toLocaleString()}
+          </Typography>
+        )}
+      </Stack>
+      <Divider sx={{ borderColor: '#EEF0F5', mb: 3 }} />
+
+      {/* At a Glance */}
+      <Stack spacing={2.5}>
+        <AppraisedValueHero appraisedValue={report.appraisedValue} amountInWords="" />
+
+        <FieldGrid>
+          <Field label="Registered Owner" value={report.registeredOwner} span={2} />
+          <Field label="Make" value={report.make} />
+          <Field label="Plate No." value={report.plateNo} />
+        </FieldGrid>
+
+        {badRatedCount > 0 && (
+          <Box>
+            <StatusBadge tone="error" label={`${badRatedCount} bad-rated item${badRatedCount === 1 ? '' : 's'}`} />
+          </Box>
+        )}
+      </Stack>
+
+      <Divider sx={{ borderColor: '#EEF0F5', my: 2.5 }} />
+
+      <Button
+        onClick={() => setFullReportOpen((prev) => !prev)}
+        fullWidth
+        variant="outlined"
+        endIcon={
+          <Iconify
+            icon="eva:chevron-down-fill"
+            width={18}
+            sx={{ transition: 'transform 0.15s ease', transform: fullReportOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
+        }
+        sx={{ ...outlinedNavyButtonSx, borderRadius: '10px', py: 1.1 }}
+      >
+        {fullReportOpen ? 'Hide Full Report' : 'View Full Report'}
+      </Button>
+
+      <Collapse in={fullReportOpen}>
+        <Stack spacing={3} sx={{ mt: 3 }}>
+          <FieldGrid>
+            <Field label="Account Name" value={report.accountName} span={2} />
+            <Field label="Requested By" value={report.requestedBy} span={2} />
+            <Field label="Purpose of Report" value={report.purposeOfReport} span={2} />
+            <Field label="Report Date" value={report.reportDate} />
+            <Field label="Eqpt. Under App." value={report.eqptUnderApp} />
+            <Field label="Date Inspected" value={report.dateInspected} />
+            <Field label="Registered Owner" value={report.registeredOwner} span={2} />
+            <Field label="Address" value={report.address} span={2} />
+          </FieldGrid>
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Description of Equipment</SectionLabel>
+            <FieldGrid>
+              <Field label="Make" value={report.make} />
+              <Field label="MVF No." value={report.mvfNo} />
+              <Field label="Series" value={report.series} />
+              <Field label="C.R No." value={report.crNo} />
+              <Field label="Type of Body / Denomination" value={report.typeOfBodyDenomination} />
+              <Field label="Registration Date" value={report.registrationDate} />
+              <Field label="Year Model" value={report.yearModel} />
+              <Field label="Place Registered" value={report.placeRegistered} />
+              <Field label="Color" value={report.color} />
+              <Field label="Chassis Number" value={report.chassisNumber} />
+              <Field label="Odometer Reading" value={report.odometerReading} />
+              <Field label="Engine No." value={report.engineNo} />
+              <Field label="Plate No." value={report.plateNo} />
+              <Field label="Fuel" value={report.fuel} />
+            </FieldGrid>
+          </Stack>
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Accessories</SectionLabel>
+            <Stack spacing={1}>
+              {report.accessories.map((item) => (
+                <Stack
+                  key={item.id}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.5}
+                  sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
+                >
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 220, flexShrink: 0 }}>
+                    {item.label}
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: item.checked ? '#14172A' : '#8891A6' }}>
+                    {item.checked ? 'Yes' : 'No'}
+                    {item.checked && item.comments ? ` — ${item.comments}` : ''}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Stack>
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Power Features</SectionLabel>
+            <Stack spacing={1}>
+              {report.powerFeatures.map((item) => (
+                <Stack
+                  key={item.id}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1.5}
+                  sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
+                >
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 220, flexShrink: 0 }}>
+                    {item.label}
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: item.checked ? '#14172A' : '#8891A6' }}>
+                    {item.checked ? 'Yes' : 'No'}
+                    {item.checked && item.comments ? ` — ${item.comments}` : ''}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Stack>
+
+          <Stack spacing={1.5}>
+            <SectionLabel>General Condition</SectionLabel>
+            <Stack spacing={1}>
+              {report.generalCondition.map((item) => (
+                <Stack
+                  key={item.id}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  alignItems={{ sm: 'center' }}
+                  spacing={1.5}
+                  sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
+                >
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 140, flexShrink: 0 }}>
+                    {item.label}
+                  </Typography>
+                  {item.rating && (
+                    <StatusBadge
+                      tone={item.rating === 'bad' ? 'error' : 'success'}
+                      label={item.rating === 'bad' ? 'Bad' : 'Good'}
+                    />
+                  )}
+                  {item.comments && (
+                    <Typography sx={{ fontSize: 13, color: '#3B4256' }}>{item.comments}</Typography>
+                  )}
+                </Stack>
+              ))}
+            </Stack>
+          </Stack>
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Instrument Panel &amp; Lighting</SectionLabel>
+            <Stack spacing={1}>
+              {report.instrumentPanelLighting.map((item) => (
+                <Stack
+                  key={item.id}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  alignItems={{ sm: 'center' }}
+                  spacing={1.5}
+                  sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
+                >
+                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 140, flexShrink: 0 }}>
+                    {item.label}
+                  </Typography>
+                  {item.rating && (
+                    <StatusBadge
+                      tone={item.rating === 'functioning' ? 'success' : 'error'}
+                      label={item.rating === 'functioning' ? 'Functioning Well' : 'Not Functioning Well'}
+                    />
+                  )}
+                </Stack>
+              ))}
+            </Stack>
+          </Stack>
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Market Survey</SectionLabel>
+            {report.marketSurvey.length === 0 ? (
+              <Typography sx={{ fontSize: 12.5, color: '#8891A6', fontStyle: 'italic' }}>
+                No market survey entries recorded.
+              </Typography>
+            ) : (
+              <Stack spacing={1.25}>
+                {report.marketSurvey.map((entry) => (
+                  <Box key={entry.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
+                    <FieldGrid>
+                      <Field label="Source" value={entry.source} />
+                      <Field label="Date" value={entry.date} />
+                      <Field label="Type" value={entry.type} />
+                      <Field label="Gen. Condition" value={entry.generalCondition} />
+                      <Field label="Selling Price" value={entry.sellingPrice} />
+                    </FieldGrid>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+          </Stack>
+
+          {report.encumbrancesRemarks && (
+            <Stack spacing={1.5}>
+              <SectionLabel>Encumbrances / Remarks</SectionLabel>
+              {/* Stored as HTML from the editable form's RichTextField — rendered
+                  as plain read-only HTML here, no editable control. */}
+              <Box
+                sx={{ fontSize: 13.5, color: '#3B4256', '& p': { m: 0, mb: 1 } }}
+                dangerouslySetInnerHTML={{ __html: report.encumbrancesRemarks }}
+              />
+            </Stack>
+          )}
+
+          <FieldGrid>
+            <Field label="Loanable Percent" value={report.loanablePercent} />
+            <Field label="Appraised Value (Round Off)" value={report.appraisedValueRoundOff} />
+            <Field label="Loanable Amount" value={report.loanableAmount} />
+          </FieldGrid>
+
+          {report.fileAttachments.length > 0 && (
+            <Stack spacing={1.5}>
+              <SectionLabel>File Attachment</SectionLabel>
+              <Stack direction="row" flexWrap="wrap" gap={1.5}>
+                {report.fileAttachments.map((photo, index) => (
+                  <Box
+                    key={`${photo.fileUrl}-${index}`}
+                    component="img"
+                    src={photo.fileUrl}
+                    alt={photo.fileName}
+                    sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
+                  />
+                ))}
+              </Stack>
+            </Stack>
+          )}
+        </Stack>
+      </Collapse>
+    </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+// Machineries read-only summary — same At a Glance/Full-Report shell,
+// reading bundle.machineriesReport and following MachineriesReportFields'
+// own section groupings (Task 5): memo header fields, Description of
+// Equipments, the machineries list as read-only label/value rows (no
+// pencil, no collapse — every entry's fields always shown), Qualification
+// & Remarks, file attachments.
+// ----------------------------------------------------------------------
+function MachineriesReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportBundle; tctNumbers: string[] }) {
+  const [fullReportOpen, setFullReportOpen] = useState(false);
+  const { appraiserName } = bundle;
+  const report = bundle.machineriesReport;
+  const uploadedAt = report.uploadedAt;
+  const totalAppraisedValue = computeTotalAppraisedValue(report.machineries);
+
+  return (
+    <Box sx={adminCardSx}>
+      <Stack alignItems="center" spacing={0.5} sx={{ textAlign: 'center', mb: 3 }}>
+        <Typography sx={{ fontSize: 17, fontWeight: 800, color: '#14172A' }}>Appraisal Report</Typography>
+        <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>Covers {tctNumbers.join(', ')}</Typography>
+        {uploadedAt && (
+          <Typography sx={{ fontSize: 12, color: '#8891A6' }}>
+            Submitted by {appraiserName ?? 'the assigned appraiser'} on {new Date(uploadedAt).toLocaleString()}
+          </Typography>
+        )}
+      </Stack>
+      <Divider sx={{ borderColor: '#EEF0F5', mb: 3 }} />
+
+      {/* At a Glance */}
+      <Stack spacing={2.5}>
+        <AppraisedValueHero appraisedValue={String(totalAppraisedValue)} amountInWords="" />
+
+        <FieldGrid>
+          <Field label="Machineries" value={`${report.machineries.length} machineries`} />
+          <Field label="Subject" value={report.subject} span={3} />
+        </FieldGrid>
+      </Stack>
+
+      <Divider sx={{ borderColor: '#EEF0F5', my: 2.5 }} />
+
+      <Button
+        onClick={() => setFullReportOpen((prev) => !prev)}
+        fullWidth
+        variant="outlined"
+        endIcon={
+          <Iconify
+            icon="eva:chevron-down-fill"
+            width={18}
+            sx={{ transition: 'transform 0.15s ease', transform: fullReportOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          />
+        }
+        sx={{ ...outlinedNavyButtonSx, borderRadius: '10px', py: 1.1 }}
+      >
+        {fullReportOpen ? 'Hide Full Report' : 'View Full Report'}
+      </Button>
+
+      <Collapse in={fullReportOpen}>
+        <Stack spacing={3} sx={{ mt: 3 }}>
+          <FieldGrid>
+            <Field label="To" value={report.to} />
+            <Field label="Thru" value={report.thru} />
+            <Field label="From" value={report.from} />
+            <Field label="Date Report" value={report.dateReport} />
+            <Field label="Date Inspected" value={report.dateInspected} />
+            <Field label="Subject" value={report.subject} />
+          </FieldGrid>
+
+          {report.descriptionOfEquipments && (
+            <Stack spacing={1.5}>
+              <SectionLabel>I. Description of Equipments</SectionLabel>
+              <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
+                {report.descriptionOfEquipments}
+              </Typography>
+            </Stack>
+          )}
+
+          <Stack spacing={1.5}>
+            <SectionLabel>Machineries</SectionLabel>
+            {report.machineries.length === 0 ? (
+              <Typography sx={{ fontSize: 12.5, color: '#8891A6', fontStyle: 'italic' }}>
+                No machineries recorded.
+              </Typography>
+            ) : (
+              <Stack spacing={1.25}>
+                {report.machineries.map((entry) => (
+                  <Box key={entry.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
+                    <FieldGrid>
+                      <Field label="Unit(s)" value={entry.units} />
+                      <Field label="Description" value={entry.description} />
+                      <Field label="Serial No." value={entry.serialNo} />
+                      <Field label="Acquisition Price(s) in PHP" value={entry.acquisitionPricePhp} />
+                      <Field label="Date of Proforma Invoice" value={entry.dateOfProformaInvoice} />
+                      <Field label="Appraised Value (Less Depreciation)" value={entry.appraisedValueLessDepreciation} />
+                    </FieldGrid>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+          </Stack>
+
+          <FieldGrid>
+            <Field label="Total Appraised Value" value={fCurrency(totalAppraisedValue)} />
+            <Field label="Total Appraised Value (Round Off)" value={report.totalAppraisedValueRoundOff} />
+            <Field label="Loanable Percent" value={report.loanablePercent} />
+            <Field label="Loanable Amount" value={report.loanableAmount} />
+          </FieldGrid>
+
+          {report.qualificationRemarks && (
+            <Stack spacing={1.5}>
+              <SectionLabel>II. Qualification &amp; Remarks</SectionLabel>
+              {/* Stored as HTML from the editable form's RichTextField — rendered
+                  as plain read-only HTML here, no editable control. */}
+              <Box
+                sx={{ fontSize: 13.5, color: '#3B4256', '& p': { m: 0, mb: 1 } }}
+                dangerouslySetInnerHTML={{ __html: report.qualificationRemarks }}
+              />
+            </Stack>
+          )}
+
+          {report.fileAttachments.length > 0 && (
+            <Stack spacing={1.5}>
+              <SectionLabel>File Attachment</SectionLabel>
+              <Stack direction="row" flexWrap="wrap" gap={1.5}>
+                {report.fileAttachments.map((photo, index) => (
+                  <Box
+                    key={`${photo.fileUrl}-${index}`}
+                    component="img"
+                    src={photo.fileUrl}
+                    alt={photo.fileName}
+                    sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
+                  />
+                ))}
+              </Stack>
+            </Stack>
+          )}
+        </Stack>
+      </Collapse>
+    </Box>
+  );
+}
+
 export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string; tctNumbers: string[] }) {
   const { review } = useAdmin();
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
@@ -294,15 +698,28 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
       return next;
     });
 
-  if (!bundle || !bundle.report.uploadedAt) return null;
-  const { appraiserType, appraiserName, report } = bundle;
-  const uploadedAt = bundle.report.uploadedAt;
+  const uploadedAt = bundle ? getBundleUploadedAt(bundle) : null;
+  if (!bundle || !uploadedAt) return null;
+  const { appraiserType, appraiserName } = bundle;
 
   const titleGroups = review.requirementChecklist.appraisalGroups.filter((group) =>
     bundle.tctGroupIds.includes(group.id)
   );
 
+  // The bundle's real, assigned collateral kind — drives which report
+  // field (realEstateReport/chattelReport/machineriesReport) and which
+  // summary component below actually renders. Falls back to 'real-estate'
+  // only if the title groups somehow can't be resolved (shouldn't happen
+  // for a submitted bundle).
+  const realCollateralType: AppraisalCollateralType =
+    titleGroups[0]?.collateralType ?? 'real-estate';
+
   if (appraiserType === 'external') {
+    // External appraisers always upload a single finished file regardless
+    // of collateral kind — that upload is only ever stored on
+    // realEstateReport (the only one of the three report types with
+    // fileName/fileUrl fields; see getBundleUploadedAt/clearAllAppraisalBundleReports).
+    const externalReport = bundle.realEstateReport;
     return (
       <Box sx={adminCardSx}>
         <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
@@ -320,12 +737,12 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
         >
           <Iconify icon="solar:file-check-bold-duotone" width={22} sx={{ color: '#1C2A6E' }} />
           <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#344054', flex: 1, minWidth: 0 }} noWrap>
-            {report.fileName}
+            {externalReport.fileName}
           </Typography>
-          {report.fileUrl && (
+          {externalReport.fileUrl && (
             <Box
               component="a"
-              href={report.fileUrl}
+              href={externalReport.fileUrl}
               target="_blank"
               rel="noopener noreferrer"
               sx={{
@@ -352,6 +769,14 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
     );
   }
 
+  if (realCollateralType === 'chattel') {
+    return <ChattelReportSummary bundle={bundle} tctNumbers={tctNumbers} />;
+  }
+  if (realCollateralType === 'machineries') {
+    return <MachineriesReportSummary bundle={bundle} tctNumbers={tctNumbers} />;
+  }
+
+  const report = bundle.realEstateReport;
   const propertyCount = titleGroups.length;
 
   return (
