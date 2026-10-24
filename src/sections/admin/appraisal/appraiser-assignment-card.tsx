@@ -743,15 +743,18 @@ export function AppraiserAssignmentCard({
   const { headApprovalStatus } = review.appraisal;
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
   const [previewOpen, setPreviewOpen] = useState(false);
-  // Kebab menu lets the user preview any of the 3 kinds' form layouts —
-  // view-only: it never writes to the bundle's actual stored collateral
-  // type or data. All TCT groups in one bundle share one `collateralType`
-  // by construction, so reading `titleGroups[0]` is safe — not an
-  // arbitrary pick. Falls back to 'real-estate' when `titleGroups` is
-  // empty (e.g. a bundle whose `tctGroupIds` don't match any existing
-  // `appraisalGroups` entry). Computed here (ahead of `titleGroups`' own
-  // later declaration, and ahead of the `if (!bundle) return null` guard
-  // below) since hooks that depend on it must run unconditionally.
+  // Kebab menu lets the user preview any of the 3 kinds' form layouts.
+  // Previewing a kind other than the bundle's real/assigned kind renders
+  // that kind's fields read-only (see `editable` below) — it never changes
+  // `collateralType` and never writes to a kind's report other than the
+  // one currently being edited. All TCT groups in one bundle share one
+  // `collateralType` by construction, so reading `titleGroups[0]` is safe
+  // — not an arbitrary pick. Falls back to 'real-estate' when
+  // `titleGroups` is empty (e.g. a bundle whose `tctGroupIds` don't match
+  // any existing `appraisalGroups` entry). Computed here (ahead of
+  // `titleGroups`' own later declaration, and ahead of the `if (!bundle)
+  // return null` guard below) since hooks that depend on it must run
+  // unconditionally.
   const titleGroups = review.requirementChecklist.appraisalGroups.filter((group) =>
     bundle?.tctGroupIds.includes(group.id)
   );
@@ -761,8 +764,7 @@ export function AppraiserAssignmentCard({
   const [kindMenuAnchor, setKindMenuAnchor] = useState<HTMLElement | null>(null);
   useEffect(() => {
     setPreviewKind(realCollateralType);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bundleId]);
+  }, [bundleId, realCollateralType]);
   // Per-TCT expand state for a multi-property bundle's LandTitleFields.
   // Tracks COLLAPSED ids (inverse of the "present means expanded"
   // convention this app's other per-TCT expand/collapse UIs use) so that
@@ -788,7 +790,7 @@ export function AppraiserAssignmentCard({
   const activeSectionKey = useAppraisalActiveSection(
     sectionRefs,
     APPRAISAL_SECTION_NAV_ITEMS.map((item) => item.key),
-    bundle?.appraiserType ?? ''
+    `${bundle?.appraiserType ?? ''}:${previewKind}`
   );
   const handleJumpToSection = (key: AppraisalSectionKey) => {
     requestAnimationFrame(() => {
@@ -798,7 +800,10 @@ export function AppraiserAssignmentCard({
   if (!bundle) return null;
   const { appraiserType, realEstateReport: report } = bundle;
   const locked = headApprovalStatus !== 'pending' || !!getBundleUploadedAt(bundle);
-  const editable = !locked;
+  // Previewing a kind other than the bundle's real/assigned kind is
+  // read-only: the kebab menu lets you see any of the 3 kinds' layouts,
+  // but only the real kind's own report slot is ever editable through it.
+  const editable = !locked && previewKind === realCollateralType;
   // Locked (disabled) fields still need to read clearly once a report is
   // submitted — MUI's default disabled state washes the text out to a
   // light gray (#919EAB) regardless of whether it's actually empty or
