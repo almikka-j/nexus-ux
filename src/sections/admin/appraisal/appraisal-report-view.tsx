@@ -10,7 +10,7 @@ import Divider from '@mui/material/Divider';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 
-import { useAdmin, getBundleUploadedAt } from 'src/auth/admin-context';
+import { useAdmin, getBundleUploadedAt, getBundleCollateralType } from 'src/auth/admin-context';
 import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
@@ -711,8 +711,10 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
   // summary component below actually renders. Falls back to 'real-estate'
   // only if the title groups somehow can't be resolved (shouldn't happen
   // for a submitted bundle).
-  const realCollateralType: AppraisalCollateralType =
-    titleGroups[0]?.collateralType ?? 'real-estate';
+  const realCollateralType: AppraisalCollateralType = getBundleCollateralType(
+    bundle,
+    review.requirementChecklist.appraisalGroups
+  );
 
   if (appraiserType === 'external') {
     // External appraisers always upload a single finished file regardless

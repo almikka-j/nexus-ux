@@ -2895,6 +2895,20 @@ export function getBundleUploadedAt(bundle: AppraisalReportBundle): string | nul
   );
 }
 
+// Which collateral kind a bundle is — every bundle holds one kind only (the
+// TCT table restricts selection to a single kind), so the first member
+// group's collateralType decides which of the bundle's 3 report fields is
+// the active one. Defaults to 'real-estate' for an empty/unmatched bundle.
+export function getBundleCollateralType(
+  bundle: AppraisalReportBundle,
+  appraisalGroups: AppraisalTctGroup[]
+): AppraisalCollateralType {
+  return (
+    appraisalGroups.filter((group) => bundle.tctGroupIds.includes(group.id))[0]?.collateralType ??
+    'real-estate'
+  );
+}
+
 function createAppraisalReportBundle(
   tctGroupIds: string[],
   appraiserType: AppraiserType,

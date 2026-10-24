@@ -21,6 +21,7 @@ import {
   useAdmin,
   createLotPlotLine,
   getBundleUploadedAt,
+  getBundleCollateralType,
   createAppraisalImprovementEntry,
   createAppraisalParticularEntry,
   createAppraisalConditionEntry,
@@ -758,8 +759,9 @@ export function AppraiserAssignmentCard({
   const titleGroups = review.requirementChecklist.appraisalGroups.filter((group) =>
     bundle?.tctGroupIds.includes(group.id)
   );
-  const realCollateralType: AppraisalCollateralType =
-    titleGroups[0]?.collateralType ?? 'real-estate';
+  const realCollateralType: AppraisalCollateralType = bundle
+    ? getBundleCollateralType(bundle, review.requirementChecklist.appraisalGroups)
+    : 'real-estate';
   const [previewKind, setPreviewKind] = useState<AppraisalCollateralType>(realCollateralType);
   const [kindMenuAnchor, setKindMenuAnchor] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -838,11 +840,6 @@ export function AppraiserAssignmentCard({
     });
   };
 
-  const submitInhouseReport = () => {
-    if (!report.appraisedValue.trim()) return;
-    setAppraisalBundleReport(bundleId, { uploadedAt: new Date().toISOString() });
-  };
-
   const externalFile = report.fileName
     ? new File([], report.fileName)
     : null;
@@ -872,6 +869,9 @@ export function AppraiserAssignmentCard({
             Covers {tctNumbers.join(', ')}.
           </Typography>
         </Box>
+        {/* External appraisers only upload a file — no per-kind form to
+            preview, so the kind-preview kebab is in-house only. */}
+        {appraiserType === 'inhouse' && (
         <IconButton
           onClick={(event) => setKindMenuAnchor(event.currentTarget)}
           aria-label="Preview collateral kind layout"
@@ -890,6 +890,7 @@ export function AppraiserAssignmentCard({
         >
           <Iconify icon="solar:menu-dots-bold" width={20} />
         </IconButton>
+        )}
       </Stack>
 
       <Menu
@@ -915,7 +916,7 @@ export function AppraiserAssignmentCard({
         ))}
       </Menu>
 
-      {previewKind !== realCollateralType && (
+      {appraiserType === 'inhouse' && previewKind !== realCollateralType && (
         <Box sx={{ p: 1.5, mb: 2, borderRadius: '10px', bgcolor: TONE_COLORS.warning.bg }}>
           <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: TONE_COLORS.warning.text }}>
             Previewing {COLLATERAL_TYPE_LABEL_FOR_PREVIEW[previewKind]} layout — this bundle&apos;s actual
@@ -924,10 +925,10 @@ export function AppraiserAssignmentCard({
         </Box>
       )}
 
-      {previewKind === 'chattel' && (
+      {previewKind === 'chattel' && appraiserType === 'inhouse' && (
         <ChattelReportFields bundleId={bundleId} report={bundle.chattelReport} editable={editable} />
       )}
-      {previewKind === 'machineries' && (
+      {previewKind === 'machineries' && appraiserType === 'inhouse' && (
         <MachineriesReportFields bundleId={bundleId} report={bundle.machineriesReport} editable={editable} />
       )}
 
@@ -1864,9 +1865,14 @@ export function AppraiserAssignmentCard({
         </Stack>
       )}
 
-      {previewKind === 'real-estate' && appraiserType === 'external' && (
+      {/* External appraisers upload a file on ANY bundle kind — there is no
+          per-kind external upload path yet, so it always writes to
+          realEstateReport's fileName/fileUrl/uploadedAt (the read-only
+          view's external branch reads from there too). Gated on `locked`,
+          not `editable`, since previewKind doesn't apply to external. */}
+      {appraiserType === 'external' && (
         <Stack spacing={1.5}>
-          <ReportFileDropzone value={externalFile} onChange={handleExternalFile} disabled={!editable} />
+          <ReportFileDropzone value={externalFile} onChange={handleExternalFile} disabled={locked} />
           {report.uploadedAt && (
             <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#0C8A4F' }}>
               Uploaded {new Date(report.uploadedAt).toLocaleString()}
@@ -1929,16 +1935,44 @@ export function AppraiserAssignmentCard({
 // ----------------------------------------------------------------------
 
 export function AppraisalReportSubmitCard({ bundleId }: { bundleId: string }) {
-  const { review, setAppraisalBundleReport } = useAdmin();
+  const {
+    review,
+    setAppraisalBundleReport,
+    setAppraisalBundleChattelReport,
+    setAppraisalBundleMachineriesReport,
+  } = useAdmin();
   const { headApprovalStatus } = review.appraisal;
   const bundle = review.appraisal.reportBundles.find((entry) => entry.id === bundleId);
   if (!bundle || bundle.appraiserType !== 'inhouse') return null;
-  const { realEstateReport: report } = bundle;
   const editable = headApprovalStatus === 'pending' && !getBundleUploadedAt(bundle);
 
+  // Readiness check + uploadedAt stamp follow the bundle's real kind — each
+  // kind keeps its own report slot. Machineries has no single appraised
+  // value field, so "at least one machinery entry" is its readiness rule.
+  const realCollateralType = getBundleCollateralType(
+    bundle,
+    review.requirementChecklist.appraisalGroups
+  );
+  let uploadedAt: string | null;
+  let ready: boolean;
+  let stampUploaded: (at: string) => void;
+  if (realCollateralType === 'chattel') {
+    uploadedAt = bundle.chattelReport.uploadedAt;
+    ready = !!bundle.chattelReport.appraisedValue.trim();
+    stampUploaded = (at) => setAppraisalBundleChattelReport(bundleId, { uploadedAt: at });
+  } else if (realCollateralType === 'machineries') {
+    uploadedAt = bundle.machineriesReport.uploadedAt;
+    ready = bundle.machineriesReport.machineries.length > 0;
+    stampUploaded = (at) => setAppraisalBundleMachineriesReport(bundleId, { uploadedAt: at });
+  } else {
+    uploadedAt = bundle.realEstateReport.uploadedAt;
+    ready = !!bundle.realEstateReport.appraisedValue.trim();
+    stampUploaded = (at) => setAppraisalBundleReport(bundleId, { uploadedAt: at });
+  }
+
   const submitInhouseReport = () => {
-    if (!report.appraisedValue.trim()) return;
-    setAppraisalBundleReport(bundleId, { uploadedAt: new Date().toISOString() });
+    if (!ready) return;
+    stampUploaded(new Date().toISOString());
   };
 
   return (
@@ -1947,7 +1981,7 @@ export function AppraisalReportSubmitCard({ bundleId }: { bundleId: string }) {
         Submit Appraisal Report
       </Typography>
       <Typography sx={{ fontSize: 13.5, color: '#8891A6', mb: 2 }}>
-        {report.uploadedAt
+        {uploadedAt
           ? 'This report has been submitted and is now read-only.'
           : 'Submit the report once ready.'}
       </Typography>
@@ -1956,16 +1990,16 @@ export function AppraisalReportSubmitCard({ bundleId }: { bundleId: string }) {
         <Button
           onClick={submitInhouseReport}
           variant="contained"
-          disabled={!report.appraisedValue.trim()}
+          disabled={!ready}
           sx={{ alignSelf: 'flex-start', bgcolor: '#1C2A6E', borderRadius: '10px', px: 2.5, boxShadow: 'none', '&:hover': { bgcolor: '#14205A', boxShadow: 'none' } }}
         >
           Submit Appraisal Report
         </Button>
       )}
 
-      {report.uploadedAt && (
+      {uploadedAt && (
         <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#0C8A4F', mt: 1.5 }}>
-          Report submitted {new Date(report.uploadedAt).toLocaleString()}
+          Report submitted {new Date(uploadedAt).toLocaleString()}
         </Typography>
       )}
     </Box>
