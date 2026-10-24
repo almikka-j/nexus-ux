@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { NumericFormat } from 'react-number-format';
 
 import Box from '@mui/material/Box';
@@ -43,9 +43,14 @@ import {
 // pattern (CashFlowStatementCard's "Add Other Loan"): the Add button appends
 // an empty editable row, the trailing ✕ removes it — no staging row, no "+"
 // to commit. Every field persists on change via the useAdmin() setters, so
-// the footer is just a "Done" button, not a save. Data-entry only — no file
-// attachments (the legacy screen's File Attachment section was dropped as
-// unused).
+// the footer is just a "Done" button, not a save.
+//
+// "Upload bank statement" (addBankStatementFile) attaches a file (data URL
+// only, no parsing) and, when the statement is still blank, auto-fills
+// every field below it with deterministic sample values — simulating an
+// extraction the same way every other "AI" feature in this app does (no
+// real OCR). It never overwrites fields the officer already filled in by
+// hand.
 //
 // delete-if-blank on close: opening via "Add bank statement" then closing
 // with the statement still completely empty removes it, so no ghost row is
@@ -130,7 +135,10 @@ export function BankStatementModal({ open, statementId, onClose }: BankStatement
     addBankStatementDailyBalance,
     updateBankStatementDailyBalance,
     removeBankStatementDailyBalance,
+    uploadBankStatementFile,
+    removeBankStatementFile,
   } = useAdmin();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const statement = review.bankStatements.find((entry) => entry.id === statementId) ?? null;
 
@@ -148,11 +156,23 @@ export function BankStatementModal({ open, statementId, onClose }: BankStatement
     !statement.monthFrom &&
     !statement.monthTo &&
     statement.deposits.length === 0 &&
-    statement.dailyBalances.length === 0;
+    statement.dailyBalances.length === 0 &&
+    !statement.statementFileName;
 
   const handleClose = () => {
     if (statement && isBlank) removeBankStatement(statement.id);
     onClose();
+  };
+
+  const handleUploadFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!statement || !file) return;
+    uploadBankStatementFile(statement.id, file.name);
+  };
+
+  const handleRemoveFile = () => {
+    if (statement) removeBankStatementFile(statement.id);
   };
 
   const totalDeposits = statement ? computeTotalDeposits(statement.deposits) : 0;
@@ -197,6 +217,54 @@ export function BankStatementModal({ open, statementId, onClose }: BankStatement
 
           <DialogContent sx={{ p: 3 }}>
             <Stack spacing={3}>
+              {/* Upload — same row layout as CI Report's own transcript
+                  upload (ci-report-card.tsx): icon + filename/status +
+                  Upload/Replace + Remove, all in one bordered row. */}
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1.5}
+                sx={{ p: 2, borderRadius: '11px', bgcolor: '#F9FAFC', border: '1px solid #EEF0F5' }}
+              >
+                <input ref={fileInputRef} type="file" accept="image/*,.pdf" hidden onChange={handleUploadFile} />
+                <Iconify icon="solar:bill-list-bold-duotone" width={20} sx={{ color: '#5A6273', flexShrink: 0 }} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
+                    {statement.statementFileName ?? 'No bank statement uploaded'}
+                  </Typography>
+                  {statement.statementFileName && (
+                    <Typography sx={{ fontSize: 11.5, color: '#A0A7B5' }}>
+                      Uploaded {new Date(statement.statementUploadedAt!).toLocaleDateString('en-PH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </Typography>
+                  )}
+                </Box>
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Iconify icon="solar:upload-bold-duotone" width={16} />}
+                  sx={{ ...outlinedNavyButtonSx, flexShrink: 0 }}
+                >
+                  {statement.statementFileName ? 'Replace statement' : 'Upload bank statement'}
+                </Button>
+                {statement.statementFileName && (
+                  <Button
+                    onClick={handleRemoveFile}
+                    size="small"
+                    startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
+                    sx={{ color: '#F04438', flexShrink: 0 }}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </Stack>
+
+              <Divider />
+
               {/* Account details */}
               <Grid container spacing={2}>
                 <Grid item xs={12}>

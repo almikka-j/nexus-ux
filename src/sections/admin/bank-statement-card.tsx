@@ -55,7 +55,8 @@ function BankStatementRow({
     !statement.accountNumber.trim() &&
     !statement.accountName.trim() &&
     statement.deposits.length === 0 &&
-    statement.dailyBalances.length === 0;
+    statement.dailyBalances.length === 0 &&
+    !statement.statementFileName;
 
   const initials = bankInitials(statement.depositoryBank);
   const tail = accountTail(statement.accountNumber);

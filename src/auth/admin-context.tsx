@@ -1574,6 +1574,15 @@ export type BankStatementDailyBalance = {
 
 export type BankStatement = {
   id: string;
+  // Upload row — filename + timestamp only, same shape and scope as CI
+  // Report's transcriptFileName/transcriptUploadedAt (ci-report-card.tsx):
+  // no fileData is kept, no "View" action, since the point of uploading is
+  // only to trigger the auto-fill below, not to retain the file itself.
+  // Uploading simulates an extraction with deterministic sample values
+  // (see addBankStatementFile) — not a real OCR/parse, consistent with
+  // every other "AI" feature in this app.
+  statementFileName: string | null;
+  statementUploadedAt: string | null; // ISO
   depositoryBank: string;
   accountName: string;
   accountNumber: string;
@@ -1630,7 +1639,11 @@ export type FinancialStatementPeriod = {
   currentLiabilities: BalanceSheetLine[];
   nonCurrentLiabilities: BalanceSheetLine[];
   equity: BalanceSheetLine[];
-  balanceSheetSaved: boolean; // Manage opens straight to Balance Sheet once true
+  // No longer read by the Manage UI (2026-10-21: Financial Statement shows
+  // every period's Income Statement + Balance Sheet inline, nothing to
+  // step through) — kept on the stored shape so existing saved sessions /
+  // sample data still hydrate without a migration.
+  balanceSheetSaved: boolean;
 };
 export type FinancialStatement = Record<FinancialPeriod, FinancialStatementPeriod>;
 
@@ -1826,7 +1839,12 @@ type AdminContextValue = AdminState & {
   addBankStatement: (id: string) => void;
   updateBankStatement: (
     id: string,
-    data: Partial<Omit<BankStatement, 'id' | 'deposits' | 'dailyBalances' | 'files'>>
+    data: Partial<
+      Omit<
+        BankStatement,
+        'id' | 'deposits' | 'dailyBalances' | 'statementFileName' | 'statementUploadedAt'
+      >
+    >
   ) => void;
   removeBankStatement: (id: string) => void;
   addBankStatementDeposit: (id: string) => void;
@@ -1843,6 +1861,15 @@ type AdminContextValue = AdminState & {
     data: Partial<Omit<BankStatementDailyBalance, 'id'>>
   ) => void;
   removeBankStatementDailyBalance: (id: string, balanceId: string) => void;
+  /** Records the uploaded bank statement's filename + timestamp and, when
+   * the statement's own fields are still blank, auto-fills them with the
+   * same deterministic sample values "Fill with Sample Data" uses —
+   * simulating an extraction, consistent with every other "AI" feature in
+   * this app (no real OCR/parsing). Never overwrites fields the officer
+   * already filled in by hand. Same shape as CI Report's own
+   * transcriptFileName/transcriptUploadedAt upload. */
+  uploadBankStatementFile: (id: string, fileName: string) => void;
+  removeBankStatementFile: (id: string) => void;
   /** Dev/QA: fill every Financial Evaluation workspace with sample data —
    * one bank statement, the Cash Flow Statement, the Financial Statement (all
    * 5 periods), Bank Loans, and Financial Highlights. */
@@ -2171,6 +2198,8 @@ function updateOneBankStatement(
 function createBankStatement(id: string): BankStatement {
   return {
     id,
+    statementFileName: null,
+    statementUploadedAt: null,
     depositoryBank: '',
     accountName: '',
     accountNumber: '',
@@ -2181,11 +2210,17 @@ function createBankStatement(id: string): BankStatement {
   };
 }
 
-// Dev/QA "Fill with Sample Data" — one realistic, fully-populated bank
-// statement (6 monthly deposits, 3 quarterly average-balance rows).
-function createSampleBankStatement(): BankStatement {
+// One realistic, fully-populated bank statement's worth of field values (6
+// monthly deposits, 3 quarterly average-balance rows) — shared by both the
+// whole-page "Fill with Sample Data" action (createSampleBankStatement) and
+// a single statement's own "Upload bank statement" auto-fill
+// (uploadBankStatementFile), so both simulate the exact same deterministic
+// extraction rather than keeping two copies of sample data in sync.
+function sampleBankStatementFields(): Omit<
+  BankStatement,
+  'id' | 'statementFileName' | 'statementUploadedAt'
+> {
   return {
-    id: crypto.randomUUID(),
     depositoryBank: 'BDO Unibank',
     accountName: 'Juan A. Dela Cruz',
     accountNumber: '0012-3456-7890',
@@ -2204,6 +2239,17 @@ function createSampleBankStatement(): BankStatement {
       { id: crypto.randomUUID(), periodFrom: '2026-03-01', periodTo: '2026-04-30', balance: '287500' },
       { id: crypto.randomUUID(), periodFrom: '2026-05-01', periodTo: '2026-06-30', balance: '341000' },
     ],
+  };
+}
+
+// Dev/QA "Fill with Sample Data" — one realistic, fully-populated bank
+// statement.
+function createSampleBankStatement(): BankStatement {
+  return {
+    id: crypto.randomUUID(),
+    statementFileName: null,
+    statementUploadedAt: null,
+    ...sampleBankStatementFields(),
   };
 }
 
@@ -3304,7 +3350,15 @@ function readStoredState(): AdminState {
         },
         // A list of officer-entered records — trust the stored array wholesale
         // (not a keyed default set), same as the bureau file arrays.
-        bankStatements: Array.isArray(storedReview.bankStatements) ? storedReview.bankStatements : [],
+        // statementFileName/statementUploadedAt are backfilled per statement
+        // for a session saved before they existed.
+        bankStatements: Array.isArray(storedReview.bankStatements)
+          ? storedReview.bankStatements.map((statement: BankStatement) => ({
+              ...statement,
+              statementFileName: statement.statementFileName ?? null,
+              statementUploadedAt: statement.statementUploadedAt ?? null,
+            }))
+          : [],
         // Per-period deep merge so a session saved before a field was added
         // still fills the gap; guarantees all 5 period keys exist. The five
         // Balance Sheet categories became line-item arrays — an older
@@ -3822,6 +3876,39 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             dailyBalances: statement.dailyBalances.filter((balance) => balance.id !== balanceId),
           })),
         })),
+      uploadBankStatementFile: (id, fileName) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateOneBankStatement(prev.review, id, (statement) => {
+            const isBlank =
+              !statement.depositoryBank.trim() &&
+              !statement.accountName.trim() &&
+              !statement.accountNumber.trim() &&
+              !statement.monthFrom &&
+              !statement.monthTo &&
+              statement.deposits.length === 0 &&
+              statement.dailyBalances.length === 0;
+            return {
+              ...statement,
+              ...(isBlank ? sampleBankStatementFields() : {}),
+              statementFileName: fileName,
+              statementUploadedAt: new Date().toISOString(),
+            };
+          }),
+        })),
+      // Clears the upload record only (filename + timestamp) — does not
+      // revert the fields auto-fill already wrote, the same ruling CI
+      // Report's own handleRemoveTranscript makes, since those are now just
+      // regular editable fields the officer may have built on.
+      removeBankStatementFile: (id) =>
+        setState((prev) => ({
+          ...prev,
+          review: updateOneBankStatement(prev.review, id, (statement) => ({
+            ...statement,
+            statementFileName: null,
+            statementUploadedAt: null,
+          })),
+        })),
       fillFinancialEvaluationSample: () =>
         setState((prev) => ({
           ...prev,
@@ -3839,7 +3926,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             bankLoans: createSampleBankLoans(),
             financialHighlights: createSampleFinancialHighlights(),
             financialHighlightsRemarks: '<p>Ratios and coverage metrics reviewed for the five reporting periods.</p>',
-            additionalFinancialFiles: createSampleAdditionalFinancialFiles(),
           },
         })),
       clearFinancialEvaluationSample: () =>
@@ -3854,7 +3940,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
             bankLoans: createInitialBankLoans(),
             financialHighlights: createInitialFinancialHighlights(),
             financialHighlightsRemarks: '',
-            additionalFinancialFiles: [],
           },
         })),
       setFinancialStatementField: (period, field, value) =>
