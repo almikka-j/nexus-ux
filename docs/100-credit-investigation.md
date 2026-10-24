@@ -5,6 +5,7 @@
 > `credit-investigation-risk.ts`, `credit-investigation-transcript.ts`,
 > `credit-investigation/ci-report-card.tsx`,
 > `credit-investigation/ci-report-commercial-sections.tsx`,
+> `credit-investigation/ci-report-preview.tsx`,
 > `credit-investigation/credit-investigation-doc-row.tsx`,
 > `components/rich-text-field/rich-text-field.tsx`) change. Companion to
 > `docs/230-project-overview.md`,
@@ -64,9 +65,11 @@ to breathe without wrapping awkwardly.
 5. **CI Fee** card (see `docs/140-request-credit-investigation-fee.md`).
 6. **CI Report** card (visible once CI Fee is approved; otherwise a locked
    placeholder).
+   Directly under it (only while unlocked), a small **Preview Report**
+   footer card — see "CI Report preview" below.
 7. **Proceed application?** decision card.
-8. Dialogs mounted outside the stack: Disapprove reason,
-   `RequestDocumentsDrawer`.
+8. Dialogs mounted outside the stack: Disapprove reason, CI Report
+   preview, `RequestDocumentsDrawer`.
 
 ## Document Checklist
 
@@ -704,6 +707,35 @@ transcript** (pick a different file; re-runs auto-fill) and **Remove**
 with no replacement file needed, for when an officer wants the transcript
 record gone with nothing to put in its place. Remove does not revert the
 fields auto-fill already wrote; they stay as regular editable fields.
+
+### CI Report preview
+
+A footer card right after `CiReportCard` (rendered only while the CI
+Report is unlocked) reads "View the full formatted report generated from
+everything above." with an outlined-navy **Preview Report** button — the
+same row shape as Appraisal's "Preview Appraisal Report" and Initial
+Credit Checking's result footer. The button is disabled (and the text
+asks for a type) until `report.type` is picked. It opens a `maxWidth="md"`
+`Dialog` (header: "CI Report" + type and applicant-name pills) containing
+`CiReportPreview` (`credit-investigation/ci-report-preview.tsx`) — a
+plain, always-expanded, read-only renderer modeled on
+`appraisal-report-preview.tsx` (local `SectionCard`/`FieldRow`/
+`FactChip` helpers). It never writes state.
+
+- Branches on `report.type` like `CiReportCard`, covering the same
+  sections in `COMMERCIAL_SECTION_NAV_ITEMS`/`CONSUMER_SECTION_NAV_ITEMS`
+  order, plus each type's header (Commercial info chips + Business
+  Profile fields; Consumer info chips + Subject As Of) and the transcript
+  filename/upload date + AI Summary.
+- Rich-text fields render their stored HTML via `dangerouslySetInnerHTML`
+  (same convention as `appraisal-report-view.tsx`); an empty editor
+  document shows "—".
+- Commercial Trustees vs. Stockholders follows the same
+  `resolveCommercialBusinessType()` gate as the form; Commercial header
+  values reuse the now-exported `COMMERCIAL_SAMPLE_INFO`.
+- Fields on `CiReport` the live form never renders
+  (`negativeRecord*`, `recommendation*`, Consumer `suppliers`/
+  `customers`) are deliberately not shown.
 
 ## Decision Gate — Proceed application?
 
