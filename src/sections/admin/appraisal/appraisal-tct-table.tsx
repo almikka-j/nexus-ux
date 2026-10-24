@@ -317,6 +317,17 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
     return done < total;
   };
 
+  const selectionKind: AppraisalCollateralType | null =
+    selectedIds.length === 0
+      ? null
+      : (appraisalGroups.find((g) => g.id === selectedIds[0])?.collateralType ?? null);
+
+  const isWrongKind = (groupId: string) => {
+    if (selectionKind === null) return false;
+    const group = appraisalGroups.find((g) => g.id === groupId);
+    return group?.collateralType !== selectionKind;
+  };
+
   const toggleRow = (groupId: string) => {
     setSelectedIds((prev) =>
       prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
@@ -535,6 +546,7 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
               const appraiserName = appraiserNameForGroup(group.id);
               const locked = isRowLocked(group.id);
               const incomplete = docsIncomplete(group.id);
+              const wrongKind = isWrongKind(group.id);
               const expanded = expandedId === group.id;
               const justAdded = justAddedId === group.id;
               const docs = docsCompleteCount(group.id);
@@ -560,12 +572,18 @@ export function AppraisalTctTable({ applicantName }: { applicantName: string }) 
                   >
                     <TableCell padding="checkbox">
                       <Tooltip
-                        title={!locked && incomplete ? 'Every document must be verified before this property can be assigned to an appraiser.' : ''}
+                        title={
+                          !locked && incomplete
+                            ? 'Every document must be verified before this property can be assigned to an appraiser.'
+                            : !locked && !incomplete && wrongKind
+                              ? `This selection is already ${COLLATERAL_TYPE_LABEL[selectionKind!]} — a report can't mix collateral kinds.`
+                              : ''
+                        }
                       >
                         <span>
                           <Checkbox
                             checked={selectedIds.includes(group.id)}
-                            disabled={locked || incomplete}
+                            disabled={locked || incomplete || wrongKind}
                             onChange={() => toggleRow(group.id)}
                           />
                         </span>
