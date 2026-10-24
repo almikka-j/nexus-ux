@@ -14,8 +14,14 @@ import { useAdmin, getBundleUploadedAt, getBundleCollateralType } from 'src/auth
 import { fCurrency } from 'src/utils/format-number';
 
 import { Iconify } from 'src/components/iconify';
-import { Field, FieldGrid, SectionLabel, StatusBadge, adminCardSx, TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
-import { CollapsibleSection } from 'src/components/collapsible-section';
+import {
+  FieldTable,
+  StatusBadge,
+  adminCardSx,
+  TONE_COLORS,
+  FieldTableRow,
+  outlinedNavyButtonSx,
+} from 'src/components/admin-ui';
 
 import { computeTotalAppraisedValue } from './appraisal-machineries-report-fields';
 
@@ -25,6 +31,158 @@ import type {
   AppraisalReportLandTitle,
   AppraisalCollateralType,
 } from 'src/auth/admin-context';
+
+// ----------------------------------------------------------------------
+// Report-result presentation primitives — the app's read-only
+// report-result standard (credit-checking-result-modal.tsx /
+// call-report-result-modal.tsx / ci-report-preview.tsx): a pill-shaped
+// NumberedSectionHeader per section, label/value fields in the shared
+// FieldTable/FieldTableRow, and non-field content (narratives, rich text,
+// photo strips, status-badge checklists) kept in its own styling under the
+// header.
+// ----------------------------------------------------------------------
+
+// Same pill header credit-checking-result-modal.tsx defines locally.
+function NumberedSectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <Stack
+      direction="row"
+      spacing={1.25}
+      alignItems="center"
+      sx={{ px: 2, py: 1.25, borderRadius: '10px', bgcolor: '#EEF1FE' }}
+    >
+      <Typography
+        sx={{ fontSize: 12.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#1C2A6E' }}
+      >
+        {children}
+      </Typography>
+    </Stack>
+  );
+}
+
+// One report section: pill header, then its content stacked underneath.
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Stack spacing={1.25}>
+      <NumberedSectionHeader>{title}</NumberedSectionHeader>
+      {children}
+    </Stack>
+  );
+}
+
+// Same pill header, but as the toggle for an independently collapsible
+// section (the Real Estate full report's Technical Specification,
+// Utilities, Improvement, … sections) — chevron + Collapse, same open/close
+// behavior CollapsibleSection gave these sections before.
+function CollapsibleNumberedSection({
+  title,
+  expanded,
+  onToggle,
+  children,
+}: {
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Box>
+      <Stack
+        component={ButtonBase}
+        onClick={onToggle}
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ width: 1, px: 2, py: 1.25, borderRadius: '10px', bgcolor: '#EEF1FE', justifyContent: 'flex-start', textAlign: 'left' }}
+      >
+        <Iconify
+          icon="eva:chevron-down-fill"
+          width={18}
+          sx={{
+            color: '#1C2A6E',
+            flexShrink: 0,
+            transition: 'transform 0.15s ease',
+            transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+          }}
+        />
+        <Typography
+          sx={{ fontSize: 12.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#1C2A6E' }}
+        >
+          {title}
+        </Typography>
+      </Stack>
+      <Collapse in={expanded}>
+        <Stack spacing={1.25} sx={{ pt: 1.25 }}>
+          {children}
+        </Stack>
+      </Collapse>
+    </Box>
+  );
+}
+
+// One label/value pair; a row is 1–2 pairs, a table is a list of rows.
+type FieldPair = [label: string, value: string];
+
+// The old Field returned null for an empty value, so an all-empty grid
+// collapsed to nothing — FieldRows keeps that exactly: empty pairs are
+// dropped, a row left with no pairs is dropped, and a table left with no
+// rows renders nothing. Free-text values keep their line breaks.
+function visibleRows(rows: FieldPair[][]): FieldPair[][] {
+  return rows.map((row) => row.filter(([, value]) => value)).filter((row) => row.length > 0);
+}
+
+function FieldRows({ rows }: { rows: FieldPair[][] }) {
+  const visible = visibleRows(rows);
+  if (visible.length === 0) return null;
+  return (
+    <FieldTable>
+      {visible.map((row) => (
+        <FieldTableRow
+          key={row.map(([label]) => label).join('|')}
+          pairs={row.map(([label, value]) => [
+            label,
+            <Box key={label} component="span" sx={{ whiteSpace: 'pre-wrap' }}>
+              {value}
+            </Box>,
+          ])}
+        />
+      ))}
+    </FieldTable>
+  );
+}
+
+// A header + FieldRows for field groups that used to be an unlabeled
+// FieldGrid — hidden entirely (header included) when every value is empty,
+// same as the old all-empty grid.
+function FieldSection({ title, rows }: { title: string; rows: FieldPair[][] }) {
+  if (visibleRows(rows).length === 0) return null;
+  return (
+    <Section title={title}>
+      <FieldRows rows={rows} />
+    </Section>
+  );
+}
+
+// One repeatable-entry block (Machinery 1, Comparable 2, …) — bordered
+// inner box with an entry label, its fields in a FieldTable. Same shape
+// ci-report-preview.tsx's EntryBlock uses.
+function EntryBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Box sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
+      <Stack spacing={1}>
+        <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#3448B0' }}>{title}</Typography>
+        {children}
+      </Stack>
+    </Box>
+  );
+}
+
+// Groups a flat checklist into rows of two for FieldTableRow.
+function pairUp<T>(items: T[]): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
+  return rows;
+}
 
 // ----------------------------------------------------------------------
 // Read-only rendering of a submitted in-house Appraisal Report
@@ -168,38 +326,32 @@ function LandTitleSummary({
   const detail = (
     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: showToggle ? 2 : 0 }}>
       <Stack spacing={1.75} sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', columnGap: 2.5, rowGap: 1.75 }}>
-          <Field label="File Type" value={title.fileType} />
-          <Field label="Title No." value={title.titleNo} />
-          <Field label="Area Size (sq.m.)" value={title.areaSize} />
-          <Field label="Zonal Value" value={title.zonalValue} />
-          <Field label="Lot No." value={title.lotNo} />
-          <Field label="Survey No." value={title.surveyNo} />
-          <Field label="Book No. / Page No." value={title.bookPageNo} />
-          <Field label="Title Registration Date" value={title.titleRegistrationDate} />
-          <Field label="Title Registration Place" value={title.titleRegistrationPlace} span={2} />
-        </Box>
-
-        {(title.boundaries || title.technicalSpecification) && (
-          <Stack spacing={1.25}>
-            {title.boundaries && (
-              <Box>
-                <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Boundaries</Typography>
-                <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
-                  {title.boundaries}
-                </Typography>
-              </Box>
-            )}
-            {title.technicalSpecification && (
-              <Box>
-                <Typography sx={{ fontSize: 11.5, color: '#8891A6' }}>Technical Specification</Typography>
-                <Typography sx={{ fontSize: 13, color: '#3B4256', whiteSpace: 'pre-wrap', mt: 0.25 }}>
-                  {title.technicalSpecification}
-                </Typography>
-              </Box>
-            )}
-          </Stack>
-        )}
+        {/* Boundaries / Technical Specification are free text, so each gets
+            a full-width row; FieldRows drops them when empty, same as the
+            old conditional blocks. */}
+        <FieldRows
+          rows={[
+            [
+              ['File Type', title.fileType],
+              ['Title No.', title.titleNo],
+            ],
+            [
+              ['Area Size (sq.m.)', title.areaSize],
+              ['Zonal Value', title.zonalValue],
+            ],
+            [
+              ['Lot No.', title.lotNo],
+              ['Survey No.', title.surveyNo],
+            ],
+            [
+              ['Book No. / Page No.', title.bookPageNo],
+              ['Title Registration Date', title.titleRegistrationDate],
+            ],
+            [['Title Registration Place', title.titleRegistrationPlace]],
+            [['Boundaries', title.boundaries]],
+            [['Technical Specification', title.technicalSpecification]],
+          ]}
+        />
 
         {title.lotPlotPhotos.length > 0 && (
           <Box sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #E3E7F5', bgcolor: '#F7F8FE' }}>
@@ -306,11 +458,15 @@ function ChattelReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportB
       <Stack spacing={2.5}>
         <AppraisedValueHero appraisedValue={report.appraisedValue} amountInWords="" />
 
-        <FieldGrid>
-          <Field label="Registered Owner" value={report.registeredOwner} span={2} />
-          <Field label="Make" value={report.make} />
-          <Field label="Plate No." value={report.plateNo} />
-        </FieldGrid>
+        <FieldRows
+          rows={[
+            [['Registered Owner', report.registeredOwner]],
+            [
+              ['Make', report.make],
+              ['Plate No.', report.plateNo],
+            ],
+          ]}
+        />
 
         {badRatedCount > 0 && (
           <Box>
@@ -339,83 +495,105 @@ function ChattelReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportB
 
       <Collapse in={fullReportOpen}>
         <Stack spacing={3} sx={{ mt: 3 }}>
-          <FieldGrid>
-            <Field label="Account Name" value={report.accountName} span={2} />
-            <Field label="Requested By" value={report.requestedBy} span={2} />
-            <Field label="Purpose of Report" value={report.purposeOfReport} span={2} />
-            <Field label="Report Date" value={report.reportDate} />
-            <Field label="Eqpt. Under App." value={report.eqptUnderApp} />
-            <Field label="Date Inspected" value={report.dateInspected} />
-            <Field label="Registered Owner" value={report.registeredOwner} span={2} />
-            <Field label="Address" value={report.address} span={2} />
-          </FieldGrid>
+          <FieldSection
+            title="Report Details"
+            rows={[
+              [['Account Name', report.accountName]],
+              [
+                ['Requested By', report.requestedBy],
+                ['Purpose of Report', report.purposeOfReport],
+              ],
+              [
+                ['Report Date', report.reportDate],
+                ['Eqpt. Under App.', report.eqptUnderApp],
+              ],
+              [['Date Inspected', report.dateInspected]],
+              [['Registered Owner', report.registeredOwner]],
+              [['Address', report.address]],
+            ]}
+          />
 
-          <Stack spacing={1.5}>
-            <SectionLabel>Description of Equipment</SectionLabel>
-            <FieldGrid>
-              <Field label="Make" value={report.make} />
-              <Field label="MVF No." value={report.mvfNo} />
-              <Field label="Series" value={report.series} />
-              <Field label="C.R No." value={report.crNo} />
-              <Field label="Type of Body / Denomination" value={report.typeOfBodyDenomination} />
-              <Field label="Registration Date" value={report.registrationDate} />
-              <Field label="Year Model" value={report.yearModel} />
-              <Field label="Place Registered" value={report.placeRegistered} />
-              <Field label="Color" value={report.color} />
-              <Field label="Chassis Number" value={report.chassisNumber} />
-              <Field label="Odometer Reading" value={report.odometerReading} />
-              <Field label="Engine No." value={report.engineNo} />
-              <Field label="Plate No." value={report.plateNo} />
-              <Field label="Fuel" value={report.fuel} />
-            </FieldGrid>
-          </Stack>
+          <Section title="Description of Equipment">
+            <FieldRows
+              rows={[
+                [
+                  ['Make', report.make],
+                  ['MVF No.', report.mvfNo],
+                ],
+                [
+                  ['Series', report.series],
+                  ['C.R No.', report.crNo],
+                ],
+                [
+                  ['Type of Body / Denomination', report.typeOfBodyDenomination],
+                  ['Registration Date', report.registrationDate],
+                ],
+                [
+                  ['Year Model', report.yearModel],
+                  ['Place Registered', report.placeRegistered],
+                ],
+                [
+                  ['Color', report.color],
+                  ['Chassis Number', report.chassisNumber],
+                ],
+                [
+                  ['Odometer Reading', report.odometerReading],
+                  ['Engine No.', report.engineNo],
+                ],
+                [
+                  ['Plate No.', report.plateNo],
+                  ['Fuel', report.fuel],
+                ],
+              ]}
+            />
+          </Section>
 
-          <Stack spacing={1.5}>
-            <SectionLabel>Accessories</SectionLabel>
-            <Stack spacing={1}>
-              {report.accessories.map((item) => (
-                <Stack
-                  key={item.id}
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={1.5}
-                  sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
-                >
-                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 220, flexShrink: 0 }}>
-                    {item.label}
-                  </Typography>
-                  <Typography sx={{ fontSize: 13, color: item.checked ? '#14172A' : '#8891A6' }}>
-                    {item.checked ? 'Yes' : 'No'}
-                    {item.checked && item.comments ? ` — ${item.comments}` : ''}
-                  </Typography>
-                </Stack>
-              ))}
-            </Stack>
-          </Stack>
+          {/* Checklists: every item's row always shows (as before), the
+              value being "Yes"/"No" plus comments when checked — the muted
+              color for an unchecked item is kept. */}
+          <Section title="Accessories">
+            {report.accessories.length > 0 && (
+              <FieldTable>
+                {pairUp(report.accessories).map((row) => (
+                  <FieldTableRow
+                    key={row.map((item) => item.id).join('|')}
+                    pairs={row.map((item) => [
+                      item.label,
+                      <Box key={item.id} component="span" sx={{ color: item.checked ? '#14172A' : '#8891A6' }}>
+                        {item.checked ? 'Yes' : 'No'}
+                        {item.checked && item.comments ? ` — ${item.comments}` : ''}
+                      </Box>,
+                    ])}
+                  />
+                ))}
+              </FieldTable>
+            )}
+          </Section>
 
-          <Stack spacing={1.5}>
-            <SectionLabel>Power Features</SectionLabel>
-            <Stack spacing={1}>
-              {report.powerFeatures.map((item) => (
-                <Stack
-                  key={item.id}
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={1.5}
-                  sx={{ p: 1, borderRadius: '8px', border: '1px solid #EBEDF3' }}
-                >
-                  <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: '#14172A', width: 220, flexShrink: 0 }}>
-                    {item.label}
-                  </Typography>
-                  <Typography sx={{ fontSize: 13, color: item.checked ? '#14172A' : '#8891A6' }}>
-                    {item.checked ? 'Yes' : 'No'}
-                    {item.checked && item.comments ? ` — ${item.comments}` : ''}
-                  </Typography>
-                </Stack>
-              ))}
-            </Stack>
-          </Stack>
+          <Section title="Power Features">
+            {report.powerFeatures.length > 0 && (
+              <FieldTable>
+                {pairUp(report.powerFeatures).map((row) => (
+                  <FieldTableRow
+                    key={row.map((item) => item.id).join('|')}
+                    pairs={row.map((item) => [
+                      item.label,
+                      <Box key={item.id} component="span" sx={{ color: item.checked ? '#14172A' : '#8891A6' }}>
+                        {item.checked ? 'Yes' : 'No'}
+                        {item.checked && item.comments ? ` — ${item.comments}` : ''}
+                      </Box>,
+                    ])}
+                  />
+                ))}
+              </FieldTable>
+            )}
+          </Section>
 
-          <Stack spacing={1.5}>
-            <SectionLabel>General Condition</SectionLabel>
+          {/* General Condition / Instrument Panel stay as their own rows: each
+              value is a StatusBadge (a block element, which can't sit inside
+              FieldTableRow's <p> value cell), so they're kept as non-field
+              status content under the new section header. */}
+          <Section title="General Condition">
             <Stack spacing={1}>
               {report.generalCondition.map((item) => (
                 <Stack
@@ -440,10 +618,9 @@ function ChattelReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportB
                 </Stack>
               ))}
             </Stack>
-          </Stack>
+          </Section>
 
-          <Stack spacing={1.5}>
-            <SectionLabel>Instrument Panel &amp; Lighting</SectionLabel>
+          <Section title="Instrument Panel & Lighting">
             <Stack spacing={1}>
               {report.instrumentPanelLighting.map((item) => (
                 <Stack
@@ -465,52 +642,60 @@ function ChattelReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportB
                 </Stack>
               ))}
             </Stack>
-          </Stack>
+          </Section>
 
-          <Stack spacing={1.5}>
-            <SectionLabel>Market Survey</SectionLabel>
+          <Section title="Market Survey">
             {report.marketSurvey.length === 0 ? (
               <Typography sx={{ fontSize: 12.5, color: '#8891A6', fontStyle: 'italic' }}>
                 No market survey entries recorded.
               </Typography>
             ) : (
               <Stack spacing={1.25}>
-                {report.marketSurvey.map((entry) => (
-                  <Box key={entry.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
-                    <FieldGrid>
-                      <Field label="Source" value={entry.source} />
-                      <Field label="Date" value={entry.date} />
-                      <Field label="Type" value={entry.type} />
-                      <Field label="Gen. Condition" value={entry.generalCondition} />
-                      <Field label="Selling Price" value={entry.sellingPrice} />
-                    </FieldGrid>
-                  </Box>
+                {report.marketSurvey.map((entry, index) => (
+                  <EntryBlock key={entry.id} title={`Survey ${index + 1}`}>
+                    <FieldRows
+                      rows={[
+                        [
+                          ['Source', entry.source],
+                          ['Date', entry.date],
+                        ],
+                        [
+                          ['Type', entry.type],
+                          ['Gen. Condition', entry.generalCondition],
+                        ],
+                        [['Selling Price', entry.sellingPrice]],
+                      ]}
+                    />
+                  </EntryBlock>
                 ))}
               </Stack>
             )}
-          </Stack>
+          </Section>
 
           {report.encumbrancesRemarks && (
-            <Stack spacing={1.5}>
-              <SectionLabel>Encumbrances / Remarks</SectionLabel>
+            <Section title="Encumbrances / Remarks">
               {/* Stored as HTML from the editable form's RichTextField — rendered
                   as plain read-only HTML here, no editable control. */}
               <Box
                 sx={{ fontSize: 13.5, color: '#3B4256', '& p': { m: 0, mb: 1 } }}
                 dangerouslySetInnerHTML={{ __html: report.encumbrancesRemarks }}
               />
-            </Stack>
+            </Section>
           )}
 
-          <FieldGrid>
-            <Field label="Loanable Percent" value={report.loanablePercent} />
-            <Field label="Appraised Value (Round Off)" value={report.appraisedValueRoundOff} />
-            <Field label="Loanable Amount" value={report.loanableAmount} />
-          </FieldGrid>
+          <FieldSection
+            title="Loanable Value"
+            rows={[
+              [
+                ['Loanable Percent', report.loanablePercent],
+                ['Appraised Value (Round Off)', report.appraisedValueRoundOff],
+              ],
+              [['Loanable Amount', report.loanableAmount]],
+            ]}
+          />
 
           {report.fileAttachments.length > 0 && (
-            <Stack spacing={1.5}>
-              <SectionLabel>File Attachment</SectionLabel>
+            <Section title="File Attachment">
               <Stack direction="row" flexWrap="wrap" gap={1.5}>
                 {report.fileAttachments.map((photo, index) => (
                   <Box
@@ -522,7 +707,7 @@ function ChattelReportSummary({ bundle, tctNumbers }: { bundle: AppraisalReportB
                   />
                 ))}
               </Stack>
-            </Stack>
+            </Section>
           )}
         </Stack>
       </Collapse>
@@ -562,10 +747,14 @@ function MachineriesReportSummary({ bundle, tctNumbers }: { bundle: AppraisalRep
       <Stack spacing={2.5}>
         <AppraisedValueHero appraisedValue={String(totalAppraisedValue)} amountInWords="" />
 
-        <FieldGrid>
-          <Field label="Machineries" value={`${report.machineries.length} machineries`} />
-          <Field label="Subject" value={report.subject} span={3} />
-        </FieldGrid>
+        <FieldRows
+          rows={[
+            [
+              ['Machineries', `${report.machineries.length} machineries`],
+              ['Subject', report.subject],
+            ],
+          ]}
+        />
       </Stack>
 
       <Divider sx={{ borderColor: '#EEF0F5', my: 2.5 }} />
@@ -588,70 +777,86 @@ function MachineriesReportSummary({ bundle, tctNumbers }: { bundle: AppraisalRep
 
       <Collapse in={fullReportOpen}>
         <Stack spacing={3} sx={{ mt: 3 }}>
-          <FieldGrid>
-            <Field label="To" value={report.to} />
-            <Field label="Thru" value={report.thru} />
-            <Field label="From" value={report.from} />
-            <Field label="Date Report" value={report.dateReport} />
-            <Field label="Date Inspected" value={report.dateInspected} />
-            <Field label="Subject" value={report.subject} />
-          </FieldGrid>
+          <FieldSection
+            title="Memorandum"
+            rows={[
+              [
+                ['To', report.to],
+                ['Thru', report.thru],
+              ],
+              [['From', report.from]],
+              [
+                ['Date Report', report.dateReport],
+                ['Date Inspected', report.dateInspected],
+              ],
+              [['Subject', report.subject]],
+            ]}
+          />
 
           {report.descriptionOfEquipments && (
-            <Stack spacing={1.5}>
-              <SectionLabel>I. Description of Equipments</SectionLabel>
+            <Section title="I. Description of Equipments">
               <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
                 {report.descriptionOfEquipments}
               </Typography>
-            </Stack>
+            </Section>
           )}
 
-          <Stack spacing={1.5}>
-            <SectionLabel>Machineries</SectionLabel>
+          <Section title="Machineries">
             {report.machineries.length === 0 ? (
               <Typography sx={{ fontSize: 12.5, color: '#8891A6', fontStyle: 'italic' }}>
                 No machineries recorded.
               </Typography>
             ) : (
               <Stack spacing={1.25}>
-                {report.machineries.map((entry) => (
-                  <Box key={entry.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
-                    <FieldGrid>
-                      <Field label="Unit(s)" value={entry.units} />
-                      <Field label="Description" value={entry.description} />
-                      <Field label="Serial No." value={entry.serialNo} />
-                      <Field label="Acquisition Price(s) in PHP" value={entry.acquisitionPricePhp} />
-                      <Field label="Date of Proforma Invoice" value={entry.dateOfProformaInvoice} />
-                      <Field label="Appraised Value (Less Depreciation)" value={entry.appraisedValueLessDepreciation} />
-                    </FieldGrid>
-                  </Box>
+                {report.machineries.map((entry, index) => (
+                  <EntryBlock key={entry.id} title={`Machinery ${index + 1}`}>
+                    <FieldRows
+                      rows={[
+                        [
+                          ['Unit(s)', entry.units],
+                          ['Serial No.', entry.serialNo],
+                        ],
+                        [['Description', entry.description]],
+                        [
+                          ['Acquisition Price(s) in PHP', entry.acquisitionPricePhp],
+                          ['Date of Proforma Invoice', entry.dateOfProformaInvoice],
+                        ],
+                        [['Appraised Value (Less Depreciation)', entry.appraisedValueLessDepreciation]],
+                      ]}
+                    />
+                  </EntryBlock>
                 ))}
               </Stack>
             )}
-          </Stack>
+          </Section>
 
-          <FieldGrid>
-            <Field label="Total Appraised Value" value={fCurrency(totalAppraisedValue)} />
-            <Field label="Total Appraised Value (Round Off)" value={report.totalAppraisedValueRoundOff} />
-            <Field label="Loanable Percent" value={report.loanablePercent} />
-            <Field label="Loanable Amount" value={report.loanableAmount} />
-          </FieldGrid>
+          <FieldSection
+            title="Appraised Value Summary"
+            rows={[
+              [
+                ['Total Appraised Value', fCurrency(totalAppraisedValue)],
+                ['Total Appraised Value (Round Off)', report.totalAppraisedValueRoundOff],
+              ],
+              [
+                ['Loanable Percent', report.loanablePercent],
+                ['Loanable Amount', report.loanableAmount],
+              ],
+            ]}
+          />
 
           {report.qualificationRemarks && (
-            <Stack spacing={1.5}>
-              <SectionLabel>II. Qualification &amp; Remarks</SectionLabel>
+            <Section title="II. Qualification & Remarks">
               {/* Stored as HTML from the editable form's RichTextField — rendered
                   as plain read-only HTML here, no editable control. */}
               <Box
                 sx={{ fontSize: 13.5, color: '#3B4256', '& p': { m: 0, mb: 1 } }}
                 dangerouslySetInnerHTML={{ __html: report.qualificationRemarks }}
               />
-            </Stack>
+            </Section>
           )}
 
           {report.fileAttachments.length > 0 && (
-            <Stack spacing={1.5}>
-              <SectionLabel>File Attachment</SectionLabel>
+            <Section title="File Attachment">
               <Stack direction="row" flexWrap="wrap" gap={1.5}>
                 {report.fileAttachments.map((photo, index) => (
                   <Box
@@ -663,7 +868,7 @@ function MachineriesReportSummary({ bundle, tctNumbers }: { bundle: AppraisalRep
                   />
                 ))}
               </Stack>
-            </Stack>
+            </Section>
           )}
         </Stack>
       </Collapse>
@@ -796,11 +1001,13 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
       <Stack spacing={2.5}>
         <AppraisedValueHero appraisedValue={report.appraisedValue} amountInWords={report.amountInWords} />
 
-        <FieldGrid>
-          <Field label="Registered Owner" value={report.registeredOwner} span={2} />
-          <Field label="Location of Property" value={report.locationOfProperty} span={2} />
-          <Field label="Properties Covered" value={String(propertyCount)} />
-        </FieldGrid>
+        <FieldRows
+          rows={[
+            [['Registered Owner', report.registeredOwner]],
+            [['Location of Property', report.locationOfProperty]],
+            [['Properties Covered', String(propertyCount)]],
+          ]}
+        />
 
         <PhotoChipRow
           titles={titleGroups.map((group) => ({
@@ -830,17 +1037,23 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
 
       <Collapse in={fullReportOpen}>
         <Stack spacing={3} sx={{ mt: 3 }}>
-          <FieldGrid>
-            <Field label="Date Report" value={report.dateReport} />
-            <Field label="Date Inspected" value={report.dateInspected} />
-            <Field label="Requesting Officer" value={report.requestingOfficer} />
-            <Field label="Branch" value={report.branch} />
-            <Field label="Account Name" value={report.accountName} span={2} />
-            <Field label="Address" value={report.accountAddress} span={2} />
-          </FieldGrid>
+          <FieldSection
+            title="Report Details"
+            rows={[
+              [
+                ['Date Report', report.dateReport],
+                ['Date Inspected', report.dateInspected],
+              ],
+              [
+                ['Requesting Officer', report.requestingOfficer],
+                ['Branch', report.branch],
+              ],
+              [['Account Name', report.accountName]],
+              [['Address', report.accountAddress]],
+            ]}
+          />
 
-          <Stack spacing={1.5}>
-            <SectionLabel>Land</SectionLabel>
+          <Section title="Land">
             <Stack spacing={1.5}>
               {titleGroups.map((group) => {
                 const title = report.landTitles.find((entry) => entry.tctGroupId === group.id);
@@ -857,165 +1070,194 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
                 );
               })}
             </Stack>
-            <Field label="Encumbrances / Remarks" value={report.encumbrancesRemarks} span={4} />
-          </Stack>
+            <FieldRows rows={[[['Encumbrances / Remarks', report.encumbrancesRemarks]]]} />
+          </Section>
 
-          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-            <CollapsibleSection
-              title="Technical Specification"
-              expanded={!!expanded.technical}
-              onToggle={() => toggle('technical')}
-            >
-              <FieldGrid>
-                <Field label="Present Use" value={report.presentUse} span={2} />
-                <Field label="Street Frontage (metres)" value={report.streetFrontage} />
-                <Field label="Street Width (metres)" value={report.streetWidth} />
-                <Field label="Surfacing (Concrete/Asphalt)" value={report.surfacing} />
-                <Field label="Average Depth" value={report.averageDepth} />
-                <Field label="Approx. Shape" value={report.approxShape} />
-                <Field label="Topography" value={report.topography} />
-                <Field label="Neighborhood (Res'l/Comm'l/Ind'l.)" value={report.neighborhood} />
-              </FieldGrid>
-            </CollapsibleSection>
-          </Box>
+          <CollapsibleNumberedSection
+            title="Technical Specification"
+            expanded={!!expanded.technical}
+            onToggle={() => toggle('technical')}
+          >
+            <FieldRows
+              rows={[
+                [['Present Use', report.presentUse]],
+                [
+                  ['Street Frontage (metres)', report.streetFrontage],
+                  ['Street Width (metres)', report.streetWidth],
+                ],
+                [
+                  ['Surfacing (Concrete/Asphalt)', report.surfacing],
+                  ['Average Depth', report.averageDepth],
+                ],
+                [
+                  ['Approx. Shape', report.approxShape],
+                  ['Topography', report.topography],
+                ],
+                [["Neighborhood (Res'l/Comm'l/Ind'l.)", report.neighborhood]],
+              ]}
+            />
+          </CollapsibleNumberedSection>
 
-          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-            <CollapsibleSection
-              title="Source or Kind of Utilities"
-              expanded={!!expanded.utilities}
-              onToggle={() => toggle('utilities')}
-            >
-              <FieldGrid>
-                <Field label="Public Conveyance Line" value={report.utilityPublicConveyance} />
-                <Field label="Electricity" value={report.utilityElectricity} />
-                <Field label="Water" value={report.utilityWater} />
-                <Field label="Gas / Others" value={report.utilityGasOthers} />
-              </FieldGrid>
-            </CollapsibleSection>
-          </Box>
+          <CollapsibleNumberedSection
+            title="Source or Kind of Utilities"
+            expanded={!!expanded.utilities}
+            onToggle={() => toggle('utilities')}
+          >
+            <FieldRows
+              rows={[
+                [
+                  ['Public Conveyance Line', report.utilityPublicConveyance],
+                  ['Electricity', report.utilityElectricity],
+                ],
+                [
+                  ['Water', report.utilityWater],
+                  ['Gas / Others', report.utilityGasOthers],
+                ],
+              ]}
+            />
+          </CollapsibleNumberedSection>
 
-          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-            <CollapsibleSection
-              title="Improvement"
-              expanded={!!expanded.construction}
-              onToggle={() => toggle('construction')}
-            >
-              <Stack spacing={1.5}>
-                {report.improvements.map((improvement) => (
-                  <Box key={improvement.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
-                    <FieldGrid>
-                      <Field label="Year Constructed" value={improvement.yearConstructed} />
-                      <Field label="Construction" value={improvement.construction} />
-                      <Field label="Condition" value={improvement.condition} />
-                      <Field label="Est. Floor Area (sq.m.)" value={improvement.estFloorArea} />
-                    </FieldGrid>
-                  </Box>
-                ))}
-              </Stack>
-            </CollapsibleSection>
-          </Box>
+          {/* Improvement, General Construction Features and Particular
+              Description share the one 'construction' expand key, exactly as
+              before — toggling any of them opens/closes all three. */}
+          <CollapsibleNumberedSection
+            title="Improvement"
+            expanded={!!expanded.construction}
+            onToggle={() => toggle('construction')}
+          >
+            {report.improvements.map((improvement, index) => (
+              <EntryBlock key={improvement.id} title={`Improvement ${index + 1}`}>
+                <FieldRows
+                  rows={[
+                    [
+                      ['Year Constructed', improvement.yearConstructed],
+                      ['Construction', improvement.construction],
+                    ],
+                    [
+                      ['Condition', improvement.condition],
+                      ['Est. Floor Area (sq.m.)', improvement.estFloorArea],
+                    ],
+                  ]}
+                />
+              </EntryBlock>
+            ))}
+          </CollapsibleNumberedSection>
 
-          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-            <CollapsibleSection
-              title="General Construction Features"
-              expanded={!!expanded.construction}
-              onToggle={() => toggle('construction')}
-            >
-              <Field label="General Construction Features" value={report.generalConstructionFeatures} span={4} />
-            </CollapsibleSection>
-          </Box>
+          <CollapsibleNumberedSection
+            title="General Construction Features"
+            expanded={!!expanded.construction}
+            onToggle={() => toggle('construction')}
+          >
+            <FieldRows rows={[[['General Construction Features', report.generalConstructionFeatures]]]} />
+          </CollapsibleNumberedSection>
 
-          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-            <CollapsibleSection
-              title="Particular Description"
-              expanded={!!expanded.construction}
-              onToggle={() => toggle('construction')}
-            >
-              <Stack spacing={1.5}>
-                {report.particularDescriptions.map((particular) => (
-                  <Box key={particular.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
-                    <FieldGrid>
-                      <Field label="Floor Level" value={particular.floorLevel} />
-                      <Field label="Interior Walls & Partitions" value={particular.interiorWallsPartitions} />
-                      <Field label="Flooring" value={particular.flooring} />
-                      <Field label="Doors & Windows" value={particular.doorsWindows} />
-                      <Field label="Ceiling & Roofing" value={particular.ceilingRoofing} />
-                    </FieldGrid>
-                  </Box>
-                ))}
-              </Stack>
-            </CollapsibleSection>
-          </Box>
+          <CollapsibleNumberedSection
+            title="Particular Description"
+            expanded={!!expanded.construction}
+            onToggle={() => toggle('construction')}
+          >
+            {report.particularDescriptions.map((particular, index) => (
+              <EntryBlock key={particular.id} title={`Description ${index + 1}`}>
+                <FieldRows
+                  rows={[
+                    [
+                      ['Floor Level', particular.floorLevel],
+                      ['Interior Walls & Partitions', particular.interiorWallsPartitions],
+                    ],
+                    [
+                      ['Flooring', particular.flooring],
+                      ['Doors & Windows', particular.doorsWindows],
+                    ],
+                    [['Ceiling & Roofing', particular.ceilingRoofing]],
+                  ]}
+                />
+              </EntryBlock>
+            ))}
+          </CollapsibleNumberedSection>
 
-          <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-            <CollapsibleSection
-              title="Basis of Valuation (Land)"
-              expanded={!!expanded.basis}
-              onToggle={() => toggle('basis')}
-            >
-              <Stack spacing={1.5}>
-                {report.basisOfValuationComparables.map((comparable) => (
-                  <Box key={comparable.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
-                    <FieldGrid>
-                      <Field label="Source" value={comparable.source} />
-                      <Field label="Location" value={comparable.location} />
-                      <Field label="Area Size" value={comparable.areaSize} />
-                      <Field label="Price Type" value={comparable.priceType} />
-                      <Field label="Zonal Value" value={comparable.zonalValue} />
-                      <Field label="Value" value={comparable.value} />
-                    </FieldGrid>
-                  </Box>
-                ))}
-                <Field label="Fair Market Value Per Square Meter" value={report.fairMarketValuePerSqm} span={2} />
-                <Field label="Fair Market Value Total (PHP)" value={report.fairMarketValueTotal} span={2} />
-                {report.valuationRemarks && (
-                  <Field label="Valuation Remarks" value={report.valuationRemarks} span={4} />
-                )}
-              </Stack>
-            </CollapsibleSection>
-          </Box>
+          <CollapsibleNumberedSection
+            title="Basis of Valuation (Land)"
+            expanded={!!expanded.basis}
+            onToggle={() => toggle('basis')}
+          >
+            {report.basisOfValuationComparables.map((comparable, index) => (
+              <EntryBlock key={comparable.id} title={`Comparable ${index + 1}`}>
+                <FieldRows
+                  rows={[
+                    [
+                      ['Source', comparable.source],
+                      ['Location', comparable.location],
+                    ],
+                    [
+                      ['Area Size', comparable.areaSize],
+                      ['Price Type', comparable.priceType],
+                    ],
+                    [
+                      ['Zonal Value', comparable.zonalValue],
+                      ['Value', comparable.value],
+                    ],
+                  ]}
+                />
+              </EntryBlock>
+            ))}
+            <FieldRows
+              rows={[
+                [
+                  ['Fair Market Value Per Square Meter', report.fairMarketValuePerSqm],
+                  ['Fair Market Value Total (PHP)', report.fairMarketValueTotal],
+                ],
+                [['Valuation Remarks', report.valuationRemarks]],
+              ]}
+            />
+          </CollapsibleNumberedSection>
 
           {report.remarksAdditionalInfo && (
-            <Stack spacing={1.5}>
-              <SectionLabel>Remarks / additional information</SectionLabel>
+            <Section title="Remarks / Additional Information">
               <Typography sx={{ fontSize: 13.5, color: '#3B4256', whiteSpace: 'pre-wrap' }}>
                 {report.remarksAdditionalInfo}
               </Typography>
-            </Stack>
+            </Section>
           )}
 
           {report.conditionsForAcceptance.length > 0 && (
-            <Stack spacing={1.5}>
-              <SectionLabel>Conditions for acceptance of collateral</SectionLabel>
-              <Stack spacing={1.5}>
-                {report.conditionsForAcceptance.map((condition) => (
-                  <Box key={condition.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
-                    <FieldGrid>
-                      <Field label="Item of Property" value={condition.itemOfProperty} />
-                      <Field label="Ref" value={condition.ref} />
-                      <Field label="Marketable" value={condition.marketable} />
-                      <Field label="Construction (%)" value={condition.constructionStatusPercent} />
-                      <Field label="Depreciated Value" value={condition.depreciatedValue} />
-                      <Field label="Appraised Value" value={condition.appraisedValue} />
-                    </FieldGrid>
-                  </Box>
-                ))}
-              </Stack>
-            </Stack>
+            <Section title="Conditions for Acceptance of Collateral">
+              {report.conditionsForAcceptance.map((condition, index) => (
+                <EntryBlock key={condition.id} title={`Condition ${index + 1}`}>
+                  <FieldRows
+                    rows={[
+                      [
+                        ['Item of Property', condition.itemOfProperty],
+                        ['Ref', condition.ref],
+                      ],
+                      [
+                        ['Marketable', condition.marketable],
+                        ['Construction (%)', condition.constructionStatusPercent],
+                      ],
+                      [
+                        ['Depreciated Value', condition.depreciatedValue],
+                        ['Appraised Value', condition.appraisedValue],
+                      ],
+                    ]}
+                  />
+                </EntryBlock>
+              ))}
+            </Section>
           )}
 
-          <Stack spacing={1.5}>
-            <SectionLabel>Appraisal summary</SectionLabel>
-            <FieldGrid>
-              <Field label="Rounded Figures" value={report.roundedFigures} span={2} />
-              <Field label="Leasable Percent (%)" value={report.leasablePercent} span={2} />
-              <Field label="Leasable Amount (PHP)" value={report.leasableAmount} span={2} />
-            </FieldGrid>
-          </Stack>
+          <Section title="Appraisal Summary">
+            <FieldRows
+              rows={[
+                [['Rounded Figures', report.roundedFigures]],
+                [
+                  ['Leasable Percent (%)', report.leasablePercent],
+                  ['Leasable Amount (PHP)', report.leasableAmount],
+                ],
+              ]}
+            />
+          </Section>
 
           {report.feeAttachments.length > 0 && (
-            <Stack spacing={1.5}>
-              <SectionLabel>Fee attachment</SectionLabel>
+            <Section title="Fee Attachment">
               <Stack direction="row" flexWrap="wrap" gap={1.5}>
                 {report.feeAttachments.map((photo, index) => (
                   <Box
@@ -1027,7 +1269,7 @@ export function AppraisalReportView({ bundleId, tctNumbers }: { bundleId: string
                   />
                 ))}
               </Stack>
-            </Stack>
+            </Section>
           )}
         </Stack>
       </Collapse>

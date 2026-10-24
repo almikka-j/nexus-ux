@@ -582,6 +582,47 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(new Set());
 
   const bundle = reportBundles.find((entry) => entry.id === bundleId);
+
+  // Auto-fill this bundle's Appraisal Report with sample data the moment
+  // this page is opened, if it doesn't already have one — same data/logic
+  // as the "Simulate: Fill Sample Report" page action above, just fired
+  // automatically instead of requiring a manual click, per the user's
+  // explicit request that opening this page should never require a trip
+  // to another page to fill it in first. Guarded by a ref (not just
+  // `!getBundleUploadedAt(bundle)`) so a later real submission on this
+  // same mount doesn't make this effect refire.
+  const didAutoFillRef = useRef(false);
+  useEffect(() => {
+    if (didAutoFillRef.current || !bundle || !signUpData) return;
+    if (getBundleUploadedAt(bundle)) {
+      didAutoFillRef.current = true;
+      return;
+    }
+    didAutoFillRef.current = true;
+    const bundleTctNumbers = appraisalGroups
+      .filter((group) => bundle.tctGroupIds.includes(group.id))
+      .map((group) => group.tctNumber);
+    const applicantName = `${signUpData.firstName} ${signUpData.lastName}`;
+    const bundleCollateralType = getBundleCollateralType(bundle, appraisalGroups);
+    if (bundle.appraiserType === 'inhouse' && bundleCollateralType === 'chattel') {
+      setAppraisalBundleChattelReport(
+        bundle.id,
+        buildSampleChattelReport(bundle, bundleTctNumbers, applicantName, false)
+      );
+    } else if (bundle.appraiserType === 'inhouse' && bundleCollateralType === 'machineries') {
+      setAppraisalBundleMachineriesReport(
+        bundle.id,
+        buildSampleMachineriesReport(bundle, bundleTctNumbers, applicantName, false)
+      );
+    } else {
+      setAppraisalBundleReport(
+        bundle.id,
+        buildSampleAppraisalReport(bundle, bundleTctNumbers, applicantName, false)
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bundle?.id]);
+
   // paymentReceivedAt stays whole-application (the client-advisory step —
   // see admin-context.tsx's Appraisal type); this bundle's own
   // feeApprovalStatus is per-bundle now.

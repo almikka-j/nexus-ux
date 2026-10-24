@@ -354,8 +354,9 @@ export function requiredLabel(label: string): React.ReactNode {
 // transcript.ts, bureau-reports-card.tsx). Not tied to the applicant's
 // own data, since nothing in the data model captures most of these
 // fields (Company Name, Contact No., Email, Website, TIN, Registration
-// Number/Date) at the business-application level.
-const COMMERCIAL_SAMPLE_INFO = {
+// Number/Date) at the business-application level. Exported so
+// ci-report-preview.tsx shows the exact same header values.
+export const COMMERCIAL_SAMPLE_INFO = {
   companyName: 'GTWO LOGISTIC SERVICES',
   businessAddress: '24 25 Santol St Town and Country Exec Vill Mayamot City of Antipolo Rizal',
   contactNo: '09090013618',

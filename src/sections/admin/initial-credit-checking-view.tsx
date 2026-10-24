@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useRouter } from 'next/navigation';
 
@@ -246,6 +246,26 @@ export function InitialCreditCheckingView() {
     addBureauReportFiles('nfisBap', oneFile);
     addBureauReportFiles('pgfcExposure', oneFile);
   };
+
+  // Auto-fill on open: if this step is still blank when the page loads,
+  // seed it with the same sample data the manual "Fill with Sample Data"
+  // button fills — so testers/officers don't have to click it themselves
+  // before exercising a later step. Fields only: this never touches
+  // `decision` (the officer's Approve/Sales-Reject choice) or
+  // `bureauFindingStatus` (left to the existing simulate-bureau-finding
+  // effect above to set once the bureau files it seeds are in place). The
+  // manual button keeps working unchanged as a re-fill/reset option.
+  const didAutoFillRef = useRef(false);
+  useEffect(() => {
+    if (didAutoFillRef.current || !signUpData) return;
+    if (allBureauReportsUploaded) {
+      didAutoFillRef.current = true;
+      return;
+    }
+    didAutoFillRef.current = true;
+    handleFillSampleData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signUpData?.email]);
 
   // Undoes exactly what handleFillSampleData sets — scoped to only the
   // document/AI/CIBI/bureau-upload fields it touches, NOT a full

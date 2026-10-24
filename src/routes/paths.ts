@@ -71,6 +71,11 @@ export const paths = {
     negativeList: '/admin/negative-list',
     appraisalAppraiser: '/admin/appraisal-appraiser',
     appraisalAppraiserBundle: (bundleId: string) => `/admin/appraisal-appraiser/${bundleId}`,
+    // Read-only Appraisal Report view for one bundle — opened in a new tab
+    // (window.open) from "View Appraisal Report" buttons (e.g.
+    // AssignedAppraiserCard) instead of a Dialog, same pattern as
+    // creditCheckingResult/callReportResult.
+    appraisalReportResult: (bundleId: string) => `/admin/appraisal-appraiser/${bundleId}/result`,
     // Officer-facing read-only status list of every appraiser assignment
     // (one row per AppraisalReportBundle) — distinct from
     // appraisalAppraiser above, which is the Appraiser's own workspace.

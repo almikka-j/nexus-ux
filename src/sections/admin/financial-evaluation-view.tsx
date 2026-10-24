@@ -1,7 +1,7 @@
 // src/sections/admin/financial-evaluation-view.tsx
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
@@ -53,8 +53,13 @@ import { FINANCIAL_EVALUATION_DOC_META } from './financial-evaluation-docs';
 export function FinancialEvaluationView() {
   const router = useRouter();
   const { signUpData } = useRegistration();
-  const { review, setCashFlowStatement, fillFinancialEvaluationSample, clearFinancialEvaluationSample } =
-    useAdmin();
+  const {
+    review,
+    hydrated,
+    setCashFlowStatement,
+    fillFinancialEvaluationSample,
+    clearFinancialEvaluationSample,
+  } = useAdmin();
 
   const [checklistExpanded, setChecklistExpanded] = useState(false);
   const [aiReviewExpanded, setAiReviewExpanded] = useState(false);
@@ -63,6 +68,22 @@ export function FinancialEvaluationView() {
 
   const sampleFilled =
     review.bankStatements.length > 0 || review.cashFlowStatement.savedAt !== null;
+
+  // Auto-fill on open: the first time this page is opened (after
+  // localStorage hydration) with nothing on it yet, run the exact same
+  // fillFinancialEvaluationSample() the "Fill with Sample Data" page action
+  // calls — fields only. Never touches the Proceed/Disapprove decision:
+  // skipped entirely if a decision was already made, since the sample
+  // builder resets cashFlowStatement.decision to 'pending'. Fires at most
+  // once per mount, so "Remove Sample Data" still leaves the page blank.
+  const didAutoFillRef = useRef(false);
+  useEffect(() => {
+    if (didAutoFillRef.current || !hydrated) return;
+    didAutoFillRef.current = true;
+    if (sampleFilled || review.cashFlowStatement.decision !== 'pending') return;
+    fillFinancialEvaluationSample();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
 
   useRegisterPageActions(
     useMemo(

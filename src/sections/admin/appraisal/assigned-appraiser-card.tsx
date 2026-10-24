@@ -1,20 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Collapse from '@mui/material/Collapse';
-import Divider from '@mui/material/Divider';
+import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
 
 import { useAdmin } from 'src/auth/admin-context';
 
-import { Iconify } from 'src/components/iconify';
-import { adminCardSx, TONE_COLORS } from 'src/components/admin-ui';
+import { paths } from 'src/routes/paths';
 
-import { AppraisalReportView } from './appraisal-report-view';
+import { Iconify } from 'src/components/iconify';
+import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx } from 'src/components/admin-ui';
+
 import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './appraisal-bundle-status';
 
 // ----------------------------------------------------------------------
@@ -26,28 +23,19 @@ import { getAppraisalBundleStatus, APPRAISAL_BUNDLE_STATUS_COPY } from './apprai
 // page (appraisal-appraiser-view.tsx), plus a per-bundle status from the
 // shared getAppraisalBundleStatus() helper: On Process / For Approval /
 // For Report render as a static pill. Once the report is actually
-// submitted ('reported'), the row instead shows the full
-// `AppraisalReportView` **inline** (a collapsible panel, expanded by
-// default) so the Officer reviews it right here — there is no "View
-// Report" button/modal anymore. Nothing else on this card is editable —
-// reassigning still only happens via the Collateral table's Assign
-// Appraiser modal.
+// submitted ('reported'), the row instead shows a "View Appraisal
+// Report" button that opens the standalone read-only report page
+// (appraisalReportResult) in a new tab via window.open — same
+// new-tab convention as Application Details' own "View" actions —
+// instead of expanding inline or opening a Dialog. Nothing else on this
+// card is editable — reassigning still only happens via the Collateral
+// table's Assign Appraiser modal.
 // ----------------------------------------------------------------------
 
 export function AssignedAppraiserCard() {
   const { review } = useAdmin();
   const { appraisalGroups } = review.requirementChecklist;
   const { reportBundles, paymentReceivedAt } = review.appraisal;
-
-  // Which reported bundles are collapsed (default: all expanded).
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
-  const toggle = (id: string) =>
-    setCollapsedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
 
   return (
     <Box sx={adminCardSx}>
@@ -68,7 +56,6 @@ export function AssignedAppraiserCard() {
           const copy = status === 'reported' ? null : APPRAISAL_BUNDLE_STATUS_COPY[status];
           const toneColors = copy ? TONE_COLORS[copy.tone] : null;
           const isReported = status === 'reported';
-          const collapsed = collapsedIds.has(bundle.id);
 
           return (
             <Box
@@ -80,8 +67,7 @@ export function AssignedAppraiserCard() {
                 alignItems={{ xs: 'flex-start', sm: 'center' }}
                 justifyContent="space-between"
                 spacing={1}
-                sx={{ p: 1.5, cursor: isReported ? 'pointer' : 'default' }}
-                onClick={isReported ? () => toggle(bundle.id) : undefined}
+                sx={{ p: 1.5 }}
               >
                 <Box sx={{ minWidth: 0 }}>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>
@@ -117,49 +103,20 @@ export function AssignedAppraiserCard() {
                       {copy.label}
                     </Box>
                   ) : (
-                    <>
-                      <Box
-                        sx={{
-                          display: 'inline-flex',
-                          px: 1.1,
-                          py: 0.4,
-                          borderRadius: '999px',
-                          bgcolor: TONE_COLORS.success.bg,
-                          color: TONE_COLORS.success.text,
-                          fontSize: 11.5,
-                          fontWeight: 700,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        Report submitted
-                      </Box>
-                      <IconButton
-                        size="small"
-                        aria-label={collapsed ? 'Show report' : 'Hide report'}
-                        sx={{ color: '#8891A6' }}
-                      >
-                        <Iconify
-                          icon="eva:chevron-down-fill"
-                          width={18}
-                          sx={{
-                            transition: 'transform 0.15s ease',
-                            transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                          }}
-                        />
-                      </IconButton>
-                    </>
+                    <Button
+                      onClick={() =>
+                        window.open(paths.admin.appraisalReportResult(bundle.id), '_blank', 'noopener,noreferrer')
+                      }
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Iconify icon="solar:document-text-bold-duotone" width={16} />}
+                      sx={{ ...outlinedNavyButtonSx, px: 1.5, flexShrink: 0 }}
+                    >
+                      View Appraisal Report
+                    </Button>
                   )}
                 </Stack>
               </Stack>
-
-              {isReported && (
-                <Collapse in={!collapsed} timeout="auto" unmountOnExit>
-                  <Divider />
-                  <Box sx={{ p: 2 }}>
-                    <AppraisalReportView bundleId={bundle.id} tctNumbers={bundleTctNumbers} />
-                  </Box>
-                </Collapse>
-              )}
             </Box>
           );
         })}

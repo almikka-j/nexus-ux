@@ -195,15 +195,29 @@ const SAMPLE_TCT_NUMBERS = [
   'TCT-2024-00985',
 ];
 
+// 3 Real Estate / 1 Chattel / 1 Machineries — a realistic mix so "Fill with
+// Sample Data" immediately gives every Appraisal Report kind a bundle to
+// test against, instead of always seeding Real Estate only and leaving an
+// officer/appraiser to hand-create a Chattel or Machineries group before
+// they can exercise those flows. Each group is still single-kind, matching
+// the one-kind-per-bundle rule enforced at assignment time.
+const SAMPLE_COLLATERAL_TYPES: AppraisalCollateralType[] = [
+  'real-estate',
+  'real-estate',
+  'real-estate',
+  'chattel',
+  'machineries',
+];
+
 function buildSampleAppraisalGroups(
   statusFor: (meta: AppraisalDocMeta) => RequirementDocStatus,
   uploadedAt: string,
   officerName: string
 ) {
-  return SAMPLE_TCT_NUMBERS.map((tctNumber) => ({
+  return SAMPLE_TCT_NUMBERS.map((tctNumber, index) => ({
     id: crypto.randomUUID(),
     tctNumber,
-    collateralType: 'real-estate' as const,
+    collateralType: SAMPLE_COLLATERAL_TYPES[index] ?? 'real-estate',
     documents: APPRAISAL_DOC_META.map((meta) => ({
       key: meta.key,
       status: statusFor(meta),
@@ -225,6 +239,7 @@ export function RequirementChecklistView() {
   const {
     review,
     adminUser,
+    hydrated,
     setRequirementChecklist,
     addAppraisalGroup,
     removeAppraisalGroup,
@@ -470,6 +485,31 @@ export function RequirementChecklistView() {
       appraisalGroups: [],
     });
   };
+
+  // Auto-fill on open: the first time this page is opened (after
+  // localStorage hydration) in a completely untouched state, run the same
+  // logic as "Fill Sample Data (All Correct)" — every document and all 5
+  // Appraisal groups seeded as 'verified' — since this page is the
+  // prerequisite every downstream Appraisal page depends on. Fields only:
+  // never endorses/rejects. "Untouched" is deliberately strict so an
+  // officer's partial real work is never clobbered: no Appraisal groups, no
+  // fixed document on file at all, Appraisal not declared Not Applicable,
+  // and no decision already made. Fires at most once per mount, so
+  // "Remove Sample Data" still leaves the page blank until the next visit.
+  const didAutoFillRef = useRef(false);
+  useEffect(() => {
+    if (didAutoFillRef.current || !hydrated) return;
+    didAutoFillRef.current = true;
+    const untouched =
+      !endorsed &&
+      !rejected &&
+      !appraisalNotApplicable &&
+      appraisalGroups.length === 0 &&
+      documents.every((doc) => doc.status === 'missing');
+    if (!untouched) return;
+    handleFillSampleDataAllCorrect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
 
   const requiredMeta = REQUIREMENT_DOC_META.filter((meta) => meta.required);
   const requiredDocsByKey = new Map(documents.map((doc) => [doc.key, doc]));
