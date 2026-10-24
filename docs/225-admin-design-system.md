@@ -830,6 +830,29 @@ any of these change:
 
 ## 16. Change History
 
+- **2026-10-20 (second later revision)** — the System Validation card's
+  "View Result" button (Call Report page) and the Initial Credit
+  Checking page's own "View Initial Credit Checking Result" button
+  reverted from inline expand back to opening a `<Dialog>` popup
+  (`CallReportResultModal`/`CreditCheckingResultModal`), undoing their
+  2026-10-19 inline conversion. Scoped to these two same-page buttons
+  only — `ApplicationDetailsCard`'s cross-page actions (below) are
+  unaffected. Full detail in
+  `docs/080-account-solicitation-call-report.md`'s History.
+- **2026-10-20 (later revision)** — `ApplicationDetailsCard`'s 3 actions
+  ("View full application", "View call report", "Initial credit checking
+  result") changed from inline-expand to `router.push` navigation, each
+  to its own dedicated page (`/admin/applications/[id]/full-application`,
+  `.../call-report/result`, `.../credit-checking/result`), reached via new
+  `paths.admin.*` route builders. New shared `ResultPageHeader`
+  (`src/sections/admin/result-page-header.tsx`) gives each of these pages
+  a `router.back()` Back control and applicant summary, since they're
+  reachable from many different parent pages with no single fixed "back"
+  destination. `application-details-card.tsx`'s inline `detailsContent`
+  was extracted into an exported `ApplicationFullDetails` component so
+  both the card and the new Full Application page render the same
+  content. Full detail in
+  `docs/080-account-solicitation-call-report.md`'s History.
 - **2026-10-19** — added the **Field / FieldGrid / SectionLabel** shared
   component (§6): extracted from `appraisal-report-view.tsx` into
   `src/components/admin-ui/report-field.tsx`, so `call-report-result-modal.tsx`

@@ -338,13 +338,18 @@ risk scale it displays is `SCREENING_RISK_STYLES`
 
 **"AI review, summary & recommendation"** is a single merged card containing:
 
-1. **"View Initial Credit Checking Result"** button — as of 2026-10-19,
-   toggles an inline `CreditCheckingResultContent hideHeader` section on
-   this same page instead of opening `CreditCheckingResultModal` as a
-   popup. As of 2026-10-20, `ApplicationDetailsCard`'s own "Initial
-   credit checking result" action converted to inline too, so the
-   `<Dialog>`-wrapped `CreditCheckingResultModal` is no longer used
-   anywhere in this app. Always visible regardless of bureau-upload status.
+1. **"View Initial Credit Checking Result"** button — opens
+   `CreditCheckingResultModal` as a `<Dialog>` popup. On 2026-10-19 this
+   briefly toggled an inline `CreditCheckingResultContent hideHeader`
+   section on this same page instead; **reverted back to the modal on
+   2026-10-20**. `ApplicationDetailsCard`'s own "Initial credit checking
+   result" action (its cross-page reference, used from Call Report,
+   Credit Investigation, etc.) is a separate, unaffected decision: it
+   navigates to its own dedicated page
+   (`paths.admin.creditCheckingResult(id)` → `.../credit-checking/result`,
+   same tab) — see that doc's History and
+   `docs/080-account-solicitation-call-report.md`'s. Always visible
+   regardless of bureau-upload status.
    The content itself already degrades gracefully without bureau
    reports: `isCleared` requires `allBureauReportsUploaded`, so the green
    "Cleared" banner is hidden until the review is complete.
@@ -479,12 +484,46 @@ implying bureau API latency).
 
 ## History
 
+### 2026-10-20 (third later revision)
+
+- **The "Credit Checking Report" card this page's "View Initial Credit
+  Checking Result" result shows (via `CreditCheckingResultModal`/
+  `CreditCheckingResultContent`) now lays its fields out as an
+  "infochip" strip** (the same label-over-value chip pattern as
+  `ApplicationDetailsCard`'s own fact strip) instead of a stacked
+  label/value list. Full detail in
+  `docs/080-account-solicitation-call-report.md`'s own History entry.
+
+### 2026-10-20 (second later revision)
+
+- **This page's own "View Initial Credit Checking Result" button
+  reverted from inline expand back to opening `CreditCheckingResultModal`
+  as a `<Dialog>` popup** — undoes the 2026-10-19 inline conversion for
+  this one button specifically. `ApplicationDetailsCard`'s cross-page
+  "Initial credit checking result" action (the entry below) is
+  unaffected and still navigates to its own dedicated page. Full detail
+  in `docs/080-account-solicitation-call-report.md`'s own History entry.
+
+### 2026-10-20 (later revision)
+
+- **`ApplicationDetailsCard`'s own "Initial credit checking result"
+  action now navigates to its own dedicated page** instead of expanding
+  inline (superseding the inline conversion below, from earlier the same
+  day) — `paths.admin.creditCheckingResult(id)` →
+  `/admin/applications/[id]/credit-checking/result` (same tab via
+  `router.push`), rendered by `CreditCheckingResultView`. This page's own
+  "View Initial Credit Checking Result" button was, at this point, still
+  an inline toggle — see the entry above for its own later reversion
+  back to a modal. Full detail in
+  `docs/080-account-solicitation-call-report.md`'s own History entry.
+
 ### 2026-10-20
 
 - **`ApplicationDetailsCard`'s own "Initial credit checking result"
   action also converted to inline** (it was the last remaining caller
   of the `<Dialog>`-wrapped `CreditCheckingResultModal`) — see
   `docs/080-account-solicitation-call-report.md`'s own History entry.
+  **Superseded later the same day — see the entry above.**
 
 ### 2026-10-19
 

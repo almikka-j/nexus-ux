@@ -24,7 +24,6 @@ import type {
 } from 'src/auth/admin-context';
 
 import { Iconify } from 'src/components/iconify';
-import { SectionLabel } from 'src/components/admin-ui';
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { AiRecommendationSummary } from 'src/components/admin-ui/ai-recommendation-summary';
@@ -53,26 +52,93 @@ import {
 // risk level (`buildInitialCreditCheckingResult`) shown in the Initial
 // Credit Checking AI review card, so the two screens never disagree.
 //
-// SectionLabel is the shared src/components/admin-ui version (2026-10-19)
-// — same uppercase label, plus a divider underneath matching
-// appraisal-report-view.tsx's own header style, so every inline "view what
-// was submitted" screen in the app reads as one design system.
 // ----------------------------------------------------------------------
 
-function FieldRow({ label, value }: { label: string; value: string }) {
+// A pill-style section header — a light-blue bar with an uppercase label —
+// used for every section on this report (Memorandum, Client Information,
+// Bureau Reports Result, AI Review, Prepared by) so they read as one
+// consistent design.
+function NumberedSectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <Stack direction="row" spacing={2}>
-      <Typography sx={{ fontSize: 13.5, color: '#8891A6', width: 110, flexShrink: 0 }}>
-        {label}
+    <Stack
+      direction="row"
+      spacing={1.25}
+      alignItems="center"
+      sx={{ px: 2, py: 1.25, borderRadius: '10px', bgcolor: '#EEF1FE' }}
+    >
+      <Typography
+        sx={{ fontSize: 12.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#1C2A6E' }}
+      >
+        {children}
       </Typography>
-      <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>{value}</Typography>
     </Stack>
   );
 }
 
+// A bordered 2-column field table (shaded label cell, white value cell,
+// horizontal dividers between rows) — the Memorandum/Client Information
+// layout in the mockup: each row is a single full-width line with one or
+// two label/value pairs, not a chip grid.
+function FieldTableRow({
+  pairs,
+}: {
+  pairs: [label: string, value: React.ReactNode][];
+}) {
+  return (
+    <Stack
+      direction={{ xs: 'column', sm: 'row' }}
+      sx={{
+        '&:not(:last-of-type)': { borderBottom: '1px solid #EEF0F5' },
+        '& > div': { flex: 1, minWidth: 0 },
+        '& > div:not(:last-of-type)': {
+          borderBottom: { xs: '1px solid #EEF0F5', sm: 'none' },
+          borderRight: { xs: 'none', sm: '1px solid #EEF0F5' },
+        },
+      }}
+    >
+      {pairs.map(([label, value]) => (
+        <Stack key={label} direction="row" sx={{ minWidth: 0 }}>
+          <Box
+            sx={{
+              width: 150,
+              flexShrink: 0,
+              px: 1.5,
+              py: 0.75,
+              bgcolor: '#F5F6FA',
+              borderRight: '1px solid #EEF0F5',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Typography sx={{ fontSize: 13, color: '#8891A6', whiteSpace: 'nowrap' }}>{label}</Typography>
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0, px: 1.5, py: 0.75, display: 'flex', alignItems: 'center' }}>
+            <Typography
+              sx={{ fontSize: 13.5, fontWeight: 700, color: '#14172A', minWidth: 0, wordBreak: 'break-word' }}
+            >
+              {value}
+            </Typography>
+          </Box>
+        </Stack>
+      ))}
+    </Stack>
+  );
+}
+
+function FieldTable({ children }: { children: React.ReactNode }) {
+  return (
+    <Box sx={{ border: '1px solid #EEF0F5', borderRadius: '12px', bgcolor: 'common.white', overflow: 'hidden' }}>
+      {children}
+    </Box>
+  );
+}
+
 // Header (bureau name, status chip) matches the old BureauResultRow's — the
-// body now renders one block per uploaded file (each bureau can hold several)
-// with that file's own name, upload date, and results table.
+// status chip is labeled "AI: Clear"/"AI: Needs review" so each bureau card
+// shows its own AI-derived verdict, not just the one combined AI Review
+// section at the end of the report. The body then renders one block per
+// uploaded file (each bureau can hold several) with that file's own name,
+// upload date, and results table.
 function BureauResultSection({
   title,
   files,
@@ -89,8 +155,8 @@ function BureauResultSection({
   const hasFiles = files.length > 0;
   const tone = !hasFiles ? 'pending' : needsReview ? 'review' : 'clear';
   const toneStyle = {
-    clear: { label: 'Clear', bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold' },
-    review: { label: 'Needs review', bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold' },
+    clear: { label: 'AI: Clear', bg: '#E7F8F0', color: '#0C8A4F', icon: 'solar:check-circle-bold' },
+    review: { label: 'AI: Needs review', bg: '#FDE2DF', color: '#B32C22', icon: 'solar:danger-triangle-bold' },
     pending: { label: 'Not uploaded', bg: '#F5F6FA', color: '#667085', icon: 'solar:file-remove-bold' },
   }[tone];
   const fmtDate = (iso: string) =>
@@ -256,27 +322,52 @@ export function CreditCheckingResultContent({ hideHeader }: { hideHeader?: boole
             </Stack>
           )}
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>Credit Checking Report</SectionLabel>
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-              <FieldRow label="Application No." value={applicationNo} />
-              <FieldRow label="Client Name" value={fullName} />
-              <FieldRow label="Email Address" value={signUpData.email} />
-              <FieldRow label="Contact Number" value={signUpData.mobile || '—'} />
-              <FieldRow label="Date of Application" value={applicationDateLabel} />
-              <FieldRow label="To" value="Credit Committee" />
-              <FieldRow label="Thru" value={application.assignedOfficer ?? '—'} />
-              <FieldRow label="From" value="Credit and Collection Department" />
-              <FieldRow label="Date" value={generatedAt ? generatedAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'} />
-              <FieldRow label="Subject" value={`${fullName} — LOANDEX / BAP NFIS / CMAP / CIC`} />
-            </Stack>
-          </Box>
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Memorandum</NumberedSectionHeader>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['To', 'Credit Committee'],
+                  [
+                    'Date',
+                    generatedAt
+                      ? generatedAt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                      : '—',
+                  ],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Thru', application.assignedOfficer ?? '—'],
+                  ['From', 'Credit and Collection Department'],
+                ]}
+              />
+              <FieldTableRow pairs={[['Subject', `${fullName} — LOANDEX / BAP NFIS / CMAP / CIC`]]} />
+            </FieldTable>
+          </Stack>
 
-          <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
-            <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              Bureau Reports Result
-            </Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5, mb: 2 }}>
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Client Information</NumberedSectionHeader>
+            <FieldTable>
+              <FieldTableRow
+                pairs={[
+                  ['Application No.', applicationNo],
+                  ['Client Name', fullName],
+                ]}
+              />
+              <FieldTableRow
+                pairs={[
+                  ['Email Address', signUpData.email],
+                  ['Contact Number', signUpData.mobile || '—'],
+                ]}
+              />
+              <FieldTableRow pairs={[['Date of Application', applicationDateLabel]]} />
+            </FieldTable>
+          </Stack>
+
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Bureau Reports Result</NumberedSectionHeader>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5 }}>
               Summary of the information extracted from each uploaded bureau report. Validate each
               finding against the source document before making a credit decision.
             </Typography>
@@ -352,17 +443,15 @@ export function CreditCheckingResultContent({ hideHeader }: { hideHeader?: boole
                 )}
               </Stack>
             )}
-          </Box>
+          </Stack>
 
-          <Box>
-            <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
-              AI Review, Summary &amp; Recommendation
-            </Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5, mb: 2 }}>
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>AI Review, Summary &amp; Recommendation</NumberedSectionHeader>
+            <Typography sx={{ fontSize: 12.5, color: '#8891A6', lineHeight: 1.5 }}>
               Based on the uploaded bureau reports and application details.
             </Typography>
             <AiRecommendationSummary result={creditCheckingResult} />
-          </Box>
+          </Stack>
 
           {(!!creditChecking.justificationText.trim() || !!creditChecking.justificationDocument) && (
             <Box sx={{ p: 2.5, borderRadius: '14px', border: '1px solid #EEF0F5' }}>
@@ -417,15 +506,17 @@ export function CreditCheckingResultContent({ hideHeader }: { hideHeader?: boole
 
           <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-          <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
-            <SectionLabel>Prepared by</SectionLabel>
-            <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mt: 1 }}>
-              {application.assignedOfficer ?? '—'}
-            </Typography>
-            <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
-              Credit Officer · {generatedLabel}
-            </Typography>
-          </Box>
+          <Stack spacing={1.25}>
+            <NumberedSectionHeader>Prepared by</NumberedSectionHeader>
+            <Box sx={{ p: 2, borderRadius: '12px', border: '1px solid #EEF0F5' }}>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>
+                {application.assignedOfficer ?? '—'}
+              </Typography>
+              <Typography sx={{ fontSize: 12.5, color: '#8891A6' }}>
+                Credit Officer · {generatedLabel}
+              </Typography>
+            </Box>
+          </Stack>
     </Stack>
   );
 }

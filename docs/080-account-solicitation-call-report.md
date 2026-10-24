@@ -48,14 +48,15 @@ Credit Investigation / Financial Evaluation.
 2. `ApplicationDetailsCard` (`collapsible`, `showCreditCheckingResultAction`)
    — application context plus **View full application**, **Initial
    credit checking result**, and **View all officer notes**
-   (`officerNotesProcess="Call Report"`) — all three expand inline
-   directly under the card's own action row (2026-10-19/2026-10-20: none
-   of them open a `<Dialog>` anymore — see "Read-only mirrors elsewhere").
+   (`officerNotesProcess="Call Report"`) — as of 2026-10-20's later
+   revision, the first two navigate to their own dedicated page
+   (`router.push`, same tab) rather than opening a `<Dialog>` or
+   expanding inline — see "Read-only mirrors elsewhere".
 3. The 8 section cards, in fixed order (see below).
-4. **View Result** button on the System Validation card (2026-10-19:
-   toggles an inline `CallReportResultContent hideHeader` section directly
-   below it, no longer opening `CallReportResultModal` as a popup — see
-   "Read-only mirrors elsewhere").
+4. **View Result** button on the System Validation card — opens
+   `CallReportResultModal` as a `<Dialog>` popup (reverted back to a
+   modal as of 2026-10-20's second later revision, after briefly being
+   an inline section on 2026-10-19 — see "Read-only mirrors elsewhere").
 5. **Proceed application?** decision card.
 
 **Fill with Sample Data / Remove Sample Data** is registered as a page action
@@ -234,20 +235,24 @@ calls `setCallReport({ decisionReason })` then routes to
   mirror of the 8 cards above, split into two exports:
   `CallReportResultContent` (the body, no dialog chrome) and
   `CallReportResultModal` (the `<Dialog>` wrapper around it, `hideHeader`
-  passed to the content so the title doesn't render twice). As of
-  2026-10-19, the Call Report page itself renders `CallReportResultContent`
+  passed to the content so the title doesn't render twice). On 2026-10-19
+  the Call Report page itself briefly rendered `CallReportResultContent`
   **inline** (toggled by the System Validation card's own **View
-  Result** button, `hideHeader` passed since the page already has its own
-  header) — same as the **Call Report Approval** detail page already did.
-  **As of 2026-10-20, `ApplicationDetailsCard`'s own "View call report"
-  action is ALSO inline, not a modal** — every instance of this card
-  (Call Report, Credit Investigation, Requirement Checklist, etc.) now
-  expands `CallReportResultContent` directly underneath the card's own
-  action-button row when clicked. The `<Dialog>`-wrapped
-  `CallReportResultModal` is no longer used anywhere in this app — kept
-  exported in case a genuinely separate flow needs a popup again later,
-  but every current call site uses the inline content directly. Must be
-  updated whenever a `CallReport` field is added, removed, or renamed.
+  Result** button) instead of opening `CallReportResultModal` as a popup —
+  **this was reverted later on 2026-10-20**: the System Validation card's
+  **View Result** button once again opens `CallReportResultModal` as a
+  `<Dialog>` popup, same as the **Call Report Approval** detail page.
+  Separately, `ApplicationDetailsCard`'s own "View call report" action
+  (a cross-page reference used from Call Report, Credit Investigation,
+  Requirement Checklist, etc.) navigates to its own dedicated page,
+  `paths.admin.callReportResult(id)` → `/admin/applications/[id]/call-report/result`
+  (same tab, via `router.push`), rendering `CallReportResultContent` inside
+  `CallReportResultView` with its own header and a `router.back()` Back
+  control (see `result-page-header.tsx`) — this is a separate, still-current
+  decision from 2026-10-20 and is unaffected by the View Result revert
+  above, since it's a cross-page reference rather than the page's own
+  same-page result. Must be updated whenever a `CallReport` field is
+  added, removed, or renamed.
   Its own Endorsement Declaration section mirrors
   `endorsement-declaration-card.tsx`'s conditional **Approved By** /
   **Approval Date / Time** second signature row once `callReportApprovalStatus
@@ -265,21 +270,30 @@ calls `setCallReport({ decisionReason })` then routes to
   itself still only ever shows the real `callReportApprovedBy`.
 - `call-report/credit-checking-result-modal.tsx` — shows the Initial
   Credit Checking decision/notes, not `CallReport` data; unaffected by
-  Call Report field changes. As of 2026-10-19, split the same way as
+  Call Report field changes. Split the same way as
   `call-report-result-modal.tsx`: `CreditCheckingResultContent` (body,
-  rendered inline on the Initial Credit Checking page itself) +
-  `CreditCheckingResultModal` (the `<Dialog>` wrapper, `hideHeader`
-  passed to the content). **As of 2026-10-20,
+  no dialog chrome) + `CreditCheckingResultModal` (the `<Dialog>`
+  wrapper, `hideHeader` passed to the content). On 2026-10-19 the
+  Initial Credit Checking page briefly rendered `CreditCheckingResultContent`
+  inline on itself instead of opening `CreditCheckingResultModal` as a
+  popup — **reverted later on 2026-10-20**: its own **View Initial
+  Credit Checking Result** button once again opens
+  `CreditCheckingResultModal` as a `<Dialog>` popup. Separately,
   `ApplicationDetailsCard`'s own "Initial credit checking result" action
-  is also inline** — every instance of this card expands
-  `CreditCheckingResultContent` directly, the same as its "View call
-  report" action. The `<Dialog>`-wrapped `CreditCheckingResultModal` is
-  no longer used anywhere in this app either, for the same reason as
-  `CallReportResultModal` above. (The Call Report page's own
-  `onViewCreditCheckingResult` callback prop on `ApplicationDetailsCard`
-  — which used to hoist this button's click up to the page's own modal
-  state — was removed entirely; the card now always manages its own
-  inline state regardless of which page embeds it.)
+  (a cross-page reference) navigates to its own dedicated page**,
+  `paths.admin.creditCheckingResult(id)` →
+  `/admin/applications/[id]/credit-checking/result` (same tab, via
+  `router.push`), the same pattern as "View call report" above — this
+  is a separate, still-current decision, unaffected by the modal revert
+  above since it's a cross-page reference, not the page's own same-page
+  result. (The `onViewCreditCheckingResult` callback prop on `ApplicationDetailsCard`
+  — which used to hoist this button's click up to the embedding page's
+  own modal state — was removed entirely; the card now always manages its
+  own navigation regardless of which page embeds it.) `ApplicationDetailsCard`'s
+  third action, "View full application", follows the same pattern:
+  `paths.admin.fullApplication(id)` → `/admin/applications/[id]/full-application`,
+  rendering the card's extracted `ApplicationFullDetails` component (see
+  `application-details-card.tsx`) inside `FullApplicationView`.
 
 ## Sample data action
 
@@ -380,6 +394,97 @@ its own.
 
 ## History
 
+### 2026-10-20 (fourth later revision)
+
+- **`CreditCheckingResultContent`'s "Credit Checking Report" card changed
+  from a single `FieldRow` label/value stack to an "infochip" layout,
+  matching Credit Investigation's own `CommercialInfoChips` grid
+  exactly** (`ci-report-card.tsx`'s exported `FactChip`/`FactChipRow`) —
+  reimplemented locally here as `InfoChip`/`InfoChipRow` since the
+  pattern isn't extracted into a shared component yet (see
+  `docs/225-admin-design-system.md`'s FactChip/FactChipRow entry). Same
+  CSS-grid-with-box-shadow-dividers construction as the original (not a
+  flexbox approximation): cells divide with `boxShadow` insets rather
+  than borders so dividers don't consume grid track space, only the
+  strip's own outer corners round, and a `wide` cell spans the full row
+  for a long value. Two flush segments (`position="first"`/`"last"`) so
+  they read as one continuous strip: a 2-column client-info segment
+  (Application No., Client Name, Email, Contact Number, then a full-width
+  Date of Application) and a 2-column memo segment (To, Thru, From, Date,
+  then a full-width Subject) — same fields as before, same order, just
+  grid-chip layout instead of a stacked list. `FieldRow` itself was
+  removed from this file since nothing else in it used it anymore. This
+  is a change to the shared content component, so it applies everywhere
+  `CreditCheckingResultContent` renders: the standalone Initial Credit
+  Checking Result page, the `CreditCheckingResultModal` popup, and the
+  Initial Credit Checking page's own same-page inline result.
+
+### 2026-10-20 (third later revision)
+
+- **`CreditCheckingResultView`'s page shell redesigned for a better-looking
+  standalone report page.** `Container maxWidth` narrowed from `lg` to
+  `md` (a report reads better narrower than full-width), the card gained
+  a slightly larger `borderRadius: '20px'` and more generous padding on
+  desktop, and `ResultPageHeader` gained two new optional props —
+  `icon` (a leading icon badge next to the title, same visual language as
+  `ApplicationReviewHeader`'s card headers) and `action` (a trailing
+  control next to the title) — used here to add a disabled "PDF export
+  coming soon" button, matching the affordance `CreditCheckingResultModal`
+  already offered so the dedicated page doesn't feel like a downgrade
+  from the modal. Both new props default to nothing, so
+  `CallReportResultView`/`FullApplicationView` (which don't pass them)
+  are unaffected. `CreditCheckingResultContent` itself (shared with the
+  modal and the Initial Credit Checking page's own same-page button) was
+  deliberately left unchanged — its `FieldRow`-based report header is an
+  intentional, previously-ruled-on design match with Call Report's own
+  result content (see `docs/225-admin-design-system.md`'s 2026-10-19
+  entry), not something to alter for one caller.
+
+### 2026-10-20 (second later revision)
+
+- **The System Validation card's own "View Result" button, and the
+  Initial Credit Checking page's own "View Initial Credit Checking
+  Result" button, reverted from inline expand back to opening a
+  `<Dialog>` popup** (`CallReportResultModal` /
+  `CreditCheckingResultModal` respectively) — the 2026-10-19 inline
+  conversion for these two specific buttons is undone; both modal
+  components (kept exported, previously unused) are wired back up in
+  `call-report-view.tsx` and `initial-credit-checking-view.tsx`. This is
+  scoped to these pages' own same-page result buttons only —
+  `ApplicationDetailsCard`'s cross-page "View call report"/"Initial
+  credit checking result" actions (the entry below) are unaffected and
+  still navigate to their own dedicated pages.
+
+### 2026-10-20 (later revision)
+
+- **`ApplicationDetailsCard`'s 3 actions ("View full application", "View
+  call report", "Initial credit checking result") now navigate to their
+  own dedicated pages (same tab) instead of expanding inline**, after
+  the user clarified the inline-expand design from earlier the same day
+  was not what they wanted — these are reached from many different
+  parent pages, and each should open its own page with a Back control,
+  not an inline block under whichever card triggered it. New routes:
+  `paths.admin.callReportResult`, `paths.admin.creditCheckingResult`,
+  `paths.admin.fullApplication` (all `(id: string) => string`, following
+  the existing `paths.admin.*` convention — `[id]` is cosmetic, same as
+  every other route in this app's single-mock-applicant model). New
+  pages/views: `call-report-result-view.tsx` (`CallReportResultView`),
+  `credit-checking-result-view.tsx` (`CreditCheckingResultView`),
+  `full-application-view.tsx` (`FullApplicationView`), all sharing a new
+  `result-page-header.tsx` (`ResultPageHeader`) for the title/applicant
+  summary/Back button — Back uses `router.back()` rather than a fixed
+  link, since these pages have no single parent to link back to.
+  `application-details-card.tsx`'s inline `detailsContent` was extracted
+  into an exported `ApplicationFullDetails` component so both the card
+  and `FullApplicationView` render the same content. The card's own
+  inline-expand state (`detailsExpanded`/`callReportExpanded`/
+  `creditCheckingExpanded`) was removed in favor of `router.push`.
+  The Call Report page's own "View Result" button (System Validation
+  card) and the Initial Credit Checking page's own "View Initial Credit
+  Checking Result" button are unaffected — those remain inline, since
+  they're same-page references, not `ApplicationDetailsCard`'s
+  cross-page actions.
+
 ### 2026-10-20
 
 - **`ApplicationDetailsCard`'s own "View call report" and "Initial
@@ -397,7 +502,8 @@ its own.
   updated to pass `showCreditCheckingResultAction` instead. Both
   `<Dialog>`-wrapped modal components are no longer used anywhere in
   this app (kept exported in case a genuinely separate popup flow is
-  needed again later).
+  needed again later). **Superseded later the same day — see the entry
+  above.**
 
 ### 2026-10-19
 

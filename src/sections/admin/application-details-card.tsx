@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -11,6 +12,8 @@ import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 
+import { paths } from 'src/routes/paths';
+
 import { useAdmin } from 'src/auth/admin-context';
 import { useRegistration } from 'src/auth/registration-context';
 
@@ -20,8 +23,6 @@ import { StatusBadge, adminCardSx, outlinedNavyButtonSx } from 'src/components/a
 import { getLoanNumber } from 'src/utils/get-loan-number';
 
 import { OfficerNotesDialog } from './officer-notes-history';
-import { CallReportResultContent } from './call-report/call-report-result-modal';
-import { CreditCheckingResultContent } from './call-report/credit-checking-result-modal';
 
 // ----------------------------------------------------------------------
 
@@ -235,60 +236,27 @@ function DetailSection({
   );
 }
 
-export function ApplicationDetailsCard({
-  collapsible = false,
-  showCreditCheckingResultAction = false,
-  showCallReportAction = false,
-  officerNotesProcess,
-}: {
-  collapsible?: boolean;
-  showCreditCheckingResultAction?: boolean;
-  showCallReportAction?: boolean;
-  officerNotesProcess?: string;
-}) {
+/**
+ * The borrower's full submission (Applicant, Loan request, Personal & ID
+ * information, Spouse information, Uploaded documents) — shared between
+ * ApplicationDetailsCard's inline expansion and the standalone Full
+ * Application page reached via router navigation.
+ */
+export function ApplicationFullDetails() {
   const { signUpData, application } = useRegistration();
-  const { review } = useAdmin();
-  // On long workflow pages, the application is presented as a compact
-  // summary and the complete submission, call report result, and credit
-  // checking result each expand inline on demand — none of these ever
-  // open a separate page/tab or a Dialog from this card.
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [callReportExpanded, setCallReportExpanded] = useState(false);
-  const [creditCheckingExpanded, setCreditCheckingExpanded] = useState(false);
-  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
 
   if (!signUpData) return null;
 
-  const creditCheckingNotes = review.creditChecking.notes;
-
-  const { loanType, financialInfo, personalInfo } = application;
-
-  // application.loanType stays null for every new sign-up (the primary flow
-  // never collects a dedicated Loan Type step — see
-  // docs/BORROWER_SIGNUP_FLOW.md's "Loan Type removed from the primary flow")
-  // — so fall back to the Business Owner income-source signal instead of
-  // always reading as "Personal Loan" regardless of what the borrower
-  // actually told us.
+  const { financialInfo, personalInfo, loanType } = application;
   const isBusinessLoan =
     loanType === 'business' || financialInfo?.employmentStatus === 'Business Owner';
   const loanTypeLabel = isBusinessLoan ? 'Business Loan' : 'Personal Loan';
   const fullName = `${signUpData.prefix ? `${signUpData.prefix} ` : ''}${signUpData.firstName}${signUpData.middleName ? ` ${signUpData.middleName}` : ''} ${signUpData.lastName}${signUpData.extensionName ? ` ${signUpData.extensionName}` : ''}`;
-  const applicationDate = application.submittedAt
-    ? new Date(application.submittedAt).toLocaleDateString()
-    : '—';
   const desiredAmount = financialInfo
     ? `₱${Number(financialInfo.desiredLoanAmount).toLocaleString()}`
     : '—';
-  const applicationNumber = getLoanNumber(signUpData.email);
-  const hasCreditCheckingAction = showCreditCheckingResultAction;
-  const overflowOnly = showCreditCheckingResultAction && showCallReportAction;
-  const handleViewCreditChecking = () => {
-    setActionsAnchor(null);
-    setCreditCheckingExpanded((prev) => !prev);
-  };
 
-  const detailsContent = (
+  return (
     <Stack spacing={2}>
       <DetailSection icon="solar:user-bold-duotone" title="Applicant">
         <Stack direction="row" flexWrap="wrap" sx={{ gap: 2 }}>
@@ -391,6 +359,58 @@ export function ApplicationDetailsCard({
       )}
     </Stack>
   );
+}
+
+export function ApplicationDetailsCard({
+  collapsible = false,
+  showCreditCheckingResultAction = false,
+  showCallReportAction = false,
+  officerNotesProcess,
+}: {
+  collapsible?: boolean;
+  showCreditCheckingResultAction?: boolean;
+  showCallReportAction?: boolean;
+  officerNotesProcess?: string;
+}) {
+  const { signUpData, application } = useRegistration();
+  const { review } = useAdmin();
+  const router = useRouter();
+  // On long workflow pages, "View full application", "Initial credit
+  // checking result", and "View call report" each navigate to their own
+  // dedicated page (same tab) rather than expanding inline or opening a
+  // Dialog — see paths.admin.fullApplication/callReportResult/creditCheckingResult.
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [actionsAnchor, setActionsAnchor] = useState<HTMLElement | null>(null);
+
+  if (!signUpData) return null;
+
+  const creditCheckingNotes = review.creditChecking.notes;
+
+  const { loanType, financialInfo, personalInfo } = application;
+
+  // application.loanType stays null for every new sign-up (the primary flow
+  // never collects a dedicated Loan Type step — see
+  // docs/BORROWER_SIGNUP_FLOW.md's "Loan Type removed from the primary flow")
+  // — so fall back to the Business Owner income-source signal instead of
+  // always reading as "Personal Loan" regardless of what the borrower
+  // actually told us.
+  const isBusinessLoan =
+    loanType === 'business' || financialInfo?.employmentStatus === 'Business Owner';
+  const loanTypeLabel = isBusinessLoan ? 'Business Loan' : 'Personal Loan';
+  const fullName = `${signUpData.prefix ? `${signUpData.prefix} ` : ''}${signUpData.firstName}${signUpData.middleName ? ` ${signUpData.middleName}` : ''} ${signUpData.lastName}${signUpData.extensionName ? ` ${signUpData.extensionName}` : ''}`;
+  const applicationDate = application.submittedAt
+    ? new Date(application.submittedAt).toLocaleDateString()
+    : '—';
+  const desiredAmount = financialInfo
+    ? `₱${Number(financialInfo.desiredLoanAmount).toLocaleString()}`
+    : '—';
+  const applicationNumber = getLoanNumber(signUpData.email);
+  const hasCreditCheckingAction = showCreditCheckingResultAction;
+  const overflowOnly = showCreditCheckingResultAction && showCallReportAction;
+  const handleViewCreditChecking = () => {
+    setActionsAnchor(null);
+    router.push(paths.admin.creditCheckingResult(encodeURIComponent(signUpData.email)));
+  };
 
   if (collapsible) {
     return (
@@ -463,7 +483,7 @@ export function ApplicationDetailsCard({
             <Button
               variant="outlined"
               startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
-              onClick={() => setDetailsExpanded((prev) => !prev)}
+              onClick={() => router.push(paths.admin.fullApplication(encodeURIComponent(signUpData.email)))}
               sx={{
                 color: '#1C2A6E',
                 borderColor: '#C7CEEA',
@@ -474,7 +494,7 @@ export function ApplicationDetailsCard({
                 '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' },
               }}
             >
-              {detailsExpanded ? 'Hide full application' : 'View full application'}
+              View full application
             </Button>
             {hasCreditCheckingAction && (
               <Button
@@ -483,17 +503,17 @@ export function ApplicationDetailsCard({
                 onClick={handleViewCreditChecking}
                 sx={{ display: { xs: 'none', sm: overflowOnly ? 'inline-flex' : 'none', md: 'inline-flex' }, color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: { sm: 1.5, md: 2 }, whiteSpace: 'nowrap', fontSize: 13, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
               >
-                {creditCheckingExpanded ? 'Hide credit checking result' : 'Initial credit checking result'}
+                Initial credit checking result
               </Button>
             )}
             {showCallReportAction && (
               <Button
                 variant="outlined"
                 startIcon={<Iconify icon="solar:phone-calling-rounded-bold-duotone" width={18} />}
-                onClick={() => setCallReportExpanded((prev) => !prev)}
+                onClick={() => router.push(paths.admin.callReportResult(encodeURIComponent(signUpData.email)))}
                 sx={{ display: { xs: 'none', md: overflowOnly ? 'none' : 'inline-flex', lg: 'inline-flex' }, color: '#1C2A6E', borderColor: '#C7CEEA', borderRadius: '10px', px: { md: 1.5, lg: 2 }, whiteSpace: 'nowrap', fontSize: 13, '&:hover': { borderColor: '#1C2A6E', bgcolor: 'rgba(28,42,110,0.04)' } }}
               >
-                {callReportExpanded ? 'Hide call report' : 'View call report'}
+                View call report
               </Button>
             )}
             <Button
@@ -547,11 +567,11 @@ export function ApplicationDetailsCard({
             )}
             {showCallReportAction && (
               <MenuItem
-                onClick={() => { setActionsAnchor(null); setCallReportExpanded((prev) => !prev); }}
+                onClick={() => { setActionsAnchor(null); router.push(paths.admin.callReportResult(encodeURIComponent(signUpData.email))); }}
                 sx={{ gap: 1.25, display: { xs: 'flex', md: overflowOnly ? 'flex' : 'none', lg: 'none' } }}
               >
                 <Iconify icon="solar:phone-calling-rounded-bold-duotone" width={18} sx={{ color: '#1C2A6E' }} />
-                {callReportExpanded ? 'Hide call report' : 'View call report'}
+                View call report
               </MenuItem>
             )}
             <MenuItem
@@ -562,31 +582,6 @@ export function ApplicationDetailsCard({
               View all officer notes
             </MenuItem>
           </Menu>
-
-          {detailsExpanded && (
-            <>
-              <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
-              <Stack spacing={0.25} sx={{ mb: 2 }}>
-                <Typography sx={{ fontSize: 15, fontWeight: 700, color: '#14172A' }}>Full application</Typography>
-                <Typography sx={{ fontSize: 13, color: '#8891A6' }}>{fullName} · {applicationNumber}</Typography>
-              </Stack>
-              {detailsContent}
-            </>
-          )}
-
-          {callReportExpanded && (
-            <>
-              <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
-              <CallReportResultContent />
-            </>
-          )}
-
-          {creditCheckingExpanded && (
-            <>
-              <Divider sx={{ my: 2.5, borderColor: '#EEF0F5' }} />
-              <CreditCheckingResultContent />
-            </>
-          )}
         </Box>
 
         <OfficerNotesDialog
@@ -624,7 +619,7 @@ export function ApplicationDetailsCard({
           </Typography>
         </Box>
       </Stack>
-      {detailsContent}
+      <ApplicationFullDetails />
     </Box>
   );
 }

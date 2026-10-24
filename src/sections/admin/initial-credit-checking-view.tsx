@@ -33,7 +33,7 @@ import { ApplicationDetailsCard } from './application-details-card';
 import { OfficerNotesDialog, buildOfficerNoteEntry } from './officer-notes-history';
 import { computeInstallment } from './cibi-form-card';
 import { BureauReportsCard } from './bureau-reports-card';
-import { CreditCheckingResultContent } from './call-report/credit-checking-result-modal';
+import { CreditCheckingResultModal } from './call-report/credit-checking-result-modal';
 import { simulateBureauFinding } from './simulate-bureau-finding';
 import { buildInitialCreditCheckingResult } from './initial-credit-checking-risk';
 
@@ -139,7 +139,7 @@ export function InitialCreditCheckingView() {
   // session, not application data that should carry forward.
   const [isSplitLayout, setIsSplitLayout] = useState(false);
   const [aiReviewExpanded, setAiReviewExpanded] = useState(true);
-  const [creditCheckingResultExpanded, setCreditCheckingResultExpanded] = useState(false);
+  const [creditCheckingResultModalOpen, setCreditCheckingResultModalOpen] = useState(false);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
 
@@ -519,7 +519,7 @@ export function InitialCreditCheckingView() {
                   </Typography>
                 </Stack>
                 <Button
-                  onClick={() => setCreditCheckingResultExpanded((prev) => !prev)}
+                  onClick={() => setCreditCheckingResultModalOpen(true)}
                   variant="outlined"
                   startIcon={<Iconify icon="solar:document-text-bold-duotone" width={18} />}
                   sx={{ ...outlinedNavyButtonSx, px: 2, flexShrink: 0 }}
@@ -530,12 +530,6 @@ export function InitialCreditCheckingView() {
             </>
           }
         />
-
-        {creditCheckingResultExpanded && (
-          <Box sx={adminCardSx}>
-            <CreditCheckingResultContent hideHeader />
-          </Box>
-        )}
 
         <Box sx={adminCardSx}>
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
@@ -704,6 +698,11 @@ export function InitialCreditCheckingView() {
         onClose={() => setNotesModalOpen(false)}
         notes={creditChecking.notes}
         process="Initial Credit Checking"
+      />
+
+      <CreditCheckingResultModal
+        open={creditCheckingResultModalOpen}
+        onClose={() => setCreditCheckingResultModalOpen(false)}
       />
     </Container>
   );

@@ -120,12 +120,15 @@ export const paths = {
     // Companion to docs/225-admin-design-system.md.
     designSystem: '/admin/design-system',
     creditChecking: (id: string) => `/admin/applications/${id}/credit-checking`,
+    creditCheckingResult: (id: string) => `/admin/applications/${id}/credit-checking/result`,
     reconsideration: (id: string) => `/admin/applications/${id}/reconsideration`,
     callReport: (id: string) => `/admin/applications/${id}/call-report`,
+    callReportResult: (id: string) => `/admin/applications/${id}/call-report/result`,
     requirementChecklist: (id: string) => `/admin/applications/${id}/requirement-checklist`,
     creditInvestigation: (id: string) => `/admin/applications/${id}/credit-investigation`,
     appraisal: (id: string) => `/admin/applications/${id}/appraisal`,
     financialEvaluation: (id: string) => `/admin/applications/${id}/financial-evaluation`,
     creditScoring: (id: string) => `/admin/applications/${id}/credit-scoring`,
+    fullApplication: (id: string) => `/admin/applications/${id}/full-application`,
   },
 };
