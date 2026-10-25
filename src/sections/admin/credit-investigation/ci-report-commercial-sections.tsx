@@ -9,20 +9,18 @@ import Menu from '@mui/material/Menu';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
+import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
-import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
 import { RichTextField } from 'src/components/rich-text-field';
-import { adminCardSx, TONE_COLORS, outlinedNavyButtonSx, iconButtonBorderedSx } from 'src/components/admin-ui';
+import { TONE_COLORS, outlinedNavyButtonSx, iconButtonBorderedSx } from 'src/components/admin-ui';
 
-import { RadioRow } from '../call-report/call-report-types';
 import { fieldSx, SectionLabel, YES_NO_OPTIONS, requiredLabel } from './ci-report-card';
 
 import type {
@@ -47,57 +45,6 @@ import type {
 // convention — no dedicated context setters exist for any CiReport
 // array, Commercial included.
 // ----------------------------------------------------------------------
-
-// A two-way "which one" choice rendered as a pair of checkboxes (per the
-// reference tool), not a RadioRow — visually a checkbox, but still
-// mutually exclusive under the hood: checking one always unchecks the
-// other, so the stored value is still a single `trueValue | falseValue | ''`
-// union, same shape as every other either/or field in this app.
-function CheckboxPairRow<TrueValue extends string, FalseValue extends string>({
-  label,
-  value,
-  trueValue,
-  falseValue,
-  trueLabel,
-  falseLabel,
-  onChange,
-}: {
-  label: string;
-  value: TrueValue | FalseValue | '';
-  trueValue: TrueValue;
-  falseValue: FalseValue;
-  trueLabel: string;
-  falseLabel: string;
-  onChange: (value: TrueValue | FalseValue) => void;
-}) {
-  return (
-    <Stack spacing={0.75}>
-      <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#14172A' }}>{label}</Typography>
-      <Stack direction="row" spacing={2}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              size="small"
-              checked={value === trueValue}
-              onChange={() => onChange(trueValue)}
-            />
-          }
-          label={<Typography sx={{ fontSize: 13.5 }}>{trueLabel}</Typography>}
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
-              size="small"
-              checked={value === falseValue}
-              onChange={() => onChange(falseValue)}
-            />
-          }
-          label={<Typography sx={{ fontSize: 13.5 }}>{falseLabel}</Typography>}
-        />
-      </Stack>
-    </Stack>
-  );
-}
 
 function createCommercialTradeEntry(): CiCommercialTradeEntry {
   return {
@@ -136,23 +83,24 @@ function CommercialTradeCheckingSection({
       <Stack spacing={1.25}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 1.5, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
               <Chip
                 label={`${title.slice(0, -1)} ${index + 1}`}
                 size="small"
-                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
               />
-              <Button
-                onClick={() => remove(entry.id)}
+              <IconButton
                 size="small"
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                sx={{ color: '#F04438' }}
+                onClick={() => remove(entry.id)}
+                aria-label={`Remove ${title.slice(0, -1).toLowerCase()}`}
               >
-                Remove
-              </Button>
+                <Iconify icon="mingcute:close-line" width={16} />
+              </IconButton>
             </Stack>
             <Stack spacing={1.25}>
               <TextField
+                fullWidth
+                size="small"
                 label={requiredLabel('Company Name')}
                 value={entry.companyName}
                 onChange={(event) => update(entry.id, { companyName: event.target.value })}
@@ -160,47 +108,69 @@ function CommercialTradeCheckingSection({
               />
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
+                  size="small"
                   label={requiredLabel("Representative's Name")}
                   value={entry.contactPerson}
                   onChange={(event) => update(entry.id, { contactPerson: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
+                  size="small"
                   label={requiredLabel("Representative's Position")}
                   value={entry.position}
                   onChange={(event) => update(entry.id, { position: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
-              </Stack>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
-                  label={requiredLabel("Company's Tel No.")}
-                  value={entry.telephoneNo}
-                  onChange={(event) => update(entry.id, { telephoneNo: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
-                  label="Local No"
-                  value={entry.localExtension}
-                  onChange={(event) => update(entry.id, { localExtension: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-              </Stack>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                <TextField
-                  label="Representative's Mobile No."
-                  value={entry.mobileNumber}
-                  onChange={(event) => update(entry.id, { mobileNumber: event.target.value })}
-                  sx={{ ...fieldSx, flex: 1 }}
-                />
-                <TextField
+                  size="small"
                   label="Email Address"
                   value={entry.email}
                   onChange={(event) => update(entry.id, { email: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
               </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField
+                  size="small"
+                  label={requiredLabel("Company's Tel No.")}
+                  value={entry.telephoneNo}
+                  onChange={(event) => update(entry.id, { telephoneNo: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+                <TextField
+                  size="small"
+                  label="Local No"
+                  value={entry.localExtension}
+                  onChange={(event) => update(entry.id, { localExtension: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+                <TextField
+                  size="small"
+                  label="Representative's Mobile No."
+                  value={entry.mobileNumber}
+                  onChange={(event) => update(entry.id, { mobileNumber: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField
+                  size="small"
+                  label={requiredLabel('Payment Terms')}
+                  value={entry.paymentTerms}
+                  onChange={(event) => update(entry.id, { paymentTerms: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+                <TextField
+                  size="small"
+                  label={requiredLabel('Years of Business Contract')}
+                  value={entry.yearsOfContract}
+                  onChange={(event) => update(entry.id, { yearsOfContract: event.target.value })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                />
+              </Stack>
               <TextField
+                fullWidth
+                size="small"
                 label={requiredLabel('Transaction Details')}
                 value={entry.transactionDetails}
                 onChange={(event) => update(entry.id, { transactionDetails: event.target.value })}
@@ -209,22 +179,8 @@ function CommercialTradeCheckingSection({
                 sx={fieldSx}
               />
               <TextField
-                label={requiredLabel('Payment Terms')}
-                value={entry.paymentTerms}
-                onChange={(event) => update(entry.id, { paymentTerms: event.target.value })}
-                multiline
-                minRows={3}
-                sx={fieldSx}
-              />
-              <TextField
-                label={requiredLabel('Years of Business Contract')}
-                value={entry.yearsOfContract}
-                onChange={(event) => update(entry.id, { yearsOfContract: event.target.value })}
-                multiline
-                minRows={3}
-                sx={fieldSx}
-              />
-              <TextField
+                fullWidth
+                size="small"
                 label={requiredLabel('Remarks')}
                 value={entry.remarks}
                 onChange={(event) => update(entry.id, { remarks: event.target.value })}
@@ -284,36 +240,34 @@ function ManagementSection({
       <Stack spacing={1.25}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 1.5, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
               <Chip
                 label={`Manager ${index + 1}`}
                 size="small"
-                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
               />
-              <Button
-                onClick={() => remove(entry.id)}
-                size="small"
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                sx={{ color: '#F04438' }}
-              >
-                Remove
-              </Button>
+              <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove manager">
+                <Iconify icon="mingcute:close-line" width={16} />
+              </IconButton>
             </Stack>
             <Stack spacing={1.25}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
+                  size="small"
                   label={requiredLabel('Name')}
                   value={entry.fullName}
                   onChange={(event) => update(entry.id, { fullName: event.target.value })}
                   sx={{ ...fieldSx, flex: 2 }}
                 />
                 <TextField
+                  size="small"
                   label={requiredLabel('Current Title')}
                   value={entry.jobTitle}
                   onChange={(event) => update(entry.id, { jobTitle: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
+                  size="small"
                   label={requiredLabel('Nationality')}
                   value={entry.nationality}
                   onChange={(event) => update(entry.id, { nationality: event.target.value })}
@@ -322,12 +276,14 @@ function ManagementSection({
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
+                  size="small"
                   label={requiredLabel('Educational Attainment')}
                   value={entry.education}
                   onChange={(event) => update(entry.id, { education: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
+                  size="small"
                   label="Other Business Affiliations"
                   value={entry.otherBusiness}
                   onChange={(event) => update(entry.id, { otherBusiness: event.target.value })}
@@ -336,12 +292,14 @@ function ManagementSection({
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
+                  size="small"
                   label={requiredLabel('Residence Address')}
                   value={entry.homeAddress}
                   onChange={(event) => update(entry.id, { homeAddress: event.target.value })}
                   sx={{ ...fieldSx, flex: 2 }}
                 />
                 <TextField
+                  size="small"
                   label="Spouse / Partner"
                   value={entry.spousePartner}
                   onChange={(event) => update(entry.id, { spousePartner: event.target.value })}
@@ -350,6 +308,7 @@ function ManagementSection({
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
+                  size="small"
                   label={requiredLabel('Birthday')}
                   type="date"
                   InputLabelProps={{ shrink: true }}
@@ -358,6 +317,7 @@ function ManagementSection({
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
+                  size="small"
                   label={requiredLabel('Place of Birth')}
                   value={entry.birthPlace}
                   onChange={(event) => update(entry.id, { birthPlace: event.target.value })}
@@ -366,12 +326,14 @@ function ManagementSection({
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
+                  size="small"
                   label={requiredLabel('Mobile Number')}
                   value={entry.mobileNumber}
                   onChange={(event) => update(entry.id, { mobileNumber: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
                 <TextField
+                  size="small"
                   label={requiredLabel('Tax Identification Number')}
                   value={entry.tin}
                   onChange={(event) => update(entry.id, { tin: event.target.value })}
@@ -411,6 +373,7 @@ function CurrencyField({
     <NumericFormat
       label={label}
       customInput={TextField}
+      size="small"
       value={value}
       onValueChange={({ value: nextValue }) => onChange(nextValue)}
       thousandSeparator=","
@@ -442,6 +405,7 @@ function PercentageField({
     <NumericFormat
       label={label}
       customInput={TextField}
+      size="small"
       value={value}
       onValueChange={({ value: nextValue }) => onChange(nextValue)}
       decimalScale={2}
@@ -483,35 +447,33 @@ function TrusteesSection({
       <Stack spacing={1.25}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 1.5, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
               <Chip
                 label={`Trustee ${index + 1}`}
                 size="small"
-                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
               />
-              <Button
-                onClick={() => remove(entry.id)}
-                size="small"
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                sx={{ color: '#F04438' }}
-              >
-                Remove
-              </Button>
+              <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove trustee">
+                <Iconify icon="mingcute:close-line" width={16} />
+              </IconButton>
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <TextField
+                size="small"
                 label={requiredLabel('Full Name')}
                 value={entry.fullName}
                 onChange={(event) => update(entry.id, { fullName: event.target.value })}
                 sx={{ ...fieldSx, flex: 2 }}
               />
               <TextField
+                size="small"
                 label={requiredLabel('Position')}
                 value={entry.position}
                 onChange={(event) => update(entry.id, { position: event.target.value })}
                 sx={{ ...fieldSx, flex: 1 }}
               />
               <TextField
+                size="small"
                 label={requiredLabel('Birthdate')}
                 type="date"
                 InputLabelProps={{ shrink: true }}
@@ -623,32 +585,34 @@ function StockholdersSection({
       <Stack spacing={1.25}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 1.5, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
               <Chip
                 label={`Stockholder ${index + 1}`}
                 size="small"
-                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
               />
-              <Button
-                onClick={() => remove(entry.id)}
-                size="small"
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                sx={{ color: '#F04438' }}
-              >
-                Remove
-              </Button>
+              <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove stockholder">
+                <Iconify icon="mingcute:close-line" width={16} />
+              </IconButton>
             </Stack>
             <Stack spacing={1.25}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-start' }}>
-                <Box sx={{ flex: 1 }}>
-                  <RadioRow
-                    label="Stockholder Type *"
-                    value={entry.stockholderType}
-                    options={STOCKHOLDER_TYPE_OPTIONS}
-                    onChange={(value) => update(entry.id, { stockholderType: value })}
-                  />
-                </Box>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
+                  select
+                  size="small"
+                  label={requiredLabel('Stockholder Type')}
+                  value={entry.stockholderType}
+                  onChange={(event) => update(entry.id, { stockholderType: event.target.value as CiStockholderType })}
+                  sx={{ ...fieldSx, flex: 1 }}
+                >
+                  {STOCKHOLDER_TYPE_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  size="small"
                   label={stockholderNameLabel(entry.stockholderType)}
                   value={entry.name}
                   onChange={(event) => update(entry.id, { name: event.target.value })}
@@ -679,32 +643,40 @@ function StockholdersSection({
                     <SectionLabel>Sub-stockholders</SectionLabel>
                     {entry.subStockholders.map((sub, subIndex) => (
                       <Box key={sub.id} sx={{ p: 1.25, borderRadius: '10px', border: '1px solid #EEF0F5' }}>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.25 }}>
                           <Chip
                             label={`Sub ${subIndex + 1}`}
                             size="small"
-                            sx={{ bgcolor: '#F5F6FA', color: '#5A6273', fontWeight: 700 }}
+                            sx={{ bgcolor: '#F5F6FA', color: '#5A6273', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
                           />
-                          <Button
-                            onClick={() => removeSub(entry.id, sub.id)}
+                          <IconButton
                             size="small"
-                            startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                            sx={{ color: '#F04438' }}
+                            onClick={() => removeSub(entry.id, sub.id)}
+                            aria-label="Remove sub-stockholder"
                           >
-                            Remove
-                          </Button>
+                            <Iconify icon="mingcute:close-line" width={16} />
+                          </IconButton>
                         </Stack>
                         <Stack spacing={1.25}>
-                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'flex-start' }}>
-                            <Box sx={{ flex: 1 }}>
-                              <RadioRow
-                                label="Stockholder Type *"
-                                value={sub.stockholderType}
-                                options={STOCKHOLDER_TYPE_OPTIONS}
-                                onChange={(value) => updateSub(entry.id, sub.id, { stockholderType: value })}
-                              />
-                            </Box>
+                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                             <TextField
+                              select
+                              size="small"
+                              label={requiredLabel('Stockholder Type')}
+                              value={sub.stockholderType}
+                              onChange={(event) =>
+                                updateSub(entry.id, sub.id, { stockholderType: event.target.value as CiStockholderType })
+                              }
+                              sx={{ ...fieldSx, flex: 1 }}
+                            >
+                              {STOCKHOLDER_TYPE_OPTIONS.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                            <TextField
+                              size="small"
                               label={stockholderNameLabel(sub.stockholderType)}
                               value={sub.name}
                               onChange={(event) => updateSub(entry.id, sub.id, { name: event.target.value })}
@@ -877,20 +849,24 @@ function CommercialBankVerificationSection({
   };
 
   return (
-    <Stack spacing={1.75}>
+    <Stack spacing={1.25}>
       {entries.map((entry, index) => (
-        <Stack key={entry.id} spacing={1.25} sx={index > 0 ? { pt: 1.75, borderTop: '1px solid #EEF0F5' } : undefined}>
-          {entries.length > 1 && (
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <SectionLabel>Bank {index + 1}</SectionLabel>
-              <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove bank">
-                <Iconify icon="mingcute:close-line" width={16} />
-              </IconButton>
-            </Stack>
-          )}
+        <Box key={entry.id} sx={{ p: 1.5, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
+        <Stack spacing={1.25}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+            <Chip
+              label={`Bank ${index + 1}`}
+              size="small"
+              sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
+            />
+            <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove bank">
+              <Iconify icon="mingcute:close-line" width={16} />
+            </IconButton>
+          </Stack>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <TextField
               fullWidth
+              size="small"
               label={requiredLabel('Bank Name')}
               value={entry.bankName}
               onChange={(event) => update(entry.id, { bankName: event.target.value })}
@@ -898,6 +874,7 @@ function CommercialBankVerificationSection({
             />
             <TextField
               fullWidth
+              size="small"
               label={requiredLabel('Branch')}
               value={entry.branch}
               onChange={(event) => update(entry.id, { branch: event.target.value })}
@@ -907,6 +884,7 @@ function CommercialBankVerificationSection({
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <TextField
               fullWidth
+              size="small"
               label={requiredLabel('Account No.')}
               value={entry.accountNumber}
               onChange={(event) => update(entry.id, { accountNumber: event.target.value })}
@@ -914,6 +892,7 @@ function CommercialBankVerificationSection({
             />
             <TextField
               fullWidth
+              size="small"
               label={requiredLabel('Account Type')}
               value={entry.accountType}
               onChange={(event) => update(entry.id, { accountType: event.target.value })}
@@ -928,6 +907,7 @@ function CommercialBankVerificationSection({
             />
             <TextField
               fullWidth
+              size="small"
               type="date"
               label={requiredLabel('Date Verified')}
               value={entry.dateVerified}
@@ -939,6 +919,7 @@ function CommercialBankVerificationSection({
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <TextField
               fullWidth
+              size="small"
               label={requiredLabel('Experience')}
               value={entry.experience}
               onChange={(event) => update(entry.id, { experience: event.target.value })}
@@ -946,6 +927,7 @@ function CommercialBankVerificationSection({
             />
             <TextField
               fullWidth
+              size="small"
               label={requiredLabel('Contact Person')}
               value={entry.contactPerson}
               onChange={(event) => update(entry.id, { contactPerson: event.target.value })}
@@ -953,6 +935,7 @@ function CommercialBankVerificationSection({
             />
             <TextField
               fullWidth
+              size="small"
               label={requiredLabel('Contact No.')}
               value={entry.contactNumber}
               onChange={(event) => update(entry.id, { contactNumber: event.target.value })}
@@ -960,12 +943,13 @@ function CommercialBankVerificationSection({
             />
           </Stack>
         </Stack>
+        </Box>
       ))}
       <Button
         onClick={add}
-        startIcon={<Iconify icon="eva:plus-fill" width={18} />}
         variant="outlined"
         size="small"
+        startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
         sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
       >
         Add Bank
@@ -1134,18 +1118,13 @@ export function CommercialReportSections({
   );
 
   return (
-    <Stack spacing={1.75}>
-      <Box
+    <Stack spacing={2.5}>
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('managementAndOwnership', el); }}
-        sx={adminCardSx}
       >
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5} sx={{ mb: 1.5 }}>
-          <Stack spacing={0.25}>
-            <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Management and Ownership</Typography>
-            <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-              Who runs the business and who owns it.
-            </Typography>
-          </Stack>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+          <SectionLabel>Management and Ownership</SectionLabel>
           <BusinessTypeMenu
             value={effectiveBusinessType}
             onChange={(businessTypeOverride) => onChange({ businessTypeOverride })}
@@ -1174,57 +1153,59 @@ export function CommercialReportSections({
             </Typography>
           )}
         </Stack>
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('locationFacilities', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Location / Facilities</Typography>
-        </Stack>
+        <SectionLabel>Location / Facilities</SectionLabel>
         <Stack spacing={1.5}>
+          <TextField
+            fullWidth
+            size="small"
+            label={requiredLabel('Type of Construction / Description')}
+            value={report.premisesConstructionDescription}
+            onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
+            multiline
+            minRows={2}
+            sx={fieldSx}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label={requiredLabel('Area Description')}
+            value={report.premisesAreaDescription}
+            onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
+            multiline
+            minRows={2}
+            sx={fieldSx}
+          />
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <TextField
-              label={requiredLabel('Type of Construction / Description')}
-              value={report.premisesConstructionDescription}
-              onChange={(event) => onChange({ premisesConstructionDescription: event.target.value })}
-              multiline
-              minRows={2}
+              select
+              size="small"
+              label="Location Owned or Rented"
+              value={report.locationOwned}
+              onChange={(event) => onChange({ locationOwned: event.target.value as typeof report.locationOwned })}
               sx={{ ...fieldSx, flex: 1 }}
-            />
+            >
+              <MenuItem value="owned">Owned</MenuItem>
+              <MenuItem value="rented">Rented</MenuItem>
+            </TextField>
             <TextField
-              label={requiredLabel('Area Description')}
-              value={report.premisesAreaDescription}
-              onChange={(event) => onChange({ premisesAreaDescription: event.target.value })}
-              multiline
-              minRows={2}
+              select
+              size="small"
+              label="Equipment Owned or Leased"
+              value={report.equipmentOwned}
+              onChange={(event) => onChange({ equipmentOwned: event.target.value as typeof report.equipmentOwned })}
               sx={{ ...fieldSx, flex: 1 }}
-            />
-          </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
-            <Box sx={{ flex: 1 }}>
-              <CheckboxPairRow
-                label="Location Owned or rented? If rented, how much?"
-                value={report.locationOwned}
-                trueLabel="Owned"
-                falseLabel="Rented"
-                trueValue="owned"
-                falseValue="rented"
-                onChange={(value) => onChange({ locationOwned: value })}
-              />
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <CheckboxPairRow
-                label="Equipment owned or leased"
-                value={report.equipmentOwned}
-                trueLabel="Owned"
-                falseLabel="Leased"
-                trueValue="owned"
-                falseValue="leased"
-                onChange={(value) => onChange({ equipmentOwned: value })}
-              />
-            </Box>
+            >
+              <MenuItem value="owned">Owned</MenuItem>
+              <MenuItem value="leased">Leased</MenuItem>
+            </TextField>
           </Stack>
           <RichTextField
             label="Description *"
@@ -1233,18 +1214,15 @@ export function CommercialReportSections({
             placeholder="Details about the location and equipment…"
           />
         </Stack>
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('tradeChecking', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Trade Checking</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Customers and suppliers verified during the visit.
-          </Typography>
-        </Stack>
+        <SectionLabel>Trade Checking</SectionLabel>
         <Stack spacing={1.75}>
           <CommercialTradeCheckingSection
             title="Customers"
@@ -1257,54 +1235,48 @@ export function CommercialReportSections({
             onChange={(commercialSuppliers) => onChange({ commercialSuppliers })}
           />
         </Stack>
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('bankVerification', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Bank Verification</Typography>
-        </Stack>
+        <SectionLabel>Bank Verification</SectionLabel>
         <CommercialBankVerificationSection
           entries={report.commercialBankAccounts}
           onChange={(commercialBankAccounts) => onChange({ commercialBankAccounts })}
         />
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('comments', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Comments</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Overall remarks from the investigation.
-          </Typography>
-        </Stack>
+        <SectionLabel>Comments</SectionLabel>
         <RichTextField
           label="Comments"
           value={report.commentsNotes}
           onChange={(html) => onChange({ commentsNotes: html })}
           placeholder="Any additional remarks…"
         />
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('additionalDocuments', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Additional Documents</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Attach any other supporting documents for this investigation.
-          </Typography>
-        </Stack>
+        <SectionLabel>Additional Documents</SectionLabel>
         <AdditionalDocumentsSection
           entries={report.commercialDocuments}
           onChange={(commercialDocuments) => onChange({ commercialDocuments })}
         />
-      </Box>
+      </Stack>
     </Stack>
   );
 }

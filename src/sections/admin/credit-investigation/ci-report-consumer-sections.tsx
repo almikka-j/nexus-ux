@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -16,10 +17,9 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { Iconify } from 'src/components/iconify';
 import { FileThumbnail } from 'src/components/file-thumbnail';
 import { RichTextField } from 'src/components/rich-text-field';
-import { adminCardSx, outlinedNavyButtonSx } from 'src/components/admin-ui';
+import { outlinedNavyButtonSx } from 'src/components/admin-ui';
 import { PROVINCES, PROVINCE_CITIES, barangaysFor } from 'src/utils/ph-address';
 
-import { RadioRow } from '../call-report/call-report-types';
 import { fieldSx, SectionLabel, YES_NO_OPTIONS, requiredLabel, FactChip, FactChipRow } from './ci-report-card';
 
 import type {
@@ -33,8 +33,8 @@ import type {
 
 // ----------------------------------------------------------------------
 // Consumer-type CI Report sections, mirroring the Commercial branch's own
-// file (ci-report-commercial-sections.tsx) — plain non-collapsible
-// `adminCardSx` cards (no CollapsibleSection), one card per section, in a
+// file (ci-report-commercial-sections.tsx) — flat sections (SectionLabel +
+// Divider, matching Appraisal Report's pattern), no per-section cards, in a
 // fixed order. Same "local component owns add/update/remove, calls
 // onChange({ field: nextArray })" convention as every other repeatable
 // section in this app — CiReport has no per-array context setters.
@@ -145,29 +145,26 @@ function ChildrenSection({
       <Stack spacing={1.25}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 1.5, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
               <Chip
                 label={`Child ${index + 1}`}
                 size="small"
-                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
               />
-              <Button
-                onClick={() => remove(entry.id)}
-                size="small"
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                sx={{ color: '#F04438' }}
-              >
-                Remove
-              </Button>
+              <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove child">
+                <Iconify icon="mingcute:close-line" width={16} />
+              </IconButton>
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <TextField
+                size="small"
                 label="Name"
                 value={entry.name}
                 onChange={(event) => update(entry.id, { name: event.target.value })}
                 sx={{ ...fieldSx, flex: 2 }}
               />
               <TextField
+                size="small"
                 label="Age"
                 type="number"
                 value={entry.age}
@@ -175,6 +172,7 @@ function ChildrenSection({
                 sx={{ ...fieldSx, flex: 1 }}
               />
               <TextField
+                size="small"
                 label="Occupation/School"
                 value={entry.occupationOrSchool}
                 onChange={(event) => update(entry.id, { occupationOrSchool: event.target.value })}
@@ -253,6 +251,7 @@ function AddressFields({
         <TextField
           select
           fullWidth
+          size="small"
           label={requiredLabel('Province')}
           value={province}
           onChange={(event) => onChange({ province: event.target.value, city: '', barangay: '' })}
@@ -268,6 +267,7 @@ function AddressFields({
           <TextField
             select
             fullWidth
+            size="small"
             label={requiredLabel('City')}
             value={city}
             onChange={(event) => onChange({ city: event.target.value, barangay: '' })}
@@ -282,6 +282,7 @@ function AddressFields({
         ) : (
           <TextField
             fullWidth
+            size="small"
             label={requiredLabel('City')}
             value={city}
             onChange={(event) => onChange({ city: event.target.value, barangay: '' })}
@@ -292,6 +293,7 @@ function AddressFields({
           <TextField
             select
             fullWidth
+            size="small"
             label={requiredLabel('Barangay')}
             value={barangay}
             onChange={(event) => onChange({ barangay: event.target.value })}
@@ -306,6 +308,7 @@ function AddressFields({
         ) : (
           <TextField
             fullWidth
+            size="small"
             label={requiredLabel('Barangay')}
             value={barangay}
             onChange={(event) => onChange({ barangay: event.target.value })}
@@ -316,6 +319,7 @@ function AddressFields({
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           fullWidth
+          size="small"
           label={requiredLabel('Street Address')}
           value={streetAddress}
           onChange={(event) => onChange({ streetAddress: event.target.value })}
@@ -324,6 +328,7 @@ function AddressFields({
         <TextField
           select
           fullWidth
+          size="small"
           label={requiredLabel('Address Type')}
           value={addressType}
           onChange={(event) => onChange({ addressType: event.target.value as 'own' | 'rent' | 'rent-free' })}
@@ -337,32 +342,35 @@ function AddressFields({
         </TextField>
         <TextField
           fullWidth
+          size="small"
           label="Length of Stay"
           value={lengthOfStay}
           onChange={(event) => onChange({ lengthOfStay: event.target.value })}
           sx={fieldSx}
         />
       </Stack>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-        <TextField
-          fullWidth
-          multiline
-          minRows={1}
-          label="Landmark"
-          value={landmark}
-          onChange={(event) => onChange({ landmark: event.target.value })}
-          sx={fieldSx}
-        />
-        <TextField
-          fullWidth
-          multiline
-          minRows={1}
-          label="Remarks"
-          value={remarks}
-          onChange={(event) => onChange({ remarks: event.target.value })}
-          sx={fieldSx}
-        />
-      </Stack>
+      <TextField
+        fullWidth
+        size="small"
+        multiline
+        minRows={2}
+        maxRows={2}
+        label="Landmark"
+        value={landmark}
+        onChange={(event) => onChange({ landmark: event.target.value })}
+        sx={fieldSx}
+      />
+      <TextField
+        fullWidth
+        size="small"
+        multiline
+        minRows={2}
+        maxRows={2}
+        label="Remarks"
+        value={remarks}
+        onChange={(event) => onChange({ remarks: event.target.value })}
+        sx={fieldSx}
+      />
     </Stack>
   );
 }
@@ -377,9 +385,8 @@ function ResidenceNeighborhoodSection({
   return (
     <Stack spacing={1.75}>
       <Box>
-        <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A', mb: 1 }}>
-          Permanent Address
-        </Typography>
+        <SectionLabel>Permanent Address</SectionLabel>
+        <Box sx={{ mt: 1.5 }}>
         <AddressFields
           prefix="residence"
           province={report.residenceProvince}
@@ -403,11 +410,12 @@ function ResidenceNeighborhoodSection({
             })
           }
         />
+        </Box>
       </Box>
 
-      <Box sx={{ pt: 1.75, borderTop: '1px solid #EEF0F5' }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-          <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Present Address</Typography>
+      <Box sx={{ pt: 1.75, pb: 0.5, borderTop: '1px solid #EEF0F5' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+          <SectionLabel>Present Address</SectionLabel>
           <FormControlLabel
             control={
               <Checkbox
@@ -468,28 +476,37 @@ function EmploymentSection({
     <Stack spacing={1.25}>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
+          size="small"
           label="Employment Status"
           value={report.employmentStatus}
           InputProps={{ readOnly: true }}
           sx={{ ...fieldSx, flex: 1, '& .MuiOutlinedInput-root': { ...fieldSx['& .MuiOutlinedInput-root'], bgcolor: 'common.white' } }}
         />
-        <Box sx={{ flex: 1 }}>
-          <RadioRow
-            label="Employment Type"
-            value={report.employmentType}
-            options={EMPLOYMENT_TYPE_OPTIONS}
-            onChange={(value) => onChange({ employmentType: value })}
-          />
-        </Box>
+        <TextField
+          select
+          size="small"
+          label="Employment Type"
+          value={report.employmentType}
+          onChange={(event) => onChange({ employmentType: event.target.value as typeof report.employmentType })}
+          sx={{ ...fieldSx, flex: 1 }}
+        >
+          {EMPLOYMENT_TYPE_OPTIONS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
       </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
+          size="small"
           label={isBusinessOwner ? 'Business Name' : 'Employer Name'}
           value={report.employerName}
           onChange={(event) => onChange({ employerName: event.target.value })}
           sx={{ ...fieldSx, flex: 1 }}
         />
         <TextField
+          size="small"
           label="Position"
           value={report.position}
           onChange={(event) => onChange({ position: event.target.value })}
@@ -499,18 +516,21 @@ function EmploymentSection({
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
           fullWidth
+          size="small"
           label={isBusinessOwner ? 'Business Address' : 'Employer Address'}
           value={report.employerAddress}
           onChange={(event) => onChange({ employerAddress: event.target.value })}
           sx={{ ...fieldSx, flex: 2 }}
         />
         <TextField
+          size="small"
           label="Tel. No."
           value={report.employerTelNo}
           onChange={(event) => onChange({ employerTelNo: event.target.value })}
           sx={{ ...fieldSx, flex: 1 }}
         />
         <TextField
+          size="small"
           label="Email Address"
           value={report.employerEmail}
           onChange={(event) => onChange({ employerEmail: event.target.value })}
@@ -519,6 +539,7 @@ function EmploymentSection({
       </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
+          size="small"
           label="Salary"
           type="number"
           value={report.salary}
@@ -526,6 +547,7 @@ function EmploymentSection({
           sx={{ ...fieldSx, flex: 1 }}
         />
         <TextField
+          size="small"
           label="Annual Income"
           type="number"
           value={report.annualIncome}
@@ -533,6 +555,7 @@ function EmploymentSection({
           sx={{ ...fieldSx, flex: 1 }}
         />
         <TextField
+          size="small"
           label="Length of Service"
           value={report.lengthOfService}
           onChange={(event) => onChange({ lengthOfService: event.target.value })}
@@ -541,6 +564,7 @@ function EmploymentSection({
       </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
+          size="small"
           label="No. Reg. Employees"
           type="number"
           value={report.numberOfRegEmployees}
@@ -548,29 +572,38 @@ function EmploymentSection({
           sx={{ ...fieldSx, flex: 1 }}
         />
         <TextField
+          size="small"
           label="No. Contr. Employees"
           type="number"
           value={report.numberOfContrEmployees}
           onChange={(event) => onChange({ numberOfContrEmployees: event.target.value })}
           sx={{ ...fieldSx, flex: 1 }}
         />
-        <Box sx={{ flex: 1 }}>
-          <RadioRow
-            label="Unionized?"
-            value={report.isUnionized}
-            options={YES_NO_OPTIONS}
-            onChange={(value) => onChange({ isUnionized: value })}
-          />
-        </Box>
+        <TextField
+          select
+          size="small"
+          label="Unionized?"
+          value={report.isUnionized}
+          onChange={(event) => onChange({ isUnionized: event.target.value as typeof report.isUnionized })}
+          sx={{ ...fieldSx, flex: 1 }}
+        >
+          {YES_NO_OPTIONS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
       </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField
+          size="small"
           label="SEC/DTI Reg. No."
           value={report.secDtiRegNo}
           onChange={(event) => onChange({ secDtiRegNo: event.target.value })}
           sx={{ ...fieldSx, flex: 1 }}
         />
         <TextField
+          size="small"
           label="SEC/DTI Reg. Date"
           type="date"
           InputLabelProps={{ shrink: true }}
@@ -579,6 +612,7 @@ function EmploymentSection({
           sx={{ ...fieldSx, flex: 1 }}
         />
         <TextField
+          size="small"
           label="SEC/DTI Exp. Date"
           type="date"
           InputLabelProps={{ shrink: true }}
@@ -589,6 +623,7 @@ function EmploymentSection({
       </Stack>
       <TextField
         fullWidth
+        size="small"
         multiline
         minRows={1}
         label="Remarks"
@@ -624,26 +659,22 @@ function OtherIncomeSection({
       <Stack spacing={1.25}>
         {entries.map((entry, index) => (
           <Box key={entry.id} sx={{ p: 1.5, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
               <Chip
                 label={`Source ${index + 1}`}
                 size="small"
-                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
               />
-              <Button
-                onClick={() => remove(entry.id)}
-                size="small"
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                sx={{ color: '#F04438' }}
-              >
-                Remove
-              </Button>
+              <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove source">
+                <Iconify icon="mingcute:close-line" width={16} />
+              </IconButton>
             </Stack>
             <Stack spacing={1.25}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
                   select
                   fullWidth
+                  size="small"
                   label={requiredLabel('Income Type')}
                   value={entry.incomeType}
                   onChange={(event) => update(entry.id, { incomeType: event.target.value })}
@@ -657,6 +688,7 @@ function OtherIncomeSection({
                 </TextField>
                 <TextField
                   fullWidth
+                  size="small"
                   label={requiredLabel('Company Name')}
                   value={entry.companyName}
                   onChange={(event) => update(entry.id, { companyName: event.target.value })}
@@ -664,14 +696,15 @@ function OtherIncomeSection({
                 />
                 <TextField
                   fullWidth
+                  size="small"
                   label={requiredLabel('Owner')}
                   value={entry.owner}
                   onChange={(event) => update(entry.id, { owner: event.target.value })}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
-              </Stack>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                 <TextField
+                  fullWidth
+                  size="small"
                   type="number"
                   label={requiredLabel('Percent Of Share')}
                   value={entry.percentOfShare}
@@ -680,16 +713,17 @@ function OtherIncomeSection({
                   InputProps={{ inputProps: { min: 0, max: 100 } }}
                   sx={{ ...fieldSx, flex: 1 }}
                 />
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={1}
-                  label={requiredLabel('Remarks')}
-                  value={entry.remarks}
-                  onChange={(event) => update(entry.id, { remarks: event.target.value })}
-                  sx={{ ...fieldSx, flex: 2 }}
-                />
               </Stack>
+              <TextField
+                fullWidth
+                size="small"
+                multiline
+                minRows={2}
+                label={requiredLabel('Remarks')}
+                value={entry.remarks}
+                onChange={(event) => update(entry.id, { remarks: event.target.value })}
+                sx={fieldSx}
+              />
             </Stack>
           </Box>
         ))}
@@ -727,47 +761,49 @@ function BankVerificationSection({
     <Stack spacing={1.25}>
       {entries.map((entry, index) => (
         <Box key={entry.id} sx={{ p: 1.5, borderRadius: '11px', border: '1px solid #EEF0F5', bgcolor: '#FAFBFD' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
             <Chip
               label={`Account ${index + 1}`}
               size="small"
-              sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+              sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
             />
-            <Button
-              onClick={() => remove(entry.id)}
-              size="small"
-              startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-              sx={{ color: '#F04438' }}
-            >
-              Remove
-            </Button>
+            <IconButton size="small" onClick={() => remove(entry.id)} aria-label="Remove account">
+              <Iconify icon="mingcute:close-line" width={16} />
+            </IconButton>
           </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <Stack spacing={1.25}>
             <TextField
+              fullWidth
+              size="small"
               label="Bank Name"
               value={entry.bankName}
               onChange={(event) => update(entry.id, { bankName: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
+              sx={fieldSx}
             />
-            <TextField
-              label="Account Type"
-              value={entry.accountType}
-              onChange={(event) => update(entry.id, { accountType: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-            <TextField
-              label="Account Number"
-              value={entry.accountNumber}
-              onChange={(event) => update(entry.id, { accountNumber: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
-            <TextField
-              label="Average Monthly Balance"
-              type="number"
-              value={entry.averageMonthlyBalance}
-              onChange={(event) => update(entry.id, { averageMonthlyBalance: event.target.value })}
-              sx={{ ...fieldSx, flex: 1 }}
-            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                size="small"
+                label="Account Type"
+                value={entry.accountType}
+                onChange={(event) => update(entry.id, { accountType: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Account Number"
+                value={entry.accountNumber}
+                onChange={(event) => update(entry.id, { accountNumber: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+              <TextField
+                size="small"
+                label="Average Monthly Balance"
+                type="number"
+                value={entry.averageMonthlyBalance}
+                onChange={(event) => update(entry.id, { averageMonthlyBalance: event.target.value })}
+                sx={{ ...fieldSx, flex: 1 }}
+              />
+            </Stack>
           </Stack>
         </Box>
       ))}
@@ -943,17 +979,12 @@ export function ConsumerReportSections({
   sectionRefs: React.MutableRefObject<Map<string, HTMLDivElement | null>>;
 }) {
   return (
-    <Stack spacing={1.75}>
-      <Box
+    <Stack spacing={2.5}>
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('family', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Family</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            The applicant&apos;s spouse and children.
-          </Typography>
-        </Stack>
+        <SectionLabel>Family</SectionLabel>
         <Stack spacing={1.75}>
           <RichTextField
             label="Spouse"
@@ -966,45 +997,35 @@ export function ConsumerReportSections({
             onChange={(children) => onChange({ children })}
           />
         </Stack>
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('residenceNeighborhood', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Residence/Neighborhood</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            The permanent address on file, and the present address if the applicant lives elsewhere.
-          </Typography>
-        </Stack>
+        <SectionLabel>Residence/Neighborhood</SectionLabel>
         <ResidenceNeighborhoodSection report={report} onChange={onChange} />
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('employment', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Employment</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Employer or business, income, workforce and registration details.
-          </Typography>
-        </Stack>
+        <SectionLabel>Employment</SectionLabel>
         <EmploymentSection report={report} onChange={onChange} isBusinessOwner={isBusinessOwner} />
-      </Box>
+      </Stack>
 
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
 
-      <Box
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('financialInformation', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Financial Information</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Assets and other sources of income.
-          </Typography>
-        </Stack>
+        <SectionLabel>Financial Information</SectionLabel>
         <Stack spacing={1.75}>
           <RichTextField
             label="Assets"
@@ -1017,99 +1038,88 @@ export function ConsumerReportSections({
             onChange={(otherIncomeSources) => onChange({ otherIncomeSources })}
           />
         </Stack>
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('loanPurpose', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
-            {requiredLabel('Loan Purpose')}
-          </Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            What the loan proceeds will be used for.
-          </Typography>
-        </Stack>
+        <SectionLabel>{requiredLabel('Loan Purpose')}</SectionLabel>
         <RichTextField
           label="Loan Purpose"
           value={report.loanPurposeNotes}
           onChange={(html) => onChange({ loanPurposeNotes: html })}
           placeholder="What the loan proceeds will be used for…"
         />
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('bankVerification', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Bank Verification</Typography>
-        </Stack>
+        <SectionLabel>Bank Verification</SectionLabel>
         <BankVerificationSection
           entries={report.bankAccounts}
           onChange={(bankAccounts) => onChange({ bankAccounts })}
         />
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('comaker', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Comaker</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            The comakers backing this loan.
-          </Typography>
-        </Stack>
+        <SectionLabel>Comaker</SectionLabel>
         <ComakerSection comakers={comakers} />
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('healthAndHabits', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Health and Habits</Typography>
-        </Stack>
+        <SectionLabel>Health and Habits</SectionLabel>
         <RichTextField
           label="Health and Habits"
           value={report.healthAndHabitsNotes}
           onChange={(html) => onChange({ healthAndHabitsNotes: html })}
           placeholder="Lifestyle, health, or habit observations relevant to the investigation…"
         />
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('comments', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Comments</Typography>
-        </Stack>
+        <SectionLabel>Comments</SectionLabel>
         <RichTextField
           label="Comments"
           value={report.commentsNotes}
           onChange={(html) => onChange({ commentsNotes: html })}
           placeholder="Any additional remarks…"
         />
-      </Box>
+      </Stack>
 
-      <Box
+      <Divider sx={{ borderColor: '#EEF0F5' }} />
+
+      <Stack
+        spacing={1.5}
         ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('additionalDocuments', el); }}
-        sx={adminCardSx}
       >
-        <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>Additional Documents</Typography>
-          <Typography sx={{ fontSize: 13.5, color: '#8891A6' }}>
-            Attach any other supporting documents for this investigation.
-          </Typography>
-        </Stack>
+        <SectionLabel>Additional Documents</SectionLabel>
         <AdditionalDocumentsSection
           entries={report.consumerDocuments}
           onChange={(consumerDocuments) => onChange({ consumerDocuments })}
         />
-      </Box>
+      </Stack>
     </Stack>
   );
 }

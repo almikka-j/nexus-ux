@@ -654,7 +654,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
 
   if (!signUpData || !bundle) {
     return (
-      <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 }, maxWidth: '1040px !important' }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
         <Box sx={{ ...adminCardSx, p: { xs: 4, md: 6 }, textAlign: 'center' }}>
           <Iconify icon="solar:document-text-bold-duotone" width={48} sx={{ color: '#C7CCDA', mb: 2 }} />
           <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A', mb: 0.5 }}>
@@ -793,7 +793,7 @@ export function AppraisalAppraiserBundleView({ bundleId }: { bundleId: string })
   );
 
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 }, maxWidth: '1040px !important' }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
       <Stack spacing={3}>
         <Box>
           <Button

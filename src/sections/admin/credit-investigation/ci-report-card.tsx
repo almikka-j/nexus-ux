@@ -68,9 +68,21 @@ export const YES_NO_OPTIONS: { value: 'yes' | 'no'; label: string }[] = [
   { value: 'no', label: 'No' },
 ];
 
+// Matches Appraisal Report's SectionLabel styling (appraiser-assignment-
+// card.tsx) — kept as a local copy here rather than importing across
+// feature folders, per this codebase's existing convention (CI Report's
+// own sections files already import this from here, not from Appraisal).
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#5A6273', letterSpacing: '0.02em' }}>
+    <Typography
+      sx={{
+        fontSize: 11.5,
+        fontWeight: 700,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        color: '#8891A6',
+      }}
+    >
       {children}
     </Typography>
   );
@@ -442,6 +454,7 @@ function CommercialInfoChips({
             onChange={(event) => onChange({ businessAuthorizedCapitalStock: event.target.value })}
             placeholder="Capital Stock"
             fullWidth
+            size="small"
             sx={fieldSx}
           />
           <TextField
@@ -450,6 +463,7 @@ function CommercialInfoChips({
             onChange={(event) => onChange({ businessTerritory: event.target.value })}
             placeholder="Territory"
             fullWidth
+            size="small"
             sx={fieldSx}
           />
         </Stack>
@@ -460,6 +474,7 @@ function CommercialInfoChips({
             onChange={(event) => onChange({ businessRegularEmployees: event.target.value })}
             placeholder="0"
             fullWidth
+            size="small"
             sx={fieldSx}
           />
           <TextField
@@ -468,6 +483,7 @@ function CommercialInfoChips({
             onChange={(event) => onChange({ businessContractualEmployees: event.target.value })}
             placeholder="0"
             fullWidth
+            size="small"
             sx={fieldSx}
           />
         </Stack>
@@ -478,6 +494,7 @@ function CommercialInfoChips({
             onChange={(event) => onChange({ businessOwner: event.target.value })}
             placeholder="Owner"
             fullWidth
+            size="small"
             sx={fieldSx}
           />
           <TextField
@@ -487,6 +504,7 @@ function CommercialInfoChips({
             value={report.visitDate}
             onChange={(event) => onChange({ visitDate: event.target.value })}
             fullWidth
+            size="small"
             sx={fieldSx}
           />
         </Stack>
@@ -788,6 +806,7 @@ export function CiReportCard() {
                   InputLabelProps={{ shrink: true }}
                   value={report.visitDate}
                   onChange={(event) => setCiReport({ visitDate: event.target.value })}
+                  size="small"
                   sx={{ ...fieldSx, maxWidth: { sm: 260 } }}
                 />
                 <RichTextField

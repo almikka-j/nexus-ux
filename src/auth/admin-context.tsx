@@ -2270,13 +2270,113 @@ function createInitialCreditInvestigationDocuments(): CreditInvestigationDoc[] {
   return [];
 }
 
+// Default-seed factories for CI Report's repeatable "Add X" list sections —
+// a fresh/cleared report starts each of these arrays with exactly one blank
+// entry (instead of []) so the form shows one ready-to-fill card up front.
+// These mirror the shape of each UI file's own local create*Entry() factory
+// 1:1 (ci-report-commercial-sections.tsx / ci-report-consumer-sections.tsx)
+// but live here since admin-context.tsx owns all CiReport data-shape
+// factories — the UI files' own factories stay untouched and are still used
+// by each section's runtime "Add" button. All ids here use
+// crypto.randomUUID() for consistency with the rest of this file, including
+// for the Commercial Bank Account entry whose UI-file counterpart oddly
+// uses Math.random().toString(36).slice(2) instead — standardizing here
+// since this is a fresh default seed, not preserved stored data.
+function createDefaultCommercialTradeEntry(): CiCommercialTradeEntry {
+  return {
+    id: crypto.randomUUID(),
+    companyName: '',
+    contactPerson: '',
+    position: '',
+    mobileNumber: '',
+    email: '',
+    telephoneNo: '',
+    localExtension: '',
+    transactionDetails: '',
+    paymentTerms: '',
+    yearsOfContract: '',
+    remarks: '',
+  };
+}
+
+function createDefaultManagementEntry(): CiManagementEntry {
+  return {
+    id: crypto.randomUUID(),
+    fullName: '',
+    birthdate: '',
+    birthPlace: '',
+    nationality: '',
+    spousePartner: '',
+    homeAddress: '',
+    jobTitle: '',
+    education: '',
+    otherBusiness: '',
+    tin: '',
+    mobileNumber: '',
+  };
+}
+
+function createDefaultTrusteeEntry(): CiTrusteeEntry {
+  return { id: crypto.randomUUID(), fullName: '', position: '', birthdate: '' };
+}
+
+// Seeds only the top-level Stockholder entry — subStockholders stays an
+// empty array since sub-stockholders are a nested, conditionally-shown list
+// (only for stockholderType === 'corporation') and should not be
+// pre-populated.
+function createDefaultStockholderEntry(): CiStockholderEntry {
+  return {
+    id: crypto.randomUUID(),
+    stockholderType: '',
+    name: '',
+    amountSubscribed: '',
+    amountPaidUp: '',
+    percentageShare: '',
+    subStockholders: [],
+  };
+}
+
+function createDefaultCommercialBankAccountEntry(): CiCommercialBankAccountEntry {
+  return {
+    id: crypto.randomUUID(),
+    bankName: '',
+    branch: '',
+    accountNumber: '',
+    accountType: '',
+    averageDailyBalance: '',
+    dateVerified: '',
+    experience: '',
+    contactPerson: '',
+    contactNumber: '',
+  };
+}
+
+function createDefaultChildEntry(): CiChildEntry {
+  return { id: crypto.randomUUID(), name: '', age: '', occupationOrSchool: '' };
+}
+
+function createDefaultIncomeSourceEntry(): CiIncomeSourceEntry {
+  return {
+    id: crypto.randomUUID(),
+    incomeType: '',
+    companyName: '',
+    owner: '',
+    percentOfShare: '',
+    remarks: '',
+  };
+}
+
+function createDefaultBankAccountEntry(): CiBankAccountEntry {
+  return { id: crypto.randomUUID(), bankName: '', accountType: '', accountNumber: '', averageMonthlyBalance: '' };
+}
+
 function createInitialCiReport(): CiReport {
   return {
     type: '',
     visitDate: '',
     subjectAsOf: '',
     spouseNotes: '',
-    children: [],
+    children: [createDefaultChildEntry()],
     residencePermanentAddress: '',
     residenceProvince: '',
     residenceCity: '',
@@ -2315,9 +2415,9 @@ function createInitialCiReport(): CiReport {
     suppliers: [],
     customers: [],
     assetsNotes: '',
-    otherIncomeSources: [],
+    otherIncomeSources: [createDefaultIncomeSourceEntry()],
     loanPurposeNotes: '',
-    bankAccounts: [],
+    bankAccounts: [createDefaultBankAccountEntry()],
     consumerDocuments: [],
     negativeRecordSourceNote:
       'Source of information: BAP Credit Bureau / CMAP report on accounts under watch lists, cancelled credit cards, adverse classified loan file, closed current account and court case file as of ',
@@ -2338,13 +2438,13 @@ function createInitialCiReport(): CiReport {
     locationOwned: '',
     equipmentOwned: '',
     facilitiesDescription: '',
-    commercialSuppliers: [],
-    commercialCustomers: [],
-    management: [],
+    commercialSuppliers: [createDefaultCommercialTradeEntry()],
+    commercialCustomers: [createDefaultCommercialTradeEntry()],
+    management: [createDefaultManagementEntry()],
     businessTypeOverride: '',
-    trustees: [],
-    stockholders: [],
-    commercialBankAccounts: [],
+    trustees: [createDefaultTrusteeEntry()],
+    stockholders: [createDefaultStockholderEntry()],
+    commercialBankAccounts: [createDefaultCommercialBankAccountEntry()],
     commercialDocuments: [],
     transcriptFileName: null,
     transcriptUploadedAt: null,
