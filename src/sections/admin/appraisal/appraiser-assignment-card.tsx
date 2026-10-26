@@ -129,7 +129,7 @@ const APPRAISAL_SECTION_NAV_ITEMS: { key: AppraisalSectionKey; label: string }[]
   { key: 'basisOfValuation', label: 'Basis of Valuation' },
   { key: 'remarks', label: 'Remarks' },
   { key: 'appraisalSummary', label: 'Appraisal Summary' },
-  { key: 'feeAttachment', label: 'Fee Attachment' },
+  { key: 'feeAttachment', label: 'Attachment' },
 ];
 
 // Generic over the caller's own section-key union (a plain `string` here,
@@ -366,6 +366,10 @@ export function MultiPhotoDropzone({
     onChange(photos.filter((_, i) => i !== index));
   };
 
+  const updatePhotoLabel = (index: number, nextLabel: string) => {
+    onChange(photos.map((photo, i) => (i === index ? { ...photo, label: nextLabel } : photo)));
+  };
+
   return (
     <Stack spacing={1.25}>
       {!disabled && (
@@ -393,39 +397,197 @@ export function MultiPhotoDropzone({
         </Box>
       )}
       {photos.length > 0 && (
-        <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25}>
+        <Stack spacing={1.25}>
           {photos.map((photo, index) => (
-            <Box key={`${photo.fileUrl}-${index}`} sx={{ position: 'relative', width: 88, flexShrink: 0 }}>
+            <Stack
+              key={`${photo.fileUrl}-${index}`}
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ p: 1.25, borderRadius: '10px', border: '1px solid #EEF0F5' }}
+            >
               <Box
                 component="img"
                 src={photo.fileUrl}
                 alt={photo.fileName}
-                sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EBEDF3', display: 'block' }}
+                sx={{ width: 40, height: 40, flexShrink: 0, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
+              />
+              <Stack spacing={0.25} sx={{ minWidth: 0, flexShrink: 0, width: { xs: 120, sm: 160 } }}>
+                <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#14172A' }} noWrap>
+                  {photo.fileName}
+                </Typography>
+              </Stack>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Photo label (optional)"
+                value={photo.label ?? ''}
+                disabled={disabled}
+                onChange={(event) => updatePhotoLabel(index, event.target.value)}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 14 } }}
               />
               {!disabled && (
-                <IconButton
-                  size="small"
-                  onClick={() => removePhoto(index)}
-                  sx={{
-                    position: 'absolute',
-                    top: -8,
-                    right: -8,
-                    width: 22,
-                    height: 22,
-                    bgcolor: 'common.white',
-                    border: '1px solid #EBEDF3',
-                    '&:hover': { bgcolor: '#F5F6FA' },
-                  }}
-                >
-                  <Iconify icon="mingcute:close-line" width={14} />
+                <IconButton size="small" onClick={() => removePhoto(index)} aria-label="Remove photo">
+                  <Iconify icon="mingcute:close-line" width={16} />
                 </IconButton>
               )}
-            </Box>
+            </Stack>
           ))}
         </Stack>
       )}
     </Stack>
   );
+}
+
+// One required-angle slot in the Real Estate Attachment checklist (Front/
+// Left Side/Right Side/Rear) — a single-photo dropzone, unlike
+// MultiPhotoDropzone's gallery, since each angle only ever needs one
+// photo. Shows a filled/empty state so the appraiser can see at a glance
+// which angles are still missing.
+function AngleAttachmentSlot({
+  label,
+  photo,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  photo: CollateralPhoto | null;
+  onChange: (photo: CollateralPhoto | null) => void;
+  disabled?: boolean;
+}) {
+  const { getRootProps, getInputProps } = useDropzone({
+    multiple: false,
+    accept: { 'image/*': [] },
+    disabled,
+    onDrop: (acceptedFiles) => {
+      const file = acceptedFiles[0];
+      if (!file) return;
+      onChange({ fileName: file.name, fileUrl: URL.createObjectURL(file), uploadedAt: new Date().toISOString() });
+    },
+  });
+
+  return (
+    <Box>
+      <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#5A6273', mb: 0.5 }}>{label}</Typography>
+      {photo ? (
+        <Box sx={{ position: 'relative' }}>
+          <Box
+            component="img"
+            src={photo.fileUrl}
+            alt={photo.fileName}
+            sx={{ width: '100%', height: 96, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EBEDF3', display: 'block' }}
+          />
+          {!disabled && (
+            <IconButton
+              size="small"
+              onClick={() => onChange(null)}
+              aria-label={`Remove ${label} photo`}
+              sx={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                width: 22,
+                height: 22,
+                bgcolor: 'common.white',
+                border: '1px solid #EBEDF3',
+                '&:hover': { bgcolor: '#F5F6FA' },
+              }}
+            >
+              <Iconify icon="mingcute:close-line" width={14} />
+            </IconButton>
+          )}
+        </Box>
+      ) : (
+        <Box
+          {...(disabled ? {} : getRootProps())}
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 0.5,
+            height: 96,
+            borderRadius: '8px',
+            cursor: disabled ? 'default' : 'pointer',
+            border: '1.5px dashed #B0B8CC',
+            bgcolor: 'common.white',
+            '&:hover': disabled ? undefined : { borderColor: '#1C2A6E', bgcolor: '#F5F7FF' },
+          }}
+        >
+          {!disabled && <input {...getInputProps()} />}
+          <Iconify icon="solar:camera-bold-duotone" width={20} sx={{ color: '#8891A6' }} />
+          <Typography sx={{ fontSize: 11, color: '#8891A6' }}>{disabled ? 'No photo' : 'Upload'}</Typography>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+// Simulated Lot Plot diagram — connects each bearing/distance line
+// (N/S, degrees, E/W, minutes, distance) end-to-end into a closed shape,
+// the same way a real metes-and-bounds plot would be traced by hand, and
+// renders it as an inline SVG polygon. This is NOT a real survey/GIS
+// computation (no datum, no coordinate system, no actual geodesy) — it's
+// a lightweight visual preview so the appraiser can sanity-check the
+// shape implied by the lines they typed, nothing more. Returns null when
+// there isn't enough data yet (fewer than 2 lines with usable bearings),
+// so the UI can fall back to an empty-state message instead of drawing a
+// single stray point or line. Exported so appraisal-report-preview.tsx's
+// read-only view renders the exact same diagram from the same lines,
+// instead of duplicating this geometry logic.
+export function buildLotPlotSvg(lines: LotPlotLine[]): string | null {
+  const usable = lines.filter(
+    (line) => line.northSouth && line.eastWest && (line.degrees || line.minutes) && line.distanceM
+  );
+  if (usable.length < 2) return null;
+
+  // A bearing like "N 16° W" / "S 30° E" is measured from true North or
+  // South, swinging toward East or West — convert to a standard
+  // math angle (0° = East, counter-clockwise positive) so each segment's
+  // dx/dy can be computed with plain sin/cos.
+  const points: { x: number; y: number }[] = [{ x: 0, y: 0 }];
+  usable.forEach((line) => {
+    const degrees = Number(line.degrees) || 0;
+    const minutes = Number(line.minutes) || 0;
+    const distance = Number(line.distanceM) || 0;
+    const bearingFromAxis = degrees + minutes / 60;
+    // Angle from North (0°), clockwise, in the N/S + E/W quadrant system:
+    let angleFromNorth = bearingFromAxis;
+    if (line.northSouth === 'N' && line.eastWest === 'E') angleFromNorth = bearingFromAxis;
+    if (line.northSouth === 'N' && line.eastWest === 'W') angleFromNorth = 360 - bearingFromAxis;
+    if (line.northSouth === 'S' && line.eastWest === 'E') angleFromNorth = 180 - bearingFromAxis;
+    if (line.northSouth === 'S' && line.eastWest === 'W') angleFromNorth = 180 + bearingFromAxis;
+    const radians = (angleFromNorth * Math.PI) / 180;
+    // Screen Y grows downward, so North (angle 0) is -y, East (angle 90) is +x.
+    const dx = distance * Math.sin(radians);
+    const dy = -distance * Math.cos(radians);
+    const last = points[points.length - 1];
+    points.push({ x: last.x + dx, y: last.y + dy });
+  });
+
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const spanX = maxX - minX || 1;
+  const spanY = maxY - minY || 1;
+  const viewSize = 240;
+  const padding = 24;
+  const scale = (viewSize - padding * 2) / Math.max(spanX, spanY);
+  const toViewX = (x: number) => padding + (x - minX) * scale;
+  const toViewY = (y: number) => padding + (y - minY) * scale;
+
+  const polygonPoints = points.map((p) => `${toViewX(p.x).toFixed(1)},${toViewY(p.y).toFixed(1)}`).join(' ');
+  const vertexDots = points
+    .map((p) => `<circle cx="${toViewX(p.x).toFixed(1)}" cy="${toViewY(p.y).toFixed(1)}" r="3" fill="#1C2A6E" />`)
+    .join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewSize} ${viewSize}" width="100%" height="100%">
+    <polygon points="${polygonPoints}" fill="#EEF1FE" stroke="#1C2A6E" stroke-width="1.5" stroke-linejoin="round" />
+    ${vertexDots}
+  </svg>`;
 }
 
 function LandTitleFields({
@@ -474,6 +636,8 @@ function LandTitleFields({
     });
   const removeLotPlotLine = (lineId: string) =>
     onChange({ lotPlotLines: title.lotPlotLines.filter((line) => line.id !== lineId) });
+
+  const lotPlotSvg = buildLotPlotSvg(title.lotPlotLines);
 
   const fields = (
       <Stack spacing={1.5}>
@@ -574,122 +738,151 @@ function LandTitleFields({
             border: '1px solid #E3E7F0',
           }}
         >
-          <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 1.75 }}>
-            <Box
-              sx={{
-                width: 36,
-                height: 36,
-                flexShrink: 0,
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: '#EEF1FE',
-              }}
-            >
-              <Iconify icon="solar:map-point-bold-duotone" width={19} sx={{ color: '#1C2A6E' }} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#14172A' }}>Lot Plotting</Typography>
-            </Box>
-          </Stack>
-          <Stack spacing={1} sx={{ mb: 1.75 }}>
-            <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              Lot Plotting
-            </Typography>
-            {title.lotPlotLines.map((line, index) => (
-              <Stack
-                key={line.id}
-                direction="row"
-                alignItems="center"
-                spacing={1}
-                sx={{ p: 1, borderRadius: '8px', bgcolor: 'common.white', border: '1px solid #E3E7F0' }}
-              >
-                <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', width: 20, flexShrink: 0 }}>
-                  {index + 1}
-                </Typography>
-                <TextField
-                  size="small"
-                  placeholder="P1-2"
-                  value={line.label}
-                  disabled={!editable}
-                  onChange={(event) => updateLotPlotLine(line.id, { label: event.target.value })}
-                  sx={{ width: 72, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
-                />
-                <TextField
-                  select
-                  size="small"
-                  value={line.northSouth}
-                  disabled={!editable}
-                  onChange={(event) => updateLotPlotLine(line.id, { northSouth: event.target.value as 'N' | 'S' })}
-                  sx={{ width: 64, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
-                >
-                  <MenuItem value="N">N</MenuItem>
-                  <MenuItem value="S">S</MenuItem>
-                </TextField>
-                <TextField
-                  size="small"
-                  placeholder="Deg."
-                  value={line.degrees}
-                  disabled={!editable}
-                  onChange={(event) => updateLotPlotLine(line.id, { degrees: event.target.value })}
-                  sx={{ width: 72, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
-                />
-                <TextField
-                  select
-                  size="small"
-                  value={line.eastWest}
-                  disabled={!editable}
-                  onChange={(event) => updateLotPlotLine(line.id, { eastWest: event.target.value as 'E' | 'W' })}
-                  sx={{ width: 64, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
-                >
-                  <MenuItem value="E">E</MenuItem>
-                  <MenuItem value="W">W</MenuItem>
-                </TextField>
-                <TextField
-                  size="small"
-                  placeholder="Min."
-                  value={line.minutes}
-                  disabled={!editable}
-                  onChange={(event) => updateLotPlotLine(line.id, { minutes: event.target.value })}
-                  sx={{ width: 72, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
-                />
-                <TextField
-                  size="small"
-                  placeholder="Dist. (m)"
-                  value={line.distanceM}
-                  disabled={!editable}
-                  onChange={(event) => updateLotPlotLine(line.id, { distanceM: event.target.value })}
-                  sx={{ width: 90, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 13 } }}
-                />
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} alignItems="flex-start">
+            <Box sx={{ flex: { xs: '1 1 auto', lg: '0 0 auto' }, minWidth: 0, width: { xs: 1, lg: 'fit-content' }, maxWidth: '100%' }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', letterSpacing: '0.04em', textTransform: 'uppercase', mb: 1.75 }}>
+                Lot Plotting
+              </Typography>
+              <Stack spacing={1}>
+                {title.lotPlotLines.map((line, index) => (
+                  <Stack
+                    key={line.id}
+                    direction="row"
+                    alignItems="center"
+                    spacing={0.75}
+                    sx={{
+                      p: 1,
+                      width: 'fit-content',
+                      maxWidth: '100%',
+                      borderRadius: '8px',
+                      bgcolor: 'common.white',
+                      border: '1px solid #E3E7F0',
+                    }}
+                  >
+                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', width: 16, flexShrink: 0 }}>
+                      {index + 1}
+                    </Typography>
+                    <TextField
+                      size="small"
+                      placeholder="P1-2"
+                      value={line.label}
+                      disabled={!editable}
+                      onChange={(event) => updateLotPlotLine(line.id, { label: event.target.value })}
+                      sx={{ width: 64, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 12.5 } }}
+                    />
+                    <TextField
+                      select
+                      size="small"
+                      value={line.northSouth}
+                      disabled={!editable}
+                      onChange={(event) => updateLotPlotLine(line.id, { northSouth: event.target.value as 'N' | 'S' })}
+                      sx={{ width: 56, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 12.5 } }}
+                    >
+                      <MenuItem value="N">N</MenuItem>
+                      <MenuItem value="S">S</MenuItem>
+                    </TextField>
+                    <TextField
+                      size="small"
+                      placeholder="Deg."
+                      value={line.degrees}
+                      disabled={!editable}
+                      onChange={(event) => updateLotPlotLine(line.id, { degrees: event.target.value })}
+                      sx={{ width: 60, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 12.5 } }}
+                    />
+                    <TextField
+                      select
+                      size="small"
+                      value={line.eastWest}
+                      disabled={!editable}
+                      onChange={(event) => updateLotPlotLine(line.id, { eastWest: event.target.value as 'E' | 'W' })}
+                      sx={{ width: 56, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 12.5 } }}
+                    >
+                      <MenuItem value="E">E</MenuItem>
+                      <MenuItem value="W">W</MenuItem>
+                    </TextField>
+                    <TextField
+                      size="small"
+                      placeholder="Min."
+                      value={line.minutes}
+                      disabled={!editable}
+                      onChange={(event) => updateLotPlotLine(line.id, { minutes: event.target.value })}
+                      sx={{ width: 60, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 12.5 } }}
+                    />
+                    <TextField
+                      size="small"
+                      placeholder="Dist. (m)"
+                      value={line.distanceM}
+                      disabled={!editable}
+                      onChange={(event) => updateLotPlotLine(line.id, { distanceM: event.target.value })}
+                      sx={{ width: 76, flexShrink: 0, '& .MuiOutlinedInput-root': { fontSize: 12.5 } }}
+                    />
+                    {editable && (
+                      <IconButton size="small" onClick={() => removeLotPlotLine(line.id)} sx={{ flexShrink: 0 }}>
+                        <Iconify icon="mingcute:close-line" width={16} />
+                      </IconButton>
+                    )}
+                  </Stack>
+                ))}
                 {editable && (
-                  <IconButton size="small" onClick={() => removeLotPlotLine(line.id)} sx={{ flexShrink: 0 }}>
-                    <Iconify icon="mingcute:close-line" width={16} />
-                  </IconButton>
+                  <Button
+                    onClick={addLotPlotLine}
+                    size="small"
+                    variant="outlined"
+                    startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
+                    sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
+                  >
+                    Add line
+                  </Button>
                 )}
               </Stack>
-            ))}
-            {editable && (
-              <Button
-                onClick={addLotPlotLine}
-                size="small"
-                variant="outlined"
-                startIcon={<Iconify icon="solar:add-circle-bold" width={16} />}
-                sx={{ ...outlinedNavyButtonSx, alignSelf: 'flex-start' }}
-              >
-                Add line
-              </Button>
-            )}
+            </Box>
+            <Box sx={{ flex: '1 1 auto', minWidth: 0, width: 1 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', letterSpacing: '0.04em', textTransform: 'uppercase', mb: 1.75 }}>
+                Lot Plot Image
+              </Typography>
+              {lotPlotSvg ? (
+                <Box sx={{ mb: 1.5 }}>
+                  <Box
+                    sx={{
+                      // Fixed height ~matching 4 Lot Plotting rows (the
+                      // default seed count), so the image's bottom edge
+                      // roughly lines up with the 4th line instead of
+                      // following its own 1:1 aspect ratio.
+                      height: 248,
+                      borderRadius: '10px',
+                      bgcolor: 'common.white',
+                      border: '1px solid #E3E7F0',
+                      p: 1.5,
+                    }}
+                    // The SVG markup is built locally in buildLotPlotSvg() from
+                    // the lines above, never from user-supplied HTML/text.
+                    dangerouslySetInnerHTML={{ __html: lotPlotSvg }}
+                  />
+                  <Typography sx={{ fontSize: 11, color: '#8891A6', mt: 0.75, fontStyle: 'italic' }}>
+                    Generated preview from the lines on the left — not a real survey plot.
+                  </Typography>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    height: 248,
+                    borderRadius: '10px',
+                    bgcolor: 'common.white',
+                    border: '1px dashed #DDE1EA',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 2,
+                    mb: 1.5,
+                  }}
+                >
+                  <Typography sx={{ fontSize: 12, color: '#8891A6', textAlign: 'center' }}>
+                    Fill in at least 2 lines to generate a preview.
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           </Stack>
-          <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', letterSpacing: '0.04em', textTransform: 'uppercase', mb: 1 }}>
-            Lot Plot Image
-          </Typography>
-          <MultiPhotoDropzone
-            photos={title.lotPlotPhotos}
-            onChange={(photos) => onChange({ lotPlotPhotos: photos })}
-            disabled={!editable}
-            label="Lot Plot Image"
-          />
         </Box>
         <TextField
           fullWidth
@@ -728,7 +921,7 @@ function LandTitleFields({
 
   return (
     <Box sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
-      <CollapsibleSection title={`TCT No. ${tctNumber}`} expanded={expanded} onToggle={onToggle}>
+      <CollapsibleSection title={`TCT No. ${tctNumber}`} expanded={expanded} onToggle={onToggle} titleFontSize={13}>
         {fields}
       </CollapsibleSection>
     </Box>
@@ -1319,26 +1512,25 @@ export function AppraiserAssignmentCard({
             <SectionLabel>Improvement</SectionLabel>
             <Stack spacing={1.25}>
               {report.improvements.map((improvement, index) => (
-                <Box key={improvement.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+                <Box key={improvement.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                     <Chip
                       label={`Improvement ${index + 1}`}
                       size="small"
-                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
                     />
                     {editable && (
-                      <Button
+                      <IconButton
+                        size="small"
                         onClick={() =>
                           setAppraisalBundleReport(bundleId, {
                             improvements: report.improvements.filter((entry) => entry.id !== improvement.id),
                           })
                         }
-                        size="small"
-                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                        sx={{ color: '#F04438' }}
+                        aria-label="Remove improvement"
                       >
-                        Remove
-                      </Button>
+                        <Iconify icon="mingcute:close-line" width={16} />
+                      </IconButton>
                     )}
                   </Stack>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
@@ -1450,15 +1642,16 @@ export function AppraiserAssignmentCard({
             <SectionLabel>Particular description</SectionLabel>
             <Stack spacing={1.25}>
               {report.particularDescriptions.map((particular, index) => (
-                <Box key={particular.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+                <Box key={particular.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                     <Chip
                       label={`Entry ${index + 1}`}
                       size="small"
-                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
                     />
                     {editable && (
-                      <Button
+                      <IconButton
+                        size="small"
                         onClick={() =>
                           setAppraisalBundleReport(bundleId, {
                             particularDescriptions: report.particularDescriptions.filter(
@@ -1466,12 +1659,10 @@ export function AppraiserAssignmentCard({
                             ),
                           })
                         }
-                        size="small"
-                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                        sx={{ color: '#F04438' }}
+                        aria-label="Remove entry"
                       >
-                        Remove
-                      </Button>
+                        <Iconify icon="mingcute:close-line" width={16} />
+                      </IconButton>
                     )}
                   </Stack>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
@@ -1582,8 +1773,24 @@ export function AppraiserAssignmentCard({
           >
             <SectionLabel>Basis of valuation (land)</SectionLabel>
             <Stack spacing={1.25}>
-              {report.basisOfValuationComparables.map((comparable) => (
-                <Box key={comparable.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+              {report.basisOfValuationComparables.map((comparable, index) => (
+                <Box key={comparable.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Chip
+                      label={`Comparable ${index + 1}`}
+                      size="small"
+                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
+                    />
+                    {editable && (
+                      <IconButton
+                        size="small"
+                        onClick={() => removeAppraisalBundleComparable(bundleId, comparable.id)}
+                        aria-label="Remove comparable"
+                      >
+                        <Iconify icon="mingcute:close-line" width={16} />
+                      </IconButton>
+                    )}
+                  </Stack>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
                     <TextField
                       fullWidth
@@ -1651,15 +1858,6 @@ export function AppraiserAssignmentCard({
                       }
                       sx={fieldSx}
                     />
-                    {editable && (
-                      <IconButton
-                        size="small"
-                        onClick={() => removeAppraisalBundleComparable(bundleId, comparable.id)}
-                        sx={{ mt: { xs: 0, sm: 0.5 }, flexShrink: 0 }}
-                      >
-                        <Iconify icon="mingcute:close-line" width={16} />
-                      </IconButton>
-                    )}
                   </Stack>
                 </Box>
               ))}
@@ -1674,7 +1872,7 @@ export function AppraiserAssignmentCard({
                 Add Comparable
               </Button>
             )}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 1 }}>
               <TextField
                 fullWidth
                 size="small"
@@ -1726,15 +1924,16 @@ export function AppraiserAssignmentCard({
             <SectionLabel>Conditions for acceptance of collateral</SectionLabel>
             <Stack spacing={1.25}>
               {report.conditionsForAcceptance.map((condition, index) => (
-                <Box key={condition.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3' }}>
+                <Box key={condition.id} sx={{ p: 1.5, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#FAFBFD' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                     <Chip
                       label={`Item ${index + 1}`}
                       size="small"
-                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700 }}
+                      sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
                     />
                     {editable && (
-                      <Button
+                      <IconButton
+                        size="small"
                         onClick={() =>
                           setAppraisalBundleReport(bundleId, {
                             conditionsForAcceptance: report.conditionsForAcceptance.filter(
@@ -1742,12 +1941,10 @@ export function AppraiserAssignmentCard({
                             ),
                           })
                         }
-                        size="small"
-                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" width={16} />}
-                        sx={{ color: '#F04438' }}
+                        aria-label="Remove item"
                       >
-                        Remove
-                      </Button>
+                        <Iconify icon="mingcute:close-line" width={16} />
+                      </IconButton>
                     )}
                   </Stack>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
@@ -1935,12 +2132,49 @@ export function AppraiserAssignmentCard({
             spacing={1.5}
             ref={(el: HTMLDivElement | null) => { sectionRefs.current.set('feeAttachment', el); }}
           >
-            <SectionLabel>Fee attachment</SectionLabel>
+            <SectionLabel>Attachment</SectionLabel>
+            <Stack spacing={0.75}>
+              <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#8891A6', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Property Photos (by angle)
+              </Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
+                  gap: 1.25,
+                }}
+              >
+                <AngleAttachmentSlot
+                  label="Front"
+                  photo={report.attachmentFrontPhoto}
+                  onChange={(photo) => setAppraisalBundleReport(bundleId, { attachmentFrontPhoto: photo })}
+                  disabled={!editable}
+                />
+                <AngleAttachmentSlot
+                  label="Left Side"
+                  photo={report.attachmentLeftSidePhoto}
+                  onChange={(photo) => setAppraisalBundleReport(bundleId, { attachmentLeftSidePhoto: photo })}
+                  disabled={!editable}
+                />
+                <AngleAttachmentSlot
+                  label="Right Side"
+                  photo={report.attachmentRightSidePhoto}
+                  onChange={(photo) => setAppraisalBundleReport(bundleId, { attachmentRightSidePhoto: photo })}
+                  disabled={!editable}
+                />
+                <AngleAttachmentSlot
+                  label="Rear"
+                  photo={report.attachmentRearPhoto}
+                  onChange={(photo) => setAppraisalBundleReport(bundleId, { attachmentRearPhoto: photo })}
+                  disabled={!editable}
+                />
+              </Box>
+            </Stack>
             <MultiPhotoDropzone
               photos={report.feeAttachments}
               onChange={(feeAttachments) => setAppraisalBundleReport(bundleId, { feeAttachments })}
               disabled={!editable}
-              label="Fee Attachment"
+              label="Additional Attachment"
             />
           </Stack>
 

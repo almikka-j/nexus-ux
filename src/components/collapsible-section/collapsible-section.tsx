@@ -45,6 +45,8 @@ export type CollapsibleSectionProps = {
   headerAction?: ReactNode;
   /** Body revealed by the toggle. Omit for a header-only card (title + subtitle + headerAction, nothing to expand). */
   children?: ReactNode;
+  /** Title font size in px. Defaults to 16 (page-section-sized); pass a smaller value (e.g. 13) for a title that's meant to read as a card/entry label rather than a section heading. */
+  titleFontSize?: number;
 };
 
 export function CollapsibleSection({
@@ -57,6 +59,7 @@ export function CollapsibleSection({
   completeIcon,
   headerAction,
   children,
+  titleFontSize = 16,
 }: CollapsibleSectionProps) {
   const hasBody = children != null && children !== false;
   const subtitleNode = subtitle && (
@@ -94,7 +97,7 @@ export function CollapsibleSection({
                   }}
                 />
                 {iconNode}
-                <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+                <Typography sx={{ fontSize: titleFontSize, fontWeight: 700, color: '#14172A' }}>
                   {title}
                 </Typography>
                 {badge}
@@ -108,7 +111,7 @@ export function CollapsibleSection({
             <>
               <Stack direction="row" alignItems="center" spacing={1}>
                 {iconNode}
-                <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#14172A' }}>
+                <Typography sx={{ fontSize: titleFontSize, fontWeight: 700, color: '#14172A' }}>
                   {title}
                 </Typography>
                 {badge}

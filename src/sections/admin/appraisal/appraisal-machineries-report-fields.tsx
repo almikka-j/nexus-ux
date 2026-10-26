@@ -1,8 +1,7 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
-
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -103,8 +102,7 @@ export function computeTotalAppraisedValue(machineries: AppraisalMachineryEntry[
   return machineries.reduce((sum, m) => sum + parseNum(m.appraisedValueLessDepreciation), 0);
 }
 
-/** The full field form for one machinery entry — rendered only while
- *  that entry's summary line is expanded. */
+/** The full field form for one machinery entry — always visible, no collapse. */
 function MachineryEntryForm({
   entry,
   editable,
@@ -184,38 +182,29 @@ function MachineryEntryForm({
   );
 }
 
-/** One machinery entry's summary line — Unit(s) + Description (bold) —
- *  plus an expand pencil and a trailing remove ×. */
-function MachinerySummaryLine({
-  entry,
-  expanded,
-  onToggle,
+/** One machinery entry's header row — a "Machinery N" badge (same
+ *  Chip-badge convention as Real Estate's Improvement/Particular
+ *  Description/Comparable cards) plus a trailing remove ×. All fields
+ *  are always visible below (see MachineriesSection) — no collapse. */
+function MachineryEntryHeader({
+  index,
   onRemove,
   editable,
 }: {
-  entry: AppraisalMachineryEntry;
-  expanded: boolean;
-  onToggle: () => void;
+  index: number;
   onRemove: () => void;
   editable: boolean;
 }) {
-  const summary = [entry.units, entry.description].filter(Boolean).join(' — ') || 'Untitled machinery';
   return (
-    <Stack direction="row" spacing={1} alignItems="center">
-      <Typography sx={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: '#14172A' }} noWrap>
-        {summary}
-      </Typography>
-      <IconButton
+    <Stack direction="row" justifyContent="space-between" alignItems="center">
+      <Chip
+        label={`Machinery ${index + 1}`}
         size="small"
-        onClick={onToggle}
-        aria-label={expanded ? 'Collapse machinery details' : 'Edit machinery details'}
-        sx={{ flexShrink: 0 }}
-      >
-        <Iconify icon={expanded ? 'solar:alt-arrow-up-bold' : 'solar:pen-bold'} width={15} />
-      </IconButton>
+        sx={{ bgcolor: '#EEF1FE', color: '#3448B0', fontWeight: 700, cursor: 'default', pointerEvents: 'none' }}
+      />
       {editable && (
-        <IconButton size="small" onClick={onRemove} aria-label="Remove machinery entry" sx={{ flexShrink: 0 }}>
-          <Iconify icon="mingcute:close-line" width={15} />
+        <IconButton size="small" onClick={onRemove} aria-label="Remove machinery entry">
+          <Iconify icon="mingcute:close-line" width={16} />
         </IconButton>
       )}
     </Stack>
@@ -237,64 +226,37 @@ function MachineriesSection({
   editable: boolean;
 }) {
   const { addAppraisalMachineryEntry, updateAppraisalMachineryEntry, removeAppraisalMachineryEntry } = useAdmin();
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-  const toggle = (id: string) =>
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const prevCountRef = useRef(machineries.length);
-  useEffect(() => {
-    if (machineries.length > prevCountRef.current) {
-      const lastId = machineries[machineries.length - 1].id;
-      setExpandedIds((prev) => new Set(prev).add(lastId));
-    }
-    prevCountRef.current = machineries.length;
-  }, [machineries]);
 
   return (
     <Stack spacing={1.5}>
       <SectionLabel>Machineries</SectionLabel>
-      {/* Outer group box reuses Real Estate's Lot Plotting wrapper style;
-          each entry is its own bordered row (Real Estate's repeatable-row
-          style, white so it reads against the group box's tint). */}
-      <Box sx={{ p: 2, borderRadius: '13px', bgcolor: '#F8F9FC', border: '1px solid #E3E7F0' }}>
-        <Stack spacing={1.25}>
-          {machineries.length === 0 ? (
-            <Box sx={{ p: 1.5, borderRadius: '10px', border: '1.5px dashed #C7CCDA', bgcolor: '#F9FAFC' }}>
-              <Typography sx={{ fontSize: 12, fontStyle: 'italic', color: '#5A6273' }}>
-                No machineries recorded yet.
-              </Typography>
+      <Stack spacing={1.25}>
+        {machineries.length === 0 ? (
+          <Box sx={{ p: 1.5, borderRadius: '10px', border: '1.5px dashed #C7CCDA', bgcolor: '#F9FAFC' }}>
+            <Typography sx={{ fontSize: 12, fontStyle: 'italic', color: '#5A6273' }}>
+              No machineries recorded yet.
+            </Typography>
+          </Box>
+        ) : (
+          machineries.map((entry, index) => (
+            <Box
+              key={entry.id}
+              sx={{ p: 1.5, borderRadius: '10px', bgcolor: '#FAFBFD', border: '1px solid #EBEDF3' }}
+            >
+              <MachineryEntryHeader
+                index={index}
+                onRemove={() => removeAppraisalMachineryEntry(bundleId, entry.id)}
+                editable={editable}
+              />
+              <MachineryEntryForm
+                entry={entry}
+                editable={editable}
+                onChange={(data) => updateAppraisalMachineryEntry(bundleId, entry.id, data)}
+              />
             </Box>
-          ) : (
-            machineries.map((entry) => (
-              <Box
-                key={entry.id}
-                sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'common.white', border: '1px solid #EBEDF3' }}
-              >
-                <MachinerySummaryLine
-                  entry={entry}
-                  expanded={expandedIds.has(entry.id)}
-                  onToggle={() => toggle(entry.id)}
-                  onRemove={() => removeAppraisalMachineryEntry(bundleId, entry.id)}
-                  editable={editable}
-                />
-                {expandedIds.has(entry.id) && (
-                  <MachineryEntryForm
-                    entry={entry}
-                    editable={editable}
-                    onChange={(data) => updateAppraisalMachineryEntry(bundleId, entry.id, data)}
-                  />
-                )}
-              </Box>
-            ))
-          )}
-        </Stack>
-      </Box>
+          ))
+        )}
+      </Stack>
       {editable && (
         <Button
           onClick={() => addAppraisalMachineryEntry(bundleId)}

@@ -220,18 +220,21 @@ function ConditionSection({
               onChange={(event) =>
                 onItemChange(item.id, { rating: event.target.value as AppraisalConditionItem['rating'] })
               }
+              sx={{ flexWrap: 'nowrap', flexShrink: 0 }}
             >
               <FormControlLabel
                 value="good"
                 control={<Radio size="small" />}
-                label={<Typography sx={{ fontSize: 13.5 }}>Good</Typography>}
+                label={<Typography sx={{ fontSize: 13.5, whiteSpace: 'nowrap' }}>Good</Typography>}
                 disabled={!editable}
+                sx={{ mr: 1.5 }}
               />
               <FormControlLabel
                 value="bad"
                 control={<Radio size="small" />}
-                label={<Typography sx={{ fontSize: 13.5 }}>Bad</Typography>}
+                label={<Typography sx={{ fontSize: 13.5, whiteSpace: 'nowrap' }}>Bad</Typography>}
                 disabled={!editable}
+                sx={{ mr: 0 }}
               />
             </RadioGroup>
             <TextField

@@ -1085,11 +1085,16 @@ export type AppraiserType = 'inhouse' | 'external';
 // One uploaded Collateral Photo — same fileName/fileUrl/uploadedAt
 // triplet shape every other single-file upload in this app uses, just an
 // array entry instead of a single field, since a title can have more
-// than one collateral photo.
+// than one collateral photo. `label` is an optional, officer/appraiser-
+// typed caption (e.g. "Side yard", "Garage") shown above the photo in a
+// multi-photo gallery like the Attachment section's "Additional
+// Attachment" — separate from fileName, which is the actual upload's
+// filename and isn't user-editable.
 export type CollateralPhoto = {
   fileName: string;
   fileUrl: string;
   uploadedAt: string;
+  label?: string;
 };
 
 // One row of a title's Lot Plotting bearings table (the "#, N/S, Degrees,
@@ -1368,10 +1373,20 @@ export type AppraisalReport = {
   leasablePercent: string;
   leasableAmount: string;
 
-  // Generic "Fee Attachment" gallery — any number of supporting photos
-  // for the report as a whole, distinct from each title's own
-  // Collateral Photos/Lot Plot Image.
+  // Generic "Attachment" gallery — any number of supporting photos for
+  // the report as a whole, distinct from each title's own Collateral
+  // Photos/Lot Plot Image.
   feeAttachments: CollateralPhoto[];
+
+  // Required photo-angle checklist — Real Estate only. Each slot takes
+  // exactly one photo (not a gallery like feeAttachments above), so the
+  // appraiser can see at a glance which angles of the property are still
+  // missing before submitting. Optional/nullable because an appraiser
+  // may not have all 4 yet while still filling in the rest of the form.
+  attachmentFrontPhoto: CollateralPhoto | null;
+  attachmentLeftSidePhoto: CollateralPhoto | null;
+  attachmentRightSidePhoto: CollateralPhoto | null;
+  attachmentRearPhoto: CollateralPhoto | null;
 
   fileName: string | null;
   fileUrl: string | null;
@@ -3033,6 +3048,11 @@ function createBlankAppraisalReport(tctGroupIds: string[]): AppraisalReport {
 
     feeAttachments: [],
 
+    attachmentFrontPhoto: null,
+    attachmentLeftSidePhoto: null,
+    attachmentRightSidePhoto: null,
+    attachmentRearPhoto: null,
+
     fileName: null,
     fileUrl: null,
     uploadedAt: null,
@@ -3679,6 +3699,10 @@ function readStoredState(): AdminState {
                 leasablePercent: '',
                 leasableAmount: '',
                 feeAttachments: [],
+                attachmentFrontPhoto: null,
+                attachmentLeftSidePhoto: null,
+                attachmentRightSidePhoto: null,
+                attachmentRearPhoto: null,
                 fileName: null,
                 fileUrl: null,
                 uploadedAt: null,

@@ -7,6 +7,8 @@ import Typography from '@mui/material/Typography';
 import { Iconify } from 'src/components/iconify';
 import { FieldTable, FieldTableRow } from 'src/components/admin-ui';
 
+import { buildLotPlotSvg } from './appraiser-assignment-card';
+
 import type { AppraisalReport, AppraisalReportLandTitle } from 'src/auth/admin-context';
 
 // ----------------------------------------------------------------------
@@ -129,10 +131,9 @@ function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitl
         <FieldTableRow pairs={[['Zonal Value', display(title.zonalValue)]]} />
       </FieldTable>
 
-      {(title.lotPlotLines.some(
+      {title.lotPlotLines.some(
         (line) => line.label || line.northSouth || line.degrees || line.eastWest || line.minutes || line.distanceM
-      ) ||
-        title.lotPlotPhotos.length > 0) && (
+      ) && (
         <Box sx={{ p: 1.25, borderRadius: '10px', border: '1px solid #EBEDF3', bgcolor: '#F9FAFC' }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
             <Iconify icon="solar:map-point-bold-duotone" width={16} sx={{ color: '#5A6273' }} />
@@ -141,72 +142,72 @@ function LandTitlePreview({ title, tctNumber }: { title: AppraisalReportLandTitl
             </Typography>
           </Stack>
 
-          {title.lotPlotLines.some(
-            (line) => line.label || line.northSouth || line.degrees || line.eastWest || line.minutes || line.distanceM
-          ) && (
-            <Stack spacing={1} sx={{ mb: title.lotPlotPhotos.length > 0 ? 1.5 : 0 }}>
-              {title.lotPlotLines
-                .filter(
-                  (line) =>
-                    line.label || line.northSouth || line.degrees || line.eastWest || line.minutes || line.distanceM
-                )
-                .map((line, index) => (
-                  <Stack
-                    key={line.id}
-                    direction="row"
-                    alignItems="center"
-                    spacing={1}
-                    sx={{ p: 1, borderRadius: '8px', bgcolor: 'common.white', border: '1px solid #E3E7F0' }}
-                  >
-                    <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', width: 20, flexShrink: 0 }}>
-                      {index + 1}
-                    </Typography>
-                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A' }}>
-                      {line.label || '—'}
-                    </Typography>
-                    <Typography sx={{ fontSize: 13, color: '#5A6273' }}>
-                      {[line.northSouth, line.degrees && `${line.degrees}°`, line.eastWest, line.minutes && `${line.minutes}'`]
-                        .filter(Boolean)
-                        .join(' ') || '—'}
-                    </Typography>
-                    <Typography sx={{ fontSize: 13, color: '#5A6273', ml: 'auto' }}>
-                      {line.distanceM ? `${line.distanceM} m` : '—'}
-                    </Typography>
-                  </Stack>
-                ))}
-            </Stack>
-          )}
-
-          {title.lotPlotPhotos.length > 0 && (
-            <>
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} alignItems="flex-start">
+            <Box sx={{ flex: { xs: '1 1 auto', lg: '0 0 auto' }, minWidth: 0, width: { xs: 1, lg: 'fit-content' }, maxWidth: '100%' }}>
+              <Stack spacing={1}>
+                {title.lotPlotLines
+                  .filter(
+                    (line) =>
+                      line.label || line.northSouth || line.degrees || line.eastWest || line.minutes || line.distanceM
+                  )
+                  .map((line, index) => (
+                    <Stack
+                      key={line.id}
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      sx={{ p: 1, borderRadius: '8px', bgcolor: 'common.white', border: '1px solid #E3E7F0' }}
+                    >
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#8891A6', width: 20, flexShrink: 0 }}>
+                        {index + 1}
+                      </Typography>
+                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#14172A', width: 64, flexShrink: 0 }}>
+                        {line.label || '—'}
+                      </Typography>
+                      <Typography sx={{ fontSize: 13, color: '#5A6273', width: 110, flexShrink: 0 }}>
+                        {[line.northSouth, line.degrees && `${line.degrees}°`, line.eastWest, line.minutes && `${line.minutes}'`]
+                          .filter(Boolean)
+                          .join(' ') || '—'}
+                      </Typography>
+                      <Typography sx={{ fontSize: 13, color: '#5A6273', width: 64, flexShrink: 0 }}>
+                        {line.distanceM ? `${line.distanceM} m` : '—'}
+                      </Typography>
+                    </Stack>
+                  ))}
+              </Stack>
+            </Box>
+            <Box sx={{ flex: '1 1 auto', minWidth: 0, width: 1 }}>
               <Typography sx={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A6273', mb: 1 }}>
                 Lot Plot Image
               </Typography>
-              <Stack direction="row" spacing={1.25} flexWrap="wrap" rowGap={1.25}>
-                {title.lotPlotPhotos.map((photo, index) => (
+              {(() => {
+                const svg = buildLotPlotSvg(title.lotPlotLines);
+                return svg ? (
                   <Box
-                    key={`${photo.fileUrl}-${index}`}
+                    sx={{ height: 248, borderRadius: '10px', bgcolor: 'common.white', border: '1px solid #E3E7F0', p: 1.5 }}
+                    dangerouslySetInnerHTML={{ __html: svg }}
+                  />
+                ) : (
+                  <Box
                     sx={{
-                      width: 56,
-                      height: 56,
-                      flexShrink: 0,
-                      borderRadius: '8px',
-                      border: '1px solid #EBEDF3',
-                      bgcolor: '#F5F6FA',
-                      overflow: 'hidden',
+                      height: 248,
+                      borderRadius: '10px',
+                      bgcolor: 'common.white',
+                      border: '1px dashed #DDE1EA',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      p: 2,
                     }}
                   >
-                    <Box
-                      component="img"
-                      src={photo.fileUrl}
-                      alt={`Lot plot image ${index + 1} — TCT No. ${tctNumber}`}
-                      sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-                    />
+                    <Typography sx={{ fontSize: 12, color: '#8891A6', textAlign: 'center' }}>
+                      Not enough lines to generate a preview.
+                    </Typography>
                   </Box>
-                ))}
-              </Stack>
-            </>
-          )}
+                );
+              })()}
+            </Box>
+          </Stack>
         </Box>
       )}
 
@@ -482,18 +483,55 @@ export function AppraisalReportPreview({
         </FieldTable>
       </Section>
 
-      {report.feeAttachments.length > 0 && (
-        <Section title="Fee Attachment">
-          <Stack direction="row" flexWrap="wrap" gap={1.5}>
-            {report.feeAttachments.map((photo, index) => (
-              <Box
-                key={`${photo.fileUrl}-${index}`}
-                component="img"
-                src={photo.fileUrl}
-                alt={photo.fileName}
-                sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
-              />
-            ))}
+      {(report.attachmentFrontPhoto ||
+        report.attachmentLeftSidePhoto ||
+        report.attachmentRightSidePhoto ||
+        report.attachmentRearPhoto ||
+        report.feeAttachments.length > 0) && (
+        <Section title="Attachment">
+          <Stack spacing={1.5}>
+            {(report.attachmentFrontPhoto ||
+              report.attachmentLeftSidePhoto ||
+              report.attachmentRightSidePhoto ||
+              report.attachmentRearPhoto) && (
+              <Stack direction="row" flexWrap="wrap" gap={1.5}>
+                {(
+                  [
+                    ['Front', report.attachmentFrontPhoto],
+                    ['Left Side', report.attachmentLeftSidePhoto],
+                    ['Right Side', report.attachmentRightSidePhoto],
+                    ['Rear', report.attachmentRearPhoto],
+                  ] as const
+                )
+                  .filter(([, photo]) => photo)
+                  .map(([label, photo]) => (
+                    <Box key={label}>
+                      <Box
+                        component="img"
+                        src={photo!.fileUrl}
+                        alt={photo!.fileName}
+                        sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5', display: 'block' }}
+                      />
+                      <Typography sx={{ fontSize: 11, color: '#8891A6', mt: 0.5, textAlign: 'center' }}>
+                        {label}
+                      </Typography>
+                    </Box>
+                  ))}
+              </Stack>
+            )}
+            {report.feeAttachments.length > 0 && (
+              <Stack direction="row" flexWrap="wrap" gap={1.5}>
+                {report.feeAttachments.map((photo, index) => (
+                  <Box
+                    key={`${photo.fileUrl}-${index}`}
+                    component="img"
+                    src={photo.fileUrl}
+                    alt={photo.fileName}
+                    sx={{ width: 88, height: 66, objectFit: 'cover', borderRadius: '8px', border: '1px solid #EEF0F5' }}
+                  />
+                ))}
+              </Stack>
+            )}
           </Stack>
         </Section>
       )}

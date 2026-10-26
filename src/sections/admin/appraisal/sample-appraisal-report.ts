@@ -237,6 +237,11 @@ export function buildSampleAppraisalReport(
       { fileName: 'Fee-Attachment-Sample.svg', fileUrl: SAMPLE_COLLATERAL_PHOTO, uploadedAt: now },
     ],
 
+    attachmentFrontPhoto: { fileName: 'Front-Sample.svg', fileUrl: SAMPLE_COLLATERAL_PHOTO, uploadedAt: now },
+    attachmentLeftSidePhoto: { fileName: 'Left-Side-Sample.svg', fileUrl: SAMPLE_COLLATERAL_PHOTO, uploadedAt: now },
+    attachmentRightSidePhoto: { fileName: 'Right-Side-Sample.svg', fileUrl: SAMPLE_COLLATERAL_PHOTO, uploadedAt: now },
+    attachmentRearPhoto: { fileName: 'Rear-Sample.svg', fileUrl: SAMPLE_COLLATERAL_PHOTO, uploadedAt: now },
+
     uploadedAt: submit ? now : null,
   };
 }
